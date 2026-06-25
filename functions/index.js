@@ -1,8 +1,12 @@
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { onValueCreated, onValueUpdated, onValueWritten } = require("firebase-functions/v2/database");
 const { onRequest } = require("firebase-functions/v2/https");
+const { defineSecret } = require("firebase-functions/params");
 const admin = require("firebase-admin");
 const crypto = require("crypto");
+
+const LIQPAY_PUBLIC_KEY  = defineSecret("LIQPAY_PUBLIC_KEY");
+const LIQPAY_PRIVATE_KEY = defineSecret("LIQPAY_PRIVATE_KEY");
 
 admin.initializeApp();
 const db = admin.database();
@@ -582,22 +586,27 @@ exports.sendLessonReminders = onSchedule(
 
 // ─── LIQPAY SUBSCRIPTION ─────────────────────────────────────────
 
-const LIQPAY_PUBLIC_KEY  = process.env.LIQPAY_PUBLIC_KEY  || "";
-const LIQPAY_PRIVATE_KEY = process.env.LIQPAY_PRIVATE_KEY || "";
 const MONTHLY_PRICE = 499;
 
 // Створює LiqPay платіж для підписки інструктора
 exports.createLiqPayOrder = onRequest(
-  { region: "europe-west1", cors: ["https://admin.drivepad.pro", "http://localhost:5173"] },
+  {
+    region: "europe-west1",
+    cors: ["https://admin.drivepad.pro", "http://localhost:5173"],
+    secrets: [LIQPAY_PUBLIC_KEY, LIQPAY_PRIVATE_KEY],
+  },
   async (req, res) => {
     if (req.method !== "POST") { res.status(405).send("Method Not Allowed"); return; }
     const { amount, months, iid } = req.body || {};
     if (!iid) { res.status(400).json({ error: "missing iid" }); return; }
 
+    const pubKey  = LIQPAY_PUBLIC_KEY.value();
+    const privKey = LIQPAY_PRIVATE_KEY.value();
+
     const orderId = `sub_${iid}_${Date.now()}`;
     const params = {
       version:     "3",
-      public_key:  LIQPAY_PUBLIC_KEY,
+      public_key:  pubKey,
       action:      "pay",
       amount:      String(amount || MONTHLY_PRICE),
       currency:    "UAH",
@@ -609,7 +618,7 @@ exports.createLiqPayOrder = onRequest(
 
     const data = Buffer.from(JSON.stringify(params)).toString("base64");
     const signature = crypto.createHash("sha1")
-      .update(LIQPAY_PRIVATE_KEY + data + LIQPAY_PRIVATE_KEY)
+      .update(privKey + data + privKey)
       .digest("base64");
 
     res.json({ data, signature, action: "https://www.liqpay.ua/api/3/checkout" });
@@ -618,13 +627,18 @@ exports.createLiqPayOrder = onRequest(
 
 // LiqPay callback — верифікує підпис, активує підписку
 exports.liqpayCallback = onRequest(
-  { region: "europe-west1", cors: true },
+  {
+    region: "europe-west1",
+    cors: true,
+    secrets: [LIQPAY_PRIVATE_KEY],
+  },
   async (req, res) => {
     const { data, signature } = req.body || {};
     if (!data || !signature) { res.status(400).send("Bad request"); return; }
 
+    const privKey = LIQPAY_PRIVATE_KEY.value();
     const expected = crypto.createHash("sha1")
-      .update(LIQPAY_PRIVATE_KEY + data + LIQPAY_PRIVATE_KEY)
+      .update(privKey + data + privKey)
       .digest("base64");
     if (expected !== signature) { res.status(403).send("Invalid signature"); return; }
 
@@ -638,15 +652,15 @@ exports.liqpayCallback = onRequest(
     if (!match) { res.send("OK"); return; }
     const iid = match[1];
 
-    const months  = Math.max(1, Math.round(Number(amount) / MONTHLY_PRICE));
-    const now      = Date.now();
+    const months    = Math.max(1, Math.round(Number(amount) / MONTHLY_PRICE));
+    const now       = Date.now();
     const expiresAt = now + months * 30 * 24 * 3600 * 1000;
 
     await db.ref(`instructors/${iid}/subscription`).update({
       plan: "active",
       expiresAt,
-      lastPaidAt:          now,
-      lastPaymentAmount:   Number(amount),
+      lastPaidAt:        now,
+      lastPaymentAmount: Number(amount),
     }).catch(console.error);
 
     console.log(`liqpayCallback: activated iid=${iid} months=${months} expiresAt=${new Date(expiresAt).toISOString()}`);
