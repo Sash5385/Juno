@@ -1,7 +1,17 @@
 import { useState, useEffect } from "react";
 import { signInWithEmailAndPassword, onAuthStateChanged } from "firebase/auth";
-import { update } from "firebase/database";
-import { auth, iRef } from "./firebase";
+import { ref, get, update, set } from "firebase/database";
+import { auth, iRef, db } from "./firebase";
+
+const TRANSLIT = {
+  'а':'a','б':'b','в':'v','г':'g','ґ':'g','д':'d','е':'e','є':'ye',
+  'ж':'zh','з':'z','и':'y','і':'i','ї':'yi','й':'y','к':'k','л':'l',
+  'м':'m','н':'n','о':'o','п':'p','р':'r','с':'s','т':'t','у':'u',
+  'ф':'f','х':'kh','ц':'ts','ч':'ch','ш':'sh','щ':'shch','ь':'','ю':'yu','я':'ya',
+  ' ':'-',
+};
+const toSlug = (str) => str.toLowerCase().split('').map(c => TRANSLIT[c] ?? c).join('')
+  .replace(/[^a-z0-9-]+/g, '').replace(/-+/g, '-').replace(/^-+|-+$/g, '');
 
 const BG_DEEP = "#161719";
 const SURFACE = "#26282c";
@@ -81,22 +91,41 @@ export function InstructorSetupScreen({ onDone }) {
   const [phone,      setPhone]      = useState("");
   const [address,    setAddress]    = useState("");
   const [experience, setExperience] = useState("");
+  const [slug,       setSlug]       = useState("");
+  const [slugError,  setSlugError]  = useState("");
   const [saving,     setSaving]     = useState(false);
   const [error,      setError]      = useState("");
 
-  const canSave = name.trim() && phone.trim();
+  const handleNameChange = (v) => {
+    setName(v);
+    if (!slug || slug === toSlug(name)) setSlug(toSlug(v));
+  };
+
+  const handleSlugChange = (v) => {
+    setSlug(v.toLowerCase().replace(/[^a-z0-9-]/g, '').replace(/-+/g, '-'));
+    setSlugError('');
+  };
+
+  const canSave = name.trim() && phone.trim() && slug.length >= 3;
 
   const save = async () => {
     if (!canSave) return;
     setSaving(true);
-    setError("");
+    setError(""); setSlugError("");
     try {
+      const slugSnap = await get(ref(db, `slugs/${slug}`));
+      if (slugSnap.exists()) {
+        setSlugError("Цей slug вже зайнятий. Оберіть інший.");
+        setSaving(false); return;
+      }
       const profile = {
         name:       name.trim(),
         phone:      phone.trim(),
         address:    address.trim() || "",
         experience: Number(experience) || 0,
+        slug,
       };
+      const iid = auth.currentUser.uid;
       const TRIAL_DAYS = 14;
       await update(iRef(""), {
         "admin_settings/profile": profile,
@@ -104,6 +133,7 @@ export function InstructorSetupScreen({ onDone }) {
         "subscription/trialEndsAt": Date.now() + TRIAL_DAYS * 24 * 3600 * 1000,
         "subscription/createdAt":   Date.now(),
       });
+      await set(ref(db, `slugs/${slug}`), { iid });
       onDone(profile);
     } catch {
       setError("Помилка збереження. Перевірте з'єднання.");
@@ -123,11 +153,21 @@ export function InstructorSetupScreen({ onDone }) {
 
         <div style={{ marginBottom:14 }}>
           <div style={LBL}>Ім'я та прізвище *</div>
-          <input value={name} onChange={e=>setName(e.target.value)} placeholder="Олександр Коваленко" style={INP}/>
+          <input value={name} onChange={e=>handleNameChange(e.target.value)} placeholder="Олександр Коваленко" style={INP}/>
         </div>
         <div style={{ marginBottom:14 }}>
           <div style={LBL}>Телефон *</div>
           <input value={phone} onChange={e=>setPhone(e.target.value)} placeholder="+380XXXXXXXXX" type="tel" style={INP}/>
+        </div>
+        <div style={{ marginBottom:14 }}>
+          <div style={LBL}>Адреса в посиланні * (мін. 3 символи)</div>
+          <div style={{ display:'flex', alignItems:'center', background:BG_DEEP, border:`1px solid ${slugError?ACCENT:BORDER}`, borderRadius:10, overflow:'hidden' }}>
+            <span style={{ padding:'10px 8px 10px 14px', color:DIM, fontSize:12, flexShrink:0, userSelect:'none' }}>book/</span>
+            <input value={slug} onChange={e=>handleSlugChange(e.target.value)} placeholder="ivan-marchenko"
+              style={{ ...INP, border:'none', borderRadius:0, padding:'10px 14px 10px 0', flex:1, minWidth:0 }}/>
+          </div>
+          {slugError && <div style={{ fontSize:11, color:ACCENT, marginTop:4 }}>{slugError}</div>}
+          {!slugError && slug.length >= 3 && <div style={{ fontSize:11, color:DIM, marginTop:4 }}>Посилання: /book/{slug}</div>}
         </div>
         <div style={{ marginBottom:14 }}>
           <div style={LBL}>Місто / Адреса</div>

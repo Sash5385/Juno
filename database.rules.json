@@ -1,15 +1,26 @@
 {
   "rules": {
+    "slugs": {
+      ".read": true,
+      "$slug": {
+        ".write": "auth != null && (!data.exists() || data.child('iid').val() === auth.uid)"
+      }
+    },
     "instructors": {
       "$iid": {
         ".read": "auth != null && auth.uid === $iid",
         ".write": "auth != null && auth.uid === $iid",
         "timeslots": {
-          ".read": true
+          ".read": true,
+          "$date": {
+            "$time": {
+              ".write": "data.child('available').val() === true || (auth != null && auth.uid === $iid)"
+            }
+          }
         },
         "admin_data": {
           "services": {
-            ".read": "auth != null"
+            ".read": true
           }
         },
         "admin_settings": {
@@ -18,7 +29,7 @@
         "bookings": {
           "$uid": {
             ".read": "auth != null && (auth.uid === $uid || auth.uid === $iid)",
-            ".write": "auth != null && (auth.uid === $uid || auth.uid === $iid)"
+            ".write": "(auth != null && (auth.uid === $uid || auth.uid === $iid)) || $uid.matches(/^guest_.+/)"
           }
         },
         "users": {
