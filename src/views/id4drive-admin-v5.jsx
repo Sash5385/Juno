@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useLayoutEffect, useMemo, useContext } from "react";
-import { ref, update, get, onValue, off, remove, push as fbPush } from "firebase/database";
-import { db } from "../firebase";
+import { update, get, onValue, off, remove, push as fbPush } from "firebase/database";
+import { iRef } from "../firebase";
 
 import { ThemeContext, GREEN, BLUE, PURPLE, GOLD, RED, TEAL, ACCENT, ACC_HI, SURFACE, SURF_HI, TEXT } from "../theme.js";
 import { useFX } from "../ui";
@@ -483,7 +483,7 @@ function BroadcastModal({ initialDate, initialSlot, onClose }) {
     if (!canSend) return;
     setSending(true);
     try {
-      await fbPush(ref(db, "push_tasks"), { date, slots: slotsArr, comment: comment || null, createdAt: Date.now(), status: "pending" });
+      await fbPush(iRef("push_tasks"), { date, slots: slotsArr, comment: comment || null, createdAt: Date.now(), status: "pending" });
       setSent(true);
     } catch (e) { setSendError("Помилка: " + e.message); }
     finally { setSending(false); }
@@ -644,7 +644,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   const [queueMap, setQueueMap] = useState({}); // { "YYYY-MM-DD_HH:MM": count }
 
   useEffect(() => {
-    const r = ref(db, "queue");
+    const r = iRef("queue");
     const unsub = onValue(r, snap => {
       const val = snap.val() || {};
       const map = {};
@@ -659,7 +659,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   }, []);
 
   useEffect(() => {
-    const r = ref(db, "timeslots");
+    const r = iRef("timeslots");
     const unsub = onValue(r, snap => {
       const val = snap.val() || {};
       const slots = {};
@@ -735,7 +735,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
           }
         });
       });
-      if (Object.keys(upd).length) update(ref(db, "/"), upd).catch(() => {});
+      if (Object.keys(upd).length) update(iRef(""), upd).catch(() => {});
     }, 400);
     return () => clearTimeout(t);
   }, [bookings, openSlots]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -791,10 +791,10 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
     const dateStr = absDayToDateStr(absDay);
     setGenLoadingDays(s => new Set([...s, absDay]));
     try {
-      await remove(ref(db, `timeslots/${dateStr}`));
+      await remove(iRef(`timeslots/${dateStr}`));
       const result = computeDayUpdates(dateStr, {}, true);
       if (result && Object.keys(result.updates).length) {
-        await update(ref(db, "/"), result.updates);
+        await update(iRef(""), result.updates);
       }
       clearTimeout(genToastTimer.current);
       setGenToast({ absDay, free: result?.free ?? 0, blocked: result?.blocked ?? 0 });
@@ -806,7 +806,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
 
   const clearDaySlots = async (absDay) => {
     const dateStr = absDayToDateStr(absDay);
-    await remove(ref(db, `timeslots/${dateStr}`));
+    await remove(iRef(`timeslots/${dateStr}`));
   };
 
   const generateAllSlots = async () => {
@@ -819,14 +819,14 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
       for (let d = 0; d <= limit; d++) {
         clearUpdates[`timeslots/${absDayToDateStr(d)}`] = null;
       }
-      await update(ref(db, "/"), clearUpdates);
+      await update(iRef(""), clearUpdates);
       // Now compute and write fresh slots (pass {} — no existing adminBlocked to preserve)
       for (let d = 0; d <= limit; d++) {
         const dateStr = absDayToDateStr(d);
         const result = computeDayUpdates(dateStr, {});
         if (result) Object.assign(allUpdates, result.updates);
       }
-      if (Object.keys(allUpdates).length) await update(ref(db, "/"), allUpdates);
+      if (Object.keys(allUpdates).length) await update(iRef(""), allUpdates);
     } finally {
       setIsGeneratingAll(false);
     }
@@ -836,9 +836,9 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   const toggleSlotFree = (dateStr, time, slot) => {
     const slotId = `slot${time.replace(":", "")}`;
     if (slot.adminBlocked) {
-      update(ref(db, `timeslots/${dateStr}/${slotId}`), { available: true, adminBlocked: false, time }).catch(() => {});
+      update(iRef(`timeslots/${dateStr}/${slotId}`), { available: true, adminBlocked: false, time }).catch(() => {});
     } else {
-      update(ref(db, `timeslots/${dateStr}/${slotId}`), { available: false, adminBlocked: true, vipOnly: false, surcharge: null, time }).catch(() => {});
+      update(iRef(`timeslots/${dateStr}/${slotId}`), { available: false, adminBlocked: true, vipOnly: false, surcharge: null, time }).catch(() => {});
     }
   };
 
@@ -850,20 +850,20 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
     if (option === "vip") {
       if (isClosed) {
         // Закритий VIP — залишаємо закритим, додаємо VIP прапор
-        update(ref(db, `timeslots/${dateStr}/${slotId}`), { vipOnly: true }).catch(() => {});
+        update(iRef(`timeslots/${dateStr}/${slotId}`), { vipOnly: true }).catch(() => {});
       } else {
-        update(ref(db, `timeslots/${dateStr}/${slotId}`), { available: true, adminBlocked: false, vipOnly: true }).catch(() => {});
+        update(iRef(`timeslots/${dateStr}/${slotId}`), { available: true, adminBlocked: false, vipOnly: true }).catch(() => {});
       }
     } else if (option === "reset") {
       if (isClosed) {
-        update(ref(db, `timeslots/${dateStr}/${slotId}`), { vipOnly: false, surcharge: null }).catch(() => {});
+        update(iRef(`timeslots/${dateStr}/${slotId}`), { vipOnly: false, surcharge: null }).catch(() => {});
       } else {
-        update(ref(db, `timeslots/${dateStr}/${slotId}`), { available: true, adminBlocked: false, vipOnly: false, surcharge: null }).catch(() => {});
+        update(iRef(`timeslots/${dateStr}/${slotId}`), { available: true, adminBlocked: false, vipOnly: false, surcharge: null }).catch(() => {});
       }
     } else if (option === "surcharge_remove") {
-      update(ref(db, `timeslots/${dateStr}/${slotId}`), { surcharge: null }).catch(() => {});
+      update(iRef(`timeslots/${dateStr}/${slotId}`), { surcharge: null }).catch(() => {});
     } else {
-      update(ref(db, `timeslots/${dateStr}/${slotId}`), { surcharge: option }).catch(() => {});
+      update(iRef(`timeslots/${dateStr}/${slotId}`), { surcharge: option }).catch(() => {});
     }
     setSlotOptions(null);
   };
@@ -1281,12 +1281,12 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
             const hh = String(Math.floor(sm/60)).padStart(2,'0'), mm = String(sm%60).padStart(2,'0');
             upd[`timeslots/${dateStr}/slot${hh}${mm}/available`] = true;
           }
-          if (Object.keys(upd).length) update(ref(db,'/'), upd).catch(()=>{});
+          if (Object.keys(upd).length) update(iRef(""), upd).catch(()=>{});
         }
         // Позначити cancelled у Firebase (обидва можливих ключі)
         if (mb.userId) {
           const ks = [...new Set([mb._fbKey, mb.id].filter(Boolean))];
-          ks.forEach(k => update(ref(db, `bookings/${mb.userId}/${k}`),
+          ks.forEach(k => update(iRef(`bookings/${mb.userId}/${k}`),
             { status:"cancelled", cancelledAt:Date.now(), cancelledBy:"admin" }).catch(()=>{}));
         }
       };
@@ -1335,7 +1335,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
     const dateStr = absDayToDateStr(day);
     const hh = String(Math.floor(startMin / 60)).padStart(2, "0");
     const mm = String(startMin % 60).padStart(2, "0");
-    update(ref(db, `timeslots/${dateStr}/slot${hh}${mm}`), {
+    update(iRef(`timeslots/${dateStr}/slot${hh}${mm}`), {
       time: `${hh}:${mm}`, available: true, vipOnly: true,
     }).catch(() => {});
   };
@@ -1589,7 +1589,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                     } else {
                       const hh = String(Math.floor(pos.startMin/60)).padStart(2,'0');
                       const mm = String(pos.startMin%60).padStart(2,'0');
-                      update(ref(db, `timeslots/${pos.dateStr}/slot${hh}${mm}`), {
+                      update(iRef(`timeslots/${pos.dateStr}/slot${hh}${mm}`), {
                         available: true, time: `${hh}:${mm}`
                       }).catch(()=>{});
                     }
@@ -1947,7 +1947,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                               if (i % 60 === 0) { slotUpd[`${path}/available`]=true; slotUpd[`${path}/time`]=`${hh}:${mm}`; }
                               else { slotUpd[path] = null; }
                             }
-                            update(ref(db,'/'), slotUpd).catch(()=>{});
+                            update(iRef(""), slotUpd).catch(()=>{});
                           }
                           // Прямий запис cancelled у Firebase одразу (не покладаємось на 2с-таймер)
                           const idsCancel = b._mergedIds || [b.id];
@@ -1955,7 +1955,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                             const mb = bookingsRef.current?.find(x => x.id === id) || (id === b.id ? b : null);
                             if (!mb?.userId) return;
                             const ks = [...new Set([mb._fbKey, mb.id].filter(Boolean))];
-                            ks.forEach(k => update(ref(db, `bookings/${mb.userId}/${k}`),
+                            ks.forEach(k => update(iRef(`bookings/${mb.userId}/${k}`),
                               { status:"cancelled", cancelledAt:Date.now(), cancelledBy:"admin" }).catch(()=>{}));
                           });
                           // Починаємо 2с відлік — затемнення → видалення
@@ -2161,7 +2161,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
           <button onClick={()=>{
             const hh = String(Math.floor(addSlotPos.startMin/60)).padStart(2,'0');
             const mm = String(addSlotPos.startMin%60).padStart(2,'0');
-            update(ref(db, `timeslots/${addSlotPos.dateStr}/slot${hh}${mm}`), {
+            update(iRef(`timeslots/${addSlotPos.dateStr}/slot${hh}${mm}`), {
               available: true, time: `${hh}:${mm}`
             }).catch(()=>{});
             setAddSlotPos(null);
@@ -2296,7 +2296,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                   const _sm = _menu.selectedMin ?? _menu.startMin;
                   const _hh = String(Math.floor(_sm/60)).padStart(2,'0');
                   const _mm = String(_sm%60).padStart(2,'0');
-                  update(ref(db, `timeslots/${_menu.dateStr}/slot${_hh}${_mm}`), { available: true, time: `${_hh}:${_mm}` }).catch(()=>{});
+                  update(iRef(`timeslots/${_menu.dateStr}/slot${_hh}${_mm}`), { available: true, time: `${_hh}:${_mm}` }).catch(()=>{});
                   _closeLtm();
                 }} style={{
                   flex:1,padding:"16px 8px",borderRadius:16,border:"none",cursor:"pointer",fontFamily:"inherit",
@@ -2562,7 +2562,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                   const dateStr = v._dateStr || absDayToDateStr(v.day);
                   const hh = String(Math.floor(v.startMin / 60)).padStart(2, "0");
                   const mm = String(v.startMin % 60).padStart(2, "0");
-                  update(ref(db, `timeslots/${dateStr}/slot${hh}${mm}`), { vipOnly: false }).catch(() => {});
+                  update(iRef(`timeslots/${dateStr}/slot${hh}${mm}`), { vipOnly: false }).catch(() => {});
                   _closeVip();
                 }} style={{
                   width:"100%",padding:"14px",borderRadius:18,border:"none",cursor:"pointer",
@@ -2595,16 +2595,16 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
             ...(b.note && { note: b.note }),
           };
           if (b.userId) {
-            update(ref(db, `bookings/${b.userId}/${b.id}`), fbData).catch(()=>{});
+            update(iRef(`bookings/${b.userId}/${b.id}`), fbData).catch(()=>{});
           } else {
             const phone = (b.phone || '').replace(/\D/g, '');
             if (phone) {
-              update(ref(db, `bookings_by_phone/${phone}/${b.id}`), fbData).catch(()=>{});
+              update(iRef(`bookings_by_phone/${phone}/${b.id}`), fbData).catch(()=>{});
               for (let i = 0; i < b.durMin; i += 30) {
                 const slotMin = b.startMin + i;
                 const sh = String(Math.floor(slotMin / 60)).padStart(2, '0');
                 const sm = String(slotMin % 60).padStart(2, '0');
-                update(ref(db, `slotBookings/${b.date}/slot${sh}${sm}`), {phone, bookingId: b.id}).catch(()=>{});
+                update(iRef(`slotBookings/${b.date}/slot${sh}${sm}`), {phone, bookingId: b.id}).catch(()=>{});
               }
             }
           }
@@ -2618,7 +2618,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
             slotUpd[`timeslots/${b.date}/slot${sh}${sm}/available`] = false;
             slotUpd[`timeslots/${b.date}/slot${sh}${sm}/time`] = `${sh}:${sm}`;
           }
-          update(ref(db, '/'), slotUpd).catch(() => {});
+          update(iRef(""), slotUpd).catch(() => {});
         }
         setFormData(null);
       }}
@@ -2732,7 +2732,7 @@ function CreateSlotSheet({ data, settings, onClose }) {
       updates[`timeslots/${dateStr}/${id}/time`] = `${h}:${mn}`;
       updates[`timeslots/${dateStr}/${id}/available`] = true;
     }
-    await update(ref(db, '/'), updates).catch(() => {});
+    await update(iRef(""), updates).catch(() => {});
     setSaving(false);
     _close();
   };
@@ -2819,7 +2819,7 @@ function BookingModal({ booking, onClose, onAction, settings }) {
     const hh = String(Math.floor(booking.startMin/60)).padStart(2,'0');
     const mm = String(booking.startMin%60).padStart(2,'0');
     const slotKey = `${dateStr}_${hh}:${mm}`;
-    const r = ref(db, `queue/${slotKey}/entries`);
+    const r = iRef(`queue/${slotKey}/entries`);
     const unsub = onValue(r, snap => {
       if (!snap.exists()) { setQueueEntries([]); return; }
       const entries = Object.values(snap.val())
@@ -2946,7 +2946,7 @@ function BookingModal({ booking, onClose, onAction, settings }) {
                     const mm = String(booking.startMin%60).padStart(2,'0');
                     const slotKey = `${dateStr}_${hh}:${mm}`;
                     return (
-                      <button onClick={() => remove(ref(db, `queue/${slotKey}/entries/${e.uid}`)).catch(()=>{})}
+                      <button onClick={() => remove(iRef(`queue/${slotKey}/entries/${e.uid}`)).catch(()=>{})}
                         style={{width:22,height:22,borderRadius:7,border:"none",cursor:"pointer",flexShrink:0,
                           background:"rgba(239,68,68,0.15)",color:"rgba(248,113,113,0.9)",fontSize:11,fontWeight:800,
                           display:"flex",alignItems:"center",justifyContent:"center"}}>✕</button>
@@ -3251,7 +3251,7 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
   const [closing,    setClosing]    = useState(false);
 
   useEffect(()=>{
-    const r = ref(db, "users");
+    const r = iRef("users");
     const handler = onValue(r, snap => {
       const d = snap.val() || {};
       setStudents(Object.entries(d).map(([uid, u]) => {
@@ -4081,7 +4081,7 @@ export default function App() {
 
   // Load settings from Firebase on mount
   useEffect(() => {
-    get(ref(db, "admin_settings")).then(snap => {
+    get(iRef("admin_settings")).then(snap => {
       if (snap.exists()) {
         setSettings(s => ({ ...s, ...snap.val() }));
       }
@@ -4134,7 +4134,7 @@ export default function App() {
   };
 
   useEffect(() => {
-    return onValue(ref(db, "users"), snap => {
+    return onValue(iRef("users"), snap => {
       usersMapRef.current = snap.val() || {};
       // Re-process already-loaded bookings so TSC cross-reference applies after users arrive
       if (rawBookingsDataRef.current !== null) {
@@ -4145,7 +4145,7 @@ export default function App() {
 
   // Load bookings from Firebase (realtime)
   useEffect(() => {
-    const r = ref(db, "bookings");
+    const r = iRef("bookings");
     const handler = onValue(r, snap => {
       rawBookingsDataRef.current = snap.val();
       processBookingsRef.current(snap.val());
@@ -4159,7 +4159,7 @@ export default function App() {
       const next = typeof updater === "function" ? updater(prev) : updater;
       clearTimeout(saveTimerRef.current);
       saveTimerRef.current = setTimeout(() => {
-        update(ref(db, "admin_settings"), next).catch(() => {});
+        update(iRef("admin_settings"), next).catch(() => {});
       }, 1000);
       return next;
     });
@@ -4178,11 +4178,11 @@ export default function App() {
             if (i % 60 === 0) { upd[`${path}/available`] = true; upd[`${path}/time`] = `${hh}:${mm}`; }
             else { upd[path] = null; }
           }
-          if (Object.keys(upd).length) update(ref(db,'/'), upd).catch(()=>{});
+          if (Object.keys(upd).length) update(iRef(""), upd).catch(()=>{});
         }
         // Скасовуємо обидва можливі вузли (дубль міг з'явитись від старого коду)
         const keys = [...new Set([b._fbKey, b.id].filter(Boolean))];
-        keys.forEach(k => update(ref(db, `bookings/${b.userId}/${k}`), { status:"cancelled", cancelledAt:Date.now(), cancelledBy:"admin" }).catch(()=>{}));
+        keys.forEach(k => update(iRef(`bookings/${b.userId}/${k}`), { status:"cancelled", cancelledAt:Date.now(), cancelledBy:"admin" }).catch(()=>{}));
         setBookings(bs=>bs.map(x=>x.id===b.id?{...x,status:"cancelled"}:x));
       } else {
         setBookings(bs=>bs.filter(x=>x.id!==b.id));
@@ -4206,16 +4206,16 @@ export default function App() {
         ...(b.note && { note: b.note }),
       };
       if (b.userId) {
-        update(ref(db, `bookings/${b.userId}/${b.id}`), fbData).catch(()=>{});
+        update(iRef(`bookings/${b.userId}/${b.id}`), fbData).catch(()=>{});
       } else {
         const phone = (b.phone || '').replace(/\D/g, '');
         if (phone) {
-          update(ref(db, `bookings_by_phone/${phone}/${b.id}`), fbData).catch(()=>{});
+          update(iRef(`bookings_by_phone/${phone}/${b.id}`), fbData).catch(()=>{});
           for (let i = 0; i < b.durMin; i += 30) {
             const slotMin = b.startMin + i;
             const sh = String(Math.floor(slotMin / 60)).padStart(2, '0');
             const sm = String(slotMin % 60).padStart(2, '0');
-            update(ref(db, `slotBookings/${b.date}/slot${sh}${sm}`), {phone, bookingId: b.id}).catch(()=>{});
+            update(iRef(`slotBookings/${b.date}/slot${sh}${sm}`), {phone, bookingId: b.id}).catch(()=>{});
           }
         }
       }
@@ -4229,7 +4229,7 @@ export default function App() {
         slotUpd[`timeslots/${b.date}/slot${sh}${sm}/available`] = false;
         slotUpd[`timeslots/${b.date}/slot${sh}${sm}/time`] = `${sh}:${sm}`;
       }
-      update(ref(db, '/'), slotUpd).catch(() => {});
+      update(iRef(""), slotUpd).catch(() => {});
     }
     // onValue listener will update setBookings automatically; skip local push to avoid duplicate
   };

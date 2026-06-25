@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useContext } from "react";
-import { ref, onValue, update, push, remove } from "firebase/database";
-import { db } from "../firebase";
+import { onValue, update, push, remove } from "firebase/database";
+import { iRef } from "../firebase";
 import { ThemeContext } from "../theme.js";
 import { UICss, Card, Bar, Modal, Field, Chip, Btn, StatTile, Section } from "../ui";
 
@@ -212,7 +212,7 @@ export default function QueueView({ settings }) {
 
   // Firebase sync — підтримує і клієнтську структуру queue/${slotKey}/entries/${uid}
   useEffect(() => {
-    return onValue(ref(db, "queue"), snap => {
+    return onValue(iRef("queue"), snap => {
       const d = snap.val();
       if (!d) { setAll([]); return; }
       const entries = [];
@@ -235,18 +235,18 @@ export default function QueueView({ settings }) {
   // drag reorder
   const { getHandlers } = useDragReorder(all, newArr => {
     setAll(newArr);
-    newArr.forEach((item,i) => update(ref(db,`queue/${item.id}`),{order:i}));
+    newArr.forEach((item,i) => update(iRef(`queue/${item.id}`),{order:i}));
   });
 
   const active   = all.filter(q => q.status !== "archived");
   const archived = all.filter(q => q.status === "archived");
 
-  const setStatus = (id, status) => update(ref(db,`queue/${id}`),{status});
+  const setStatus = (id, status) => update(iRef(`queue/${id}`),{status});
   const invite    = id => setStatus(id,"offered");
   const booked    = id => setStatus(id,"booked");
   const archive   = id => setStatus(id,"archived");
-  const del       = id => remove(ref(db,`queue/${id}`));
-  const add       = form => push(ref(db,"queue"),{...form,addedAt:Date.now(),status:"waiting",order:all.length});
+  const del       = id => remove(iRef(`queue/${id}`));
+  const add       = form => push(iRef("queue"),{...form,addedAt:Date.now(),status:"waiting",order:all.length});
 
   const queueMode = settings?.queueAutoFifo ? "fifo"
     : settings?.queueBroadcast ? "broadcast" : "manual";

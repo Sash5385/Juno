@@ -20,6 +20,10 @@ const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getDatabase(app);
 
+let _iid = null;
+export const setCurrentIid = (id) => { _iid = id; };
+export const iRef = (path) => ref(db, path ? `instructors/${_iid}/${path}` : `instructors/${_iid}`);
+
 export async function registerAdminFCM() {
   if (!("Notification" in window)) { console.warn("FCM: Notification API not supported"); return; }
   try {
@@ -64,7 +68,7 @@ export async function registerAdminFCM() {
     console.log("FCM token obtained:", !!token, token?.slice(0, 20));
 
     if (token) {
-      await set(ref(db, "admin/fcmToken"), token);
+      await set(iRef("fcmToken"), token);
       console.log("FCM token saved to admin/fcmToken");
     } else {
       console.warn("FCM: empty token returned");

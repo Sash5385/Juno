@@ -1,6 +1,6 @@
 import React, { useState, useEffect, lazy, Suspense, createContext, useContext } from "react";
 import { ref, onValue, update, push, remove, get } from "firebase/database";
-import { db, registerAdminFCM, onAdminForegroundMessage } from "./firebase";
+import { db, iRef, setCurrentIid, registerAdminFCM, onAdminForegroundMessage } from "./firebase";
 import { useAdminAuth, LoginScreen } from "./AdminAuth";
 import { useAppUpdate } from "./hooks/useAppUpdate"
 import { setGlobalLang, createT } from "./lang";
@@ -199,7 +199,7 @@ function BottomNav({ active, onChange, settings, chatUnread, journalUnread }) {
 function QueueStrip({ tab, onChange }) {
   const [waiting, setWaiting] = useState(0);
   useEffect(() => {
-    return onValue(ref(db, "queue"), snap => {
+    return onValue(iRef("queue"), snap => {
       const d = snap.val();
       if (!d) { setWaiting(0); return; }
       setWaiting(Object.values(d).filter(q=>q.status==="waiting").length);
@@ -449,6 +449,11 @@ export default function App() {
   };
   const toggleInfo = key => setOpenInfos(s => ({...s, [key]: !s[key]}));
 
+  // Set global instructor ID for iRef()
+  useEffect(() => {
+    if (adminUser?.uid) setCurrentIid(adminUser.uid);
+  }, [adminUser]);
+
   // Initialize journal read timestamp on first ever app load
   useEffect(() => {
     if (!localStorage.getItem("journal_read_at")) {
@@ -499,7 +504,7 @@ export default function App() {
   // Subscribe to unread chat count from chatMeta
   useEffect(() => {
     if (!adminUser) return;
-    const r = ref(db, 'chatMeta');
+    const r = iRef("chatMeta");
     const unsub = onValue(r, snap => {
       const data = snap.val() || {};
       const total = Object.values(data).reduce((s, m) => s + (m?.unreadForAdmin || 0), 0);
@@ -552,7 +557,7 @@ export default function App() {
   // Sync services from admin_data/services → settings.services (source of truth for colors)
   useEffect(() => {
     if (!adminUser) return;
-    return onValue(ref(db, "admin_data/services"), snap => {
+    return onValue(iRef("admin_data/services"), snap => {
       const arr = snap.val();
       if (Array.isArray(arr) && arr.length > 0) {
         setSettings(s => ({ ...s, services: arr }));
@@ -563,7 +568,7 @@ export default function App() {
   // Load settings from Firebase on login
   useEffect(() => {
     if (!adminUser) { setSettingsLoaded(false); return; }
-    get(ref(db, 'admin_settings')).then(snap => {
+    get(iRef("admin_settings")).then(snap => {
       const d = snap.val();
       if (d) {
         const { services: _ignoredServices, ...dRest } = d;
@@ -598,7 +603,7 @@ export default function App() {
     if (!adminUser || !settingsLoaded) return;
     clearTimeout(settingsSyncTimer.current);
     settingsSyncTimer.current = setTimeout(() => {
-      update(ref(db, 'admin_settings'), {
+      update(iRef("admin_settings"), {
         lunchEnabled:    settings.lunchEnabled    ?? true,
         lunchStart:      settings.lunchStart      ?? 12,
         lunchEnd:        settings.lunchEnd        ?? 13,
@@ -691,7 +696,7 @@ export default function App() {
   // Keep users map fresh — reprocess bookings when it updates so TSC is always current
   useEffect(() => {
     if (!adminUser) return;
-    return onValue(ref(db, "users"), snap => {
+    return onValue(iRef("users"), snap => {
       usersMapRef.current = snap.val() || {};
       if (rawBookingsSnapRef.current) processBookingsSnap(rawBookingsSnapRef.current);
     });
@@ -703,7 +708,7 @@ export default function App() {
       moveSaveTimers.current = {};
       return;
     }
-    return onValue(ref(db, "bookings"), snap => {
+    return onValue(iRef("bookings"), snap => {
       const data = snap.val();
       rawBookingsSnapRef.current = data;
       processBookingsSnap(data);
@@ -772,7 +777,7 @@ const pendingDeletesRef = React.useRef(new Set());
           upd[`${key}/lastChangedBy`] = auditBy;
           upd[`${key}/lastChangedAt`] = now;
         }
-        if (!acc && Object.keys(upd).length) update(ref(db, "/"), upd).catch(() => {});
+        if (!acc && Object.keys(upd).length) update(iRef(""), upd).catch(() => {});
       };
 
       const freeSlots = (date, startMin, durMin, acc = null) => {
@@ -800,7 +805,7 @@ const pendingDeletesRef = React.useRef(new Set());
             upd[key] = null;
           }
         }
-        if (!acc && Object.keys(upd).length) update(ref(db, "/"), upd).catch(() => {});
+        if (!acc && Object.keys(upd).length) update(iRef(""), upd).catch(() => {});
       };
 
       if (!dragging) {
@@ -813,8 +818,8 @@ const pendingDeletesRef = React.useRef(new Set());
               const keys = [...new Set([b._fbKey, b.id].filter(Boolean))];
               const now = Date.now();
               Promise.all(keys.map(k =>
-                update(ref(db, `bookings/${b.userId}/${k}`), { status:'cancelled', cancelledAt:now, cancelledBy:'admin' }).catch(() =>
-                  remove(ref(db, `bookings/${b.userId}/${k}`)).catch(() => {})
+                update(iRef(`bookings/${b.userId}/${k}`), { status:'cancelled', cancelledAt:now, cancelledBy:'admin' }).catch(() =>
+                  remove(iRef(`bookings/${b.userId}/${k}`)).catch(() => {})
                 )
               )).finally(() => setTimeout(() => pendingDeletesRef.current.delete(b.id), 3000));
             });
@@ -831,7 +836,7 @@ const pendingDeletesRef = React.useRef(new Set());
             const hh = String(Math.floor(b.startMin / 60)).padStart(2, "0");
             const mm = String(b.startMin % 60).padStart(2, "0");
             const date = dayIdxToDate(b.day);
-            update(ref(db, `bookings/${adminUser.uid}/${b.id}`), {
+            update(iRef(`bookings/${adminUser.uid}/${b.id}`), {
               ...b,
               userId: adminUser.uid,
               date,
@@ -856,7 +861,7 @@ const pendingDeletesRef = React.useRef(new Set());
               freeSlots(b.date, b.startMin, b.durMin);
               Promise.resolve().then(() => setBookings(bs => bs.filter(x => x.id !== b.id)));
             }
-            update(ref(db, `bookings/${b.userId}/${b._fbKey || b.id}`), patch).catch(() => {});
+            update(iRef(`bookings/${b.userId}/${b._fbKey || b.id}`), patch).catch(() => {});
             return;
           }
         }
@@ -913,7 +918,7 @@ const pendingDeletesRef = React.useRef(new Set());
               upd[`${bp}/price`] = b.price + Math.round((newSurcharge - oldSurcharge) * discountFactor);
               if (newSurcharge) upd[`${bp}/surcharge`] = newSurcharge;
             }
-            update(ref(db, "/"), upd).catch(() => {
+            update(iRef(""), upd).catch(() => {
               // Відкат: атомарний запис не пройшов, тож у Firebase нічого не
               // змінилось. Повертаємо картку на старе місце, щоб UI не розходився з БД.
               if (orig) {

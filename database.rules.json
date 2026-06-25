@@ -1,97 +1,59 @@
 {
   "rules": {
-    "admins": {
-      ".read": "auth != null",
-      ".write": "auth != null"
-    },
-    "admin": {
-      ".read": "auth != null && auth.uid === 'IjyqouYBDUg5KGzs3U27PUcs8Uj1'",
-      ".write": "auth != null && auth.uid === 'IjyqouYBDUg5KGzs3U27PUcs8Uj1'"
-    },
-    "admin_settings": {
-      ".read": true,
-      ".write": "auth != null && auth.uid === 'IjyqouYBDUg5KGzs3U27PUcs8Uj1'"
-    },
-    "admin_data": {
-      ".write": "auth != null && auth.uid === 'IjyqouYBDUg5KGzs3U27PUcs8Uj1'",
-      "services": {
-        ".read": "auth != null"
-      },
-      "$other": {
-        ".read": "auth != null && auth.uid === 'IjyqouYBDUg5KGzs3U27PUcs8Uj1'"
-      }
-    },
-    "timeslots": {
-      ".read": true,
-      ".write": "auth != null"
-    },
-    "bookings": {
-      ".read": "auth != null",
-      "$uid": {
-        ".read": "auth != null && auth.uid === $uid",
-        ".write": "auth != null && (auth.uid === $uid || auth.uid === 'IjyqouYBDUg5KGzs3U27PUcs8Uj1')"
-      }
-    },
-    "queue": {
-      ".read": "auth != null",
-      ".write": "auth != null && auth.uid === 'IjyqouYBDUg5KGzs3U27PUcs8Uj1'",
-      "$slotKey": {
-        "entries": {
-          ".read": "auth != null",
+    "instructors": {
+      "$iid": {
+        ".read": "auth != null && auth.uid === $iid",
+        ".write": "auth != null && auth.uid === $iid",
+        "timeslots": {
+          ".read": true
+        },
+        "admin_data": {
+          "services": {
+            ".read": "auth != null"
+          }
+        },
+        "admin_settings": {
+          ".read": true
+        },
+        "bookings": {
           "$uid": {
-            ".write": "auth != null && (auth.uid === $uid || auth.uid === 'IjyqouYBDUg5KGzs3U27PUcs8Uj1')"
+            ".read": "auth != null && (auth.uid === $uid || auth.uid === $iid)",
+            ".write": "auth != null && (auth.uid === $uid || auth.uid === $iid)"
+          }
+        },
+        "users": {
+          "$uid": {
+            ".read": "auth != null && (auth.uid === $uid || auth.uid === $iid)",
+            ".write": "auth != null && (auth.uid === $uid || auth.uid === $iid)"
+          }
+        },
+        "chats": {
+          "general": {
+            ".read": "auth != null",
+            ".write": "auth != null"
+          },
+          "$uid": {
+            ".read": "auth != null && (auth.uid === $uid || auth.uid === $iid)",
+            ".write": "auth != null && (auth.uid === $uid || auth.uid === $iid)"
+          }
+        },
+        "chatMeta": {
+          "$uid": {
+            ".read": "auth != null && (auth.uid === $uid || auth.uid === $iid)",
+            ".write": "auth != null && (auth.uid === $uid || auth.uid === $iid)"
+          }
+        },
+        "queue": {
+          ".read": "auth != null && auth.uid === $iid",
+          ".write": "auth != null && auth.uid === $iid"
+        },
+        "notifications": {
+          "$uid": {
+            ".read": "auth != null && (auth.uid === $uid || auth.uid === $iid)",
+            ".write": "auth != null && (auth.uid === $uid || auth.uid === $iid)"
           }
         }
       }
-    },
-    "users": {
-      ".read": "auth != null",
-      "$uid": {
-        ".read": "auth != null && auth.uid === $uid",
-        ".write": "auth != null && (auth.uid === $uid || auth.uid === 'IjyqouYBDUg5KGzs3U27PUcs8Uj1')"
-      }
-    },
-    "chats": {
-      "general": {
-        ".read": "auth != null",
-        ".write": "auth != null"
-      },
-      "$uid": {
-        ".read": "auth != null && (auth.uid === $uid || auth.uid === 'IjyqouYBDUg5KGzs3U27PUcs8Uj1')",
-        ".write": "auth != null && (auth.uid === $uid || auth.uid === 'IjyqouYBDUg5KGzs3U27PUcs8Uj1')"
-      }
-    },
-    "chatMeta": {
-      "general": {
-        ".read": "auth != null",
-        ".write": "auth != null"
-      },
-      "$uid": {
-        ".read": "auth != null && (auth.uid === $uid || auth.uid === 'IjyqouYBDUg5KGzs3U27PUcs8Uj1')",
-        ".write": "auth != null && (auth.uid === $uid || auth.uid === 'IjyqouYBDUg5KGzs3U27PUcs8Uj1')"
-      }
-    },
-    "notifications": {
-      "$uid": {
-        ".read": "auth != null && auth.uid === $uid",
-        ".write": "auth != null && (auth.uid === $uid || auth.uid === 'IjyqouYBDUg5KGzs3U27PUcs8Uj1')"
-      }
-    },
-    "settings": {
-      ".read": "auth != null",
-      ".write": "auth != null"
-    },
-    "push_tasks": {
-      ".read": "auth != null && auth.uid === 'IjyqouYBDUg5KGzs3U27PUcs8Uj1'",
-      ".write": "auth != null && auth.uid === 'IjyqouYBDUg5KGzs3U27PUcs8Uj1'"
-    },
-    "recentStudents": {
-      ".read": "auth != null && auth.uid === 'IjyqouYBDUg5KGzs3U27PUcs8Uj1'",
-      ".write": "auth != null"
-    },
-    "slotBookings": {
-      ".read": "auth != null && auth.uid === 'IjyqouYBDUg5KGzs3U27PUcs8Uj1'",
-      ".write": "auth != null && auth.uid === 'IjyqouYBDUg5KGzs3U27PUcs8Uj1'"
     }
   }
 }

@@ -1,7 +1,7 @@
 import { useState, useEffect, useContext } from "react";
 import { createPortal } from "react-dom";
-import { ref, onValue, update, push, remove, get } from "firebase/database";
-import { db } from "../firebase";
+import { onValue, update, push, remove, get } from "firebase/database";
+import { iRef } from "../firebase";
 
 import { ThemeContext } from "../theme.js";
 import { UICss, Field, Btn as UIBtn, useFX } from "../ui";
@@ -413,7 +413,7 @@ export default function StudentsView() {
   const [showNew,      setShowNew]      = useState(false);
 
   useEffect(() => {
-    const unsub = onValue(ref(db, "users"), snap => {
+    const unsub = onValue(iRef("users"), snap => {
       const data = snap.val() || {};
       setStudents(Object.entries(data).map(([uid, u]) => {
         const p = u.profile || {};
@@ -434,13 +434,13 @@ export default function StudentsView() {
     const s=students.find(x=>x.id===id); if(!s) return;
     const next=!s.blocked;
     setStudents(ss=>ss.map(x=>x.id===id?{...x,blocked:next}:x));
-    update(ref(db,`users/${id}`),{blocked:next}).catch(()=>{});
+    update(iRef(`users/${id}`),{blocked:next}).catch(()=>{});
   };
   const updateStudent = (id,patch) => {
     setStudents(ss=>ss.map(x=>x.id===id?{...x,...patch}:x));
-    update(ref(db,`users/${id}`),patch).catch(()=>{});
+    update(iRef(`users/${id}`),patch).catch(()=>{});
     if (patch.tsc !== undefined) {
-      get(ref(db,`bookings/${id}`)).then(snap => {
+      get(iRef(`bookings/${id}`)).then(snap => {
         const bkgs = snap.val();
         if (!bkgs) return;
         const updates = {};
@@ -451,10 +451,10 @@ export default function StudentsView() {
   };
   const deleteStudent = id => {
     setStudents(ss=>ss.filter(x=>x.id!==id));
-    remove(ref(db,`users/${id}`)).catch(()=>{});
+    remove(iRef(`users/${id}`)).catch(()=>{});
   };
   const createStudent = async (data) => {
-    const newRef = await push(ref(db,"users"),{
+    const newRef = await push(iRef("users"),{
       name:data.name.trim(), phone:data.phone.trim(), type:data.type,
       discount:Number(data.discount)||0, notes:data.notes.trim(), blocked:false,
       isVip:data.isVip||false, hours:0,

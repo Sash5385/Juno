@@ -1,11 +1,11 @@
 import { useState, useContext } from "react";
-import { ref, get } from "firebase/database";
+import { get } from "firebase/database";
 import { LangContext } from "../App";
 import { APP_VERSION } from "../version.js";
 import { ThemeContext } from "../theme.js";
 import { UICss, useFX } from "../ui";
 import { createT } from "../lang";
-import { db, registerAdminFCM } from "../firebase";
+import { iRef, registerAdminFCM } from "../firebase";
 
 const ALL_TABS = [
   { id:"schedule",  lk:"nav.schedule"  },
@@ -588,7 +588,7 @@ function PushDiag() {
       const perm = Notification.permission;
       if (perm === "denied") { setStatus({ ok: false, msg: "Нотифікації заблоковано в браузері. Дозволь в налаштуваннях сайту." }); return; }
       await registerAdminFCM();
-      const snap = await get(ref(db, "admin/fcmToken"));
+      const snap = await get(iRef("fcmToken"));
       const tok  = snap.val();
       setStatus(tok
         ? { ok: true,  msg: `Токен збережено (${tok.slice(0,16)}…)` }

@@ -2,8 +2,6 @@ import { useState, useEffect } from "react";
 import { signInWithEmailAndPassword, onAuthStateChanged, signOut } from "firebase/auth";
 import { auth } from "./firebase";
 
-const ADMIN_UID = "IjyqouYBDUg5KGzs3U27PUcs8Uj1";
-
 const BG_DEEP = "#161719";
 const SURFACE = "#26282c";
 const SURF_HI = "#2e3034";
@@ -21,8 +19,7 @@ export function useAdminAuth() {
     const fallback = setTimeout(() => setUser(prev => prev === undefined ? null : prev), 3000);
     const unsub = onAuthStateChanged(auth, u => {
       clearTimeout(fallback);
-      if (u && u.uid === ADMIN_UID) setUser(u);
-      else setUser(null);
+      setUser(u || null);
     });
     return () => { clearTimeout(fallback); unsub(); };
   }, []);
@@ -38,8 +35,7 @@ export function LoginScreen() {
   const login = async () => {
     setError(""); setLoading(true);
     try {
-      const cred = await signInWithEmailAndPassword(auth, email, password);
-      if (cred.user.uid !== ADMIN_UID) { await signOut(auth); setError("Доступ заборонено"); }
+      await signInWithEmailAndPassword(auth, email, password);
     } catch (e) {
       if (e.code === 'auth/network-request-failed') setError("Помилка мережі — перевірте з'єднання");
       else if (e.code === 'auth/too-many-requests') setError("Забагато спроб — спробуйте пізніше");

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext } from "react";
-import { ref, onValue } from "firebase/database";
-import { db } from "../firebase";
+import { onValue } from "firebase/database";
+import { iRef } from "../firebase";
 import { ThemeContext } from "../theme.js";
 
 export const JOURNAL_READ_KEY = "journal_read_at";
@@ -207,7 +207,7 @@ export default function JournalView() {
 
   useEffect(() => {
     setJournalReadAt();
-    const unsub = onValue(ref(db, "bookings"), snap => {
+    const unsub = onValue(iRef("bookings"), snap => {
       setEvents(buildEvents(snap.val()));
     });
     return unsub;

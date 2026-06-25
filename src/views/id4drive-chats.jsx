@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useContext } from "react";
-import { ref, onValue, push, update, set, increment, remove } from "firebase/database";
-import { db } from "../firebase";
+import { onValue, push, update, set, increment, remove } from "firebase/database";
+import { iRef } from "../firebase";
 import { LangContext } from "../App";
 
 import { ThemeContext } from "../theme.js";
@@ -178,7 +178,7 @@ export default function ChatsView() {
 
   // ── Load students ─────────────────────────────────────────────
   useEffect(() => {
-    const unsub = onValue(ref(db, "users"), snap => {
+    const unsub = onValue(iRef("users"), snap => {
       const data = snap.val() || {};
       const list = Object.entries(data)
         .map(([uid, u]) => {
@@ -200,7 +200,7 @@ export default function ChatsView() {
     });
     contacts.forEach(c => {
       if (msgUnsubs.current[c.id]) return;
-      const r = ref(db, `chats/${c.id}`);
+      const r = iRef(`chats/${c.id}`);
       const unsub = onValue(r, snap => {
         const msgs = Object.entries(snap.val()||{}).map(([id,m])=>({...m,id})).sort((a,b)=>(a.ts||0)-(b.ts||0)||(a.id>b.id?1:-1));
         setMessages(prev => ({...prev, [c.id]: msgs}));
@@ -221,7 +221,7 @@ export default function ChatsView() {
 
   // ── General chat ──────────────────────────────────────────────
   useEffect(() => {
-    const unsub = onValue(ref(db, "chats/general"), snap => {
+    const unsub = onValue(iRef("chats/general"), snap => {
       const msgs = Object.entries(snap.val()||{}).map(([id,m])=>({...m,id})).sort((a,b)=>(a.ts||0)-(b.ts||0)||(a.id>b.id?1:-1));
       setGeneralMsgs(msgs);
     });
@@ -230,7 +230,7 @@ export default function ChatsView() {
 
   // ── Broadcast history ─────────────────────────────────────────
   useEffect(() => {
-    const unsub = onValue(ref(db, "chats/__broadcast__"), snap => {
+    const unsub = onValue(iRef("chats/__broadcast__"), snap => {
       const msgs = Object.entries(snap.val()||{}).map(([id,m])=>({...m,id})).sort((a,b)=>(a.ts||0)-(b.ts||0)||(a.id>b.id?1:-1));
       setBroadcastMsgs(msgs);
     });
@@ -240,7 +240,7 @@ export default function ChatsView() {
   // ── Broadcast free-slot ───────────────────────────────────────
   const applyFreeSlotBroadcast = useCallback((msg, time) => {
     contacts.forEach(c => {
-      push(ref(db, `chats/${c.id}`), {from:"admin",text:msg,time,ts:Date.now(),broadcast:true}).catch(()=>{});
+      push(iRef(`chats/${c.id}`), {from:"admin",text:msg,time,ts:Date.now(),broadcast:true}).catch(()=>{});
     });
     localStorage.removeItem("id4drive-free-slot");
   }, [contacts]);
@@ -259,7 +259,7 @@ export default function ChatsView() {
     setOpenId(prev => prev===id ? null : id);
     if (id !== BROADCAST_ID && id !== GENERAL_ID) {
       setContacts(cs => cs.map(c => c.id===id ? {...c,unread:0} : c));
-      set(ref(db, `chatMeta/${id}/unreadForAdmin`), 0).catch(()=>{});
+      set(iRef(`chatMeta/${id}/unreadForAdmin`), 0).catch(()=>{});
     }
   };
 
@@ -267,16 +267,16 @@ export default function ChatsView() {
     const time = nowTime(); const ts = Date.now();
     const msg = {from:"admin",text,time,ts};
     if (contactId === BROADCAST_ID) {
-      push(ref(db,"chats/__broadcast__"),{...msg,broadcast:true}).catch(()=>{});
+      push(iRef("chats/__broadcast__"),{...msg,broadcast:true}).catch(()=>{});
       contacts.forEach(c => {
-        push(ref(db,`chats/${c.id}`),{...msg,broadcast:true}).catch(()=>{});
-        update(ref(db,`chatMeta/${c.id}`),{unreadForStudent:increment(1),lastMsg:text,lastTs:ts}).catch(()=>{});
+        push(iRef(`chats/${c.id}`),{...msg,broadcast:true}).catch(()=>{});
+        update(iRef(`chatMeta/${c.id}`),{unreadForStudent:increment(1),lastMsg:text,lastTs:ts}).catch(()=>{});
       });
     } else if (contactId === GENERAL_ID) {
-      push(ref(db,"chats/general"),{from:"admin",uid:"__admin__",name:"Інструктор",text,time,ts}).catch(()=>{});
+      push(iRef("chats/general"),{from:"admin",uid:"__admin__",name:"Інструктор",text,time,ts}).catch(()=>{});
     } else {
-      push(ref(db,`chats/${contactId}`),msg).catch(()=>{});
-      update(ref(db,`chatMeta/${contactId}`),{unreadForStudent:increment(1),lastMsg:text,lastTs:ts}).catch(()=>{});
+      push(iRef(`chats/${contactId}`),msg).catch(()=>{});
+      update(iRef(`chatMeta/${contactId}`),{unreadForStudent:increment(1),lastMsg:text,lastTs:ts}).catch(()=>{});
     }
   };
 
@@ -288,8 +288,8 @@ export default function ChatsView() {
       setDeletingId(null);
       msgUnsubs.current[id]?.(); delete msgUnsubs.current[id];
       setMessages(prev => { const n={...prev}; delete n[id]; return n; });
-      remove(ref(db, `chats/${id}`)).catch(()=>{});
-      remove(ref(db, `chatMeta/${id}`)).catch(()=>{});
+      remove(iRef(`chats/${id}`)).catch(()=>{});
+      remove(iRef(`chatMeta/${id}`)).catch(()=>{});
     } else {
       setDeletingId(id);
       setTimeout(() => setDeletingId(di => di===id ? null : di), 3000);

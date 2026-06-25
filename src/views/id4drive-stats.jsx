@@ -1,6 +1,6 @@
 import { useState, useEffect, useContext } from "react";
-import { ref, onValue } from "firebase/database";
-import { db } from "../firebase";
+import { onValue } from "firebase/database";
+import { iRef } from "../firebase";
 import { LangContext } from "../App";
 import { createT } from "../lang";
 
@@ -358,7 +358,7 @@ export default function StatsView() {
 `;
 
   useEffect(() => {
-    return onValue(ref(db, "bookings"), snap => {
+    return onValue(iRef("bookings"), snap => {
       const d = snap.val();
       if (!d) { setBookings([]); return; }
       const all = [];
@@ -376,7 +376,7 @@ export default function StatsView() {
   }, []);
 
   useEffect(() => {
-    return onValue(ref(db, "admin_settings/services"), snap => {
+    return onValue(iRef("admin_settings/services"), snap => {
       const d = snap.val();
       setServices(Array.isArray(d) ? d : []);
     }, () => {});
