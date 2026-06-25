@@ -505,11 +505,56 @@ select{color-scheme:${isKava?"light":"dark"}}
   }
 
   const activeSec = SECTIONS.find(s => s.id === active);
+  const [copied, setCopied] = useState(false);
+  const slug = settings.profile?.slug;
+  const bookingPath = slug ? `/book/${slug}` : null;
+  const copyLink = () => {
+    if (!bookingPath) return;
+    navigator.clipboard.writeText(bookingPath).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
 
   return (
     <>
       <UICss/>
       <style>{css}</style>
+
+      {/* ── Посилання для запису ─────────────────────────── */}
+      {bookingPath && (
+        <div style={{
+          marginBottom:12,padding:"12px 14px",
+          background:`linear-gradient(145deg,${GREEN}14,${GREEN}07)`,
+          border:`1px solid ${GREEN}30`,borderRadius:16,
+        }}>
+          <div style={{fontSize:11,fontWeight:700,color:GREEN,marginBottom:8}}>🔗 Посилання для запису учнів</div>
+          <div style={{display:"flex",alignItems:"center",gap:8}}>
+            <div style={{
+              flex:1,minWidth:0,padding:"8px 12px",borderRadius:10,
+              background:BG_DEEP,boxShadow:SI,
+              fontSize:13,fontWeight:700,color:TEXT,letterSpacing:-0.2,
+              overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",
+            }}>
+              {bookingPath}
+            </div>
+            <button onClick={copyLink} style={{
+              flexShrink:0,padding:"8px 14px",borderRadius:10,border:"none",cursor:"pointer",
+              background:copied?`linear-gradient(145deg,${GREEN},#059669)`:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,
+              color:copied?"#fff":GREEN,fontSize:12,fontWeight:700,boxShadow:SO,
+              transition:"all .15s",whiteSpace:"nowrap",
+            }}>
+              {copied ? "✓ Скопійовано" : "Копіювати"}
+            </button>
+          </div>
+          {!slug && (
+            <div style={{fontSize:11,color:FAINT,marginTop:6}}>
+              Slug не налаштовано — зверніться до підтримки
+            </div>
+          )}
+        </div>
+      )}
+
       <div style={{
         display:"flex", alignItems:"flex-start",
         fontFamily:"ui-sans-serif,-apple-system,system-ui,sans-serif", color:TEXT,
