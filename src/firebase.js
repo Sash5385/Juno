@@ -4,13 +4,14 @@ import { getDatabase, ref, set } from "firebase/database";
 import { getMessaging, getToken, onMessage } from "firebase/messaging";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyDO6-LTuBoNHi6uS5KcOpmBuyvgJSouYpk",
-  authDomain: "id4drive-booking-44182.firebaseapp.com",
-  databaseURL: "https://id4drive-booking-44182-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "id4drive-booking-44182",
-  storageBucket: "id4drive-booking-44182.firebasestorage.app",
-  messagingSenderId: "815176240686",
-  appId: "1:815176240686:web:1cf54d6c465420230199bf"
+  apiKey: "AIzaSyAJFqq9jMrc2RgkceappeGt9EJ2bM2xKBI",
+  authDomain: "drivepad-86fe1.firebaseapp.com",
+  databaseURL: "https://drivepad-86fe1-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "drivepad-86fe1",
+  storageBucket: "drivepad-86fe1.firebasestorage.app",
+  messagingSenderId: "221725287898",
+  appId: "1:221725287898:web:59ee63287a825801104ce3",
+  measurementId: "G-Y1ZTLEDMVK"
 };
 
 const VAPID_KEY = "BFT1t7hXhEcSsHdotLlG5xoIFNrdS11vU_jsHiD1UUMsskVINBW2het8ogOKioGTPK8X_-u1ivEQM0n0Dh6Zvqk";
