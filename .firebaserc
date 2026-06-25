@@ -1,0 +1,15 @@
+{
+  "projects": {
+    "default": "id4drive-booking-44182"
+  },
+  "targets": {
+    "id4drive-booking-44182": {
+      "hosting": {
+        "admin": [
+          "id4drive-admin"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}
