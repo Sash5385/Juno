@@ -507,10 +507,11 @@ select{color-scheme:${isKava?"light":"dark"}}
   const activeSec = SECTIONS.find(s => s.id === active);
   const [copied, setCopied] = useState(false);
   const slug = settings.profile?.slug;
-  const bookingPath = slug ? `/book/${slug}` : null;
+  const CLIENT_URL = import.meta.env.VITE_CLIENT_URL || 'https://drivepad.pro';
+  const bookingUrl = slug ? `${CLIENT_URL}/book/${slug}` : null;
   const copyLink = () => {
-    if (!bookingPath) return;
-    navigator.clipboard.writeText(bookingPath).then(() => {
+    if (!bookingUrl) return;
+    navigator.clipboard.writeText(bookingUrl).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });
@@ -522,7 +523,7 @@ select{color-scheme:${isKava?"light":"dark"}}
       <style>{css}</style>
 
       {/* ── Посилання для запису ─────────────────────────── */}
-      {bookingPath && (
+      {bookingUrl && (
         <div style={{
           marginBottom:12,padding:"12px 14px",
           background:`linear-gradient(145deg,${GREEN}14,${GREEN}07)`,
@@ -536,7 +537,7 @@ select{color-scheme:${isKava?"light":"dark"}}
               fontSize:13,fontWeight:700,color:TEXT,letterSpacing:-0.2,
               overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",
             }}>
-              {bookingPath}
+              {bookingUrl}
             </div>
             <button onClick={copyLink} style={{
               flexShrink:0,padding:"8px 14px",borderRadius:10,border:"none",cursor:"pointer",
