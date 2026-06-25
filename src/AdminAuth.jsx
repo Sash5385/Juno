@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
-import { signInWithEmailAndPassword, onAuthStateChanged, signOut } from "firebase/auth";
-import { auth } from "./firebase";
+import { signInWithEmailAndPassword, onAuthStateChanged } from "firebase/auth";
+import { update } from "firebase/database";
+import { auth, iRef } from "./firebase";
 
 const BG_DEEP = "#161719";
 const SURFACE = "#26282c";
@@ -48,8 +49,8 @@ export function LoginScreen() {
     <div style={{ minHeight:"100vh", background:BG_DEEP, display:"flex", alignItems:"center", justifyContent:"center" }}>
       <div style={{ background:`linear-gradient(135deg,${SURF_HI},${SURFACE})`, borderRadius:20, padding:"32px 28px", width:"100%", maxWidth:360, boxShadow:SO, border:`1px solid ${BORDER}` }}>
         <div style={{ textAlign:"center", marginBottom:28 }}>
-          <img src="/icon-192.png" alt="ID4Drive" style={{width:72,height:72,borderRadius:"50%",marginBottom:8,boxShadow:"-3px 5px 14px rgba(0,0,0,0.45)"}}/>
-          <div style={{ fontSize:20, fontWeight:800, color:TEXT }}>ID4Drive Admin</div>
+          <img src="/icon-192.png" alt="DrivePad" style={{width:72,height:72,borderRadius:"50%",marginBottom:8,boxShadow:"-3px 5px 14px rgba(0,0,0,0.45)"}}/>
+          <div style={{ fontSize:20, fontWeight:800, color:TEXT }}>DrivePad</div>
           <div style={{ fontSize:13, color:DIM, marginTop:4 }}>Вхід для інструктора</div>
         </div>
         <div style={{ marginBottom:14 }}>
@@ -66,6 +67,76 @@ export function LoginScreen() {
         <button onClick={login} disabled={loading||!email||!password}
           style={{ width:"100%", padding:"12px", borderRadius:12, background: loading||!email||!password ? "rgba(255,90,60,0.3)" : "linear-gradient(135deg,#ff7a5c,#ff5a3c)", border:"none", color:"#fff", fontSize:14, fontWeight:700, cursor: loading||!email||!password ? "default":"pointer" }}>
           {loading ? "Вхід..." : "Увійти"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+const INP = { width:"100%", background:BG_DEEP, border:`1px solid ${BORDER}`, borderRadius:10, padding:"10px 14px", color:TEXT, fontSize:14, outline:"none", boxSizing:"border-box" };
+const LBL = { fontSize:12, color:DIM, marginBottom:6 };
+
+export function InstructorSetupScreen({ onDone }) {
+  const [name,       setName]       = useState("");
+  const [phone,      setPhone]      = useState("");
+  const [address,    setAddress]    = useState("");
+  const [experience, setExperience] = useState("");
+  const [saving,     setSaving]     = useState(false);
+  const [error,      setError]      = useState("");
+
+  const canSave = name.trim() && phone.trim();
+
+  const save = async () => {
+    if (!canSave) return;
+    setSaving(true);
+    setError("");
+    try {
+      const profile = {
+        name:       name.trim(),
+        phone:      phone.trim(),
+        address:    address.trim() || "",
+        experience: Number(experience) || 0,
+      };
+      await update(iRef("admin_settings"), { profile });
+      onDone(profile);
+    } catch {
+      setError("Помилка збереження. Перевірте з'єднання.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div style={{ minHeight:"100vh", background:BG_DEEP, display:"flex", alignItems:"center", justifyContent:"center", padding:"20px" }}>
+      <div style={{ background:`linear-gradient(135deg,${SURF_HI},${SURFACE})`, borderRadius:20, padding:"32px 28px", width:"100%", maxWidth:400, boxShadow:SO, border:`1px solid ${BORDER}` }}>
+        <div style={{ textAlign:"center", marginBottom:28 }}>
+          <img src="/icon-192.png" alt="DrivePad" style={{width:64,height:64,borderRadius:"50%",marginBottom:10,boxShadow:"-3px 5px 14px rgba(0,0,0,0.45)"}}/>
+          <div style={{ fontSize:20, fontWeight:800, color:TEXT }}>Налаштування профілю</div>
+          <div style={{ fontSize:13, color:DIM, marginTop:6 }}>Заповніть інформацію про себе — учні побачать її при записі</div>
+        </div>
+
+        <div style={{ marginBottom:14 }}>
+          <div style={LBL}>Ім'я та прізвище *</div>
+          <input value={name} onChange={e=>setName(e.target.value)} placeholder="Олександр Коваленко" style={INP}/>
+        </div>
+        <div style={{ marginBottom:14 }}>
+          <div style={LBL}>Телефон *</div>
+          <input value={phone} onChange={e=>setPhone(e.target.value)} placeholder="+380XXXXXXXXX" type="tel" style={INP}/>
+        </div>
+        <div style={{ marginBottom:14 }}>
+          <div style={LBL}>Місто / Адреса</div>
+          <input value={address} onChange={e=>setAddress(e.target.value)} placeholder="Київ, вул. Хрещатик" style={INP}/>
+        </div>
+        <div style={{ marginBottom:24 }}>
+          <div style={LBL}>Досвід роботи (років)</div>
+          <input value={experience} onChange={e=>setExperience(e.target.value)} placeholder="5" type="number" min="0" max="50" style={INP}/>
+        </div>
+
+        {error && <div style={{ fontSize:12, color:ACCENT, textAlign:"center", marginBottom:14, padding:"8px", borderRadius:8, background:"rgba(255,90,60,0.1)" }}>{error}</div>}
+
+        <button onClick={save} disabled={saving||!canSave}
+          style={{ width:"100%", padding:"13px", borderRadius:12, background: saving||!canSave ? "rgba(255,90,60,0.3)" : "linear-gradient(135deg,#ff7a5c,#ff5a3c)", border:"none", color:"#fff", fontSize:15, fontWeight:700, cursor: saving||!canSave ? "default":"pointer" }}>
+          {saving ? "Зберігаємо..." : "Розпочати роботу →"}
         </button>
       </div>
     </div>

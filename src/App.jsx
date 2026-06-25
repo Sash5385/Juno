@@ -1,7 +1,7 @@
 import React, { useState, useEffect, lazy, Suspense, createContext, useContext } from "react";
-import { ref, onValue, update, push, remove, get } from "firebase/database";
-import { db, iRef, setCurrentIid, registerAdminFCM, onAdminForegroundMessage } from "./firebase";
-import { useAdminAuth, LoginScreen } from "./AdminAuth";
+import { onValue, update, push, remove, get } from "firebase/database";
+import { iRef, setCurrentIid, registerAdminFCM, onAdminForegroundMessage } from "./firebase";
+import { useAdminAuth, LoginScreen, InstructorSetupScreen } from "./AdminAuth";
 import { useAppUpdate } from "./hooks/useAppUpdate"
 import { setGlobalLang, createT } from "./lang";
 import { ThemeContext, getTheme } from "./theme.js";
@@ -433,6 +433,7 @@ export default function App() {
   const [newBookingData,   setNewBookingData]    = useState(null);
   const [chatUnread,    setChatUnread]    = useState(0);
   const [journalUnread, setJournalUnread] = useState(0);
+  const [profileReady,  setProfileReady] = useState(null); // null=checking, false=needs setup, true=ready
   const usersMapRef = React.useRef({});
   const rawBookingsSnapRef = React.useRef(null);
 
@@ -449,9 +450,14 @@ export default function App() {
   };
   const toggleInfo = key => setOpenInfos(s => ({...s, [key]: !s[key]}));
 
-  // Set global instructor ID for iRef()
+  // Set global instructor ID and check if profile exists
   useEffect(() => {
-    if (adminUser?.uid) setCurrentIid(adminUser.uid);
+    if (!adminUser?.uid) { setProfileReady(null); return; }
+    setCurrentIid(adminUser.uid);
+    get(iRef("admin_settings/profile")).then(snap => {
+      const p = snap.val();
+      setProfileReady(!!(p && p.name));
+    }).catch(() => setProfileReady(false));
   }, [adminUser]);
 
   // Initialize journal read timestamp on first ever app load
@@ -950,6 +956,8 @@ const pendingDeletesRef = React.useRef(new Set());
 
   if (adminUser === undefined) return null;
   if (adminUser === null) return <LoginScreen/>;
+  if (profileReady === null) return null;
+  if (profileReady === false) return <InstructorSetupScreen onDone={profile => { setSettings(s => ({...s, profile: {...s.profile, ...profile}})); setProfileReady(true); }}/> ;
 
   return (
     <ThemeContext.Provider value={theme}>
