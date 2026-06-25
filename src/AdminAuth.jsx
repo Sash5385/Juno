@@ -97,7 +97,13 @@ export function InstructorSetupScreen({ onDone }) {
         address:    address.trim() || "",
         experience: Number(experience) || 0,
       };
-      await update(iRef("admin_settings"), { profile });
+      const TRIAL_DAYS = 14;
+      await update(iRef(""), {
+        "admin_settings/profile": profile,
+        "subscription/plan":        "trial",
+        "subscription/trialEndsAt": Date.now() + TRIAL_DAYS * 24 * 3600 * 1000,
+        "subscription/createdAt":   Date.now(),
+      });
       onDone(profile);
     } catch {
       setError("Помилка збереження. Перевірте з'єднання.");

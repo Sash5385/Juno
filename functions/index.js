@@ -1,6 +1,8 @@
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { onValueCreated, onValueUpdated, onValueWritten } = require("firebase-functions/v2/database");
+const { onRequest } = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
+const crypto = require("crypto");
 
 admin.initializeApp();
 const db = admin.database();
@@ -577,6 +579,82 @@ exports.sendLessonReminders = onSchedule(
     if (Object.keys(updates).length) await db.ref("/").update(updates).catch(() => {});
   }
 );
+
+// ─── LIQPAY SUBSCRIPTION ─────────────────────────────────────────
+
+const LIQPAY_PUBLIC_KEY  = process.env.LIQPAY_PUBLIC_KEY  || "";
+const LIQPAY_PRIVATE_KEY = process.env.LIQPAY_PRIVATE_KEY || "";
+const MONTHLY_PRICE = 499;
+
+// Створює LiqPay платіж для підписки інструктора
+exports.createLiqPayOrder = onRequest(
+  { region: "europe-west1", cors: ["https://admin.drivepad.pro", "http://localhost:5173"] },
+  async (req, res) => {
+    if (req.method !== "POST") { res.status(405).send("Method Not Allowed"); return; }
+    const { amount, months, iid } = req.body || {};
+    if (!iid) { res.status(400).json({ error: "missing iid" }); return; }
+
+    const orderId = `sub_${iid}_${Date.now()}`;
+    const params = {
+      version:     "3",
+      public_key:  LIQPAY_PUBLIC_KEY,
+      action:      "pay",
+      amount:      String(amount || MONTHLY_PRICE),
+      currency:    "UAH",
+      description: `DrivePad підписка ${months || 1} міс.`,
+      order_id:    orderId,
+      result_url:  "https://admin.drivepad.pro/",
+      server_url:  "https://europe-west1-drivepad-86fe1.cloudfunctions.net/liqpayCallback",
+    };
+
+    const data = Buffer.from(JSON.stringify(params)).toString("base64");
+    const signature = crypto.createHash("sha1")
+      .update(LIQPAY_PRIVATE_KEY + data + LIQPAY_PRIVATE_KEY)
+      .digest("base64");
+
+    res.json({ data, signature, action: "https://www.liqpay.ua/api/3/checkout" });
+  }
+);
+
+// LiqPay callback — верифікує підпис, активує підписку
+exports.liqpayCallback = onRequest(
+  { region: "europe-west1", cors: true },
+  async (req, res) => {
+    const { data, signature } = req.body || {};
+    if (!data || !signature) { res.status(400).send("Bad request"); return; }
+
+    const expected = crypto.createHash("sha1")
+      .update(LIQPAY_PRIVATE_KEY + data + LIQPAY_PRIVATE_KEY)
+      .digest("base64");
+    if (expected !== signature) { res.status(403).send("Invalid signature"); return; }
+
+    const params = JSON.parse(Buffer.from(data, "base64").toString("utf8"));
+    const { status, order_id, amount } = params;
+
+    if (status !== "success" && status !== "sandbox") { res.send("OK"); return; }
+
+    // order_id format: sub_{iid}_{timestamp}
+    const match = (order_id || "").match(/^sub_(.+)_\d+$/);
+    if (!match) { res.send("OK"); return; }
+    const iid = match[1];
+
+    const months  = Math.max(1, Math.round(Number(amount) / MONTHLY_PRICE));
+    const now      = Date.now();
+    const expiresAt = now + months * 30 * 24 * 3600 * 1000;
+
+    await db.ref(`instructors/${iid}/subscription`).update({
+      plan: "active",
+      expiresAt,
+      lastPaidAt:          now,
+      lastPaymentAmount:   Number(amount),
+    }).catch(console.error);
+
+    console.log(`liqpayCallback: activated iid=${iid} months=${months} expiresAt=${new Date(expiresAt).toISOString()}`);
+    res.send("OK");
+  }
+);
+
+// ─── PUSH NOTIFICATIONS (legacy flat-path — to be migrated) ───────
 
 // Ручна розсилка адміна → пуш активним учням (останній місяць)
 exports.onPushTask = onValueCreated(
