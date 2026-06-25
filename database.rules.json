@@ -28,7 +28,7 @@
         },
         "bookings": {
           "$uid": {
-            ".read": "auth != null && (auth.uid === $uid || auth.uid === $iid)",
+            ".read": "auth != null && (auth.uid === $uid || auth.uid === $iid) || $uid.matches(/^guest_.+/)",
             ".write": "(auth != null && (auth.uid === $uid || auth.uid === $iid)) || $uid.matches(/^guest_.+/)"
           }
         },

@@ -376,7 +376,7 @@ export default function StatsView() {
   }, []);
 
   useEffect(() => {
-    return onValue(iRef("admin_settings/services"), snap => {
+    return onValue(iRef("admin_data/services"), snap => {
       const d = snap.val();
       setServices(Array.isArray(d) ? d : []);
     }, () => {});
