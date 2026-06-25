@@ -584,6 +584,70 @@ exports.sendLessonReminders = onSchedule(
   }
 );
 
+// ─── DRIVEPAD MULTI-TENANT BOOKING TRIGGER ───────────────────────
+
+// Guest або клієнт записався через /book/:slug → пуш інструктору + блокуємо слоти
+exports.onInstructorBookingCreated = onValueCreated(
+  { ref: "instructors/{iid}/bookings/{uid}/{bookingId}", region: "europe-west1" },
+  async (event) => {
+    const booking = event.data.val();
+    if (!booking) return;
+    const { iid, uid } = event.params;
+
+    const name = booking.studentName || booking.name || "Клієнт";
+    const date = booking.date || "—";
+    const time = booking.time || "—";
+
+    // Block timeslots in instructor's own path
+    if (booking.date && (booking.time || booking.startMin != null)) {
+      const INTERVAL = 30;
+      let start;
+      if (booking.startMin != null) {
+        start = booking.startMin;
+      } else {
+        const [h, m] = (booking.time || "0:0").split(":").map(Number);
+        start = h * 60 + m;
+      }
+      const dur = booking.durMin ?? ((booking.durationHours || 1) * 60);
+      const updates = {};
+      for (let cur = start; cur < start + dur; cur += INTERVAL) {
+        const hh = String(Math.floor(cur / 60)).padStart(2, "0");
+        const mm = String(cur % 60).padStart(2, "0");
+        updates[`instructors/${iid}/timeslots/${booking.date}/slot${hh}${mm}/available`] = false;
+        updates[`instructors/${iid}/timeslots/${booking.date}/slot${hh}${mm}/time`] = `${hh}:${mm}`;
+      }
+      if (Object.keys(updates).length) {
+        await db.ref("/").update(updates).catch(() => {});
+      }
+    }
+
+    // Push to instructor
+    const tokenSnap = await db.ref(`instructors/${iid}/fcmToken`).get();
+    const token = tokenSnap.val();
+    if (!token) {
+      console.warn(`onInstructorBookingCreated: no fcmToken for iid=${iid}`);
+      return;
+    }
+    try {
+      const result = await admin.messaging().send({
+        token,
+        notification: { title: "📋 Новий запис", body: `${name} · ${date} о ${time}` },
+        webpush: {
+          notification: { icon: "/favicon.svg" },
+          fcmOptions: { link: "https://admin.drivepad.pro" },
+        },
+      });
+      console.log(`onInstructorBookingCreated: push sent iid=${iid} uid=${uid} msgId=${result}`);
+    } catch (e) {
+      console.error(`onInstructorBookingCreated: push error code=${e.code} msg=${e.message}`);
+      if (e.code === "messaging/registration-token-not-registered" ||
+          e.code === "messaging/invalid-registration-token") {
+        await db.ref(`instructors/${iid}/fcmToken`).remove().catch(() => {});
+      }
+    }
+  }
+);
+
 // ─── LIQPAY SUBSCRIPTION ─────────────────────────────────────────
 
 const MONTHLY_PRICE = 499;
