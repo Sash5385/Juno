@@ -161,7 +161,7 @@ function ScheduleInfo() {
             <span style={{fontSize:26,position:"relative",zIndex:1}}>рџљ—</span>
           </I3>
           <div>
-            <div style={{fontSize:20,fontWeight:900,color:TEXT,letterSpacing:-0.5}}>ID4Drive Admin</div>
+            <div style={{fontSize:20,fontWeight:900,color:TEXT,letterSpacing:-0.5}}>DrivePad Admin</div>
             <div style={{fontSize:12,color:DIM,marginTop:2}}>РџР°РЅРµР»СЊ СѓРїСЂР°РІР»С–РЅРЅСЏ С–РЅСЃС‚СЂСѓРєС‚РѕСЂР°</div>
           </div>
         </div>

@@ -658,7 +658,7 @@ function PushDiag() {
         return;
       }
       const reg = await navigator.serviceWorker.ready;
-      await reg.showNotification("🔔 ID4Drive тест", { body: "Push-нотифікації працюють!", icon: "/favicon.svg" });
+      await reg.showNotification("🔔 DrivePad тест", { body: "Push-нотифікації працюють!", icon: "/favicon.svg" });
       setStatus({ ok: true, msg: "Нотифікація відправлена — перевір системний трей" });
     } catch (e) {
       setStatus({ ok: false, msg: `Помилка: ${e.message}` });

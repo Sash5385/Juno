@@ -318,7 +318,7 @@ function TopBar({ tab, onChange, settings, setSettings }) {
 
             {/* Center: logo */}
             <div style={{flex:"0 0 auto",display:"flex",justifyContent:"center",alignItems:"center",padding:"0 6px"}}>
-              <img src="/icon-192.png" alt="ID4Drive" style={{width:26,height:26,borderRadius:"50%",flexShrink:0,boxShadow:"-2px 3px 8px rgba(0,0,0,0.45)"}}/>
+              <img src="/icon-192.png" alt="DrivePad" style={{width:26,height:26,borderRadius:"50%",flexShrink:0,boxShadow:"-2px 3px 8px rgba(0,0,0,0.45)"}}/>
             </div>
 
             {/* Right: діб buttons */}
@@ -341,7 +341,7 @@ function TopBar({ tab, onChange, settings, setSettings }) {
           </>
         ) : (
           <div style={{display:"flex",alignItems:"center",gap:6,flex:1}}>
-            <img src="/icon-192.png" alt="ID4Drive" style={{width:22,height:22,borderRadius:"50%",flexShrink:0,boxShadow:"-2px 3px 8px rgba(0,0,0,0.45)"}}/>
+            <img src="/icon-192.png" alt="DrivePad" style={{width:22,height:22,borderRadius:"50%",flexShrink:0,boxShadow:"-2px 3px 8px rgba(0,0,0,0.45)"}}/>
             <div style={{fontSize:13,fontWeight:800,letterSpacing:-0.3,color:theme.TEXT}}>{tabLabel}</div>
           </div>
         )}
