@@ -207,8 +207,9 @@ function exportCSV(bookings, svcs) {
       b.date||'', b.time||'',
       (b.studentName||b.name||'').replace(/,/g,' '),
       b.serviceType||'', bkIncome(b, svcs), b.durMin || (b.durationHours ? b.durationHours*60 : 60),
+      b.isPaid ? 'так' : 'ні',
     ].join(','));
-  const csv = ['Дата,Час,Учень,Тип,Сума,Хвилин', ...rows].join('\n');
+  const csv = ['Дата,Час,Учень,Тип,Сума,Хвилин,Оплачено', ...rows].join('\n');
   const blob = new Blob(['﻿'+csv], {type:'text/csv;charset=utf-8;'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
