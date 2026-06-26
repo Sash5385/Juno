@@ -1270,6 +1270,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
 
   const handleAction = (action, b) => {
     if (action === "confirm") setBookings(bs=>bs.map(x=>x.id===b.id?{...x,status:"confirmed"}:x));
+    if (action === "paid") setBookings(bs=>bs.map(x=>x.id===b.id?{...x,isPaid:b.isPaid}:x));
     if (action === "cancel") {
       // Відновити timeslots
       const cancelOne = (mb) => {
@@ -2820,6 +2821,22 @@ function BookingModal({ booking, onClose, onAction, settings }) {
   const SURFACE_HI = SURF_HI, SURFACE_LO = SURF_LO, TEXT_DIM = DIM, TEXT_FAINT = FAINT, ACCENT_HI = ACC_HI, SHADOW_OUT = SO, SHADOW_IN = SI;
   const [queueEntries, setQueueEntries] = useState([]);
   const [closing, setClosing] = useState(false);
+  const [isPaid, setIsPaid] = useState(!!booking?.isPaid);
+  useEffect(() => { setIsPaid(!!booking?.isPaid); }, [booking?.id]);
+
+  const togglePaid = () => {
+    const next = !isPaid;
+    setIsPaid(next);
+    const bookKey = booking._fbKey || booking.id;
+    if (booking.userId) {
+      update(iRef(`bookings/${booking.userId}/${bookKey}`), { isPaid: next }).catch(() => setIsPaid(!next));
+    } else if (booking.phone) {
+      const phone = (booking.phone || "").replace(/\D/g, "");
+      update(iRef(`bookings/guest_${phone}/${bookKey}`), { isPaid: next }).catch(() => setIsPaid(!next));
+    }
+    onAction("paid", { ...booking, isPaid: next });
+  };
+
   useEffect(() => {
     if (!booking) return;
     setClosing(false);
@@ -2969,8 +2986,19 @@ function BookingModal({ booking, onClose, onAction, settings }) {
             </div>
           )}
 
+          {/* Payment toggle */}
+          <div style={{padding:"10px 10px 0"}}>
+            <button onClick={togglePaid} style={{
+              width:"100%",display:"flex",alignItems:"center",justifyContent:"center",gap:7,
+              padding:"11px",borderRadius:14,border:"none",cursor:"pointer",fontFamily:"inherit",
+              background: isPaid ? "rgba(99,211,120,0.14)" : "rgba(100,116,139,0.1)",
+              color: isPaid ? "#63d37b" : TEXT_FAINT,
+              fontSize:13,fontWeight:800,
+            }}>{isPaid ? "✓ Оплачено" : "○ Не оплачено"}</button>
+          </div>
+
           {/* Action buttons */}
-          <div style={{padding:"10px 10px 4px",display:"flex",gap:8}}>
+          <div style={{padding:"8px 10px 4px",display:"flex",gap:8}}>
             <button onClick={() => onAction("call", booking)} style={{
               flex:1,display:"flex",alignItems:"center",justifyContent:"center",gap:7,
               padding:"11px",borderRadius:14,border:"none",cursor:"pointer",fontFamily:"inherit",
