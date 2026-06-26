@@ -195,6 +195,19 @@ function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock }) {
   const [editMode,     setEditMode]    = useState(false);
   const [confirmDel,   setConfirmDel]  = useState(false);
   const [pendingDelete,setPendingDelete] = useState(false);
+  const [bookings,     setBookings]    = useState(null); // null=loading
+
+  useEffect(() => {
+    get(iRef(`bookings/${s.id}`)).then(snap => {
+      const data = snap.val() || {};
+      const list = Object.entries(data).map(([id, b]) => ({ id, ...b }))
+        .filter(b => b.date)
+        .sort((a, b) => b.date.localeCompare(a.date) || (b.time||'').localeCompare(a.time||''));
+      setBookings(list);
+    }).catch(() => setBookings([]));
+  }, [s.id]);
+
+  const totalPaid = (bookings || []).filter(b => b.status === 'confirmed').reduce((acc, b) => acc + (b.price || 0), 0);
 
   const typeColor = s.type === "school" ? GREEN : GOLD;
   const typeLabel = s.type === "school" ? "Автошкола" : "Приватний";
@@ -353,19 +366,36 @@ function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock }) {
                   <div style={{background:glow(0.04),borderRadius:10,padding:"9px 12px",border:`1px solid ${BORDER}`,fontSize:12,color:DIM,lineHeight:1.5}}>📝 {s.notes}</div>
                 )}
 
+                {/* Payment total */}
+                {totalPaid > 0 && (
+                  <div style={{display:"flex",gap:8}}>
+                    <div style={{flex:1,background:glow(0.04),borderRadius:10,padding:"9px 12px",border:`1px solid ${BORDER}`}}>
+                      <div style={{fontSize:9,color:FAINT,letterSpacing:1,textTransform:"uppercase",marginBottom:3}}>Оплачено</div>
+                      <div style={{fontSize:18,fontWeight:900,color:GOLD}}>{totalPaid}₴</div>
+                    </div>
+                    <div style={{flex:1,background:glow(0.04),borderRadius:10,padding:"9px 12px",border:`1px solid ${BORDER}`}}>
+                      <div style={{fontSize:9,color:FAINT,letterSpacing:1,textTransform:"uppercase",marginBottom:3}}>Уроків</div>
+                      <div style={{fontSize:18,fontWeight:900,color:GREEN}}>{(bookings||[]).filter(b=>b.status==='confirmed').length}</div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Booking history */}
-                {(s.bookings||[]).length > 0 && (
+                {bookings === null ? (
+                  <div style={{textAlign:"center",padding:"12px 0",color:FAINT,fontSize:12}}>Завантаження…</div>
+                ) : bookings.length > 0 && (
                   <div>
                     <div style={{fontSize:9,color:FAINT,letterSpacing:1,textTransform:"uppercase",fontWeight:700,marginBottom:6}}>Історія записів</div>
                     <div style={{display:"flex",flexDirection:"column",gap:5}}>
-                      {(s.bookings||[]).map((b,i)=>{
+                      {bookings.map((b,i)=>{
                         const [c,bg] = b.status==="confirmed"?[GREEN,`${GREEN}1a`]:b.status==="noshow"?[RED,`${RED}1a`]:[ACCENT,`${ACCENT}1a`];
                         const icon = b.status==="confirmed"?"✓":b.status==="noshow"?"✕":"⏳";
                         return (
-                          <div key={i} style={{display:"flex",alignItems:"center",gap:8,background:`linear-gradient(135deg,${SURF_HI},${SURFACE})`,borderRadius:9,padding:"7px 11px",boxShadow:SO}}>
+                          <div key={b.id||i} style={{display:"flex",alignItems:"center",gap:8,background:`linear-gradient(135deg,${SURF_HI},${SURFACE})`,borderRadius:9,padding:"7px 11px",boxShadow:SO}}>
                             <span style={{fontSize:11,color:DIM,fontWeight:700,minWidth:48}}>{fmtS(b.date)}</span>
                             <span style={{fontSize:11,color:BLUE,fontWeight:700,minWidth:34}}>{b.time}</span>
-                            <span style={{flex:1,fontSize:11,color:TEXT,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{b.svc}</span>
+                            <span style={{flex:1,fontSize:11,color:TEXT,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{b.serviceName||b.svc||"—"}</span>
+                            {b.price > 0 && <span style={{fontSize:10,fontWeight:800,color:GOLD,minWidth:40,textAlign:"right"}}>{b.price}₴</span>}
                             <span style={{fontSize:10,fontWeight:800,padding:"2px 7px",borderRadius:5,background:bg,color:c}}>{icon}</span>
                           </div>
                         );
