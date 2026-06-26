@@ -409,6 +409,7 @@ export default function StatsView() {
 
   const customDiffDays = customFrom && customTo ? Math.round((new Date(customTo) - new Date(customFrom)) / 86400000) + 1 : 0;
   const periodBookings = filterByPeriod(bookings, data, period, customFrom, customTo);
+  const totalPaid = periodBookings.filter(b => b.isPaid && (b.status === 'confirmed' || b.status === 'pending')).reduce((s, b) => s + bkIncome(b, services), 0);
   const topStudents  = computeTopStudents(periodBookings, topBy, services);
   const popularSlots = computePopularSlots(periodBookings, services);
   const forecast     = period === "year" ? computeYearForecast(bookings, services) : period === "custom" ? null : computeMonthForecast(bookings, services);
@@ -451,7 +452,7 @@ export default function StatsView() {
         {/* ── KPI 2×3 ── */}
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7}}>
           {[
-            {label:"Дохід",        value:fmtK(totalIncome),               sub:"за період",                         color:GOLD,                                       trend:trendPct(cur.income,  prev.income)},
+            {label:"Дохід",        value:fmtK(totalIncome),               sub:totalPaid ? `✓ ${fmtK(totalPaid)} отримано` : "за період",   color:GOLD,  trend:trendPct(cur.income,  prev.income)},
             {label:"Уроків",       value:totalLessons,                    sub:`${totalSchool}а · ${totalPrivate}п`, color:BLUE,                                       trend:trendPct(cur.lessons, prev.lessons)},
             {label:"Серед. чек",   value:fmtK(avgCheck),                  sub:"дохід / урок",                      color:GREEN,                                      trend:trendPct(avgCheck, prevAvgCheck)},
             {label:"No-show",      value:`${noshowPct}%`,                 sub:`скасувань: ${totalCancel}`,          color:noshowPct>5?RED:DIM,                        trend:trendPct(cur.noshow, prev.noshow) * -1},
