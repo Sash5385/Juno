@@ -1305,7 +1305,25 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
     }
     if (action === "noshow")  setBookings(bs=>bs.map(x=>x.id===b.id?{...x,status:"noshow"}:x));
     if (action === "delete")  setBookings(bs=>bs.filter(x=>x.id!==b.id));
-    if (action === "repeat")  setBookings(bs=>[...bs,{...b, id:`b-${Date.now()}`, day:b.day+7, status:"confirmed"}]);
+    if (action === "repeat") {
+      const newId = `b-${Date.now()}`;
+      const newDay = b.day + 7;
+      const newDate = absDayToDateStr(newDay);
+      const hh = String(Math.floor(b.startMin / 60)).padStart(2, "0");
+      const mm = String(b.startMin % 60).padStart(2, "0");
+      if (b.userId) {
+        update(iRef(`bookings/${b.userId}/${newId}`), {
+          id: newId, date: newDate, time: `${hh}:${mm}`,
+          startMin: b.startMin, durMin: b.durMin, durationHours: b.durMin / 60,
+          studentName: b.name, name: b.name, phone: b.phone || "",
+          serviceId: b.serviceId, serviceType: b.type, type: b.type,
+          status: "confirmed", tsc: b.tsc || "",
+          createdAt: Date.now(), createdBy: "admin",
+          ...(b.note && { note: b.note }),
+        }).catch(() => {});
+      }
+      setBookings(bs => [...bs, { ...b, id: newId, day: newDay, date: newDate, status: "confirmed" }]);
+    }
     if (action === "chat")     { navTo?.("chats"); return; }
     if (action === "call")     window.location.href=`tel:${b.phone}`;
     if (action === "sms")      window.location.href=`sms:${b.phone}`;
