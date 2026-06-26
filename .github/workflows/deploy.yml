@@ -22,8 +22,5 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Install functions dependencies
-        run: cd functions && npm ci
-
-      - name: Deploy to Firebase Hosting, Database Rules and Functions
-        run: npx firebase-tools deploy --only hosting:admin,database,functions --token "${{ secrets.FIREBASE_TOKEN }}"
+      - name: Deploy to Firebase Hosting and Database Rules
+        run: npx firebase-tools deploy --only hosting:admin,database --token "${{ secrets.FIREBASE_TOKEN }}"
