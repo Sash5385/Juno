@@ -145,7 +145,7 @@ function StudentForm({ initial, onSave, onCancel, saveLabel="Зберегти" }
 }
 
 // ─── STUDENT CARD (collapsed row only) ──────────────────────────
-function StudentCard({ s, onSelect }) {
+function StudentCard({ s, onSelect, debtAmount }) {
   const { BG_DEEP, SURF_HI, SURFACE, BORDER, TEXT, DIM, FAINT, GREEN, GOLD, RED, SI } = useContext(ThemeContext);
   const typeColor = s.type === "school" ? GREEN : GOLD;
   const typeLabel = s.type === "school" ? "Автошкола" : "Приватний";
@@ -174,6 +174,7 @@ function StudentCard({ s, onSelect }) {
           </div>
           <div style={{fontSize:10,color:typeColor,fontWeight:700,marginTop:2}}>{typeLabel}{s.tsc ? ` · ${s.tsc}` : ""}</div>
         </div>
+        {debtAmount > 0 && <div style={{fontSize:10,fontWeight:800,color:RED,background:RED+"22",borderRadius:7,padding:"2px 7px",flexShrink:0,whiteSpace:"nowrap"}}>{debtAmount} ₴</div>}
         <button onClick={e=>{e.stopPropagation();navTo("chats");}} style={{background:"none",border:"none",cursor:"pointer",padding:0,flexShrink:0}}>
           <div className="icon3d" style={{width:26,height:26,background:"linear-gradient(145deg,rgba(91,155,255,.35),rgba(37,99,235,.2))",borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center"}}>
             {ICONS.chat}
@@ -451,6 +452,27 @@ export default function StudentsView() {
   const [filterType,   setFilterType]   = useState("all");
   const [loading,      setLoading]      = useState(true);
   const [showNew,      setShowNew]      = useState(false);
+  const [debtMap,      setDebtMap]      = useState({});
+  const [debtLoading,  setDebtLoading]  = useState(false);
+
+  useEffect(() => {
+    if (filterType !== "debt") return;
+    setDebtLoading(true);
+    get(iRef("bookings")).then(snap => {
+      const map = {};
+      const data = snap.val() || {};
+      Object.entries(data).forEach(([uid, bkgs]) => {
+        if (uid.startsWith("guest_")) return;
+        let total = 0;
+        Object.values(bkgs).forEach(b => {
+          if (b && b.status === "confirmed" && !b.isPaid && b.price > 0) total += b.price;
+        });
+        if (total > 0) map[uid] = total;
+      });
+      setDebtMap(map);
+      setDebtLoading(false);
+    }).catch(() => setDebtLoading(false));
+  }, [filterType]);
 
   useEffect(() => {
     const unsub = onValue(iRef("users"), snap => {
@@ -505,8 +527,9 @@ export default function StudentsView() {
 
   const q    = search.toLowerCase();
   const list = students
-    .filter(s=>(!q||(s.name||"").toLowerCase().includes(q)||(s.phone||"").includes(q))&&(filterType==="all"||s.type===filterType))
-    .sort((a,b)=>(a.name||"").localeCompare(b.name||""));
+    .filter(s=>(!q||(s.name||"").toLowerCase().includes(q)||(s.phone||"").includes(q))&&(filterType==="all"||filterType==="debt"||s.type===filterType))
+    .filter(s=>filterType!=="debt"||debtMap[s.id])
+    .sort((a,b)=>filterType==="debt"?(debtMap[b.id]||0)-(debtMap[a.id]||0):(a.name||"").localeCompare(b.name||""));
 
   const liveDetail = detailStudent ? students.find(x=>x.id===detailStudent.id) : null;
 
@@ -528,17 +551,23 @@ export default function StudentsView() {
         </div>
 
         <div style={{display:"flex",gap:7}}>
-          {[["all","Всі"],["school","Автошкола"],["private","Приватний"]].map(([k,l])=>(
+          {[["all","Всі"],["school","Автошкола"],["private","Приватний"],["debt","💳 Борги"]].map(([k,l])=>(
             <button key={k} onClick={()=>setFilterType(k)} style={{
-              flex:1,padding:"9px 4px",borderRadius:11,border:"none",cursor:"pointer",fontSize:11,fontWeight:700,fontFamily:"inherit",
+              flex:k==="debt"?0.8:1,padding:"9px 4px",borderRadius:11,border:"none",cursor:"pointer",fontSize:11,fontWeight:700,fontFamily:"inherit",
               background:filterType===k?`linear-gradient(145deg,${ACC_HI},${ACCENT})`:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,
-              color:filterType===k?"#fff":DIM,boxShadow:SO,
+              color:filterType===k?"#fff":k==="debt"?RED:DIM,boxShadow:SO,
             }}>{l}</button>
           ))}
         </div>
 
-        {list.map(s=>(
-          <StudentCard key={s.id} s={s} onSelect={s=>setDetailStudent(s)} />
+        {debtLoading && (
+          <div style={{textAlign:"center",padding:"20px",color:FAINT,fontSize:13}}>
+            <div style={{width:20,height:20,border:`2px solid ${FAINT}22`,borderTopColor:ACCENT,borderRadius:"50%",animation:"spin .8s linear infinite",margin:"0 auto"}}/>
+          </div>
+        )}
+
+        {!debtLoading && list.map(s=>(
+          <StudentCard key={s.id} s={s} onSelect={s=>setDetailStudent(s)} debtAmount={filterType==="debt"?debtMap[s.id]||0:0} />
         ))}
 
         {loading && (
