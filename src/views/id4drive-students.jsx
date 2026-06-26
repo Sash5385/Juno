@@ -145,7 +145,7 @@ function StudentForm({ initial, onSave, onCancel, saveLabel="Зберегти" }
 }
 
 // ─── STUDENT CARD (collapsed row only) ──────────────────────────
-function StudentCard({ s, onSelect, debtAmount }) {
+function StudentCard({ s, onSelect, debtAmount, onMarkPaid }) {
   const { BG_DEEP, SURF_HI, SURFACE, BORDER, TEXT, DIM, FAINT, GREEN, GOLD, RED, SI } = useContext(ThemeContext);
   const typeColor = s.type === "school" ? GREEN : GOLD;
   const typeLabel = s.type === "school" ? "Автошкола" : "Приватний";
@@ -175,11 +175,19 @@ function StudentCard({ s, onSelect, debtAmount }) {
           <div style={{fontSize:10,color:typeColor,fontWeight:700,marginTop:2}}>{typeLabel}{s.tsc ? ` · ${s.tsc}` : ""}</div>
         </div>
         {debtAmount > 0 && <div style={{fontSize:10,fontWeight:800,color:RED,background:RED+"22",borderRadius:7,padding:"2px 7px",flexShrink:0,whiteSpace:"nowrap"}}>{debtAmount} ₴</div>}
-        <button onClick={e=>{e.stopPropagation();navTo("chats");}} style={{background:"none",border:"none",cursor:"pointer",padding:0,flexShrink:0}}>
-          <div className="icon3d" style={{width:26,height:26,background:"linear-gradient(145deg,rgba(91,155,255,.35),rgba(37,99,235,.2))",borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center"}}>
-            {ICONS.chat}
-          </div>
-        </button>
+        {debtAmount > 0 && onMarkPaid && (
+          <button onClick={e=>{e.stopPropagation();onMarkPaid(s.id);}} style={{
+            background:"linear-gradient(145deg,#22c55e,#16a34a)",border:"none",borderRadius:8,
+            padding:"4px 9px",cursor:"pointer",fontSize:11,fontWeight:800,color:"#fff",flexShrink:0,
+          }}>✓</button>
+        )}
+        {!(debtAmount > 0) && (
+          <button onClick={e=>{e.stopPropagation();navTo("chats");}} style={{background:"none",border:"none",cursor:"pointer",padding:0,flexShrink:0}}>
+            <div className="icon3d" style={{width:26,height:26,background:"linear-gradient(145deg,rgba(91,155,255,.35),rgba(37,99,235,.2))",borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center"}}>
+              {ICONS.chat}
+            </div>
+          </button>
+        )}
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={FAINT} strokeWidth="2.5" strokeLinecap="round" style={{flexShrink:0}}>
           <polyline points="9 18 15 12 9 6"/>
         </svg>
@@ -515,6 +523,18 @@ export default function StudentsView() {
     setStudents(ss=>ss.filter(x=>x.id!==id));
     remove(iRef(`users/${id}`)).catch(()=>{});
   };
+  const markAllPaid = uid => {
+    setDebtMap(m => { const n={...m}; delete n[uid]; return n; });
+    get(iRef(`bookings/${uid}`)).then(snap => {
+      const bkgs = snap.val(); if (!bkgs) return;
+      const updates = {};
+      Object.entries(bkgs).forEach(([bkId, b]) => {
+        if (b && b.status === "confirmed" && !b.isPaid && b.price > 0)
+          updates[`bookings/${uid}/${bkId}/isPaid`] = true;
+      });
+      if (Object.keys(updates).length) update(iRef(""), updates).catch(()=>{});
+    }).catch(()=>{});
+  };
   const createStudent = async (data) => {
     const newRef = await push(iRef("users"),{
       name:data.name.trim(), phone:data.phone.trim(), type:data.type,
@@ -567,7 +587,7 @@ export default function StudentsView() {
         )}
 
         {!debtLoading && list.map(s=>(
-          <StudentCard key={s.id} s={s} onSelect={s=>setDetailStudent(s)} debtAmount={filterType==="debt"?debtMap[s.id]||0:0} />
+          <StudentCard key={s.id} s={s} onSelect={s=>setDetailStudent(s)} debtAmount={filterType==="debt"?debtMap[s.id]||0:0} onMarkPaid={filterType==="debt"?markAllPaid:null} />
         ))}
 
         {loading && (
