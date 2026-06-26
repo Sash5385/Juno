@@ -13,8 +13,8 @@
         "timeslots": {
           ".read": true,
           "$date": {
-            "$time": {
-              ".write": "data.child('available').val() === true || (auth != null && auth.uid === $iid)"
+            "$slotId": {
+              ".write": "data.child('available').val() === true || (auth != null && auth.uid === $iid) || (auth != null && data.child('offeredTo').child(auth.uid).val() !== null)"
             }
           }
         },
@@ -55,8 +55,14 @@
           }
         },
         "queue": {
-          ".read": "auth != null && auth.uid === $iid",
-          ".write": "auth != null && auth.uid === $iid"
+          ".read": "auth != null",
+          "$slotKey": {
+            "entries": {
+              "$uid": {
+                ".write": "auth != null && (auth.uid === $uid || auth.uid === $iid)"
+              }
+            }
+          }
         },
         "notifications": {
           "$uid": {
