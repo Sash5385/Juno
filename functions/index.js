@@ -1,5 +1,6 @@
 const { onValueCreated, onValueUpdated, onValueWritten } = require("firebase-functions/v2/database");
 const { onRequest } = require("firebase-functions/v2/https");
+const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { defineSecret } = require("firebase-functions/params");
 const admin = require("firebase-admin");
 const crypto = require("crypto");
@@ -316,5 +317,68 @@ exports.liqpayCallback = onRequest(
 
     console.log(`liqpayCallback: activated iid=${iid} months=${months} expiresAt=${new Date(expiresAt).toISOString()}`);
     res.send("OK");
+  }
+);
+
+// ─── LESSON REMINDER NOTIFICATIONS ───────────────────────────────
+// Runs every 30 min, sends "lesson in 2 hours" push to students.
+// Window: 90–150 min from now. Marks reminderSent/2h to avoid duplicates.
+exports.sendLessonReminders = onSchedule(
+  { schedule: "every 30 minutes", region: "europe-west1", timeZone: "Europe/Kiev" },
+  async () => {
+    const now = Date.now();
+    const WINDOW_MIN = 90  * 60 * 1000;
+    const WINDOW_MAX = 150 * 60 * 1000;
+
+    const snap = await db.ref("instructors").get();
+    if (!snap.exists()) return null;
+
+    const tasks = [];
+    snap.forEach(iSnap => {
+      const iid = iSnap.key;
+      const booksNode = iSnap.child("bookings");
+      if (!booksNode.exists()) return;
+
+      booksNode.forEach(userSnap => {
+        const uid = userSnap.key;
+        if (uid.startsWith("guest_")) return;
+
+        userSnap.forEach(bSnap => {
+          const b = bSnap.val();
+          if (!b || b.status !== "confirmed") return;
+          if (b.reminderSent && b.reminderSent["2h"]) return;
+
+          const { date, time } = b;
+          if (!date || !time) return;
+
+          // Parse as Kyiv local time (UTC+3 in summer; ±1h offset in winter is within the window)
+          const lessonMs = new Date(`${date}T${time}:00+03:00`).getTime();
+          const diff = lessonMs - now;
+          if (diff >= WINDOW_MIN && diff <= WINDOW_MAX) {
+            tasks.push({ iid, uid, key: bSnap.key, date, time });
+          }
+        });
+      });
+    });
+
+    if (!tasks.length) return null;
+
+    await Promise.allSettled(tasks.map(async ({ iid, uid, key, date, time }) => {
+      await pushInstructorStudent(
+        iid, uid,
+        "⏰ Урок через 2 години",
+        `${date} о ${time.slice(0,5)} — не забудьте!`,
+        { url: "https://drivepad.pro/cabinet/bookings" }
+      );
+      await saveInstructorNotification(
+        iid, uid,
+        "⏰ Урок через 2 години",
+        `${date} о ${time.slice(0,5)} — не забудьте!`,
+        "lesson_reminder"
+      );
+      await db.ref(`instructors/${iid}/bookings/${uid}/${key}/reminderSent/2h`).set(now).catch(() => {});
+    }));
+
+    return null;
   }
 );
