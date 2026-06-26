@@ -207,7 +207,7 @@ function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock }) {
     }).catch(() => setBookings([]));
   }, [s.id]);
 
-  const totalPaid = (bookings || []).filter(b => b.status === 'confirmed').reduce((acc, b) => acc + (b.price || 0), 0);
+  const totalPaid = (bookings || []).filter(b => b.isPaid).reduce((acc, b) => acc + (b.price || 0), 0);
 
   const typeColor = s.type === "school" ? GREEN : GOLD;
   const typeLabel = s.type === "school" ? "Автошкола" : "Приватний";
@@ -367,11 +367,11 @@ function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock }) {
                 )}
 
                 {/* Payment total */}
-                {totalPaid > 0 && (
+                {(bookings||[]).length > 0 && (
                   <div style={{display:"flex",gap:8}}>
                     <div style={{flex:1,background:glow(0.04),borderRadius:10,padding:"9px 12px",border:`1px solid ${BORDER}`}}>
                       <div style={{fontSize:9,color:FAINT,letterSpacing:1,textTransform:"uppercase",marginBottom:3}}>Оплачено</div>
-                      <div style={{fontSize:18,fontWeight:900,color:GOLD}}>{totalPaid}₴</div>
+                      <div style={{fontSize:18,fontWeight:900,color:GOLD}}>{totalPaid > 0 ? `${totalPaid}₴` : "—"}</div>
                     </div>
                     <div style={{flex:1,background:glow(0.04),borderRadius:10,padding:"9px 12px",border:`1px solid ${BORDER}`}}>
                       <div style={{fontSize:9,color:FAINT,letterSpacing:1,textTransform:"uppercase",marginBottom:3}}>Уроків</div>
@@ -396,6 +396,7 @@ function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock }) {
                             <span style={{fontSize:11,color:BLUE,fontWeight:700,minWidth:34}}>{b.time}</span>
                             <span style={{flex:1,fontSize:11,color:TEXT,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{b.serviceName||b.svc||"—"}</span>
                             {b.price > 0 && <span style={{fontSize:10,fontWeight:800,color:GOLD,minWidth:40,textAlign:"right"}}>{b.price}₴</span>}
+                            {b.isPaid && <span style={{fontSize:9,fontWeight:800,padding:"2px 5px",borderRadius:5,background:"rgba(99,211,120,0.15)",color:"#63d37b"}}>₴✓</span>}
                             <span style={{fontSize:10,fontWeight:800,padding:"2px 7px",borderRadius:5,background:bg,color:c}}>{icon}</span>
                           </div>
                         );
