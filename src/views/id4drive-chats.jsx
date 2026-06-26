@@ -242,15 +242,15 @@ export default function ChatsView() {
     contacts.forEach(c => {
       push(iRef(`chats/${c.id}`), {from:"admin",text:msg,time,ts:Date.now(),broadcast:true}).catch(()=>{});
     });
-    localStorage.removeItem("id4drive-free-slot");
+    localStorage.removeItem("drivepad-free-slot");
   }, [contacts]);
 
   useEffect(() => {
-    const pending = localStorage.getItem("id4drive-free-slot");
+    const pending = localStorage.getItem("drivepad-free-slot");
     if (pending) { try { const {msg,time}=JSON.parse(pending); if(msg) applyFreeSlotBroadcast(msg,time); } catch(_){} }
     const handler = e => { const {msg,time}=e.detail||{}; if(msg) applyFreeSlotBroadcast(msg,time); };
-    window.addEventListener("id4drive-free-slot", handler);
-    return () => window.removeEventListener("id4drive-free-slot", handler);
+    window.addEventListener("drivepad-free-slot", handler);
+    return () => window.removeEventListener("drivepad-free-slot", handler);
   }, [applyFreeSlotBroadcast]);
 
   // ── Actions ───────────────────────────────────────────────────

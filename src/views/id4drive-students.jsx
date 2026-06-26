@@ -8,7 +8,7 @@ import { UICss, Field, Btn as UIBtn, useFX } from "../ui";
 
 const M = ["","Січ","Лют","Бер","Кві","Тра","Чер","Лип","Сер","Вер","Жов","Лис","Гру"];
 const fmtS = d => { if(!d) return "—"; const [,m,day]=d.split("-"); return `${parseInt(day)} ${M[parseInt(m)]}`; };
-const navTo = tab => window.dispatchEvent(new CustomEvent("id4drive-nav", {detail:tab}));
+const navTo = tab => window.dispatchEvent(new CustomEvent("drivepad-nav", {detail:tab}));
 
 const Svg = (d, s=18, c="white", w=2) => (
   <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth={w} strokeLinecap="round" strokeLinejoin="round">{d}</svg>

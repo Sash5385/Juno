@@ -477,8 +477,8 @@ export default function App() {
   // Tab navigation via custom event (from child components)
   useEffect(() => {
     const nav = e => switchTab(e.detail);
-    window.addEventListener("id4drive-nav", nav);
-    return () => window.removeEventListener("id4drive-nav", nav);
+    window.addEventListener("drivepad-nav", nav);
+    return () => window.removeEventListener("drivepad-nav", nav);
   }, []);
 
   // Network version check — bypasses SW cache. On mismatch, fully reset the
@@ -552,7 +552,7 @@ export default function App() {
   useEffect(() => {
     if (!adminUser) return;
     return onAdminForegroundMessage((payload) => {
-      const title = payload.notification?.title || "ID4Drive";
+      const title = payload.notification?.title || "DrivePad";
       const body  = payload.notification?.body  || "";
       if (Notification.permission === "granted" && "serviceWorker" in navigator) {
         navigator.serviceWorker.ready.then(reg => {
