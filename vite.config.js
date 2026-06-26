@@ -24,7 +24,7 @@ function readVersion() {
 function versionGuard() {
   let version = ''
   return {
-    name: 'id4drive-version-guard',
+    name: 'drivepad-version-guard',
     buildStart() {
       version = readVersion()
     },

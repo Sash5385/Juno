@@ -1,6 +1,6 @@
 {
   "name": "functions",
-  "description": "Cloud Functions for id4drive admin",
+  "description": "Cloud Functions for DrivePad admin",
   "engines": { "node": "22" },
   "main": "index.js",
   "dependencies": {
