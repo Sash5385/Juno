@@ -445,7 +445,7 @@ export default function StudentsView() {
         if (!bkgs) return;
         const updates = {};
         Object.keys(bkgs).forEach(bkId => { updates[`bookings/${id}/${bkId}/tsc`] = patch.tsc; });
-        update(ref(db), updates).catch(()=>{});
+        update(iRef(""), updates).catch(()=>{});
       }).catch(()=>{});
     }
   };
