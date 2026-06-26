@@ -17,7 +17,7 @@ firebase.initializeApp({
 const messaging = firebase.messaging()
 
 messaging.onBackgroundMessage((payload) => {
-  const title = payload.notification?.title || 'ID4Drive'
+  const title = payload.notification?.title || 'DrivePad'
   const options = {
     body: payload.notification?.body || '',
     icon: '/favicon.svg',
