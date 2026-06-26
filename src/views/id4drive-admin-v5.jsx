@@ -2599,13 +2599,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
           } else {
             const phone = (b.phone || '').replace(/\D/g, '');
             if (phone) {
-              update(iRef(`bookings_by_phone/${phone}/${b.id}`), fbData).catch(()=>{});
-              for (let i = 0; i < b.durMin; i += 30) {
-                const slotMin = b.startMin + i;
-                const sh = String(Math.floor(slotMin / 60)).padStart(2, '0');
-                const sm = String(slotMin % 60).padStart(2, '0');
-                update(iRef(`slotBookings/${b.date}/slot${sh}${sm}`), {phone, bookingId: b.id}).catch(()=>{});
-              }
+              update(iRef(`bookings/guest_${phone}/${b.id}`), fbData).catch(()=>{});
             }
           }
         }
