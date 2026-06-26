@@ -208,6 +208,7 @@ function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock }) {
   }, [s.id]);
 
   const totalPaid = (bookings || []).filter(b => b.isPaid).reduce((acc, b) => acc + (b.price || 0), 0);
+  const totalDebt = (bookings || []).filter(b => b.status === 'confirmed' && !b.isPaid && b.price > 0).reduce((acc, b) => acc + (b.price || 0), 0);
 
   const typeColor = s.type === "school" ? GREEN : GOLD;
   const typeLabel = s.type === "school" ? "Автошкола" : "Приватний";
@@ -368,16 +369,24 @@ function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock }) {
 
                 {/* Payment total */}
                 {(bookings||[]).length > 0 && (
-                  <div style={{display:"flex",gap:8}}>
-                    <div style={{flex:1,background:glow(0.04),borderRadius:10,padding:"9px 12px",border:`1px solid ${BORDER}`}}>
-                      <div style={{fontSize:9,color:FAINT,letterSpacing:1,textTransform:"uppercase",marginBottom:3}}>Оплачено</div>
-                      <div style={{fontSize:18,fontWeight:900,color:GOLD}}>{totalPaid > 0 ? `${totalPaid}₴` : "—"}</div>
+                  <>
+                    <div style={{display:"flex",gap:8}}>
+                      <div style={{flex:1,background:glow(0.04),borderRadius:10,padding:"9px 12px",border:`1px solid ${BORDER}`}}>
+                        <div style={{fontSize:9,color:FAINT,letterSpacing:1,textTransform:"uppercase",marginBottom:3}}>Оплачено</div>
+                        <div style={{fontSize:18,fontWeight:900,color:GOLD}}>{totalPaid > 0 ? `${totalPaid}₴` : "—"}</div>
+                      </div>
+                      <div style={{flex:1,background:glow(0.04),borderRadius:10,padding:"9px 12px",border:`1px solid ${BORDER}`}}>
+                        <div style={{fontSize:9,color:FAINT,letterSpacing:1,textTransform:"uppercase",marginBottom:3}}>Уроків</div>
+                        <div style={{fontSize:18,fontWeight:900,color:GREEN}}>{(bookings||[]).filter(b=>b.status==='confirmed').length}</div>
+                      </div>
                     </div>
-                    <div style={{flex:1,background:glow(0.04),borderRadius:10,padding:"9px 12px",border:`1px solid ${BORDER}`}}>
-                      <div style={{fontSize:9,color:FAINT,letterSpacing:1,textTransform:"uppercase",marginBottom:3}}>Уроків</div>
-                      <div style={{fontSize:18,fontWeight:900,color:GREEN}}>{(bookings||[]).filter(b=>b.status==='confirmed').length}</div>
-                    </div>
-                  </div>
+                    {totalDebt > 0 && (
+                      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",borderRadius:10,padding:"8px 12px",background:"rgba(239,68,68,0.08)",border:"1px solid rgba(239,68,68,0.2)"}}>
+                        <div style={{fontSize:11,color:"#fca5a5",fontWeight:700}}>💳 Не оплачено</div>
+                        <div style={{fontSize:15,fontWeight:900,color:"#f87171"}}>{totalDebt}₴</div>
+                      </div>
+                    )}
+                  </>
                 )}
 
                 {/* Booking history */}

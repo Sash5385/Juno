@@ -382,3 +382,61 @@ exports.sendLessonReminders = onSchedule(
     return null;
   }
 );
+
+// "Tomorrow" reminder — runs daily at 18:00 Kyiv time.
+// Sends push for all confirmed lessons scheduled for tomorrow.
+exports.sendTomorrowReminders = onSchedule(
+  { schedule: "0 15 * * *", region: "europe-west1", timeZone: "UTC" }, // 15:00 UTC = 18:00 Kyiv (+3)
+  async () => {
+    const now = new Date();
+    const tomorrow = new Date(now);
+    tomorrow.setUTCDate(now.getUTCDate() + 1);
+    const tomorrowStr = tomorrow.toISOString().slice(0, 10); // "YYYY-MM-DD"
+
+    const snap = await db.ref("instructors").get();
+    if (!snap.exists()) return null;
+
+    const tasks = [];
+    snap.forEach(iSnap => {
+      const iid = iSnap.key;
+      const booksNode = iSnap.child("bookings");
+      if (!booksNode.exists()) return;
+
+      booksNode.forEach(userSnap => {
+        const uid = userSnap.key;
+        if (uid.startsWith("guest_")) return;
+
+        userSnap.forEach(bSnap => {
+          const b = bSnap.val();
+          if (!b || b.status !== "confirmed") return;
+          if (b.reminderSent && b.reminderSent["day"]) return;
+          if (b.date !== tomorrowStr) return;
+
+          tasks.push({ iid, uid, key: bSnap.key, date: b.date, time: b.time || "" });
+        });
+      });
+    });
+
+    if (!tasks.length) return null;
+
+    const ts = Date.now();
+    await Promise.allSettled(tasks.map(async ({ iid, uid, key, date, time }) => {
+      const t = (time || "").slice(0, 5);
+      await pushInstructorStudent(
+        iid, uid,
+        "📅 Урок завтра",
+        `${date} о ${t} — чекаємо на вас!`,
+        { url: "https://drivepad.pro/cabinet/bookings" }
+      );
+      await saveInstructorNotification(
+        iid, uid,
+        "📅 Урок завтра",
+        `${date} о ${t} — чекаємо на вас!`,
+        "lesson_reminder_day"
+      );
+      await db.ref(`instructors/${iid}/bookings/${uid}/${key}/reminderSent/day`).set(ts).catch(() => {});
+    }));
+
+    return null;
+  }
+);
