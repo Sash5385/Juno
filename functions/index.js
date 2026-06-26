@@ -320,6 +320,77 @@ exports.liqpayCallback = onRequest(
   }
 );
 
+// ─── DEBT REMINDER ───────────────────────────────────────────────
+// Runs daily at 10:00 Kyiv. Sends push to students with unpaid past lessons.
+// Dedup: max once per 7 days per student (debtReminderSentAt field).
+exports.sendDebtReminders = onSchedule(
+  { schedule: "0 7 * * *", region: "europe-west1", timeZone: "UTC" }, // 7:00 UTC = 10:00 Kyiv
+  async () => {
+    const now = Date.now();
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const SEVEN_DAYS = 7 * 24 * 3600 * 1000;
+
+    const snap = await db.ref("instructors").get();
+    if (!snap.exists()) return null;
+
+    const tasks = [];
+    snap.forEach(iSnap => {
+      const iid = iSnap.key;
+      const booksNode = iSnap.child("bookings");
+      if (!booksNode.exists()) return;
+
+      const studentDebt = {};
+      booksNode.forEach(userSnap => {
+        const uid = userSnap.key;
+        if (uid.startsWith("guest_")) return;
+
+        userSnap.forEach(bSnap => {
+          const b = bSnap.val();
+          if (!b || b.status !== "confirmed" || b.isPaid || !b.price || b.price <= 0) return;
+          if (!b.date || b.date >= todayStr) return;
+          if (!studentDebt[uid]) studentDebt[uid] = { total: 0, lastSent: b.debtReminderSentAt || 0 };
+          studentDebt[uid].total += b.price;
+        });
+      });
+
+      Object.entries(studentDebt).forEach(([uid, info]) => {
+        if (info.total <= 0) return;
+        if (now - info.lastSent < SEVEN_DAYS) return;
+        tasks.push({ iid, uid, total: info.total });
+      });
+    });
+
+    if (!tasks.length) return null;
+
+    await Promise.allSettled(tasks.map(async ({ iid, uid, total }) => {
+      await pushInstructorStudent(
+        iid, uid,
+        "💳 Нагадування про оплату",
+        `Є неоплачені уроки на суму ${total} ₴. Зверніться до інструктора.`,
+        { url: "https://drivepad.pro/cabinet/bookings" }
+      );
+      await saveInstructorNotification(
+        iid, uid,
+        "💳 Нагадування про оплату",
+        `Є неоплачені уроки на суму ${total} ₴.`,
+        "debt_reminder"
+      );
+      await db.ref(`instructors/${iid}/bookings`).child(uid).once("value").then(async snap => {
+        const updates = {};
+        snap.forEach(bSnap => {
+          const b = bSnap.val();
+          if (b && b.status === "confirmed" && !b.isPaid && b.price > 0 && b.date < todayStr) {
+            updates[`instructors/${iid}/bookings/${uid}/${bSnap.key}/debtReminderSentAt`] = now;
+          }
+        });
+        if (Object.keys(updates).length) await db.ref("/").update(updates).catch(() => {});
+      }).catch(() => {});
+    }));
+
+    return null;
+  }
+);
+
 // ─── LESSON REMINDER NOTIFICATIONS ───────────────────────────────
 // Runs every 30 min, sends "lesson in 2 hours" push to students.
 // Window: 90–150 min from now. Marks reminderSent/2h to avoid duplicates.
