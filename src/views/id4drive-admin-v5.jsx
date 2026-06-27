@@ -1272,8 +1272,13 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
     if (action === "confirm") {
       setBookings(bs=>bs.map(x=>x.id===b.id?{...x,status:"confirmed"}:x));
       const bookKey = b._fbKey || b.id;
+      const _now = new Date();
+      const _dl = `${String(_now.getDate()).padStart(2,'0')}.${String(_now.getMonth()+1).padStart(2,'0')}`;
+      const _tl = `${String(_now.getHours()).padStart(2,'0')}:${String(_now.getMinutes()).padStart(2,'0')}`;
       if (b.userId) {
         update(iRef(`bookings/${b.userId}/${bookKey}`), { status:"confirmed", confirmedAt:Date.now(), confirmedBy:"admin" }).catch(()=>{});
+        fbPush(iRef(`notifications/${b.userId}`), { type:'booking_confirmed', title:'Урок підтверджено', body:`${b.date} о ${b.time}`, date:_dl, time:_tl, ts:Date.now() }).catch(()=>{});
+        if (!b.userId.startsWith('guest_')) fbPush(iRef('pushQueue'), { uid:b.userId, title:'Урок підтверджено ✅', body:`${b.date} о ${b.time}`, ts:Date.now() }).catch(()=>{});
       }
     }
     if (action === "paid") setBookings(bs=>bs.map(x=>x.id===b.id?{...x,isPaid:b.isPaid}:x));

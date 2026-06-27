@@ -789,9 +789,12 @@ export default function App() {
       if (b.status !== 'pending') return;
       const bookKey = b._fbKey || b.id;
       if (b.userId) {
-        update(iRef(`bookings/${b.userId}/${bookKey}`), {
-          status: 'confirmed', confirmedAt: Date.now(), confirmedBy: 'auto'
-        }).catch(() => {});
+        const _n = new Date();
+        const _dl = `${String(_n.getDate()).padStart(2,'0')}.${String(_n.getMonth()+1).padStart(2,'0')}`;
+        const _tl = `${String(_n.getHours()).padStart(2,'0')}:${String(_n.getMinutes()).padStart(2,'0')}`;
+        update(iRef(`bookings/${b.userId}/${bookKey}`), { status: 'confirmed', confirmedAt: Date.now(), confirmedBy: 'auto' }).catch(() => {});
+        push(iRef(`notifications/${b.userId}`), { type:'booking_confirmed', title:'Урок підтверджено', body:`${b.date} о ${b.time}`, date:_dl, time:_tl, ts:Date.now() }).catch(()=>{});
+        if (!b.userId.startsWith('guest_')) push(iRef('pushQueue'), { uid:b.userId, title:'Урок підтверджено ✅', body:`${b.date} о ${b.time}`, ts:Date.now() }).catch(()=>{});
       }
     });
   }, [bookings, settings.pendingEnabled]);
