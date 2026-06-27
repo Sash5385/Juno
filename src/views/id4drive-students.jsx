@@ -223,6 +223,10 @@ function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock }) {
 
   const totalPaid = (bookings || []).filter(b => b.isPaid).reduce((acc, b) => acc + (b.price || 0), 0);
   const totalDebt = (bookings || []).filter(b => b.status === 'confirmed' && !b.isPaid && b.price > 0).reduce((acc, b) => acc + (b.price || 0), 0);
+  const ratedBookings = (bookings || []).filter(b => b.status === 'confirmed' && b.rating > 0);
+  const avgRating = ratedBookings.length
+    ? Math.round(ratedBookings.reduce((s, b) => s + b.rating, 0) / ratedBookings.length * 10) / 10
+    : 0;
 
   const sendPush = async () => {
     if (!msgTitle.trim() || !msgBody.trim()) return;
@@ -412,6 +416,16 @@ function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock }) {
                         <div style={{fontSize:9,color:FAINT,letterSpacing:1,textTransform:"uppercase",marginBottom:3}}>Уроків</div>
                         <div style={{fontSize:18,fontWeight:900,color:GREEN}}>{(bookings||[]).filter(b=>b.status==='confirmed').length}</div>
                       </div>
+                      {avgRating > 0 && (
+                        <div style={{flex:1,background:"rgba(251,191,36,0.07)",borderRadius:10,padding:"9px 12px",border:"1px solid rgba(251,191,36,0.2)"}}>
+                          <div style={{fontSize:9,color:"rgba(251,191,36,0.7)",letterSpacing:1,textTransform:"uppercase",marginBottom:3}}>Рейтинг</div>
+                          <div style={{fontSize:18,fontWeight:900,color:"#fbbf24",display:"flex",alignItems:"center",gap:4}}>
+                            {avgRating}
+                            <span style={{fontSize:13}}>⭐</span>
+                          </div>
+                          <div style={{fontSize:9,color:FAINT,marginTop:1}}>{ratedBookings.length} оцінок</div>
+                        </div>
+                      )}
                     </div>
                     {totalDebt > 0 && (
                       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",borderRadius:10,padding:"8px 12px",background:"rgba(239,68,68,0.08)",border:"1px solid rgba(239,68,68,0.2)"}}>
@@ -439,6 +453,7 @@ function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock }) {
                             <span style={{flex:1,fontSize:11,color:TEXT,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{b.serviceName||b.svc||"—"}</span>
                             {b.price > 0 && <span style={{fontSize:10,fontWeight:800,color:GOLD,minWidth:40,textAlign:"right"}}>{b.price}₴</span>}
                             {b.isPaid && <span style={{fontSize:9,fontWeight:800,padding:"2px 5px",borderRadius:5,background:"rgba(99,211,120,0.15)",color:"#63d37b"}}>₴✓</span>}
+                            {b.rating > 0 && <span style={{fontSize:10,color:"#fbbf24",letterSpacing:0}}>{"★".repeat(b.rating)}</span>}
                             <span style={{fontSize:10,fontWeight:800,padding:"2px 7px",borderRadius:5,background:bg,color:c}}>{icon}</span>
                           </div>
                         );
