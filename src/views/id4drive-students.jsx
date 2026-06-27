@@ -24,6 +24,7 @@ const ICONS = {
   unban:    Svg(<><polyline points="20 6 9 17 4 12"/></>, 18, "white", 2.5),
   search:   Svg(<><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></>, 15, "#5a5c62"),
   trash:    Svg(<><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></>, 18, "white", 2),
+  bell:     Svg(<><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></>, 18, "white", 2),
 };
 
 // ─── ACTION BUTTON ───────────────────────────────────────────────
@@ -205,6 +206,10 @@ function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock }) {
   const [confirmDel,   setConfirmDel]  = useState(false);
   const [pendingDelete,setPendingDelete] = useState(false);
   const [bookings,     setBookings]    = useState(null); // null=loading
+  const [sendMsgModal, setSendMsgModal] = useState(false);
+  const [msgTitle,     setMsgTitle]     = useState("");
+  const [msgBody,      setMsgBody]      = useState("");
+  const [msgSending,   setMsgSending]   = useState(false);
 
   useEffect(() => {
     get(iRef(`bookings/${s.id}`)).then(snap => {
@@ -218,6 +223,16 @@ function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock }) {
 
   const totalPaid = (bookings || []).filter(b => b.isPaid).reduce((acc, b) => acc + (b.price || 0), 0);
   const totalDebt = (bookings || []).filter(b => b.status === 'confirmed' && !b.isPaid && b.price > 0).reduce((acc, b) => acc + (b.price || 0), 0);
+
+  const sendPush = async () => {
+    if (!msgTitle.trim() || !msgBody.trim()) return;
+    setMsgSending(true);
+    try {
+      await push(iRef("pushQueue"), { uid: s.id, title: msgTitle.trim(), body: msgBody.trim(), ts: Date.now() });
+      setSendMsgModal(false); setMsgTitle(""); setMsgBody("");
+    } catch(e) {}
+    setMsgSending(false);
+  };
 
   const typeColor = s.type === "school" ? GREEN : GOLD;
   const typeLabel = s.type === "school" ? "Автошкола" : "Приватний";
@@ -361,6 +376,7 @@ function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock }) {
                   <ActBtn icon={ICONS.chat}     label="Чат"        onClick={()=>{navTo("chats");_close();}}                                   color={BLUE}/>
                   <ActBtn icon={ICONS.edit}     label="Редагувати" onClick={()=>setEditMode(true)}/>
                   <ActBtn icon={s.blocked?ICONS.unban:ICONS.ban} label={s.blocked?"Розблок.":"Заблок."} onClick={()=>onBlock(s.id)} danger={!s.blocked}/>
+                  <ActBtn icon={ICONS.bell}     label="Сповіщення" onClick={()=>setSendMsgModal(true)} color={ACCENT}/>
                 </div>
 
                 {/* VIP toggle */}
@@ -442,6 +458,25 @@ function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock }) {
           </div>
         </div>
       </div>
+
+      {sendMsgModal && createPortal(
+        <div onClick={()=>setSendMsgModal(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,.6)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:9999,padding:16}}>
+          <div onClick={e=>e.stopPropagation()} style={{background:SURFACE,borderRadius:18,padding:20,width:"100%",maxWidth:360,boxShadow:"0 8px 40px rgba(0,0,0,.5)"}}>
+            <div style={{fontSize:15,fontWeight:800,color:TEXT,marginBottom:14}}>📢 Повідомлення учню</div>
+            <div style={{fontSize:11,fontWeight:600,color:DIM,marginBottom:5}}>Заголовок</div>
+            <input value={msgTitle} onChange={e=>setMsgTitle(e.target.value)} placeholder="Наприклад: Нагадування" style={{width:"100%",padding:"9px 12px",borderRadius:10,border:`1px solid ${BORDER}`,background:BG_DEEP,color:TEXT,fontSize:13,fontFamily:"inherit",marginBottom:10,boxSizing:"border-box"}}/>
+            <div style={{fontSize:11,fontWeight:600,color:DIM,marginBottom:5}}>Текст</div>
+            <textarea value={msgBody} onChange={e=>setMsgBody(e.target.value)} placeholder="Текст повідомлення..." rows={3} style={{width:"100%",padding:"9px 12px",borderRadius:10,border:`1px solid ${BORDER}`,background:BG_DEEP,color:TEXT,fontSize:13,fontFamily:"inherit",resize:"none",marginBottom:14,boxSizing:"border-box"}}/>
+            <div style={{display:"flex",gap:8}}>
+              <button onClick={()=>setSendMsgModal(false)} style={{flex:1,padding:"10px",borderRadius:11,border:"none",cursor:"pointer",background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,color:DIM,fontSize:13,fontWeight:700,fontFamily:"inherit",boxShadow:SO}}>Скасувати</button>
+              <button onClick={sendPush} disabled={msgSending||!msgTitle.trim()||!msgBody.trim()} style={{flex:1.3,padding:"10px",borderRadius:11,border:"none",cursor:msgSending?"not-allowed":"pointer",background:`linear-gradient(145deg,${ACC_HI},${ACCENT})`,color:"#fff",fontSize:13,fontWeight:800,fontFamily:"inherit",opacity:msgSending||!msgTitle.trim()||!msgBody.trim()?0.5:1,boxShadow:SO}}>
+                {msgSending?"Надсилання...":"Надіслати 📢"}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </>
   );
 }

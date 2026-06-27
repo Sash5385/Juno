@@ -511,3 +511,15 @@ exports.sendTomorrowReminders = onSchedule(
     return null;
   }
 );
+
+exports.onAdminPushQueue = onValueCreated(
+  { ref: "instructors/{iid}/pushQueue/{pushId}", region: "europe-west1", instance: "*" },
+  async event => {
+    const { uid, title, body } = event.data.val() || {};
+    if (!uid || !title || !body) { await event.data.ref.remove().catch(() => {}); return; }
+    const iid = event.params.iid;
+    await pushInstructorStudent(iid, uid, title, body);
+    await saveInstructorNotification(iid, uid, title, body, "admin_message");
+    await event.data.ref.remove().catch(() => {});
+  }
+);
