@@ -512,6 +512,45 @@ exports.sendTomorrowReminders = onSchedule(
   }
 );
 
+exports.sendDailySummary = onSchedule(
+  { schedule: "0 18 * * *", region: "europe-west1", timeZone: "UTC" }, // 18:00 UTC = 21:00 Kyiv
+  async () => {
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const snap = await db.ref("instructors").get();
+    if (!snap.exists()) return null;
+
+    const tasks = [];
+    snap.forEach(iSnap => {
+      const iid = iSnap.key;
+      const booksNode = iSnap.child("bookings");
+      if (!booksNode.exists()) return;
+
+      let count = 0, totalEarned = 0, totalPaid = 0, totalHours = 0;
+      booksNode.forEach(userSnap => {
+        userSnap.forEach(bSnap => {
+          const b = bSnap.val();
+          if (!b || b.date !== todayStr || b.status !== "confirmed") return;
+          if (b.type === "personal" || b.type === "block" || b.type === "vip-slot") return;
+          count++;
+          totalEarned += b.price || 0;
+          if (b.isPaid) totalPaid += b.price || 0;
+          totalHours += b.durationHours || 1;
+        });
+      });
+      if (count > 0) tasks.push({ iid, count, totalEarned, totalPaid, totalHours });
+    });
+
+    if (!tasks.length) return null;
+    await Promise.allSettled(tasks.map(async ({ iid, count, totalEarned, totalPaid, totalHours }) => {
+      const notPaid = totalEarned - totalPaid;
+      const body = `Уроків: ${count} (${totalHours} год) · Зароблено: ${totalEarned} ₴` +
+        (notPaid > 0 ? ` · Борг: ${notPaid} ₴` : " · Всі оплачені ✓");
+      await pushInstructor(iid, "📊 Підсумок дня", body);
+    }));
+    return null;
+  }
+);
+
 exports.onAdminPushQueue = onValueCreated(
   { ref: "instructors/{iid}/pushQueue/{pushId}", region: "europe-west1", instance: "*" },
   async event => {
