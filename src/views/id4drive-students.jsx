@@ -310,8 +310,14 @@ function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock }) {
                 {/* Phone + discount */}
                 <div style={{display:"flex",gap:8}}>
                   <div style={{flex:1,background:glow(0.04),borderRadius:10,padding:"9px 12px",border:`1px solid ${BORDER}`}}>
-                    <div style={{fontSize:9,color:FAINT,letterSpacing:1,textTransform:"uppercase",marginBottom:3}}>Телефон</div>
-                    <div style={{fontSize:14,fontWeight:700,color:TEXT}}>{s.phone||"—"}</div>
+                    <div style={{fontSize:9,color:FAINT,letterSpacing:1,textTransform:"uppercase",marginBottom:5}}>Телефон</div>
+                    {s.phone ? (
+                      <div style={{display:"flex",alignItems:"center",gap:8}}>
+                        <a href={`tel:${s.phone}`} style={{fontSize:14,fontWeight:700,color:ACCENT,textDecoration:"none",flex:1,lineHeight:1}}>{s.phone}</a>
+                        <a href={`https://wa.me/${(s.phone).replace(/\D/g,"").replace(/^0/,"380")}`} target="_blank" rel="noopener noreferrer"
+                          style={{width:28,height:28,borderRadius:8,background:"linear-gradient(145deg,#25d36633,#25d36618)",border:"1px solid #25d36633",display:"flex",alignItems:"center",justifyContent:"center",textDecoration:"none",fontSize:15,flexShrink:0}}>💬</a>
+                      </div>
+                    ) : <div style={{fontSize:14,fontWeight:700,color:DIM}}>—</div>}
                   </div>
                   <div style={{width:88,background:glow(0.04),borderRadius:10,padding:"9px 12px",border:`1px solid ${BORDER}`,textAlign:"center"}}>
                     <div style={{fontSize:9,color:FAINT,letterSpacing:1,textTransform:"uppercase",marginBottom:3}}>Знижка</div>
