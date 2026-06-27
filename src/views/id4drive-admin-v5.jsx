@@ -2823,6 +2823,8 @@ function BookingModal({ booking, onClose, onAction, settings }) {
   const [closing, setClosing] = useState(false);
   const [isPaid, setIsPaid] = useState(!!booking?.isPaid);
   useEffect(() => { setIsPaid(!!booking?.isPaid); }, [booking?.id]);
+  const [instructorNote, setInstructorNote] = useState(booking?.instructorNote || "");
+  useEffect(() => { setInstructorNote(booking?.instructorNote || ""); }, [booking?.id]);
 
   const togglePaid = () => {
     const next = !isPaid;
@@ -2835,6 +2837,17 @@ function BookingModal({ booking, onClose, onAction, settings }) {
       update(iRef(`bookings/guest_${phone}/${bookKey}`), { isPaid: next }).catch(() => setIsPaid(!next));
     }
     onAction("paid", { ...booking, isPaid: next });
+  };
+
+  const saveInstructorNote = () => {
+    const val = instructorNote.trim();
+    const bookKey = booking._fbKey || booking.id;
+    if (booking.userId) {
+      update(iRef(`bookings/${booking.userId}/${bookKey}`), { instructorNote: val || null }).catch(() => {});
+    } else if (booking.phone) {
+      const phone = (booking.phone || "").replace(/\D/g, "");
+      update(iRef(`bookings/guest_${phone}/${bookKey}`), { instructorNote: val || null }).catch(() => {});
+    }
   };
 
   useEffect(() => {
@@ -2961,6 +2974,31 @@ function BookingModal({ booking, onClose, onAction, settings }) {
               {booking.studentNote}
             </div>
           )}
+
+          {/* Instructor note */}
+          <div style={{margin:"6px 10px 0",padding:"9px 12px",borderRadius:12,
+            background:"rgba(59,130,246,0.06)",border:"1px solid rgba(59,130,246,0.15)"}}>
+            <span style={{fontSize:10,fontWeight:700,color:"rgba(96,165,250,0.8)",display:"block",marginBottom:5}}>📝 НОТАТКА ІНСТРУКТОРА</span>
+            <textarea
+              value={instructorNote}
+              onChange={e => setInstructorNote(e.target.value)}
+              placeholder="Що відпрацювали, рекомендації…"
+              maxLength={200}
+              rows={2}
+              style={{
+                width:'100%',padding:'8px 10px',borderRadius:10,
+                border:'1px solid rgba(59,130,246,0.15)',
+                background:'rgba(255,255,255,0.04)',color:TEXT,
+                fontSize:12,fontFamily:'inherit',resize:'none',
+                boxSizing:'border-box',outline:'none',
+              }}
+            />
+            <button onClick={saveInstructorNote} style={{
+              marginTop:5,padding:'6px 14px',borderRadius:10,border:'none',
+              cursor:'pointer',fontSize:11,fontWeight:700,fontFamily:'inherit',
+              background:'rgba(59,130,246,0.18)',color:'rgba(96,165,250,0.9)',
+            }}>Зберегти</button>
+          </div>
 
           {/* Queue */}
           {queueEntries.length > 0 && (
