@@ -372,6 +372,21 @@ function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock }) {
                   </div>
                 )}
 
+                {/* Lesson balance (prepaid) */}
+                <div style={{background:glow(0.04),borderRadius:10,padding:"10px 12px",border:`1px solid ${BORDER}`}}>
+                  <div style={{fontSize:9,color:FAINT,letterSpacing:1,textTransform:"uppercase",marginBottom:7}}>Баланс уроків (передплата)</div>
+                  <div style={{display:"flex",alignItems:"center",gap:8}}>
+                    <button onClick={()=>onUpdate(s.id,{lessonBalance:Math.max(0,(s.lessonBalance||0)-1)})}
+                      style={{width:32,height:32,borderRadius:9,border:"none",cursor:"pointer",flexShrink:0,background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,color:TEXT,fontSize:20,fontWeight:700,boxShadow:SO,display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1,fontFamily:"inherit"}}>−</button>
+                    <div style={{flex:1,textAlign:"center"}}>
+                      <span style={{fontSize:22,fontWeight:900,color:(s.lessonBalance||0)>0?GREEN:FAINT}}>{s.lessonBalance||0}</span>
+                      <span style={{fontSize:11,color:FAINT,marginLeft:5}}>уроків</span>
+                    </div>
+                    <button onClick={()=>onUpdate(s.id,{lessonBalance:(s.lessonBalance||0)+1})}
+                      style={{width:32,height:32,borderRadius:9,border:"none",cursor:"pointer",flexShrink:0,background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,color:TEXT,fontSize:20,fontWeight:700,boxShadow:SO,display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1,fontFamily:"inherit"}}>+</button>
+                  </div>
+                </div>
+
                 {/* Action buttons */}
                 <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:7}}>
                   <ActBtn icon={ICONS.phone}    label="Дзвонити"   onClick={()=>{window.location.href=`tel:${s.phone}`;}}                    color={GREEN}/>

@@ -171,6 +171,7 @@ exports.onInstructorBookingChanged = onValueWritten(
             await saveInstructorNotification(iid, refUid, "🎁 Реферальний бонус", "Ваш друг записався — +1 бонусний урок!", "referral_bonus");
           }
         }
+        await db.ref(`instructors/${iid}/users/${uid}/lessonBalance`).transaction(n => n > 0 ? n - 1 : n).catch(() => {});
       }
       return;
     }
