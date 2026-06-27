@@ -176,6 +176,24 @@ exports.onInstructorBookingChanged = onValueWritten(
       return;
     }
 
+    // No-show — повідомляємо студента
+    if (after?.status === "noshow" && before?.status !== "noshow") {
+      if (!isGuest) {
+        await pushInstructorStudent(iid, uid, "😔 Урок пропущено", `${date} о ${time} — зверніться до інструктора`, { url: "https://drivepad.pro/cabinet/bookings" });
+        await saveInstructorNotification(iid, uid, "😔 Урок пропущено", `${date} о ${time}`, "noshow");
+      }
+      return;
+    }
+
+    // Інструктор додав нотатку — повідомляємо студента
+    if (after?.instructorNote && after.instructorNote !== before?.instructorNote) {
+      if (!isGuest) {
+        await pushInstructorStudent(iid, uid, "📝 Інструктор залишив нотатку", `${date} о ${time}`, { url: "https://drivepad.pro/cabinet/bookings" });
+        await saveInstructorNotification(iid, uid, "📝 Нотатка інструктора", after.instructorNote.slice(0, 80), "instructor_note");
+      }
+      return;
+    }
+
     // Перенесено — push клієнту + інструктору
     if (after && before && after.status !== "cancelled" &&
         (after.date !== before.date || after.time !== before.time)) {
