@@ -597,6 +597,61 @@ exports.onAdminPushQueue = onValueCreated(
   }
 );
 
+// Ручна розсилка інструктора → пуш всім студентам з токеном
+exports.onInstructorPushTask = onValueCreated(
+  { ref: "instructors/{iid}/push_tasks/{taskId}", region: "europe-west1" },
+  async (event) => {
+    const task = event.data.val();
+    if (!task || task.status === "sent") return;
+    const { date, slots, comment } = task;
+    const { iid, taskId } = event.params;
+
+    const usersSnap = await db.ref(`instructors/${iid}/users`).get();
+    if (!usersSnap.exists()) {
+      await db.ref(`instructors/${iid}/push_tasks/${taskId}`).update({ status: "sent", sentCount: 0, sentAt: Date.now() });
+      return;
+    }
+
+    const recipients = [];
+    usersSnap.forEach(uSnap => {
+      const uid = uSnap.key;
+      if (uid.startsWith("guest_")) return;
+      const token = uSnap.child("fcmTokens/web/token").val();
+      if (token) recipients.push({ uid, token });
+    });
+
+    if (!recipients.length) {
+      await db.ref(`instructors/${iid}/push_tasks/${taskId}`).update({ status: "sent", sentCount: 0, sentAt: Date.now() });
+      return;
+    }
+
+    const slotsArr = Array.isArray(slots) ? slots : Object.values(slots || {});
+    const d = new Date((date || "") + "T00:00:00");
+    const dateFmt = d.toLocaleDateString("uk", { day: "numeric", month: "long", weekday: "short" });
+    const slotsStr = slotsArr.filter(Boolean).join(" та ");
+    const title = "🚗 Є вільний слот!";
+    const body = `${dateFmt} о ${slotsStr}${comment ? " — " + comment : ""}`;
+    const url = `https://drivepad.pro/cabinet?date=${date}${slotsArr[0] ? `&time=${encodeURIComponent(slotsArr[0])}` : ""}`;
+
+    const tokens = recipients.map(r => r.token);
+    let sentCount = 0;
+    for (let i = 0; i < tokens.length; i += 500) {
+      const res = await admin.messaging().sendEachForMulticast({
+        tokens: tokens.slice(i, i + 500),
+        notification: { title, body },
+        data: { url, date: date || "", time: slotsArr[0] || "" },
+        webpush: { notification: { icon: "/favicon.svg" }, fcmOptions: { link: url } },
+      }).catch(() => ({ successCount: 0 }));
+      sentCount += res?.successCount || 0;
+    }
+
+    await Promise.all(recipients.map(({ uid }) =>
+      saveInstructorNotification(iid, uid, title, body, "slot_broadcast").catch(() => {})
+    ));
+    await db.ref(`instructors/${iid}/push_tasks/${taskId}`).update({ status: "sent", sentCount, sentAt: Date.now() });
+  }
+);
+
 // ─── QUEUE CASCADE / SLOT NOTIFICATIONS ──────────────────────────────
 
 async function inviteNextInInstructorQueue(iid, slotKey, excludeUids = []) {
