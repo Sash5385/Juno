@@ -1269,7 +1269,13 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   };
 
   const handleAction = (action, b) => {
-    if (action === "confirm") setBookings(bs=>bs.map(x=>x.id===b.id?{...x,status:"confirmed"}:x));
+    if (action === "confirm") {
+      setBookings(bs=>bs.map(x=>x.id===b.id?{...x,status:"confirmed"}:x));
+      const bookKey = b._fbKey || b.id;
+      if (b.userId) {
+        update(iRef(`bookings/${b.userId}/${bookKey}`), { status:"confirmed", confirmedAt:Date.now(), confirmedBy:"admin" }).catch(()=>{});
+      }
+    }
     if (action === "paid") setBookings(bs=>bs.map(x=>x.id===b.id?{...x,isPaid:b.isPaid}:x));
     if (action === "cancel") {
       // Відновити timeslots
@@ -2816,7 +2822,7 @@ function CreateSlotSheet({ data, settings, onClose }) {
 // BOOKING DETAIL MODAL
 // ═══════════════════════════════════════════════════════════════
 function BookingModal({ booking, onClose, onAction, settings }) {
-  const { BG, BG_DEEP, SURFACE, SURF_HI, SURF_LO, BORDER, TEXT, DIM, FAINT, ACCENT, ACC_HI, SO, SI , GLOW, SHADE, INK } = useContext(ThemeContext);
+  const { BG, BG_DEEP, SURFACE, SURF_HI, SURF_LO, BORDER, TEXT, DIM, FAINT, ACCENT, ACC_HI, SO, SI , GLOW, SHADE, INK, GREEN } = useContext(ThemeContext);
   const glow=a=>`rgba(${GLOW},${a})`,shade=a=>`rgba(${SHADE},${a})`,ink=a=>`rgba(${INK},${a})`;
   const SURFACE_HI = SURF_HI, SURFACE_LO = SURF_LO, TEXT_DIM = DIM, TEXT_FAINT = FAINT, ACCENT_HI = ACC_HI, SHADOW_OUT = SO, SHADOW_IN = SI;
   const [queueEntries, setQueueEntries] = useState([]);
@@ -3043,6 +3049,19 @@ function BookingModal({ booking, onClose, onAction, settings }) {
                   })()}
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* Confirm button — pending only */}
+          {booking.status === "pending" && settings.pendingEnabled && (
+            <div style={{padding:"10px 10px 0"}}>
+              <button onClick={() => { onAction("confirm", booking); _close(); }} style={{
+                width:"100%",display:"flex",alignItems:"center",justifyContent:"center",gap:7,
+                padding:"13px",borderRadius:14,border:"none",cursor:"pointer",fontFamily:"inherit",
+                background:`linear-gradient(145deg,${GREEN},#4ade80)`,
+                color:"#fff",fontSize:14,fontWeight:800,
+                boxShadow:`0 4px 16px ${GREEN}55`,
+              }}>✓ Підтвердити запис</button>
             </div>
           )}
 
