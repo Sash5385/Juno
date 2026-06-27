@@ -483,14 +483,26 @@ function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock }) {
                           <div style={{fontSize:11,color:"#fca5a5",fontWeight:700}}>💳 Не оплачено</div>
                           <div style={{fontSize:15,fontWeight:900,color:"#f87171"}}>{totalDebt}₴</div>
                         </div>
-                        <button onClick={()=>{
-                          push(iRef(`notifications/${s.id}`),{type:'admin_message',title:'Нагадування про оплату 💳',body:`Заборгованість ${totalDebt}₴ — будь ласка, оплатіть`,ts:Date.now()}).catch(()=>{});
-                          push(iRef('pushQueue'),{uid:s.id,title:'Нагадування про оплату 💳',body:`Заборгованість ${totalDebt}₴`,ts:Date.now()}).catch(()=>{});
-                        }} style={{
-                          width:"100%",padding:"6px 12px",borderRadius:8,border:"none",cursor:"pointer",
-                          fontFamily:"inherit",fontSize:11,fontWeight:700,
-                          background:"rgba(239,68,68,0.18)",color:"#fca5a5",
-                        }}>📢 Нагадати оплатити</button>
+                        <div style={{display:"flex",gap:6}}>
+                          <button onClick={()=>{
+                            push(iRef(`notifications/${s.id}`),{type:'admin_message',title:'Нагадування про оплату 💳',body:`Заборгованість ${totalDebt}₴ — будь ласка, оплатіть`,ts:Date.now()}).catch(()=>{});
+                            push(iRef('pushQueue'),{uid:s.id,title:'Нагадування про оплату 💳',body:`Заборгованість ${totalDebt}₴`,ts:Date.now()}).catch(()=>{});
+                          }} style={{
+                            flex:1,padding:"6px 12px",borderRadius:8,border:"none",cursor:"pointer",
+                            fontFamily:"inherit",fontSize:11,fontWeight:700,
+                            background:"rgba(239,68,68,0.18)",color:"#fca5a5",
+                          }}>📢 Нагадати</button>
+                          <button onClick={()=>{
+                            const upd={};
+                            (bookings||[]).filter(b=>b.status==='confirmed'&&!b.isPaid&&b.price>0).forEach(b=>{upd[`bookings/${s.id}/${b.id}/isPaid`]=true;});
+                            if(Object.keys(upd).length) update(iRef(''),upd).catch(()=>{});
+                            setBookings(bs=>bs.map(b=>b.status==='confirmed'&&!b.isPaid&&b.price>0?{...b,isPaid:true}:b));
+                          }} style={{
+                            flex:1,padding:"6px 12px",borderRadius:8,border:"none",cursor:"pointer",
+                            fontFamily:"inherit",fontSize:11,fontWeight:700,
+                            background:"rgba(34,197,94,0.18)",color:"#4ade80",
+                          }}>✓ Всі оплачено</button>
+                        </div>
                       </div>
                     )}
                   </>
