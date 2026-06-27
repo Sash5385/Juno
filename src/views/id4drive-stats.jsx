@@ -414,6 +414,10 @@ export default function StatsView() {
   const topStudents  = computeTopStudents(periodBookings, topBy, services);
   const popularSlots = computePopularSlots(periodBookings, services);
   const forecast     = period === "year" ? computeYearForecast(bookings, services) : period === "custom" ? null : computeMonthForecast(bookings, services);
+  const todayStr     = getDateStr(new Date());
+  const todayLessons = period === "day"
+    ? bookings.filter(b => b.date === todayStr && b.status !== "cancelled" && b.type !== "block" && b.type !== "personal" && b.type !== "vip-slot").sort((a, b) => (a.time||"").localeCompare(b.time||""))
+    : [];
   const slotsPerBucket = period === "day" ? 10 : 8;
   const occupancy    = data.length ? Math.min(100, Math.round((cur.lessons / (data.length * slotsPerBucket)) * 100)) : 0;
   const occupancySub = period === "day" ? "сьогодні" : period === "week" ? "цей тиждень" : period === "month" ? "5 місяців" : period === "custom" ? "свій інтервал" : "рік";
@@ -514,6 +518,40 @@ export default function StatsView() {
             ))}
           </div>
         </Card>
+
+        {/* ── РОЗКЛАД СЬОГОДНІ ── */}
+        {period === "day" && todayLessons.length > 0 && (
+          <Card className="fu" style={{padding:"12px 13px"}}>
+            <div style={{fontSize:9,color:FAINT,letterSpacing:1,textTransform:"uppercase",fontWeight:700,marginBottom:10}}>Розклад на сьогодні · {todayLessons.length} {todayLessons.length === 1 ? "урок" : todayLessons.length < 5 ? "уроки" : "уроків"}</div>
+            <div style={{display:"flex",flexDirection:"column",gap:5}}>
+              {todayLessons.map(b => {
+                const now = new Date();
+                const [bh, bm] = (b.time||"0:0").split(":").map(Number);
+                const bMin = bh * 60 + bm;
+                const nowMin = now.getHours() * 60 + now.getMinutes();
+                const durMin = b.durMin || (b.durationHours ? b.durationHours * 60 : 60);
+                const isPast = nowMin > bMin + durMin;
+                const isCurrent = nowMin >= bMin && nowMin <= bMin + durMin;
+                const stColor = b.status === "noshow" ? RED : isCurrent ? GREEN : isPast ? FAINT : ACCENT;
+                const statusLabel = b.status === "noshow" ? "✕" : isCurrent ? "▶" : isPast ? "✓" : "○";
+                return (
+                  <div key={b._key} style={{display:"flex",alignItems:"center",gap:8,background:isCurrent?`${GREEN}12`:`linear-gradient(135deg,${SURF_HI},${SURFACE})`,borderRadius:9,padding:"7px 10px",boxShadow:SO,border:isCurrent?`1px solid ${GREEN}33`:"none"}}>
+                    <span style={{fontSize:13,fontWeight:900,color:isCurrent?GREEN:isPast?FAINT:TEXT,minWidth:36,flexShrink:0}}>{b.time||"—"}</span>
+                    <span style={{flex:1,fontSize:12,fontWeight:700,color:isPast?FAINT:TEXT,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{b.name}</span>
+                    <span style={{fontSize:10,color:DIM,flexShrink:0}}>{b.durMin ? `${b.durMin}хв` : b.durationHours ? `${b.durationHours}г` : ""}</span>
+                    {b.price > 0 && <span style={{fontSize:10,fontWeight:800,color:b.isPaid?GREEN:GOLD,flexShrink:0}}>{b.price}₴{b.isPaid?" ✓":""}</span>}
+                    <span style={{fontSize:11,fontWeight:800,color:stColor,flexShrink:0,minWidth:12,textAlign:"center"}}>{statusLabel}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+        )}
+        {period === "day" && todayLessons.length === 0 && (
+          <Card className="fu" style={{padding:"14px 13px",textAlign:"center"}}>
+            <div style={{fontSize:11,color:FAINT,fontWeight:600}}>Записів на сьогодні немає</div>
+          </Card>
+        )}
 
         {/* ── РОЗПОДІЛ + ПО ДНЯХ ── */}
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7}}>
