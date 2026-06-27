@@ -2975,6 +2975,18 @@ function BookingModal({ booking, onClose, onAction, settings }) {
             </div>
           )}
 
+          {/* Student rating */}
+          {booking.rating > 0 && (
+            <div style={{margin:"6px 10px 0",padding:"7px 12px",borderRadius:12,
+              background:"rgba(251,191,36,0.07)",border:"1px solid rgba(251,191,36,0.18)",
+              display:"flex",alignItems:"center",gap:6}}>
+              <span style={{fontSize:10,fontWeight:700,color:"rgba(251,191,36,0.8)"}}>⭐ ОЦІНКА СТУДЕНТА</span>
+              <span style={{fontSize:16,letterSpacing:1}}>
+                {[1,2,3,4,5].map(s => <span key={s} style={{color:(booking.rating||0)>=s?"#fbbf24":"rgba(255,255,255,0.15)"}}>★</span>)}
+              </span>
+            </div>
+          )}
+
           {/* Instructor note */}
           <div style={{margin:"6px 10px 0",padding:"9px 12px",borderRadius:12,
             background:"rgba(59,130,246,0.06)",border:"1px solid rgba(59,130,246,0.15)"}}>
