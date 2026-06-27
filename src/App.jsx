@@ -799,6 +799,30 @@ export default function App() {
     });
   }, [bookings, settings.pendingEnabled]);
 
+  useEffect(() => {
+    const enabled = (settings.autoReminders || []).filter(r => r.enabled);
+    if (!enabled.length) return;
+    const now = Date.now();
+    bookings.forEach(b => {
+      if (b.status !== 'confirmed' || b.reminderSent) return;
+      if (!b.userId || b.userId.startsWith('guest_')) return;
+      const [y, mo, d] = (b.date || '').split('-');
+      const [hh, mm] = (b.time || '0:0').split(':');
+      if (!y || !hh) return;
+      const bookingTs = new Date(Number(y), Number(mo)-1, Number(d), Number(hh), Number(mm)).getTime();
+      if (now >= bookingTs) return;
+      const hoursUntil = (bookingTs - now) / 3600000;
+      if (!enabled.some(r => hoursUntil <= r.hoursBefore)) return;
+      const bookKey = b._fbKey || b.id;
+      const _n = new Date();
+      const _dl = `${String(_n.getDate()).padStart(2,'0')}.${String(_n.getMonth()+1).padStart(2,'0')}`;
+      const _tl = `${String(_n.getHours()).padStart(2,'0')}:${String(_n.getMinutes()).padStart(2,'0')}`;
+      update(iRef(`bookings/${b.userId}/${bookKey}`), { reminderSent: true }).catch(()=>{});
+      push(iRef(`notifications/${b.userId}`), { type:'reminder', title:'Нагадування про урок', body:`${b.date} о ${b.time}`, date:_dl, time:_tl, ts:Date.now() }).catch(()=>{});
+      push(iRef('pushQueue'), { uid:b.userId, title:'Нагадування ⏰', body:`Урок ${b.date} о ${b.time}`, ts:Date.now() }).catch(()=>{});
+    });
+  }, [bookings, settings.autoReminders]);
+
   // Debounce map for move/resize saves (avoids Firebase write on every pointermove)
   const moveSaveTimers = React.useRef({});
   // Original positions captured at drag start — used for slot restoration
