@@ -210,6 +210,19 @@ function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock }) {
   const [msgTitle,     setMsgTitle]     = useState("");
   const [msgBody,      setMsgBody]      = useState("");
   const [msgSending,   setMsgSending]   = useState(false);
+  const [examPassed,   setExamPassed]   = useState(undefined);
+
+  useEffect(() => {
+    if (s.type !== "school") return;
+    const r = iRef(`users/${s.id}/internalExam/passed`);
+    const unsub = onValue(r, snap => setExamPassed(snap.exists() ? snap.val() : null));
+    return () => unsub();
+  }, [s.id, s.type]);
+
+  const setExam = val => {
+    update(iRef(`users/${s.id}/internalExam`), { passed: val }).catch(() => {});
+    setExamPassed(val);
+  };
 
   useEffect(() => {
     get(iRef(`bookings/${s.id}`)).then(snap => {
@@ -368,6 +381,28 @@ function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock }) {
                       </div>
                       <button onClick={()=>onUpdate(s.id,{hoursOffset:Math.min(39,(s.hoursOffset||0)+1)})}
                         style={{width:32,height:32,borderRadius:9,border:"none",cursor:"pointer",flexShrink:0,background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,color:TEXT,fontSize:20,fontWeight:700,boxShadow:SO,display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1,fontFamily:"inherit"}}>+</button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Internal exam (school only) */}
+                {s.type === "school" && (
+                  <div style={{background:glow(0.04),borderRadius:10,padding:"10px 12px",border:`1px solid ${BORDER}`}}>
+                    <div style={{fontSize:9,color:FAINT,letterSpacing:1,textTransform:"uppercase",marginBottom:7}}>Внутрішній іспит</div>
+                    <div style={{display:"flex",gap:6}}>
+                      {[
+                        { val:false, label:"✗ Не склав", color:"#f87171", bg:"rgba(239,68,68,0.15)" },
+                        { val:null,  label:"⏳ Очікується", color:FAINT,   bg:glow(0.06) },
+                        { val:true,  label:"✓ Складено",   color:GREEN,   bg:`rgba(34,197,94,0.15)` },
+                      ].map(({ val, label, color, bg }) => (
+                        <button key={String(val)} onClick={() => setExam(val)} style={{
+                          flex:1,padding:"7px 4px",borderRadius:9,border:"none",cursor:"pointer",
+                          fontFamily:"inherit",fontSize:10,fontWeight:700,color,
+                          background: examPassed === val ? bg : glow(0.03),
+                          boxShadow: examPassed === val ? SO : "none",
+                          outline: examPassed === val ? `1px solid ${color}44` : "none",
+                        }}>{label}</button>
+                      ))}
                     </div>
                   </div>
                 )}
