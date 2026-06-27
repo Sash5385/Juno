@@ -783,6 +783,19 @@ export default function App() {
     });
   }, [adminUser, processBookingsSnap]);
 
+  useEffect(() => {
+    if (settings.pendingEnabled) return;
+    bookings.forEach(b => {
+      if (b.status !== 'pending') return;
+      const bookKey = b._fbKey || b.id;
+      if (b.userId) {
+        update(iRef(`bookings/${b.userId}/${bookKey}`), {
+          status: 'confirmed', confirmedAt: Date.now(), confirmedBy: 'auto'
+        }).catch(() => {});
+      }
+    });
+  }, [bookings, settings.pendingEnabled]);
+
   // Debounce map for move/resize saves (avoids Firebase write on every pointermove)
   const moveSaveTimers = React.useRef({});
   // Original positions captured at drag start — used for slot restoration
