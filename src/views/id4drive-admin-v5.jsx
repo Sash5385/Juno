@@ -1300,6 +1300,11 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
           const ks = [...new Set([mb._fbKey, mb.id].filter(Boolean))];
           ks.forEach(k => update(iRef(`bookings/${mb.userId}/${k}`),
             { status:"cancelled", cancelledAt:Date.now(), cancelledBy:"admin" }).catch(()=>{}));
+          const _n2 = new Date();
+          const _dl2 = `${String(_n2.getDate()).padStart(2,'0')}.${String(_n2.getMonth()+1).padStart(2,'0')}`;
+          const _tl2 = `${String(_n2.getHours()).padStart(2,'0')}:${String(_n2.getMinutes()).padStart(2,'0')}`;
+          fbPush(iRef(`notifications/${mb.userId}`), { type:'booking_cancelled', title:'Урок скасовано', body:`${mb.date} о ${mb.time}`, date:_dl2, time:_tl2, ts:Date.now() }).catch(()=>{});
+          if (!mb.userId.startsWith('guest_')) fbPush(iRef('pushQueue'), { uid:mb.userId, title:'Урок скасовано ❌', body:`${mb.date} о ${mb.time}`, ts:Date.now() }).catch(()=>{});
         }
       };
       const allToCancel = b._mergedIds
