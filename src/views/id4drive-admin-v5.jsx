@@ -2952,6 +2952,16 @@ function BookingModal({ booking, onClose, onAction, settings }) {
             ))}
           </div>
 
+          {/* Student note */}
+          {booking.studentNote && (
+            <div style={{margin:"0 10px",padding:"9px 12px",borderRadius:12,
+              background:"rgba(99,211,120,0.07)",border:"1px solid rgba(99,211,120,0.2)",
+              fontSize:12,color:TEXT,lineHeight:1.5}}>
+              <span style={{fontSize:10,fontWeight:700,color:"rgba(99,211,120,0.8)",display:"block",marginBottom:3}}>💬 КОМЕНТАР СТУДЕНТА</span>
+              {booking.studentNote}
+            </div>
+          )}
+
           {/* Queue */}
           {queueEntries.length > 0 && (
             <div style={{padding:"10px 14px",borderBottom:`1px solid ${ink(0.06)}`}}>
