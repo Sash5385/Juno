@@ -123,7 +123,7 @@ const TAB_TITLES = {
 
 
 // ─── BOTTOM NAV ──────────────────────────────────────────────────
-function BottomNav({ active, onChange, settings, chatUnread, journalUnread }) {
+function BottomNav({ active, onChange, settings, chatUnread, journalUnread, queueCount }) {
   const lang = useContext(LangContext);
   const tl = createT(lang);
   const theme = useContext(ThemeContext);
@@ -172,13 +172,13 @@ function BottomNav({ active, onChange, settings, chatUnread, journalUnread }) {
               position:"relative"
             }}>
               {tabIcons[t.id]?.(34,active===t.id)}
-              {(t.id === 'chats' ? chatUnread : t.id === 'journal' ? journalUnread : t.badge) > 0 && (
+              {(t.id === 'chats' ? chatUnread : t.id === 'journal' ? journalUnread : t.id === 'queue' ? queueCount : t.badge) > 0 && (
                 <div style={{
                   position:"absolute",top:-4,right:-4,
                   background:theme.ACCENT,color:"#fff",borderRadius:10,
                   padding:"1px 5px",fontSize:9,fontWeight:800,
                   boxShadow:`0 0 8px ${theme.ACCENT}88`,lineHeight:1.4
-                }}>{t.id === 'chats' ? chatUnread : t.id === 'journal' ? journalUnread : t.badge}</div>
+                }}>{t.id === 'chats' ? chatUnread : t.id === 'journal' ? journalUnread : t.id === 'queue' ? queueCount : t.badge}</div>
               )}
             </div>
             <span style={{fontSize:9,fontWeight:700,color:active===t.id?theme.ACCENT:labelInactive,whiteSpace:"nowrap"}}>{tl(t.lk)}</span>
@@ -434,6 +434,7 @@ export default function App() {
   const [newBookingData,   setNewBookingData]    = useState(null);
   const [chatUnread,    setChatUnread]    = useState(0);
   const [journalUnread, setJournalUnread] = useState(0);
+  const [queueCount,    setQueueCount]    = useState(0);
   const [profileReady,  setProfileReady] = useState(null); // null=checking, false=needs setup, true=ready
   const [subscription,  setSubscription] = useState(null); // null=loading, {}=no data, object=loaded
   const usersMapRef = React.useRef({});
@@ -449,6 +450,7 @@ export default function App() {
       if ('clearAppBadge' in navigator) navigator.clearAppBadge();
     }
     if (t === 'journal') setJournalUnread(0);
+    if (t === 'queue') setQueueCount(0);
   };
   const toggleInfo = key => setOpenInfos(s => ({...s, [key]: !s[key]}));
 
@@ -513,6 +515,16 @@ export default function App() {
     const id = setInterval(check, 60 * 1000);
     return () => { clearTimeout(t0); clearInterval(id); };
   }, []);
+
+  // Subscribe to queue waiting count
+  useEffect(() => {
+    if (!adminUser) return;
+    return onValue(iRef("queue"), snap => {
+      const data = snap.val() || {};
+      const count = Object.values(data).filter(e => e && e.status === "waiting").length;
+      setQueueCount(tab === "queue" ? 0 : count);
+    });
+  }, [adminUser, tab]);
 
   // Subscribe to unread chat count from chatMeta
   useEffect(() => {
@@ -997,7 +1009,7 @@ const pendingDeletesRef = React.useRef(new Set());
             <ViewRenderer tab={tab} settings={settings} setSettings={setSettings} bookings={bookings} setBookings={handleSetBookings} onSlotClick={setSelectedBooking} onEmptySlotClick={setNewBookingData} openInfos={openInfos} toggleInfo={toggleInfo} activeDragIds={activeDragIds} navTo={switchTab} slotExistsRef={slotExistsRef} openSlotsRef={openSlotsRef}/>
           </Suspense>
         </div>
-        <BottomNav active={tab} onChange={switchTab} settings={settings} chatUnread={chatUnread} journalUnread={journalUnread}/>
+        <BottomNav active={tab} onChange={switchTab} settings={settings} chatUnread={chatUnread} journalUnread={journalUnread} queueCount={queueCount}/>
       </div>
       {needRefresh && (
         <div className={`update-banner${isUpdating ? ' update-banner--loading' : ''}`} onClick={updateServiceWorker}>
