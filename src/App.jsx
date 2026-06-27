@@ -784,6 +784,28 @@ export default function App() {
   }, [adminUser, processBookingsSnap]);
 
   useEffect(() => {
+    if (!adminUser) return;
+    const seenRef = React.createRef();
+    seenRef.current = new Set();
+    return onValue(iRef('newBookingAlerts'), snap => {
+      if (!snap.exists()) return;
+      Object.entries(snap.val()).forEach(([key, alert]) => {
+        if (!alert || seenRef.current.has(key)) return;
+        seenRef.current.add(key);
+        if (alert.ts && Date.now() - alert.ts < 300000) {
+          if (Notification.permission === 'granted') {
+            new Notification('Нове бронювання 📅', {
+              body: `${alert.studentName || 'Студент'} — ${alert.date} о ${alert.time}`,
+              icon: '/icon-192.png',
+            });
+          }
+        }
+        remove(iRef(`newBookingAlerts/${key}`)).catch(() => {});
+      });
+    });
+  }, [adminUser]);
+
+  useEffect(() => {
     if (settings.pendingEnabled) return;
     bookings.forEach(b => {
       if (b.status !== 'pending') return;
