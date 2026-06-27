@@ -155,6 +155,22 @@ exports.onInstructorBookingChanged = onValueWritten(
       if (!isGuest) {
         await pushInstructorStudent(iid, uid, "✅ Урок підтверджено", `${date} о ${time}`, { url: "https://drivepad.pro/cabinet/bookings" });
         await saveInstructorNotification(iid, uid, "✅ Урок підтверджено", `${date} о ${time}`, "booking_confirmed");
+        // Реферальний бонус: якщо це перший урок і є referredBy
+        const profSnap = await db.ref(`instructors/${iid}/users/${uid}/profile`).get().catch(() => null);
+        const prof = profSnap?.val() || {};
+        if (prof.referredBy && !prof.firstLessonBonusSent) {
+          const allSnap = await db.ref(`instructors/${iid}/bookings/${uid}`).get().catch(() => null);
+          const confirmedCount = allSnap?.exists()
+            ? Object.values(allSnap.val()).filter(b => b.status === "confirmed").length
+            : 0;
+          if (confirmedCount <= 1) {
+            const refUid = prof.referredBy;
+            await db.ref(`instructors/${iid}/users/${uid}/profile/firstLessonBonusSent`).set(true).catch(() => {});
+            await db.ref(`instructors/${iid}/users/${refUid}/referralBonusLessons`).transaction(n => (n || 0) + 1).catch(() => {});
+            await pushInstructorStudent(iid, refUid, "🎁 Ваш друг записався!", "Ви отримали бонусний урок за запрошення", { url: "https://drivepad.pro/cabinet" });
+            await saveInstructorNotification(iid, refUid, "🎁 Реферальний бонус", "Ваш друг записався — +1 бонусний урок!", "referral_bonus");
+          }
+        }
       }
       return;
     }
