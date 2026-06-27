@@ -580,3 +580,240 @@ exports.onAdminPushQueue = onValueCreated(
     await event.data.ref.remove().catch(() => {});
   }
 );
+
+// ─── QUEUE CASCADE / SLOT NOTIFICATIONS ──────────────────────────────
+
+async function inviteNextInInstructorQueue(iid, slotKey, excludeUids = []) {
+  const entriesSnap = await db.ref(`instructors/${iid}/queue/${slotKey}/entries`).get();
+  if (!entriesSnap.exists()) return;
+  const entries = Object.entries(entriesSnap.val())
+    .map(([uid, e]) => ({ uid, ...e }))
+    .filter(e => e.status === "waiting" && !excludeUids.includes(e.uid))
+    .sort((a, b) => (a.addedAt || 0) - (b.addedAt || 0));
+  if (!entries.length) return;
+  await db.ref(`instructors/${iid}/queue/${slotKey}/entries/${entries[0].uid}`).update({ status: "offered" });
+}
+
+// Кожні 10 хв: прострочені offeredTo → запрошує наступного в черзі
+exports.cascadeQueueInvites = onSchedule(
+  { schedule: "every 10 minutes", region: "europe-west1" },
+  async () => {
+    const now = Date.now();
+    const snap = await db.ref("instructors").get();
+    if (!snap.exists()) return;
+
+    const tasks = [];
+    snap.forEach(iSnap => {
+      const iid = iSnap.key;
+      const slotsNode = iSnap.child("timeslots");
+      if (!slotsNode.exists()) return;
+      slotsNode.forEach(dateSnap => {
+        const date = dateSnap.key;
+        dateSnap.forEach(slotSnap => {
+          const slot = slotSnap.val();
+          if (!slot || !slot.offeredTo || slot.available === false) return;
+          const time = slot.time;
+          if (!time) return;
+          const slotKey = `${date}_${time}`;
+          const expiredUids = Object.entries(slot.offeredTo)
+            .filter(([, o]) => o.until < now).map(([uid]) => uid);
+          if (expiredUids.length) tasks.push({ iid, slotKey });
+        });
+      });
+    });
+
+    await Promise.allSettled(tasks.map(async ({ iid, slotKey }) => {
+      const alreadySnap = await db.ref(`instructors/${iid}/queue/${slotKey}/entries`).get();
+      const alreadyOffered = alreadySnap.exists()
+        ? Object.entries(alreadySnap.val())
+            .filter(([, e]) => e.status === "offered" || e.status === "booked")
+            .map(([uid]) => uid)
+        : [];
+      await inviteNextInInstructorQueue(iid, slotKey, alreadyOffered);
+    }));
+  }
+);
+
+// Адмін відкрив заблокований слот → запрошуємо першого в черзі
+exports.onAdminSlotOpened = onValueWritten(
+  { ref: "instructors/{iid}/timeslots/{date}/{slotId}", region: "europe-west1" },
+  async (event) => {
+    const before = event.data.before?.val();
+    const after  = event.data.after?.val();
+    if (!before || !after) return;
+    if (before.adminBlocked !== true) return;
+    if (after.adminBlocked !== false || after.available !== true) return;
+
+    const { iid, date, slotId } = event.params;
+    let time = after.time;
+    if (!time) {
+      const m = slotId.match(/^slot(\d{2})(\d{2})$/);
+      if (!m) return;
+      time = `${m[1]}:${m[2]}`;
+    }
+
+    const slotKey = `${date}_${time}`;
+    const qSnap = await db.ref(`instructors/${iid}/queue/${slotKey}/entries`).get();
+    if (!qSnap.exists()) return;
+
+    const entries = Object.entries(qSnap.val())
+      .map(([uid, e]) => ({ uid, ...e }))
+      .filter(e => e.status === "waiting")
+      .sort((a, b) => (a.addedAt || 0) - (b.addedAt || 0));
+
+    if (!entries.length) return;
+    await db.ref(`instructors/${iid}/queue/${slotKey}/entries/${entries[0].uid}`).update({ status: "offered" });
+  }
+);
+
+// Щогодини: відкриває VIP-слоти в межах 48г і пушить студентів інструктора
+exports.unlockVipSlots = onSchedule("every 1 hours", async () => {
+  const now = Date.now();
+  const threshold = now + 48 * 60 * 60 * 1000;
+
+  const snap = await db.ref("instructors").get();
+  if (!snap.exists()) return;
+
+  const allUpdates = {};
+  const instructorsToNotify = new Set();
+
+  snap.forEach(iSnap => {
+    const iid = iSnap.key;
+    const slotsNode = iSnap.child("timeslots");
+    if (!slotsNode.exists()) return;
+    slotsNode.forEach(dateSnap => {
+      const date = dateSnap.key;
+      dateSnap.forEach(slotSnap => {
+        const slot = slotSnap.val();
+        const slotId = slotSnap.key;
+        if (!slot || !slot.vipOnly || slot.available === false) return;
+        const time = slot.time;
+        if (!time) return;
+        const slotMs = new Date(`${date}T${time}:00`).getTime();
+        if (slotMs > now && slotMs <= threshold) {
+          allUpdates[`instructors/${iid}/timeslots/${date}/${slotId}/vipOnly`] = false;
+          instructorsToNotify.add(iid);
+        }
+      });
+    });
+  });
+
+  if (!Object.keys(allUpdates).length) return;
+  await db.ref("/").update(allUpdates);
+
+  await Promise.allSettled([...instructorsToNotify].map(async iid => {
+    const usersSnap = await db.ref(`instructors/${iid}/users`).get();
+    if (!usersSnap.exists()) return;
+    const tokens = [];
+    usersSnap.forEach(uSnap => {
+      const token = uSnap.child("fcmTokens/web/token").val();
+      if (token) tokens.push(token);
+    });
+    if (!tokens.length) return;
+    for (let i = 0; i < tokens.length; i += 500) {
+      await admin.messaging().sendEachForMulticast({
+        tokens: tokens.slice(i, i + 500),
+        notification: {
+          title: "🚗 З'явились нові слоти!",
+          body: "Відкрились нові години для запису. Поспішай!",
+        },
+        webpush: {
+          notification: { icon: "/favicon.svg" },
+          fcmOptions: { link: "https://drivepad.pro/cabinet" },
+        },
+      }).catch(() => {});
+    }
+  }));
+});
+
+// Слот у найближчі 10 днів звільнився → ставимо в чергу, пуш через 5 хв
+exports.onSlotFreed = onValueWritten(
+  { ref: "instructors/{iid}/timeslots/{date}/{slotId}", region: "europe-west1" },
+  async (event) => {
+    const before = event.data.before?.val();
+    const after  = event.data.after?.val();
+    if (before?.available === true) return;
+    if (!after || after.available !== true) return;
+
+    const { iid, date, slotId } = event.params;
+    const slotDate = new Date(date + "T00:00:00");
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const diffDays = Math.round((slotDate - today) / 86400000);
+    if (diffDays < 0 || diffDays > 10) return;
+
+    const time = after.time;
+    if (!time) return;
+
+    const slotKey = `${date}_${time}`;
+    await db.ref(`instructors/${iid}/slotFreedQueue/${slotKey}`).set({
+      date, time, sendAfter: Date.now() + 5 * 60 * 1000,
+    }).catch(() => {});
+  }
+);
+
+// Кожну хвилину: відправляємо відкладені пуші про звільнені слоти
+exports.flushSlotFreedQueue = onSchedule(
+  { schedule: "every 1 minutes", region: "europe-west1" },
+  async () => {
+    const kyivHour = parseInt(
+      new Date().toLocaleString("uk", { timeZone: "Europe/Kiev", hour: "2-digit", hour12: false }), 10
+    );
+    if (kyivHour >= 23 || kyivHour < 6) return;
+
+    const snap = await db.ref("instructors").get();
+    if (!snap.exists()) return;
+
+    const now = Date.now();
+    const RATE_LIMIT_MS = 30 * 60 * 1000;
+
+    const instructors = [];
+    snap.forEach(iSnap => {
+      const iid = iSnap.key;
+      const queueNode = iSnap.child("slotFreedQueue");
+      if (!queueNode.exists()) return;
+      const tasks = [];
+      queueNode.forEach(entry => {
+        const val = entry.val();
+        if (val && val.sendAfter <= now) tasks.push({ key: entry.key, ...val });
+      });
+      if (tasks.length) instructors.push({ iid, tasks });
+    });
+
+    if (!instructors.length) return;
+
+    await Promise.allSettled(instructors.map(async ({ iid, tasks }) => {
+      const lastNotifSnap = await db.ref(`instructors/${iid}/lastSlotNotif`).get();
+      const lastNotifData = lastNotifSnap.val() || {};
+
+      const usersSnap = await db.ref(`instructors/${iid}/users`).get();
+      const uids = usersSnap.exists()
+        ? Object.keys(usersSnap.val()).filter(u => !u.startsWith("guest_"))
+        : [];
+      if (!uids.length) return;
+
+      for (const { key, date, time } of tasks) {
+        await db.ref(`instructors/${iid}/slotFreedQueue/${key}`).remove().catch(() => {});
+
+        const slotId = `slot${time.replace(":", "")}`;
+        const slotSnap = await db.ref(`instructors/${iid}/timeslots/${date}/${slotId}`).get();
+        const slot = slotSnap.val();
+        if (!slot || slot.available !== true) continue;
+
+        const dateFormatted = new Date(date + "T00:00:00")
+          .toLocaleDateString("uk", { day: "numeric", month: "long", weekday: "short" });
+        const title = "🚗 Звільнився слот!";
+        const body  = `${dateFormatted} о ${time} — є вільне місце`;
+        const url   = `https://drivepad.pro/cabinet?date=${date}`;
+
+        for (const uid of uids) {
+          if (lastNotifData[uid] && now - lastNotifData[uid] < RATE_LIMIT_MS) continue;
+          await pushInstructorStudent(iid, uid, title, body, { url, date, time }).catch(() => {});
+          await saveInstructorNotification(iid, uid, title, body, "slot_freed").catch(() => {});
+          lastNotifData[uid] = now;
+          await db.ref(`instructors/${iid}/lastSlotNotif/${uid}`).set(now).catch(() => {});
+        }
+      }
+    }));
+  }
+);
