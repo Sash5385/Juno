@@ -172,7 +172,7 @@ function StudentCard({ s, onSelect, debtAmount, onMarkPaid }) {
           <div style={{fontSize:13,fontWeight:800,color:s.blocked?DIM:TEXT,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
             {s.name}{s.blocked && <span style={{fontSize:9,color:RED,fontWeight:700,marginLeft:6}}>🚫</span>}
           </div>
-          <div style={{fontSize:10,color:typeColor,fontWeight:700,marginTop:2}}>{typeLabel}{s.tsc ? ` · ${s.tsc}` : ""}</div>
+          <div style={{fontSize:10,color:typeColor,fontWeight:700,marginTop:2}}>{typeLabel}{s.tsc ? ` · ${s.tsc}` : ""}{s.type==="school"&&(s.hours+(s.hoursOffset||0))>0?` · ${s.hours+(s.hoursOffset||0)}/40 год`:""}</div>
         </div>
         {debtAmount > 0 && <div style={{fontSize:10,fontWeight:800,color:RED,background:RED+"22",borderRadius:7,padding:"2px 7px",flexShrink:0,whiteSpace:"nowrap"}}>{debtAmount} ₴</div>}
         {debtAmount > 0 && onMarkPaid && (
@@ -316,6 +316,8 @@ function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock }) {
                         <a href={`tel:${s.phone}`} style={{fontSize:14,fontWeight:700,color:ACCENT,textDecoration:"none",flex:1,lineHeight:1}}>{s.phone}</a>
                         <a href={`https://wa.me/${(s.phone).replace(/\D/g,"").replace(/^0/,"380")}`} target="_blank" rel="noopener noreferrer"
                           style={{width:28,height:28,borderRadius:8,background:"linear-gradient(145deg,#25d36633,#25d36618)",border:"1px solid #25d36633",display:"flex",alignItems:"center",justifyContent:"center",textDecoration:"none",fontSize:15,flexShrink:0}}>💬</a>
+                        <a href={`https://t.me/+${(s.phone).replace(/\D/g,"").replace(/^0/,"380")}`} target="_blank" rel="noopener noreferrer"
+                          style={{width:28,height:28,borderRadius:8,background:"linear-gradient(145deg,#2ba5f733,#2ba5f718)",border:"1px solid #2ba5f733",display:"flex",alignItems:"center",justifyContent:"center",textDecoration:"none",fontSize:15,flexShrink:0}}>✈️</a>
                       </div>
                     ) : <div style={{fontSize:14,fontWeight:700,color:DIM}}>—</div>}
                   </div>
