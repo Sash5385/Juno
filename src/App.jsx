@@ -992,7 +992,15 @@ const pendingDeletesRef = React.useRef(new Set());
               upd[`${bp}/price`] = b.price + Math.round((newSurcharge - oldSurcharge) * discountFactor);
               if (newSurcharge) upd[`${bp}/surcharge`] = newSurcharge;
             }
-            update(iRef(""), upd).catch(() => {
+            update(iRef(""), upd).then(() => {
+              if (b.userId && !b.userId.startsWith('guest_')) {
+                const _n = new Date();
+                const _dl = `${String(_n.getDate()).padStart(2,'0')}.${String(_n.getMonth()+1).padStart(2,'0')}`;
+                const _tl = `${String(_n.getHours()).padStart(2,'0')}:${String(_n.getMinutes()).padStart(2,'0')}`;
+                push(iRef(`notifications/${b.userId}`), { type:'booking_rescheduled', title:'Урок перенесено', body:`${newDate} о ${hh}:${mm}`, date:_dl, time:_tl, ts:Date.now() }).catch(()=>{});
+                push(iRef('pushQueue'), { uid:b.userId, title:'Урок перенесено 🔄', body:`${newDate} о ${hh}:${mm}`, ts:Date.now() }).catch(()=>{});
+              }
+            }).catch(() => {
               // Відкат: атомарний запис не пройшов, тож у Firebase нічого не
               // змінилось. Повертаємо картку на старе місце, щоб UI не розходився з БД.
               if (orig) {
