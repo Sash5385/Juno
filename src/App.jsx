@@ -800,6 +800,33 @@ export default function App() {
   }, [bookings, settings.pendingEnabled]);
 
   useEffect(() => {
+    if (!settings.autoCancel?.enabled) return;
+    const now = Date.now();
+    bookings.forEach(b => {
+      if (b.status !== 'pending') return;
+      const [y, mo, d] = (b.date || '').split('-');
+      const [hh, mm] = (b.time || '0:0').split(':');
+      if (!y || !hh) return;
+      const bookingTs = new Date(Number(y), Number(mo)-1, Number(d), Number(hh), Number(mm)).getTime();
+      if (now < bookingTs) return;
+      const bookKey = b._fbKey || b.id;
+      if (b.userId) {
+        const _n = new Date();
+        const _dl = `${String(_n.getDate()).padStart(2,'0')}.${String(_n.getMonth()+1).padStart(2,'0')}`;
+        const _tl = `${String(_n.getHours()).padStart(2,'0')}:${String(_n.getMinutes()).padStart(2,'0')}`;
+        update(iRef(`bookings/${b.userId}/${bookKey}`), { status:'cancelled', cancelledAt:Date.now(), cancelledBy:'auto' }).catch(()=>{});
+        if (!b.userId.startsWith('guest_')) {
+          push(iRef(`notifications/${b.userId}`), { type:'booking_cancelled', title:'Урок скасовано', body:`${b.date} о ${b.time} (не підтверджено)`, date:_dl, time:_tl, ts:Date.now() }).catch(()=>{});
+          push(iRef('pushQueue'), { uid:b.userId, title:'Урок скасовано ❌', body:`${b.date} о ${b.time} — не було підтверджено`, ts:Date.now() }).catch(()=>{});
+        }
+      } else if (b.phone) {
+        const ph = (b.phone || '').replace(/\D/g, '');
+        update(iRef(`bookings/guest_${ph}/${bookKey}`), { status:'cancelled', cancelledAt:Date.now(), cancelledBy:'auto' }).catch(()=>{});
+      }
+    });
+  }, [bookings, settings.autoCancel]);
+
+  useEffect(() => {
     const enabled = (settings.autoReminders || []).filter(r => r.enabled);
     if (!enabled.length) return;
     const now = Date.now();
