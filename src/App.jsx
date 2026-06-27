@@ -390,6 +390,38 @@ const DEFAULT_SETTINGS = {
   ],
 };
 
+// ─── DASH STRIP ──────────────────────────────────────────────────
+function DashStrip({ bookings }) {
+  const theme = useContext(ThemeContext);
+  const todayStr = new Date().toISOString().slice(0,10);
+  const monthStr = todayStr.slice(0,7);
+  const todayCount   = bookings.filter(b => b.date === todayStr && b.status !== 'cancelled').length;
+  const pendingCount = bookings.filter(b => b.status === 'pending').length;
+  const monthRevenue = bookings
+    .filter(b => (b.date||'').startsWith(monthStr) && b.status === 'confirmed' && b.price > 0)
+    .reduce((s,b) => s + (b.price||0), 0);
+  const cards = [
+    { label:'Сьогодні', value:todayCount, icon:'📅', color:'#5b9bff' },
+    { label:'Очікує',   value:pendingCount, icon:'⏳', color:'#fbbf24' },
+    { label:'Місяць ₴', value:monthRevenue > 0 ? monthRevenue.toLocaleString('uk') : '—', icon:'💰', color:'#34d399' },
+  ];
+  return (
+    <div style={{display:'flex',gap:6,padding:'6px 3px 4px',flexShrink:0}}>
+      {cards.map(c=>(
+        <div key={c.label} style={{
+          flex:1,borderRadius:12,padding:'7px 6px',
+          background:`${c.color}18`,border:`1px solid ${c.color}30`,
+          display:'flex',flexDirection:'column',alignItems:'center',gap:2,
+        }}>
+          <div style={{fontSize:14,lineHeight:1}}>{c.icon}</div>
+          <div style={{fontSize:15,fontWeight:800,color:c.color,lineHeight:1}}>{c.value}</div>
+          <div style={{fontSize:9,color:theme.DIM,fontWeight:600,letterSpacing:0.3}}>{c.label}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ─── VIEW RENDERER ───────────────────────────────────────────────
 function ViewRenderer({ tab, settings, setSettings, bookings, setBookings, onSlotClick, onEmptySlotClick, openInfos, toggleInfo, activeDragIds, navTo, slotExistsRef, openSlotsRef }) {
   if (tab === "schedule")  return <ScheduleView settings={settings} setSettings={setSettings} bookings={bookings} setBookings={setBookings} onSlotClick={onSlotClick} onEmptySlotClick={onEmptySlotClick} activeDragIds={activeDragIds} navTo={navTo} slotExistsRef={slotExistsRef} openSlotsRef={openSlotsRef}/>;
@@ -1005,6 +1037,7 @@ const pendingDeletesRef = React.useRef(new Set());
           flexDirection:"column",
           background: theme.BG_IMAGE ? "#d4ba96" : "transparent",
         }}>
+          {tab === "schedule" && <DashStrip bookings={bookings}/>}
           <Suspense fallback={<Loader/>}>
             <ViewRenderer tab={tab} settings={settings} setSettings={setSettings} bookings={bookings} setBookings={handleSetBookings} onSlotClick={setSelectedBooking} onEmptySlotClick={setNewBookingData} openInfos={openInfos} toggleInfo={toggleInfo} activeDragIds={activeDragIds} navTo={switchTab} slotExistsRef={slotExistsRef} openSlotsRef={openSlotsRef}/>
           </Suspense>
