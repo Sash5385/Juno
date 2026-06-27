@@ -1,5 +1,5 @@
 import { useState, useEffect, useContext } from "react";
-import { onValue } from "firebase/database";
+import { onValue, get, update } from "firebase/database";
 import { iRef } from "../firebase";
 import { LangContext } from "../App";
 import { createT } from "../lang";
@@ -349,6 +349,9 @@ export default function StatsView() {
   const [topBy,      setTopBy]     = useState("paid");
   const [customFrom, setCustomFrom] = useState('');
   const [customTo,   setCustomTo]   = useState('');
+  const [incomeGoal,  setIncomeGoal]  = useState(0);
+  const [editingGoal, setEditingGoal] = useState(false);
+  const [goalInput,   setGoalInput]   = useState("");
 
   const css = `
 @keyframes bar-grow{from{height:0%}to{height:var(--h)}}
@@ -383,6 +386,10 @@ export default function StatsView() {
     }, () => {});
   }, []);
 
+  useEffect(() => {
+    get(iRef("admin_settings/incomeGoal")).then(s => { if (s.exists()) setIncomeGoal(s.val() || 0); }).catch(() => {});
+  }, []);
+
   const data     = period === "week"   ? computeWeekData(bookings, 0, services)
                  : period === "year"   ? computeYearData(bookings, 0, services)
                  : period === "day"    ? computeDayData(bookings, 0, services)
@@ -407,6 +414,11 @@ export default function StatsView() {
   const avgCheck     = totalLessons ? Math.round(totalIncome / totalLessons) : 0;
   const noshowPct    = totalLessons ? Math.round((totalNoshow / totalLessons) * 100) : 0;
   const prevAvgCheck = prev.lessons ? Math.round(prev.income / prev.lessons) : 0;
+
+  const curMonthStr = new Date().toISOString().slice(0,7);
+  const curMonthIncome = bookings
+    .filter(b => (b.status === "confirmed" || b.status === "pending") && (b.date||"").startsWith(curMonthStr))
+    .reduce((s, b) => s + bkIncome(b, services), 0);
 
   const customDiffDays = customFrom && customTo ? Math.round((new Date(customTo) - new Date(customFrom)) / 86400000) + 1 : 0;
   const periodBookings = filterByPeriod(bookings, data, period, customFrom, customTo);
@@ -480,6 +492,65 @@ export default function StatsView() {
             </Card>
           ))}
         </div>
+
+        {/* ── INCOME GOAL ── */}
+        <Card className="fu" style={{padding:"12px 13px"}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:editingGoal?10:incomeGoal?9:4}}>
+            <div style={{fontSize:9,color:FAINT,letterSpacing:1,textTransform:"uppercase",fontWeight:700}}>🎯 Ціль місяця</div>
+            {!editingGoal && (
+              <button onClick={()=>{setGoalInput(String(incomeGoal||""));setEditingGoal(true);}} style={{
+                padding:"3px 8px",borderRadius:6,border:"none",cursor:"pointer",fontSize:10,fontWeight:700,fontFamily:"inherit",
+                background:`${GOLD}22`,color:GOLD,
+              }}>{incomeGoal?"✏️":"+ Встановити"}</button>
+            )}
+          </div>
+          {editingGoal ? (
+            <div style={{display:"flex",gap:7}}>
+              <input autoFocus type="number" value={goalInput} onChange={e=>setGoalInput(e.target.value)} placeholder="напр. 30000"
+                style={{flex:1,background:BG_DEEP,border:`1px solid ${BORDER}`,borderRadius:9,padding:"8px 12px",color:TEXT,fontSize:14,fontFamily:"inherit",outline:"none",colorScheme:"dark"}}/>
+              <button onClick={()=>{
+                const val=Math.max(0,parseInt(goalInput,10)||0);
+                setIncomeGoal(val);
+                update(iRef("admin_settings"),{incomeGoal:val}).catch(()=>{});
+                setEditingGoal(false);
+              }} style={{
+                padding:"8px 14px",borderRadius:9,border:"none",cursor:"pointer",fontFamily:"inherit",fontSize:13,fontWeight:700,
+                background:`linear-gradient(145deg,${GOLD}44,${GOLD}22)`,color:GOLD,
+              }}>OK</button>
+              <button onClick={()=>setEditingGoal(false)} style={{
+                padding:"8px 10px",borderRadius:9,border:"none",cursor:"pointer",fontFamily:"inherit",fontSize:13,
+                background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,color:FAINT,
+              }}>✕</button>
+            </div>
+          ) : incomeGoal > 0 ? (
+            <>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:7}}>
+                <span style={{fontSize:20,fontWeight:900,color:curMonthIncome>=incomeGoal?GREEN:GOLD}}>{fmtK(curMonthIncome)}</span>
+                <span style={{fontSize:11,color:FAINT}}>/ {fmtK(incomeGoal)}</span>
+              </div>
+              <div style={{height:8,background:BG_DEEP,borderRadius:5,boxShadow:SI,overflow:"hidden",marginBottom:6}}>
+                <div style={{
+                  height:"100%",
+                  width:`${Math.min(100,Math.round((curMonthIncome/incomeGoal)*100))}%`,
+                  borderRadius:5,
+                  background:curMonthIncome>=incomeGoal?`linear-gradient(90deg,${GREEN},#22c55e)`:`linear-gradient(90deg,${GOLD},${GREEN})`,
+                  transition:"width .6s ease",
+                }}/>
+              </div>
+              <div style={{display:"flex",justifyContent:"space-between"}}>
+                <span style={{fontSize:10,fontWeight:800,color:curMonthIncome>=incomeGoal?GREEN:FAINT}}>
+                  {Math.min(100,Math.round((curMonthIncome/incomeGoal)*100))}%
+                </span>
+                {curMonthIncome<incomeGoal
+                  ? <span style={{fontSize:10,color:FAINT}}>залишилось {fmtK(incomeGoal-curMonthIncome)}</span>
+                  : <span style={{fontSize:10,color:GREEN,fontWeight:700}}>🎉 Ціль досягнута!</span>
+                }
+              </div>
+            </>
+          ) : (
+            <div style={{fontSize:11,color:FAINT}}>Встановіть ціль доходу на місяць</div>
+          )}
+        </Card>
 
         {/* ── CHART ── */}
         <Card className="fu" style={{padding:"14px"}}>
