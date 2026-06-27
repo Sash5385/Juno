@@ -478,9 +478,19 @@ function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock }) {
                       )}
                     </div>
                     {totalDebt > 0 && (
-                      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",borderRadius:10,padding:"8px 12px",background:"rgba(239,68,68,0.08)",border:"1px solid rgba(239,68,68,0.2)"}}>
-                        <div style={{fontSize:11,color:"#fca5a5",fontWeight:700}}>💳 Не оплачено</div>
-                        <div style={{fontSize:15,fontWeight:900,color:"#f87171"}}>{totalDebt}₴</div>
+                      <div style={{borderRadius:10,padding:"8px 12px",background:"rgba(239,68,68,0.08)",border:"1px solid rgba(239,68,68,0.2)"}}>
+                        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
+                          <div style={{fontSize:11,color:"#fca5a5",fontWeight:700}}>💳 Не оплачено</div>
+                          <div style={{fontSize:15,fontWeight:900,color:"#f87171"}}>{totalDebt}₴</div>
+                        </div>
+                        <button onClick={()=>{
+                          push(iRef(`notifications/${s.id}`),{type:'admin_message',title:'Нагадування про оплату 💳',body:`Заборгованість ${totalDebt}₴ — будь ласка, оплатіть`,ts:Date.now()}).catch(()=>{});
+                          push(iRef('pushQueue'),{uid:s.id,title:'Нагадування про оплату 💳',body:`Заборгованість ${totalDebt}₴`,ts:Date.now()}).catch(()=>{});
+                        }} style={{
+                          width:"100%",padding:"6px 12px",borderRadius:8,border:"none",cursor:"pointer",
+                          fontFamily:"inherit",fontSize:11,fontWeight:700,
+                          background:"rgba(239,68,68,0.18)",color:"#fca5a5",
+                        }}>📢 Нагадати оплатити</button>
                       </div>
                     )}
                   </>
