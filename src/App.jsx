@@ -123,7 +123,7 @@ const TAB_TITLES = {
 
 
 // ─── BOTTOM NAV ──────────────────────────────────────────────────
-function BottomNav({ active, onChange, settings, chatUnread, journalUnread, queueCount }) {
+function BottomNav({ active, onChange, settings, chatUnread, journalUnread, queueCount, pendingCount }) {
   const lang = useContext(LangContext);
   const tl = createT(lang);
   const theme = useContext(ThemeContext);
@@ -172,13 +172,13 @@ function BottomNav({ active, onChange, settings, chatUnread, journalUnread, queu
               position:"relative"
             }}>
               {tabIcons[t.id]?.(34,active===t.id)}
-              {(t.id === 'chats' ? chatUnread : t.id === 'journal' ? journalUnread : t.id === 'queue' ? queueCount : t.badge) > 0 && (
+              {(t.id === 'chats' ? chatUnread : t.id === 'journal' ? journalUnread : t.id === 'queue' ? queueCount : t.id === 'schedule' ? (settings?.pendingEnabled ? pendingCount : 0) : t.badge) > 0 && (
                 <div style={{
                   position:"absolute",top:-4,right:-4,
-                  background:theme.ACCENT,color:"#fff",borderRadius:10,
+                  background:t.id === 'schedule' ? theme.GOLD : theme.ACCENT,color:"#fff",borderRadius:10,
                   padding:"1px 5px",fontSize:9,fontWeight:800,
-                  boxShadow:`0 0 8px ${theme.ACCENT}88`,lineHeight:1.4
-                }}>{t.id === 'chats' ? chatUnread : t.id === 'journal' ? journalUnread : t.id === 'queue' ? queueCount : t.badge}</div>
+                  boxShadow:`0 0 8px ${t.id === 'schedule' ? theme.GOLD : theme.ACCENT}88`,lineHeight:1.4
+                }}>{t.id === 'chats' ? chatUnread : t.id === 'journal' ? journalUnread : t.id === 'queue' ? queueCount : t.id === 'schedule' ? pendingCount : t.badge}</div>
               )}
             </div>
             <span style={{fontSize:9,fontWeight:700,color:active===t.id?theme.ACCENT:labelInactive,whiteSpace:"nowrap"}}>{tl(t.lk)}</span>
@@ -1042,7 +1042,7 @@ const pendingDeletesRef = React.useRef(new Set());
             <ViewRenderer tab={tab} settings={settings} setSettings={setSettings} bookings={bookings} setBookings={handleSetBookings} onSlotClick={setSelectedBooking} onEmptySlotClick={setNewBookingData} openInfos={openInfos} toggleInfo={toggleInfo} activeDragIds={activeDragIds} navTo={switchTab} slotExistsRef={slotExistsRef} openSlotsRef={openSlotsRef}/>
           </Suspense>
         </div>
-        <BottomNav active={tab} onChange={switchTab} settings={settings} chatUnread={chatUnread} journalUnread={journalUnread} queueCount={queueCount}/>
+        <BottomNav active={tab} onChange={switchTab} settings={settings} chatUnread={chatUnread} journalUnread={journalUnread} queueCount={queueCount} pendingCount={bookings.filter(b=>b.status==='pending').length}/>
       </div>
       {needRefresh && (
         <div className={`update-banner${isUpdating ? ' update-banner--loading' : ''}`} onClick={updateServiceWorker}>
