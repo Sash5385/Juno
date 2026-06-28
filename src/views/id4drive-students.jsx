@@ -626,22 +626,26 @@ export default function StudentsView() {
   const [showNew,      setShowNew]      = useState(false);
   const [debtMap,      setDebtMap]      = useState({});
   const [debtLoading,  setDebtLoading]  = useState(false);
+  const [noShowMap,    setNoShowMap]    = useState({});
 
   useEffect(() => {
-    if (filterType !== "debt") return;
+    if (filterType !== "debt" && filterType !== "noshow") return;
     setDebtLoading(true);
     get(iRef("bookings")).then(snap => {
-      const map = {};
+      const dMap = {}, nsMap = {};
       const data = snap.val() || {};
       Object.entries(data).forEach(([uid, bkgs]) => {
         if (uid.startsWith("guest_")) return;
-        let total = 0;
+        let total = 0, ns = 0;
         Object.values(bkgs).forEach(b => {
           if (b && b.status === "confirmed" && !b.isPaid && b.price > 0) total += b.price;
+          if (b && b.status === "noshow") ns++;
         });
-        if (total > 0) map[uid] = total;
+        if (total > 0) dMap[uid] = total;
+        if (ns > 0) nsMap[uid] = ns;
       });
-      setDebtMap(map);
+      setDebtMap(dMap);
+      setNoShowMap(nsMap);
       setDebtLoading(false);
     }).catch(() => setDebtLoading(false));
   }, [filterType]);
@@ -655,7 +659,8 @@ export default function StudentsView() {
           id:uid, name:p.name||u.name||"Учень", phone:p.phone||u.phone||"",
           type:p.type||u.type||"private", tsc:p.tsc||u.tsc||"",
           hours:u.hours||0, hoursOffset:u.hoursOffset||0,
-          discount:u.discount||0, notes:u.notes||"", blocked:u.blocked||false, isVip:u.isVip||false,
+          discount:u.discount||0, notes:u.notes||"", birthday:u.birthday||"",
+          blocked:u.blocked||false, isVip:u.isVip||false,
           noIntervalLimit:u.noIntervalLimit||false,
         };
       }));
@@ -711,9 +716,10 @@ export default function StudentsView() {
 
   const q    = search.toLowerCase();
   const list = students
-    .filter(s=>(!q||(s.name||"").toLowerCase().includes(q)||(s.phone||"").includes(q))&&(filterType==="all"||filterType==="debt"||s.type===filterType))
+    .filter(s=>(!q||(s.name||"").toLowerCase().includes(q)||(s.phone||"").includes(q))&&(filterType==="all"||filterType==="debt"||filterType==="noshow"||s.type===filterType))
     .filter(s=>filterType!=="debt"||debtMap[s.id])
-    .sort((a,b)=>filterType==="debt"?(debtMap[b.id]||0)-(debtMap[a.id]||0):(a.name||"").localeCompare(b.name||""));
+    .filter(s=>filterType!=="noshow"||noShowMap[s.id])
+    .sort((a,b)=>filterType==="debt"?(debtMap[b.id]||0)-(debtMap[a.id]||0):filterType==="noshow"?(noShowMap[b.id]||0)-(noShowMap[a.id]||0):(a.name||"").localeCompare(b.name||""));
 
   const liveDetail = detailStudent ? students.find(x=>x.id===detailStudent.id) : null;
 
@@ -735,7 +741,7 @@ export default function StudentsView() {
         </div>
 
         <div style={{display:"flex",gap:7}}>
-          {[["all","Всі"],["school","Автошкола"],["private","Приватний"],["debt","💳 Борги"]].map(([k,l])=>(
+          {[["all","Всі"],["school","Автошкола"],["private","Приватний"],["debt","💳 Борги"],["noshow","⚠️ Без явки"]].map(([k,l])=>(
             <button key={k} onClick={()=>setFilterType(k)} style={{
               flex:k==="debt"?0.8:1,padding:"9px 4px",borderRadius:11,border:"none",cursor:"pointer",fontSize:11,fontWeight:700,fontFamily:"inherit",
               background:filterType===k?`linear-gradient(145deg,${ACC_HI},${ACCENT})`:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,
