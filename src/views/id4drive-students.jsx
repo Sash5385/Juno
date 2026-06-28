@@ -446,6 +446,27 @@ function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock }) {
                   <ActBtn icon={ICONS.bell}     label="Сповіщення" onClick={()=>setSendMsgModal(true)} color={ACCENT}/>
                 </div>
 
+                {/* Next lesson reminder */}
+                {bookings && (() => {
+                  const today = new Date().toISOString().slice(0,10);
+                  const next = bookings
+                    .filter(b => b.status === 'confirmed' && b.date >= today)
+                    .sort((a,b) => a.date.localeCompare(b.date) || (a.time||'').localeCompare(b.time||''))[0];
+                  if (!next) return null;
+                  const [,mm,dd] = next.date.split('-');
+                  const label = `${parseInt(dd)}.${parseInt(mm)}${next.time ? ' ' + next.time : ''}`;
+                  return (
+                    <button onClick={() => {
+                      push(iRef(`notifications/${s.id}`),{type:'lesson_reminder_day',title:'📅 Нагадування про урок',body:`${label} — не забудьте про урок водіння!`,ts:Date.now()}).catch(()=>{});
+                      push(iRef('pushQueue'),{uid:s.id,title:'📅 Нагадування про урок',body:`${label} — не забудьте!`,ts:Date.now()}).catch(()=>{});
+                    }} style={{
+                      width:'100%',padding:'11px',borderRadius:11,border:'1px solid rgba(99,155,255,0.25)',
+                      cursor:'pointer',background:'rgba(99,155,255,0.08)',color:'#6b9bff',
+                      fontSize:13,fontWeight:700,fontFamily:'inherit',
+                    }}>📅 Нагадати про урок · {label}</button>
+                  );
+                })()}
+
                 {/* VIP toggle */}
                 <div onClick={()=>onUpdate(s.id,{isVip:!s.isVip})} style={{
                   display:"flex",alignItems:"center",gap:10,cursor:"pointer",borderRadius:10,padding:"10px 13px",
