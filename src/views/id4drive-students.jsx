@@ -34,6 +34,7 @@ const ICONS = {
   search:   Svg(<><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></>, 15, "#5a5c62"),
   trash:    Svg(<><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></>, 18, "white", 2),
   bell:     Svg(<><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></>, 18, "white", 2),
+  whatsapp: Svg(<><path d="M21 12c0 5-4 8-9 8a16 16 0 0 1-4-.7L3 21l1-4C2.5 15.5 2 13.8 2 12c0-5 4-8 9-8s10 3 10 8z"/><path d="M9.5 11.5c.3.7.9 1.8 1.8 2.7.9.9 2 1.5 2.7 1.8" strokeLinecap="round"/></>, 18, "white", 2),
 };
 
 // ─── ACTION BUTTON ───────────────────────────────────────────────
@@ -438,6 +439,7 @@ function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock }) {
                   <ActBtn icon={ICONS.phone}    label="Дзвонити"   onClick={()=>{window.location.href=`tel:${s.phone}`;}}                    color={GREEN}/>
                   <ActBtn icon={ICONS.viber}    label="Вайбер"     onClick={()=>{window.location.href=`viber://chat?number=%2B${phone}`;}}    color={BLUE}/>
                   <ActBtn icon={ICONS.telegram} label="Телеграм"   onClick={()=>{window.open(`https://t.me/+${phone}`,"_blank");}}            color="#5b9bff"/>
+                  <ActBtn icon={ICONS.whatsapp} label="WhatsApp"   onClick={()=>{window.open(`https://wa.me/${phone}`,"_blank");}}            color="#25D366"/>
                   <ActBtn icon={ICONS.chat}     label="Чат"        onClick={()=>{navTo("chats");_close();}}                                   color={BLUE}/>
                   <ActBtn icon={ICONS.edit}     label="Редагувати" onClick={()=>setEditMode(true)}/>
                   <ActBtn icon={s.blocked?ICONS.unban:ICONS.ban} label={s.blocked?"Розблок.":"Заблок."} onClick={()=>onBlock(s.id)} danger={!s.blocked}/>
