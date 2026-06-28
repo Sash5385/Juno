@@ -400,10 +400,14 @@ function DashStrip({ bookings }) {
   const monthRevenue = bookings
     .filter(b => (b.date||'').startsWith(monthStr) && b.status === 'confirmed' && b.price > 0)
     .reduce((s,b) => s + (b.price||0), 0);
+  const weekStartStr = (() => { const d=new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate()-((d.getDay()+6)%7)); return d.toISOString().slice(0,10); })();
+  const weekRevenue = bookings
+    .filter(b => b.date >= weekStartStr && b.date <= todayStr && b.status === 'confirmed' && b.price > 0)
+    .reduce((s,b) => s + (b.price||0), 0);
   const cards = [
     { label:'Сьогодні', value:todayCount, icon:'📅', color:'#5b9bff' },
     { label:'Очікує',   value:pendingCount, icon:'⏳', color:'#fbbf24' },
-    { label:'Місяць ₴', value:monthRevenue > 0 ? monthRevenue.toLocaleString('uk') : '—', icon:'💰', color:'#34d399' },
+    { label:'Місяць ₴', value:monthRevenue > 0 ? monthRevenue.toLocaleString('uk') : '—', icon:'💰', color:'#34d399', sub: weekRevenue > 0 ? weekRevenue.toLocaleString('uk') + ' тиж' : null },
   ];
   return (
     <div style={{display:'flex',gap:6,padding:'6px 3px 4px',flexShrink:0}}>
@@ -416,6 +420,7 @@ function DashStrip({ bookings }) {
           <div style={{fontSize:14,lineHeight:1}}>{c.icon}</div>
           <div style={{fontSize:15,fontWeight:800,color:c.color,lineHeight:1}}>{c.value}</div>
           <div style={{fontSize:9,color:theme.DIM,fontWeight:600,letterSpacing:0.3}}>{c.label}</div>
+          {c.sub && <div style={{fontSize:9,color:c.color,fontWeight:700,opacity:0.7,lineHeight:1}}>{c.sub}</div>}
         </div>
       ))}
     </div>
