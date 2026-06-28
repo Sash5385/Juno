@@ -3016,6 +3016,20 @@ function BookingModal({ booking, onClose, onAction, settings }) {
             </div>
           )}
 
+          {/* Student goals */}
+          {booking.goals?.length > 0 && (
+            <div style={{margin:"6px 10px 0",padding:"9px 12px",borderRadius:12,
+              background:"rgba(99,155,255,0.05)",border:"1px solid rgba(99,155,255,0.12)"}}>
+              <span style={{fontSize:10,fontWeight:700,color:"rgba(99,155,255,0.8)",display:"block",marginBottom:6}}>🎯 ЦІЛІ УЧНЯ</span>
+              <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
+                {booking.goals.map(g => (
+                  <span key={g} style={{fontSize:11,padding:"3px 9px",borderRadius:8,
+                    background:"rgba(99,155,255,0.12)",color:"#6b9bff",fontWeight:700}}>{g}</span>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Instructor note */}
           <div style={{margin:"6px 10px 0",padding:"9px 12px",borderRadius:12,
             background:"rgba(59,130,246,0.06)",border:"1px solid rgba(59,130,246,0.15)"}}>
