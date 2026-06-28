@@ -608,7 +608,7 @@ function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock }) {
                             <span style={{fontSize:11,color:BLUE,fontWeight:700,minWidth:34}}>{b.time}</span>
                             <span style={{flex:1,fontSize:11,color:TEXT,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{b.serviceName||b.svc||"—"}</span>
                             {b.price > 0 && <span style={{fontSize:10,fontWeight:800,color:GOLD,minWidth:40,textAlign:"right"}}>{b.price}₴</span>}
-                            {b.isPaid && <span style={{fontSize:9,fontWeight:800,padding:"2px 5px",borderRadius:5,background:"rgba(99,211,120,0.15)",color:"#63d37b"}}>₴✓</span>}
+                            {b.price > 0 && <span onClick={e=>{e.stopPropagation();update(iRef(''),{[`bookings/${s.id}/${b.id}/isPaid`]:!b.isPaid}).catch(()=>{});setBookings(bs=>bs.map(bb=>bb.id===b.id?{...bb,isPaid:!bb.isPaid}:bb));}} style={{fontSize:9,fontWeight:800,padding:"2px 5px",borderRadius:5,cursor:'pointer',background:b.isPaid?"rgba(99,211,120,0.15)":"rgba(255,255,255,0.06)",color:b.isPaid?"#63d37b":"rgba(255,255,255,0.25)"}}>{b.isPaid?'₴✓':'₴?'}</span>}
                             {b.rating > 0 && <span style={{fontSize:10,color:"#fbbf24",letterSpacing:0}}>{"★".repeat(b.rating)}</span>}
                             <span style={{fontSize:10,fontWeight:800,padding:"2px 7px",borderRadius:5,background:bg,color:c}}>{icon}</span>
                           </div>
