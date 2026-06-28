@@ -10,6 +10,15 @@ const M = ["","Січ","Лют","Бер","Кві","Тра","Чер","Лип","С
 const fmtS = d => { if(!d) return "—"; const [,m,day]=d.split("-"); return `${parseInt(day)} ${M[parseInt(m)]}`; };
 const navTo = tab => window.dispatchEvent(new CustomEvent("drivepad-nav", {detail:tab}));
 
+const birthdayWithinDays = (birthday, days = 7) => {
+  if (!birthday) return false;
+  const [, mm, dd] = birthday.split('-').map(Number);
+  const today = new Date();
+  const check = (yr) => { const d = new Date(yr, mm - 1, dd); return (d - today) / 86400000; };
+  const diff = check(today.getFullYear());
+  return (diff >= 0 && diff <= days) || (check(today.getFullYear() + 1) >= 0 && check(today.getFullYear() + 1) <= days);
+};
+
 const Svg = (d, s=18, c="white", w=2) => (
   <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth={w} strokeLinecap="round" strokeLinejoin="round">{d}</svg>
 );
@@ -136,6 +145,7 @@ function StudentForm({ initial, onSave, onCancel, saveLabel="Зберегти" }
           <div style={{position:"absolute",top:2,left:d.noIntervalLimit?18:2,width:16,height:16,borderRadius:8,background:"#fff",transition:"left .2s"}}/>
         </div>
       </div>
+      <Field label="День народження" value={d.birthday||""} onChange={v=>upd("birthday",v)} placeholder="РРРР-ММ-ДД" style={{marginBottom:0}}/>
       <Field label="Нотатки" value={d.notes||""} onChange={v=>upd("notes",v)} placeholder="Нотатки…" textarea rows={2} style={{marginBottom:0}}/>
       <div style={{display:"flex",gap:7}}>
         <UIBtn variant="primary" flex={1} disabled={!valid} onClick={()=>valid&&onSave(d)}>{saveLabel}</UIBtn>
@@ -171,7 +181,7 @@ function StudentCard({ s, onSelect, debtAmount, onMarkPaid }) {
         }}>{ini}</div>
         <div style={{flex:1,minWidth:0}}>
           <div style={{fontSize:13,fontWeight:800,color:s.blocked?DIM:TEXT,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-            {s.name}{s.blocked && <span style={{fontSize:9,color:RED,fontWeight:700,marginLeft:6}}>🚫</span>}
+            {s.name}{s.blocked && <span style={{fontSize:9,color:RED,fontWeight:700,marginLeft:6}}>🚫</span>}{birthdayWithinDays(s.birthday) && <span style={{fontSize:13,marginLeft:5}}>🎂</span>}
           </div>
           <div style={{fontSize:10,color:typeColor,fontWeight:700,marginTop:2}}>{typeLabel}{s.tsc ? ` · ${s.tsc}` : ""}{s.type==="school"&&(s.hours+(s.hoursOffset||0))>0?` · ${s.hours+(s.hoursOffset||0)}/40 год`:""}</div>
         </div>
@@ -324,7 +334,7 @@ function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock }) {
 
             {editMode ? (
               <StudentForm
-                initial={{name:s.name,phone:s.phone,discount:s.discount??0,notes:s.notes||"",type:s.type,tsc:s.tsc||"",isVip:s.isVip||false,noIntervalLimit:s.noIntervalLimit||false}}
+                initial={{name:s.name,phone:s.phone,discount:s.discount??0,notes:s.notes||"",birthday:s.birthday||"",type:s.type,tsc:s.tsc||"",isVip:s.isVip||false,noIntervalLimit:s.noIntervalLimit||false}}
                 onSave={patch=>{onUpdate(s.id,patch);setEditMode(false);}}
                 onCancel={()=>setEditMode(false)}
               />
@@ -450,6 +460,15 @@ function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock }) {
                 </div>
 
                 {/* Notes */}
+                {/* Birthday */}
+                {s.birthday && (
+                  <div style={{background:glow(0.04),borderRadius:10,padding:"9px 12px",border:`1px solid ${BORDER}`,fontSize:12,color:DIM,lineHeight:1.5,display:"flex",alignItems:"center",gap:8}}>
+                    <span style={{fontSize:16}}>🎂</span>
+                    <span>{s.birthday.split('-').slice(1).reverse().join('.')+'.'+s.birthday.slice(0,4)}</span>
+                    {birthdayWithinDays(s.birthday) && <span style={{fontSize:10,fontWeight:800,color:"#fb923c",background:"rgba(251,146,60,0.12)",padding:"2px 8px",borderRadius:7}}>Скоро!</span>}
+                  </div>
+                )}
+
                 {s.notes && (
                   <div style={{background:glow(0.04),borderRadius:10,padding:"9px 12px",border:`1px solid ${BORDER}`,fontSize:12,color:DIM,lineHeight:1.5}}>📝 {s.notes}</div>
                 )}
@@ -766,7 +785,7 @@ export default function StudentsView() {
             <div style={{width:38,height:4,borderRadius:2,background:ink(0.12),margin:"0 auto 14px"}}/>
             <div style={{fontSize:14,fontWeight:800,color:TEXT,marginBottom:12}}>Новий учень</div>
             <StudentForm
-              initial={{name:"",phone:"+380",discount:0,notes:"",type:"private",isVip:false,noIntervalLimit:false,tsc:""}}
+              initial={{name:"",phone:"+380",discount:0,notes:"",birthday:"",type:"private",isVip:false,noIntervalLimit:false,tsc:""}}
               onSave={createStudent} onCancel={()=>setShowNew(false)} saveLabel="Додати"
             />
           </div>
