@@ -3033,7 +3033,15 @@ function BookingModal({ booking, onClose, onAction, settings }) {
           {/* Instructor note */}
           <div style={{margin:"6px 10px 0",padding:"9px 12px",borderRadius:12,
             background:"rgba(59,130,246,0.06)",border:"1px solid rgba(59,130,246,0.15)"}}>
-            <span style={{fontSize:10,fontWeight:700,color:"rgba(96,165,250,0.8)",display:"block",marginBottom:5}}>📝 НОТАТКА ІНСТРУКТОРА</span>
+            <span style={{fontSize:10,fontWeight:700,color:"rgba(96,165,250,0.8)",display:"block",marginBottom:6}}>📝 НОТАТКА ІНСТРУКТОРА</span>
+            <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:7}}>
+              {["✅ Паркування","🔄 Розворот","🏙 Місто","🛣 Швидкісна","⭕ Кільце","⚠️ Потрібна практика"].map(t=>(
+                <button key={t} onClick={()=>setInstructorNote(n=>(n?n+" ":"")+t)} style={{
+                  fontSize:10,padding:"3px 8px",borderRadius:8,border:"1px solid rgba(59,130,246,0.2)",
+                  background:"rgba(59,130,246,0.08)",color:"rgba(96,165,250,0.85)",cursor:"pointer",fontFamily:"inherit",
+                }}>{t}</button>
+              ))}
+            </div>
             <textarea
               value={instructorNote}
               onChange={e => setInstructorNote(e.target.value)}
