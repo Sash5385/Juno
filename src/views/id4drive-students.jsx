@@ -766,9 +766,10 @@ export default function StudentsView() {
 
   const q    = search.toLowerCase();
   const list = students
-    .filter(s=>(!q||(s.name||"").toLowerCase().includes(q)||(s.phone||"").includes(q))&&(filterType==="all"||filterType==="debt"||filterType==="noshow"||s.type===filterType))
+    .filter(s=>(!q||(s.name||"").toLowerCase().includes(q)||(s.phone||"").includes(q))&&(filterType==="all"||filterType==="debt"||filterType==="noshow"||filterType==="vip"||s.type===filterType))
     .filter(s=>filterType!=="debt"||debtMap[s.id])
     .filter(s=>filterType!=="noshow"||noShowMap[s.id])
+    .filter(s=>filterType!=="vip"||s.isVip)
     .sort((a,b)=>filterType==="debt"?(debtMap[b.id]||0)-(debtMap[a.id]||0):filterType==="noshow"?(noShowMap[b.id]||0)-(noShowMap[a.id]||0):(a.name||"").localeCompare(b.name||""));
 
   const liveDetail = detailStudent ? students.find(x=>x.id===detailStudent.id) : null;
@@ -808,11 +809,11 @@ export default function StudentsView() {
         )}
 
         <div style={{display:"flex",gap:7}}>
-          {[["all","Всі"],["school","Автошкола"],["private","Приватний"],["debt","💳 Борги"],["noshow","⚠️ Без явки"]].map(([k,l])=>(
+          {[["all","Всі"],["school","Автошкола"],["private","Приватний"],["vip","👑 VIP"],["debt","💳 Борги"],["noshow","⚠️ Без явки"]].map(([k,l])=>(
             <button key={k} onClick={()=>setFilterType(k)} style={{
-              flex:k==="debt"?0.8:1,padding:"9px 4px",borderRadius:11,border:"none",cursor:"pointer",fontSize:11,fontWeight:700,fontFamily:"inherit",
+              flex:k==="vip"?0.7:k==="debt"?0.8:1,padding:"9px 4px",borderRadius:11,border:"none",cursor:"pointer",fontSize:11,fontWeight:700,fontFamily:"inherit",
               background:filterType===k?`linear-gradient(145deg,${ACC_HI},${ACCENT})`:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,
-              color:filterType===k?"#fff":k==="debt"?RED:DIM,boxShadow:SO,
+              color:filterType===k?"#fff":k==="vip"?"#c084fc":k==="debt"?RED:DIM,boxShadow:SO,
             }}>{l}</button>
           ))}
         </div>
