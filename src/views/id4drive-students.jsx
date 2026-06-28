@@ -466,6 +466,14 @@ function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock }) {
                     <span style={{fontSize:16}}>🎂</span>
                     <span>{s.birthday.split('-').slice(1).reverse().join('.')+'.'+s.birthday.slice(0,4)}</span>
                     {birthdayWithinDays(s.birthday) && <span style={{fontSize:10,fontWeight:800,color:"#fb923c",background:"rgba(251,146,60,0.12)",padding:"2px 8px",borderRadius:7}}>Скоро!</span>}
+                    {birthdayWithinDays(s.birthday) && s.id && (
+                      <button onClick={()=>{
+                        push(iRef(`notifications/${s.id}`),{type:'admin_message',title:'🎂 З Днем народження!',body:'Вітаємо з Днем народження! Бажаємо здоров\'я та успіхів на дорозі 🎉',ts:Date.now()}).catch(()=>{});
+                        push(iRef('pushQueue'),{uid:s.id,title:'🎂 З Днем народження!',body:'Вітаємо з Днем народження! 🎉',ts:Date.now()}).catch(()=>{});
+                      }} style={{marginLeft:'auto',padding:'4px 10px',borderRadius:8,border:'none',cursor:'pointer',fontFamily:'inherit',fontSize:11,fontWeight:700,background:'rgba(251,146,60,0.18)',color:'#fb923c'}}>
+                        Привітати
+                      </button>
+                    )}
                   </div>
                 )}
 
