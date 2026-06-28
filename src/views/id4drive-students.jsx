@@ -810,12 +810,20 @@ export default function StudentsView() {
         )}
 
         <div style={{display:"flex",gap:7}}>
-          {[["all","Всі"],["school","Автошкола"],["private","Приватний"],["vip","👑 VIP"],["debt","💳 Борги"],["noshow","⚠️ Без явки"]].map(([k,l])=>(
-            <button key={k} onClick={()=>setFilterType(k)} style={{
-              flex:k==="vip"?0.7:k==="debt"?0.8:1,padding:"9px 4px",borderRadius:11,border:"none",cursor:"pointer",fontSize:11,fontWeight:700,fontFamily:"inherit",
-              background:filterType===k?`linear-gradient(145deg,${ACC_HI},${ACCENT})`:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,
-              color:filterType===k?"#fff":k==="vip"?"#c084fc":k==="debt"?RED:DIM,boxShadow:SO,
-            }}>{l}</button>
+          {[["all","Всі"],["school","Автошкола"],["private","Приватний"],["vip","👑 VIP"],["debt","💳 Борги"],["noshow","⚠️ Без явки"]].map(([k,l])=>{
+            const cnt=k==="all"?students.length:k==="school"?students.filter(s=>s.type==="school").length:k==="private"?students.filter(s=>s.type==="private").length:k==="vip"?students.filter(s=>s.isVip).length:k==="debt"?students.filter(s=>debtMap[s.id]).length:students.filter(s=>noShowMap[s.id]).length;
+            return (
+              <button key={k} onClick={()=>setFilterType(k)} style={{
+                flex:k==="vip"?0.7:k==="debt"?0.8:1,padding:"9px 4px",borderRadius:11,border:"none",cursor:"pointer",fontSize:11,fontWeight:700,fontFamily:"inherit",
+                background:filterType===k?`linear-gradient(145deg,${ACC_HI},${ACCENT})`:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,
+                color:filterType===k?"#fff":k==="vip"?"#c084fc":k==="debt"?RED:DIM,boxShadow:SO,
+                display:'flex',flexDirection:'column',alignItems:'center',gap:1,
+              }}>
+                <span>{l}</span>
+                {cnt > 0 && <span style={{fontSize:9,fontWeight:600,opacity:0.65,lineHeight:1}}>{cnt}</span>}
+              </button>
+            );
+          })
           ))}
         </div>
 
