@@ -188,6 +188,7 @@ function StudentCard({ s, onSelect, debtAmount, onMarkPaid }) {
         </div>
         {s.lessonBalance > 0 && <div style={{fontSize:10,fontWeight:800,color:"#4ade80",background:"rgba(74,222,128,0.15)",borderRadius:7,padding:"2px 7px",flexShrink:0,whiteSpace:"nowrap"}}>🎓 {s.lessonBalance}</div>}
         {s.isVip && <div style={{fontSize:10,fontWeight:800,color:"#c084fc",background:"rgba(168,85,247,0.15)",borderRadius:7,padding:"2px 7px",flexShrink:0,whiteSpace:"nowrap"}}>👑</div>}
+        {s.discount > 0 && <div style={{fontSize:10,fontWeight:800,color:GOLD,background:GOLD+"22",borderRadius:7,padding:"2px 7px",flexShrink:0,whiteSpace:"nowrap"}}>🏷️ {s.discount}%</div>}
         {debtAmount > 0 && <div style={{fontSize:10,fontWeight:800,color:RED,background:RED+"22",borderRadius:7,padding:"2px 7px",flexShrink:0,whiteSpace:"nowrap"}}>{debtAmount} ₴</div>}
         {debtAmount > 0 && onMarkPaid && (
           <button onClick={e=>{e.stopPropagation();onMarkPaid(s.id);}} style={{
