@@ -186,6 +186,7 @@ function StudentCard({ s, onSelect, debtAmount, onMarkPaid }) {
           </div>
           <div style={{fontSize:10,color:typeColor,fontWeight:700,marginTop:2}}>{typeLabel}{s.tsc ? ` · ${s.tsc}` : ""}{s.type==="school"&&(s.hours+(s.hoursOffset||0))>0?` · ${s.hours+(s.hoursOffset||0)}/40 год`:""}</div>
         </div>
+        {s.lessonBalance > 0 && <div style={{fontSize:10,fontWeight:800,color:"#4ade80",background:"rgba(74,222,128,0.15)",borderRadius:7,padding:"2px 7px",flexShrink:0,whiteSpace:"nowrap"}}>🎓 {s.lessonBalance}</div>}
         {debtAmount > 0 && <div style={{fontSize:10,fontWeight:800,color:RED,background:RED+"22",borderRadius:7,padding:"2px 7px",flexShrink:0,whiteSpace:"nowrap"}}>{debtAmount} ₴</div>}
         {debtAmount > 0 && onMarkPaid && (
           <button onClick={e=>{e.stopPropagation();onMarkPaid(s.id);}} style={{
@@ -709,6 +710,7 @@ export default function StudentsView() {
           discount:u.discount||0, notes:u.notes||"", birthday:u.birthday||"",
           blocked:u.blocked||false, isVip:u.isVip||false,
           noIntervalLimit:u.noIntervalLimit||false,
+          lessonBalance:u.lessonBalance||0,
         };
       }));
       setLoading(false);
