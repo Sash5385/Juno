@@ -544,6 +544,30 @@ function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock }) {
                   </>
                 )}
 
+                {s.type === 'school' && bookings && bookings.length >= 3 && (() => {
+                  const totalHours = (s.hours || 0) + (s.hoursOffset || 0);
+                  const remaining = Math.max(0, 40 - totalHours);
+                  if (remaining === 0) return null;
+                  const confirmed = bookings.filter(b => b.status === 'confirmed' && b.date).sort((a, bb) => a.date.localeCompare(bb.date));
+                  if (confirmed.length < 3) return null;
+                  const firstDate = new Date(confirmed[0].date + 'T12:00:00');
+                  const weeksElapsed = Math.max(1, (Date.now() - firstDate.getTime()) / (7 * 86400000));
+                  const avgHoursPerWeek = totalHours / weeksElapsed;
+                  if (avgHoursPerWeek < 0.1) return null;
+                  const targetDate = new Date();
+                  targetDate.setDate(targetDate.getDate() + Math.round((remaining / avgHoursPerWeek) * 7));
+                  const dd = String(targetDate.getDate()).padStart(2,'0');
+                  const mm = String(targetDate.getMonth()+1).padStart(2,'0');
+                  const yyyy = targetDate.getFullYear();
+                  return (
+                    <div style={{borderRadius:10,padding:"9px 12px",background:"rgba(99,155,255,0.06)",border:"1px solid rgba(99,155,255,0.18)"}}>
+                      <div style={{fontSize:9,color:"rgba(99,155,255,0.7)",letterSpacing:1,textTransform:"uppercase",marginBottom:3}}>🎓 Прогноз закінчення</div>
+                      <div style={{fontSize:15,fontWeight:900,color:"#6b9bff"}}>{dd}.{mm}.{yyyy}</div>
+                      <div style={{fontSize:10,color:FAINT,marginTop:2}}>ще ~{remaining} год · темп {avgHoursPerWeek.toFixed(1)} год/тиж</div>
+                    </div>
+                  );
+                })()}
+
                 {/* Booking history */}
                 {bookings === null ? (
                   <div style={{textAlign:"center",padding:"12px 0",color:FAINT,fontSize:12}}>Завантаження…</div>
