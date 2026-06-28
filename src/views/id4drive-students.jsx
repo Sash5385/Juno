@@ -247,6 +247,7 @@ function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock }) {
   const totalPaid = (bookings || []).filter(b => b.isPaid).reduce((acc, b) => acc + (b.price || 0), 0);
   const totalDebt = (bookings || []).filter(b => b.status === 'confirmed' && !b.isPaid && b.price > 0).reduce((acc, b) => acc + (b.price || 0), 0);
   const ratedBookings = (bookings || []).filter(b => b.status === 'confirmed' && b.rating > 0);
+  const noShowCount = (bookings || []).filter(b => b.status === 'noshow').length;
   const avgRating = ratedBookings.length
     ? Math.round(ratedBookings.reduce((s, b) => s + b.rating, 0) / ratedBookings.length * 10) / 10
     : 0;
@@ -501,6 +502,12 @@ function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock }) {
                             <span style={{fontSize:13}}>⭐</span>
                           </div>
                           <div style={{fontSize:9,color:FAINT,marginTop:1}}>{ratedBookings.length} оцінок</div>
+                        </div>
+                      )}
+                      {noShowCount > 0 && (
+                        <div style={{flex:1,background:"rgba(239,68,68,0.07)",borderRadius:10,padding:"9px 12px",border:"1px solid rgba(239,68,68,0.18)"}}>
+                          <div style={{fontSize:9,color:"rgba(248,113,113,0.7)",letterSpacing:1,textTransform:"uppercase",marginBottom:3}}>Не прийшов</div>
+                          <div style={{fontSize:18,fontWeight:900,color:"#f87171"}}>{noShowCount}</div>
                         </div>
                       )}
                     </div>
