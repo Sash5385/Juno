@@ -3121,6 +3121,20 @@ function BookingModal({ booking, onClose, onAction, settings }) {
             }}>{isPaid ? "✓ Оплачено" : "○ Не оплачено"}</button>
           </div>
 
+          {/* No-show button — only for past confirmed bookings */}
+          {booking.status === "confirmed" && (() => {
+            const d = new Date((booking.date || "") + "T00:00:00");
+            d.setMinutes((booking.startMin || 0) + (booking.durMin || 60));
+            return d < new Date();
+          })() && (
+            <div style={{padding:"8px 10px 0"}}>
+              <button onClick={() => { onAction("noshow", booking); _close(); }} style={{
+                width:"100%",padding:"11px",borderRadius:14,border:"none",cursor:"pointer",fontFamily:"inherit",
+                background:"rgba(251,146,60,0.1)",color:"#fb923c",fontSize:13,fontWeight:800,
+              }}>⚠️ Не з'явився</button>
+            </div>
+          )}
+
           {/* Action buttons */}
           <div style={{padding:"8px 10px 4px",display:"flex",gap:8}}>
             <button onClick={() => onAction("call", booking)} style={{
