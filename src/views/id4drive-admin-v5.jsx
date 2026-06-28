@@ -1959,6 +1959,14 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                           filter:`drop-shadow(0 1px 3px ${shade(0.7)})`,
                         }}>👑</div>
                       )}
+                      {/* studentConfirmed dot — green */}
+                      {b.studentConfirmed && !isBlock && !isVipSlot && height >= 14 && (
+                        <div style={{position:"absolute",bottom:3,right:3,zIndex:4,width:6,height:6,borderRadius:"50%",background:"#4ade80",boxShadow:"0 0 4px rgba(74,222,128,0.7)",pointerEvents:"none"}}/>
+                      )}
+                      {/* studentNote dot — teal */}
+                      {b.studentNote && !isBlock && !isVipSlot && height >= 14 && (
+                        <div style={{position:"absolute",top:2,left:2,zIndex:4,width:6,height:6,borderRadius:"50%",background:"#2dd4bf",boxShadow:"0 0 4px rgba(45,212,191,0.7)",pointerEvents:"none"}}/>
+                      )}
                       {/* Queue badge */}
                       {queueCount > 0 && !isBlock && !isVipSlot && height >= 14 && (
                         <div style={{
