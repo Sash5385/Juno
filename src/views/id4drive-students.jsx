@@ -740,6 +740,23 @@ export default function StudentsView() {
           {search && <button onClick={()=>setSearch("")} style={{background:"none",border:"none",cursor:"pointer",color:FAINT,fontSize:16,padding:0,lineHeight:1}}>×</button>}
         </div>
 
+        {students.filter(s => birthdayWithinDays(s.birthday)).length > 0 && (
+          <div style={{borderRadius:12,padding:"10px 12px",background:"rgba(251,146,60,0.07)",border:"1px solid rgba(251,146,60,0.2)"}}>
+            <div style={{fontSize:11,fontWeight:700,color:"#fb923c",marginBottom:7}}>🎂 Дні народження — найближчі 7 днів</div>
+            <div style={{display:"flex",gap:7,flexWrap:"wrap"}}>
+              {students.filter(s => birthdayWithinDays(s.birthday)).map(s => (
+                <button key={s.id} onClick={() => setDetailStudent(s)} style={{
+                  padding:"4px 10px",borderRadius:9,border:"1px solid rgba(251,146,60,0.3)",
+                  background:"rgba(251,146,60,0.1)",color:"#fb923c",fontSize:11,fontWeight:700,
+                  cursor:"pointer",fontFamily:"inherit",
+                }}>
+                  {s.name.split(' ')[0]} {s.birthday?.slice(5).split('-').reverse().join('.')}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div style={{display:"flex",gap:7}}>
           {[["all","Всі"],["school","Автошкола"],["private","Приватний"],["debt","💳 Борги"],["noshow","⚠️ Без явки"]].map(([k,l])=>(
             <button key={k} onClick={()=>setFilterType(k)} style={{
