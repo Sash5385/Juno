@@ -831,8 +831,7 @@ export default function StudentsView() {
                 {cnt > 0 && <span style={{fontSize:9,fontWeight:600,opacity:0.65,lineHeight:1}}>{cnt}</span>}
               </button>
             );
-          })
-          ))}
+          })}
         </div>
 
         {debtLoading && (
