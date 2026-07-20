@@ -3,7 +3,7 @@ name: Deploy to Firebase
 on:
   push:
     branches:
-      - master
+      - claude/optimistic-bardeen-o4gf7w
 
 jobs:
   build-and-deploy:
