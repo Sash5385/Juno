@@ -587,7 +587,7 @@ function BroadcastModal({ initialDate, initialSlot, onClose }) {
 // ═══════════════════════════════════════════════════════════════
 // SCHEDULE VIEW with drag/resize + pinch-to-zoom + day-count
 // ═══════════════════════════════════════════════════════════════
-function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bookings, setBookings, activeDragIds, navTo, slotExistsRef, openSlotsRef }) {
+function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bookings, setBookings, activeDragIds, navTo, slotExistsRef, openSlotsRef, jumpTarget }) {
   const { BG, BG_DEEP, SURFACE, SURF_HI, SURF_LO, BORDER, TEXT, DIM, FAINT, ACCENT, ACC_HI, SO, SI, STRIPE_A, STRIPE_B, GLOW, SHADE, INK } = useContext(ThemeContext);
   const isLight = BG !== "#1c1d21";
   const { glow, shade, ink } = useFX();
@@ -956,6 +956,26 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
     }, 3000);
     return () => clearInterval(timer);
   }, []);
+
+  // Deep-link з push-сповіщення: прокрутити до дати/запису та підсвітити
+  useEffect(() => {
+    if (!jumpTarget?.date) return;
+    const el = gridRef.current;
+    const cw = calcRef.current.COL_W;
+    if (!el || !cw) return;
+    const today = new Date(); today.setHours(12, 0, 0, 0);
+    const absDay = Math.round((new Date(jumpTarget.date + "T12:00:00") - today) / 86400000);
+    el.scrollTo({ left: Math.max(0, (PAST_DAYS + absDay) * (cw + 4)), behavior: "smooth" });
+    const match = bookingsRef.current.find(b =>
+      b.day === absDay &&
+      (!jumpTarget.time || b.time === jumpTarget.time) &&
+      (!jumpTarget.bookingId || b.id === jumpTarget.bookingId)
+    );
+    if (match) {
+      setShineId(match.id);
+      setTimeout(() => setShineId(id => id === match.id ? null : id), 3000);
+    }
+  }, [jumpTarget]);
 
   const TIME_COL_W = 34;
   const HEADER_H = 64;

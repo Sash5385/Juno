@@ -15,17 +15,30 @@ const OFFER_WINDOW_MS = 30 * 60 * 1000;
 
 // ─── MULTI-TENANT HELPERS ────────────────────────────────────────────
 
-async function pushInstructor(iid, title, body) {
+// Хелпер: побудувати deep-link на конкретний запис у розкладі адмінки
+function buildAdminLink(base, { date, time, uid, bookingId } = {}) {
+  const p = new URLSearchParams();
+  if (date && date !== "—") p.set("date", date);
+  if (time && time !== "—") p.set("time", time);
+  if (uid) p.set("uid", uid);
+  if (bookingId) p.set("bookingId", bookingId);
+  const qs = p.toString();
+  return qs ? `${base}/?${qs}` : `${base}/`;
+}
+
+async function pushInstructor(iid, title, body, data = {}) {
   const snap = await db.ref(`instructors/${iid}/fcmToken`).get();
   const token = snap.val();
   if (!token) return;
+  const link = data.url || "https://admin.drivepad.pro";
   try {
     await admin.messaging().send({
       token,
       notification: { title, body },
+      data: Object.fromEntries(Object.entries({ url: link, ...data }).map(([k, v]) => [k, String(v)])),
       webpush: {
         notification: { icon: "/favicon.svg" },
-        fcmOptions: { link: "https://admin.drivepad.pro" },
+        fcmOptions: { link },
       },
     });
   } catch (e) {
@@ -100,11 +113,12 @@ exports.onInstructorBookingCreated = onValueCreated(
   async (event) => {
     const booking = event.data.val();
     if (!booking) return;
-    const { iid, uid } = event.params;
+    const { iid, uid, bookingId } = event.params;
 
     const name = booking.studentName || booking.name || "Клієнт";
     const date = booking.date || "—";
     const time = booking.time || "—";
+    const adminLink = () => buildAdminLink("https://admin.drivepad.pro", { date, time, uid, bookingId });
 
     if (booking.date && (booking.time || booking.startMin != null)) {
       const INTERVAL = 30;
@@ -131,7 +145,7 @@ exports.onInstructorBookingCreated = onValueCreated(
       await pushInstructorStudent(iid, uid, "📋 Урок заплановано", `${date} о ${time}`, { url: "https://drivepad.pro/cabinet/bookings" });
       await saveInstructorNotification(iid, uid, "📋 Урок заплановано", `${date} о ${time}`, "booking_confirmed");
     } else {
-      await pushInstructor(iid, "📋 Новий запис", `${name} · ${date} о ${time}`);
+      await pushInstructor(iid, "📋 Новий запис", `${name} · ${date} о ${time}`, { url: adminLink() });
     }
   }
 );
@@ -144,11 +158,12 @@ exports.onInstructorBookingChanged = onValueWritten(
     const after  = event.data.after.val();
     if (before === null) return; // нові записи обробляє onInstructorBookingCreated
 
-    const { iid, uid } = event.params;
+    const { iid, uid, bookingId } = event.params;
     const isGuest = uid.startsWith("guest_");
     const name = (after || before)?.studentName || (after || before)?.name || "Клієнт";
     const date = (after || before)?.date || "—";
     const time = (after || before)?.time || "—";
+    const adminLink = () => buildAdminLink("https://admin.drivepad.pro", { date, time, uid, bookingId });
 
     // Адмін підтвердив
     if (after?.status === "confirmed" && before?.status !== "confirmed") {
@@ -189,7 +204,7 @@ exports.onInstructorBookingChanged = onValueWritten(
     // Клієнт скасував → звільняємо слоти + push інструктору
     if (after?.cancelledBy === "student" && before?.cancelledBy !== "student") {
       await freeInstructorSlots(iid, before);
-      await pushInstructor(iid, "❌ Урок скасовано", `${name} · ${date} о ${time}`);
+      await pushInstructor(iid, "❌ Урок скасовано", `${name} · ${date} о ${time}`, { url: adminLink() });
       return;
     }
 
@@ -221,7 +236,7 @@ exports.onInstructorBookingChanged = onValueWritten(
         await pushInstructorStudent(iid, uid, "🔄 Урок перенесено", body, { url: "https://drivepad.pro/cabinet/bookings" });
         await saveInstructorNotification(iid, uid, "🔄 Урок перенесено", body, "booking_rescheduled");
       }
-      await pushInstructor(iid, "🔄 Перенос", `${name} · ${body}`);
+      await pushInstructor(iid, "🔄 Перенос", `${name} · ${body}`, { url: adminLink() });
     }
   }
 );
