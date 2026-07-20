@@ -1,5 +1,14 @@
 {
   "projects": {
     "default": "drivepad-86fe1"
+  },
+  "targets": {
+    "drivepad-86fe1": {
+      "hosting": {
+        "admin": [
+          "drivepad-admin"
+        ]
+      }
+    }
   }
 }
