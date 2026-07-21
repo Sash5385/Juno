@@ -672,7 +672,7 @@ function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock }) {
 }
 
 // ─── MAIN ────────────────────────────────────────────────────────
-export default function StudentsView() {
+export default function StudentsView({ studentJump, onStudentJumpHandled } = {}) {
   const { BG_DEEP, SURFACE, SURF_HI, BORDER, TEXT, DIM, FAINT, ACCENT, ACC_HI, GREEN, BLUE, SO, SI } = useContext(ThemeContext);
   const { ink } = useFX();
 
@@ -692,6 +692,16 @@ export default function StudentsView() {
   const [search,       setSearch]       = useState("");
   const [filterType,   setFilterType]   = useState("all");
   const [loading,      setLoading]      = useState(true);
+
+  // Перехід із модалки запису в розкладі ("Профіль"/"Історія") — відкриваємо
+  // картку учня, щойно список учнів завантажений (історія тут завжди видима)
+  useEffect(() => {
+    if (!studentJump) return;
+    const stu = students.find(x => x.id === studentJump.uid);
+    if (!stu) return;
+    setDetailStudent(stu);
+    onStudentJumpHandled?.();
+  }, [studentJump, students]);
   const [showNew,      setShowNew]      = useState(false);
   const [debtMap,      setDebtMap]      = useState({});
   const [debtLoading,  setDebtLoading]  = useState(false);
