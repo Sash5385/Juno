@@ -18,6 +18,8 @@ const PALETTE = [
   { id:"teal",   name:"Бірюзовий", color:"#2dd4bf" },
   { id:"pink",   name:"Рожевий",   color:"#f472b6" },
   { id:"orange", name:"Оранжевий", color:"#fb923c" },
+  { id:"indigo", name:"Індиго",    color:"#818cf8" },
+  { id:"lime",   name:"Лайм",      color:"#a3e635" },
 ];
 
 // ═══════════════════════════════════════════════════════════════
