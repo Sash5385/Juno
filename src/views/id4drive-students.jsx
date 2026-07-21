@@ -248,6 +248,9 @@ function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock }) {
     }).catch(() => setBookings([]));
   }, [s.id]);
 
+  // "Історія записів" — лише минулі уроки; totalPaid/totalDebt/рейтинг/статистика нижче
+  // рахуються за ВСІМА записами (включно з майбутніми), тому фільтруємо окремо
+  const historyBookings = (bookings || []).filter(b => b.date && new Date(b.date) < new Date(new Date().toDateString()));
   const totalPaid = (bookings || []).filter(b => b.isPaid).reduce((acc, b) => acc + (b.price || 0), 0);
   const totalDebt = (bookings || []).filter(b => b.status === 'confirmed' && !b.isPaid && b.price > 0).reduce((acc, b) => acc + (b.price || 0), 0);
   const ratedBookings = (bookings || []).filter(b => b.status === 'confirmed' && b.rating > 0);
@@ -603,14 +606,14 @@ function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock }) {
                   );
                 })()}
 
-                {/* Booking history */}
+                {/* Booking history — лише минулі уроки */}
                 {bookings === null ? (
                   <div style={{textAlign:"center",padding:"12px 0",color:FAINT,fontSize:12}}>Завантаження…</div>
-                ) : bookings.length > 0 && (
+                ) : historyBookings.length > 0 && (
                   <div>
                     <div style={{fontSize:9,color:FAINT,letterSpacing:1,textTransform:"uppercase",fontWeight:700,marginBottom:6}}>Історія записів</div>
                     <div style={{display:"flex",flexDirection:"column",gap:5}}>
-                      {bookings.map((b,i)=>{
+                      {historyBookings.map((b,i)=>{
                         const [c,bg] = b.status==="confirmed"?[GREEN,`${GREEN}1a`]:b.status==="noshow"?[RED,`${RED}1a`]:[ACCENT,`${ACCENT}1a`];
                         const icon = b.status==="confirmed"?"✓":b.status==="noshow"?"✕":"⏳";
                         return (
