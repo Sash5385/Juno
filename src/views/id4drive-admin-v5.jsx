@@ -453,7 +453,7 @@ const fmtDur = (m) => { const h=Math.floor(m/60),min=m%60; return h===0?`${min}�
 const colorOf = (id) => PALETTE.find(p=>p.id===id)?.color || GREEN;
 
 // ═══════════════════════════════════════════════════════════════
-// BROADCAST MODAL — ручна розсилка пушу учням
+// BROADCAST MODAL — ручна розсилка повідомлень учням
 // ═══════════════════════════════════════════════════════════════
 function BroadcastModal({ initialDate, initialSlot, onClose }) {
   const { BG_DEEP, SURFACE, SURF_LO, BORDER, TEXT, DIM, FAINT, ACCENT, ACC_HI, SO, SI, GLOW, SHADE, INK } = useContext(ThemeContext);
@@ -3197,12 +3197,12 @@ function BookingModal({ booking, onClose, onAction, settings, onViewStudent }) {
             <button onClick={() => onViewStudent?.(booking.userId, false)} style={{
               flex:1,display:"flex",alignItems:"center",justifyContent:"center",gap:7,
               padding:"11px",borderRadius:14,border:"none",cursor:"pointer",fontFamily:"inherit",
-              background:ink(0.05),color:TEXT_DIM,fontSize:13,fontWeight:800,
+              background:`${PURPLE}1f`,color:PURPLE,fontSize:13,fontWeight:800,
             }}>{IcoProfile} Профіль</button>
             <button onClick={() => onViewStudent?.(booking.userId, true)} style={{
               flex:1,display:"flex",alignItems:"center",justifyContent:"center",gap:7,
               padding:"11px",borderRadius:14,border:"none",cursor:"pointer",fontFamily:"inherit",
-              background:ink(0.05),color:TEXT_DIM,fontSize:13,fontWeight:800,
+              background:`${GOLD}1f`,color:GOLD,fontSize:13,fontWeight:800,
             }}>{IcoHistory} Історія</button>
           </div>
 

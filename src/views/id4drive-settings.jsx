@@ -685,7 +685,7 @@ function PushDiag() {
           flex:1,padding:"10px 8px",borderRadius:10,border:"none",cursor:"pointer",
           background:`linear-gradient(145deg,rgba(126,217,87,0.18),rgba(126,217,87,0.06))`,
           color:GREEN,fontSize:12,fontWeight:700,boxShadow:SO,
-        }}>🔔 Тест пуш</button>
+        }}>🔔 Тест повідомлення</button>
       </div>
       {status && (
         <div style={{
