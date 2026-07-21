@@ -1272,8 +1272,16 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   for (let h = settings.workStart; h <= settings.workEnd; h++) hours.push(h);
 
   const slotColor = (b) => {
-    const svc = settings.services.find(s=>s.id===b.serviceId)
-             || settings.services.find(s=>s.active && s.type===(b.serviceType||b.type) && Number(s.duration)===b.durMin);
+    // Записи із самозапису клієнта (анкета) не мають serviceId — лише serviceType+durationHours.
+    // Тому після точного збігу (id, потім тип+тривалість) додаємо запасний пошук просто за типом,
+    // інакше колір послуги не застосовувався й картка падала в дефолтний GREEN.
+    const svcs = settings.services || [];
+    const t = b.serviceType || b.type;
+    const svc = svcs.find(s=>s.id===b.serviceId)
+             || svcs.find(s=>s.active && s.type===t && Number(s.duration)===b.durMin)
+             || svcs.find(s=>s.type===t && Number(s.duration)===b.durMin)
+             || svcs.find(s=>s.active && s.type===t)
+             || svcs.find(s=>s.type===t);
     return colorOf(svc?.colorId);
   };
 
@@ -2931,8 +2939,13 @@ function BookingModal({ booking, onClose, onAction, settings }) {
 
   if (!booking && !closing) return null;
 
-  const svc   = settings.services.find(s => s.id === booking.serviceId)
-             || settings.services.find(s => s.active && s.type===(booking.serviceType||booking.type) && Number(s.duration)===booking.durMin);
+  const bSvcs = settings.services || [];
+  const bType = booking.serviceType || booking.type;
+  const svc   = bSvcs.find(s => s.id === booking.serviceId)
+             || bSvcs.find(s => s.active && s.type===bType && Number(s.duration)===booking.durMin)
+             || bSvcs.find(s => s.type===bType && Number(s.duration)===booking.durMin)
+             || bSvcs.find(s => s.active && s.type===bType)
+             || bSvcs.find(s => s.type===bType);
   const c     = colorOf(svc?.colorId);
   const day = booking.date
     ? (() => { const d = new Date(booking.date + "T12:00:00"); const dow = (d.getDay()+6)%7; return { num:d.getDate(), month:_MLABELS[d.getMonth()], label:_DLABELS[dow], fullLabel:_DLABELS_FULL[dow], wk:dow>=5 }; })()
