@@ -1317,8 +1317,11 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
       const cancelOne = (mb) => {
         if (mb.startMin !== undefined && mb.durMin) {
           const dateStr = mb.date || absDayToDateStr(mb.day);
+          // Крок 30хв — слоти при створенні позначаються unavailable з таким же
+          // кроком (settings.snapMin), інакше проміжна півгодина лишалась
+          // назавжди зайнятою після скасування.
           const upd = {};
-          for (let i = 0; i < mb.durMin; i += 60) {
+          for (let i = 0; i < mb.durMin; i += 30) {
             const sm = mb.startMin + i;
             const hh = String(Math.floor(sm/60)).padStart(2,'0'), mm = String(sm%60).padStart(2,'0');
             upd[`timeslots/${dateStr}/slot${hh}${mm}/available`] = true;
@@ -2021,7 +2024,9 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                           e.stopPropagation();
                           xVisibleRef.current = false;
                           setQuickCancelId(null);
-                          // Відновити слоти одразу
+                          // Відновити слоти одразу як вільні (усі півгодинні позиції,
+                          // не лише ті, що збігаються з годинною сіткою — інакше
+                          // адмінка "губила" цей час, хоча клієнт бачив його відкритим)
                           if (b.startMin !== undefined && b.durMin) {
                             const dateStr = b.date || absDayToDateStr(b.day);
                             const slotUpd = {};
@@ -2030,8 +2035,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                               const hh = String(Math.floor(slotMin/60)).padStart(2,'0');
                               const mm = String(slotMin%60).padStart(2,'0');
                               const path = `timeslots/${dateStr}/slot${hh}${mm}`;
-                              if (i % 60 === 0) { slotUpd[`${path}/available`]=true; slotUpd[`${path}/time`]=`${hh}:${mm}`; }
-                              else { slotUpd[path] = null; }
+                              slotUpd[`${path}/available`]=true; slotUpd[`${path}/time`]=`${hh}:${mm}`;
                             }
                             update(iRef(""), slotUpd).catch(()=>{});
                           }
