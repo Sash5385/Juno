@@ -743,10 +743,10 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   }, [bookings, openSlots]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Returns {free, blocked} counts, or null if day is skipped
-  const computeDayUpdates = (dateStr, existing, force = false) => {
+  const computeDayUpdates = (dateStr, existing, force = false, overridesParam) => {
     const d = new Date(dateStr + "T12:00:00");
     const dow = (d.getDay() + 6) % 7; // Mon=0..Sun=6
-    const ov = (settings.dateOverrides || []).find(o => o.date === dateStr);
+    const ov = (overridesParam ?? settings.dateOverrides ?? []).find(o => o.date === dateStr);
     if (ov?.type === "closed") return null;
     const ws = (settings.weekSchedule || [])[dow] || {};
     if (!force && ws.enabled === false) return null;
@@ -932,15 +932,23 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   const handleLockUp = () => clearTimeout(lockHoldTimerRef.current);
 
   const toggleDayBlocked = (dateStr) => {
-    setSettings(s => {
-      const overrides = s.dateOverrides || [];
-      const existing  = overrides.find(o => o.date === dateStr);
-      if (existing?.type === 'closed') {
-        return { ...s, dateOverrides: overrides.filter(o => o.date !== dateStr) };
-      }
-      const rest = overrides.filter(o => o.date !== dateStr);
-      return { ...s, dateOverrides: [...rest, { date: dateStr, type: 'closed' }] };
-    });
+    const overrides = settings.dateOverrides || [];
+    const existing  = overrides.find(o => o.date === dateStr);
+    const wasClosed = existing?.type === 'closed';
+    const newOverrides = wasClosed
+      ? overrides.filter(o => o.date !== dateStr)
+      : [...overrides.filter(o => o.date !== dateStr), { date: dateStr, type: 'closed' }];
+    setSettings(s => ({ ...s, dateOverrides: newOverrides }));
+    if (wasClosed) {
+      // Відкриваємо день — перегенеровуємо слоти за поточним розкладом.
+      const result = computeDayUpdates(dateStr, {}, true, newOverrides);
+      if (result && Object.keys(result.updates).length) update(iRef(""), result.updates).catch(()=>{});
+    } else {
+      // Закриваємо день — прибираємо вже згенеровані слоти. Інакше стара
+      // сітка (available:true) лишається в Firebase і день і далі показує
+      // "відкриті" слоти, попри позначку "закрито".
+      remove(iRef(`timeslots/${dateStr}`)).catch(()=>{});
+    }
   };
 
   // Shine glint animation — one booking at a time, random, every 3s
@@ -1689,7 +1697,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                 }}>
 
               {/* Open/blocked/surcharge/VIP slot indicators */}
-              {(()=>{
+              {!isClosedDay && (()=>{
                 const sortedMins = Object.keys(openSlots[dateStrCol] || {})
                   .map(t => { const [hh, mm] = t.split(':').map(Number); return hh*60+mm; })
                   .sort((a, b) => a - b);
