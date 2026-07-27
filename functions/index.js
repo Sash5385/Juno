@@ -271,6 +271,22 @@ exports.onInstructorQueueInvite = onValueUpdated(
   }
 );
 
+// ─── NEW STUDENT TRIGGER ─────────────────────────────────────────────
+
+// Новий студент зареєструвався (заповнив анкету) → push інструктору
+exports.onInstructorNewStudentRegistered = onValueCreated(
+  { ref: "instructors/{iid}/users/{uid}/profile", region: "europe-west1" },
+  async (event) => {
+    const profile = event.data.val();
+    const { iid, uid } = event.params;
+    const name  = profile?.name  || "Новий учень";
+    const phone = profile?.phone || "";
+    await pushInstructor(iid, "🎉 Новий учень", phone ? `${name} · ${phone}` : name, {
+      url: buildAdminLink("https://admin.drivepad.pro", { uid }),
+    });
+  }
+);
+
 // ─── CHAT TRIGGER ────────────────────────────────────────────────────
 
 // Студент надіслав повідомлення → push інструктору

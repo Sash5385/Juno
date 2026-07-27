@@ -468,9 +468,17 @@ export default function App() {
     if (!date) return null;
     return { date, time: p.get("time") || null, uid: p.get("uid") || null, bookingId: p.get("bookingId") || null };
   });
-  const [tab,        setTab]      = useState(() => (jumpTarget ? "schedule" : (localStorage.getItem("admin_tab") || "schedule")));
+  // Deep-link з пушу "Новий учень" (?uid=... без date) — одразу відкриваємо картку учня
+  const [studentJump, setStudentJump] = useState(() => {
+    if (jumpTarget) return null;
+    const p = new URLSearchParams(window.location.search);
+    const uid = p.get("uid");
+    if (!uid) return null;
+    return { uid, openHistory: false, ts: Date.now() };
+  });
+  const [tab,        setTab]      = useState(() => (jumpTarget ? "schedule" : studentJump ? "students" : (localStorage.getItem("admin_tab") || "schedule")));
   useEffect(() => {
-    if (jumpTarget) window.history.replaceState(null, "", window.location.pathname);
+    if (jumpTarget || studentJump) window.history.replaceState(null, "", window.location.pathname);
   }, []);
   const [tabVisits,  setTabVisits]= useState({});
   const [openInfos,  setOpenInfos]= useState({});
@@ -484,8 +492,6 @@ export default function App() {
   const [queueCount,    setQueueCount]    = useState(0);
   const [profileReady,  setProfileReady] = useState(null); // null=checking, false=needs setup, true=ready
   const [subscription,  setSubscription] = useState(null); // null=loading, {}=no data, object=loaded
-
-  const [studentJump, setStudentJump] = useState(null);
 
   const switchTab = t => {
     setTab(t);
