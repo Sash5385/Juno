@@ -52,7 +52,7 @@ async function pushInstructor(iid, title, body, data = {}) {
 async function pushInstructorStudent(iid, uid, title, body, data = {}) {
   const snap = await db.ref(`instructors/${iid}/users/${uid}/fcmTokens/web/token`).get();
   const token = snap.val();
-  if (!token) return;
+  if (!token) return false;
   const link = data.url || "https://drivepad.pro/cabinet";
   try {
     await admin.messaging().send({
@@ -64,11 +64,13 @@ async function pushInstructorStudent(iid, uid, title, body, data = {}) {
         fcmOptions: { link },
       },
     });
+    return true;
   } catch (e) {
     if (e.code === "messaging/registration-token-not-registered" ||
         e.code === "messaging/invalid-registration-token") {
       await db.ref(`instructors/${iid}/users/${uid}/fcmTokens/web/token`).remove().catch(() => {});
     }
+    return false;
   }
 }
 
@@ -915,7 +917,8 @@ exports.flushSlotFreedQueue = onSchedule(
 
         for (const uid of uids) {
           if (lastNotifData[uid] && now - lastNotifData[uid] < RATE_LIMIT_MS) continue;
-          await pushInstructorStudent(iid, uid, title, body, { url, date, time }).catch(() => {});
+          const sent = await pushInstructorStudent(iid, uid, title, body, { url, date, time }).catch(() => false);
+          if (!sent) continue;
           await saveInstructorNotification(iid, uid, title, body, "slot_freed").catch(() => {});
           lastNotifData[uid] = now;
           await db.ref(`instructors/${iid}/lastSlotNotif/${uid}`).set(now).catch(() => {});
