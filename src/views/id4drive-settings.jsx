@@ -498,7 +498,14 @@ select{color-scheme:${isKava?"light":"dark"}}
         </div>
       );
 
-      case "push": return <PushDiag />;
+      case "push": return (
+        <div>
+          <Row label={lang==="en"?"Notify on freed slot":"Пуш при звільненні слоту"} hint={lang==="en"?"Push to all students when a slot within the next 10 days becomes free":"Пуш усім учням, коли в найближчі 10 днів звільняється слот"} last>
+            <Toggle on={settings.slotFreedPushEnabled !== false} onChange={v=>upd("slotFreedPushEnabled",v)}/>
+          </Row>
+          <PushDiag />
+        </div>
+      );
 
       default: return null;
     }

@@ -361,6 +361,8 @@ const DEFAULT_SETTINGS = {
   queueAutoFifo: true,
   queueBroadcast: false,
   queueManual: false,
+  // push
+  slotFreedPushEnabled: true, // пуш усім учням, коли слот у найближчі 10 днів звільняється
   // restrictions
   studentCanReschedule: true,
   studentCanCancel: true,

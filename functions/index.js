@@ -839,6 +839,10 @@ exports.onSlotFreed = onValueWritten(
     if (!after || after.available !== true) return;
 
     const { iid, date, slotId } = event.params;
+
+    const enabledSnap = await db.ref(`instructors/${iid}/admin_settings/slotFreedPushEnabled`).get();
+    if (enabledSnap.exists() && enabledSnap.val() === false) return;
+
     const slotDate = new Date(date + "T00:00:00");
     const today = new Date();
     today.setHours(0, 0, 0, 0);
