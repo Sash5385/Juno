@@ -524,6 +524,19 @@ select{color-scheme:${isKava?"light":"dark"}}
     });
   };
 
+  const forceUpdate = async () => {
+    try {
+      const regs = await navigator.serviceWorker?.getRegistrations?.() || [];
+      await Promise.all(regs.map(r => r.unregister()));
+      if (window.caches) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map(k => caches.delete(k)));
+      }
+    } finally {
+      window.location.reload();
+    }
+  };
+
   return (
     <>
       <UICss/>
@@ -622,7 +635,7 @@ select{color-scheme:${isKava?"light":"dark"}}
         </div>
       </div>
 
-      <div style={{textAlign:"center",padding:"8px 0 2px",color:FAINT,fontSize:13,fontWeight:600,letterSpacing:0.5}}>
+      <div onClick={forceUpdate} style={{textAlign:"center",padding:"8px 0 2px",color:FAINT,fontSize:13,fontWeight:600,letterSpacing:0.5,cursor:"pointer"}}>
         {APP_VERSION}
       </div>
       <div style={{height:40}}/>
