@@ -810,7 +810,21 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
 
   const clearDaySlots = async (absDay) => {
     const dateStr = absDayToDateStr(absDay);
-    await remove(iRef(`timeslots/${dateStr}`));
+    setGenLoadingDays(s => new Set([...s, absDay]));
+    try {
+      // Прибираємо лише справді вільні (available:true) слоти — те, що
+      // додав автозаповнення. Слоти, зайняті записом чи вручну заблоковані
+      // адміном (available:false), не чіпаємо, щоб не "звільнити" зайнятий час.
+      const snap = await get(iRef(`timeslots/${dateStr}`));
+      const day = snap.val() || {};
+      const upd = {};
+      Object.entries(day).forEach(([slotId, slot]) => {
+        if (slot?.available === true) upd[`timeslots/${dateStr}/${slotId}`] = null;
+      });
+      if (Object.keys(upd).length) await update(iRef(""), upd);
+    } finally {
+      setGenLoadingDays(s => { const ns = new Set(s); ns.delete(absDay); return ns; });
+    }
   };
 
   const generateAllSlots = async () => {
