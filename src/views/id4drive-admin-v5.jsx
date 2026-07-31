@@ -835,6 +835,31 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
     }
   };
 
+  // Чи є вже згенеровані слоти в межах діапазону автовиставлення (для тумблера ключика)
+  const hasAnyGeneratedSlots = () => {
+    const limit = settings.calendarOpenDays || 30;
+    for (let d = 0; d <= limit; d++) {
+      const dateStr = absDayToDateStr(d);
+      if (openSlots[dateStr] && Object.keys(openSlots[dateStr]).length) return true;
+    }
+    return false;
+  };
+
+  // Другий тап ключика — зняти всі згенеровані слоти назад
+  const clearAllSlots = async () => {
+    setIsGeneratingAll(true);
+    try {
+      const limit = settings.calendarOpenDays || 30;
+      const clearUpdates = {};
+      for (let d = 0; d <= limit; d++) {
+        clearUpdates[`timeslots/${absDayToDateStr(d)}`] = null;
+      }
+      await update(iRef(""), clearUpdates);
+    } finally {
+      setIsGeneratingAll(false);
+    }
+  };
+
   // Клік: вільний ↔ зайнятий (2 стани)
   const toggleSlotFree = (dateStr, time, slot) => {
     const slotId = `slot${time.replace(":", "")}`;
@@ -1466,22 +1491,31 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
           display:"flex", flexDirection:"column",
           borderRight:`1px solid ${ink(0.07)}`,
         }}>
-          {/* Кнопка «Згенерувати всі слоти» — у кутовому спейсері */}
+          {/* Кнопка «Ключик» — тумблер: 1й тап генерує слоти за графіком, 2й знімає їх */}
           <div style={{height:HEADER_H + 4, flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center"}}>
-            <button
-              onClick={isGeneratingAll ? undefined : generateAllSlots}
-              title={`Згенерувати слоти на ${settings.calendarOpenDays||30} днів за графіком`}
-              style={{
-                width:28, height:28, borderRadius:8, border:"none", cursor: isGeneratingAll?"default":"pointer",
-                background: isGeneratingAll ? "rgba(99,211,120,0.12)" : "rgba(99,211,120,0.18)",
-                display:"flex", alignItems:"center", justifyContent:"center",
-                transition:"background .15s",
-              }}>
-              {isGeneratingAll
-                ? <div style={{width:12,height:12,borderRadius:"50%",border:"2px solid rgba(99,211,120,0.3)",borderTopColor:"rgba(99,211,120,0.9)",animation:"spin .7s linear infinite"}}/>
-                : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(99,211,120,0.9)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
-              }
-            </button>
+            {(() => {
+              const slotsOn = hasAnyGeneratedSlots();
+              return (
+                <button
+                  onClick={isGeneratingAll ? undefined : (slotsOn ? clearAllSlots : generateAllSlots)}
+                  title={slotsOn
+                    ? `Зняти всі слоти (${settings.calendarOpenDays||30} днів)`
+                    : `Згенерувати слоти на ${settings.calendarOpenDays||30} днів за графіком`}
+                  style={{
+                    width:28, height:28, borderRadius:8, border:"none", cursor: isGeneratingAll?"default":"pointer",
+                    background: isGeneratingAll
+                      ? (slotsOn ? "rgba(220,60,60,0.12)" : "rgba(99,211,120,0.12)")
+                      : (slotsOn ? "rgba(220,60,60,0.18)" : "rgba(99,211,120,0.18)"),
+                    display:"flex", alignItems:"center", justifyContent:"center",
+                    transition:"background .15s",
+                  }}>
+                  {isGeneratingAll
+                    ? <div style={{width:12,height:12,borderRadius:"50%",border:`2px solid ${slotsOn?"rgba(220,60,60,0.3)":"rgba(99,211,120,0.3)"}`,borderTopColor:slotsOn?"rgba(220,60,60,0.9)":"rgba(99,211,120,0.9)",animation:"spin .7s linear infinite"}}/>
+                    : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={slotsOn?"rgba(220,60,60,0.9)":"rgba(99,211,120,0.9)"} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+                  }
+                </button>
+              );
+            })()}
           </div>
           <div style={{overflow:"hidden", flex:1, position:"relative"}}>
             <div ref={timeColRef} style={{position:"absolute", top:0, left:0, right:0, height:gridHeight}}>
