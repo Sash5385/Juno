@@ -326,24 +326,24 @@ export default function ChatsView() {
 
         {/* ── BROADCAST ── */}
         {!search && (
-          <div style={{background:"linear-gradient(155deg,rgba(168,85,247,0.12),rgba(109,40,217,0.06))",
+          <div style={{
+            background:`linear-gradient(155deg,color-mix(in srgb,#a855f7 42%,${BG_DEEP}) 0%,color-mix(in srgb,#a855f7 14%,${BG_DEEP}) 100%)`,
             borderRadius:13,overflow:"hidden",marginBottom:6,boxShadow:SO,
-            border:`1px solid ${broadcastOpen?"rgba(168,85,247,0.4)":"rgba(168,85,247,0.2)"}`}}>
+            border:`1px solid color-mix(in srgb,#a855f7 ${broadcastOpen?55:38}%,transparent)`}}>
             <div className={`chat-row${broadcastOpen?" broadcast-open":""}`} onClick={()=>toggle(BROADCAST_ID)}
               style={{display:"flex",alignItems:"center",gap:9,padding:"9px 12px"}}>
-              <div style={{width:4,alignSelf:"stretch",borderRadius:3,background:"linear-gradient(to bottom,#a855f7,#7c3aed)",flexShrink:0}}/>
               <Ava name="Загальний" hue={270} size={36} isBroadcast/>
               <div style={{flex:1,minWidth:0}}>
                 <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:2}}>
-                  <span style={{fontSize:13,fontWeight:800,color:"rgba(196,148,255,0.95)"}}>📢 Загальний</span>
-                  <span style={{fontSize:9,color:"rgba(168,85,247,0.8)",fontWeight:700,letterSpacing:0.3}}>BROADCAST</span>
+                  <span style={{fontSize:13,fontWeight:800,color:"#fff"}}>📢 Загальний</span>
+                  <span style={{fontSize:9,color:"rgba(255,255,255,0.75)",fontWeight:700,letterSpacing:0.3}}>BROADCAST</span>
                 </div>
-                <div style={{fontSize:11,color:DIM}}>Надіслати повідомлення всім учням</div>
+                <div style={{fontSize:11,color:"rgba(255,255,255,0.8)"}}>Надіслати повідомлення всім учням</div>
               </div>
               <div style={{flexShrink:0,textAlign:"right"}}>
-                <div style={{fontSize:9,color:"rgba(168,85,247,0.6)",fontWeight:700}}>{contacts.length} учнів</div>
+                <div style={{fontSize:9,color:"rgba(255,255,255,0.7)",fontWeight:700}}>{contacts.length} учнів</div>
               </div>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={FAINT} strokeWidth="2.2" strokeLinecap="round"
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.65)" strokeWidth="2.2" strokeLinecap="round"
                 style={{flexShrink:0,transform:broadcastOpen?"rotate(180deg)":"none",transition:"transform .22s"}}>
                 <polyline points="6 9 12 15 18 9"/>
               </svg>
@@ -358,27 +358,27 @@ export default function ChatsView() {
 
         {/* ── GENERAL CHAT ── */}
         {!search && (
-          <div style={{background:"linear-gradient(155deg,rgba(91,155,255,0.12),rgba(37,99,235,0.06))",
+          <div style={{
+            background:`linear-gradient(155deg,color-mix(in srgb,#5b9bff 42%,${BG_DEEP}) 0%,color-mix(in srgb,#5b9bff 14%,${BG_DEEP}) 100%)`,
             borderRadius:13,overflow:"hidden",marginBottom:6,boxShadow:SO,
-            border:`1px solid ${generalOpen?"rgba(91,155,255,0.4)":"rgba(91,155,255,0.2)"}`}}>
+            border:`1px solid color-mix(in srgb,#5b9bff ${generalOpen?55:38}%,transparent)`}}>
             <div className={`chat-row${generalOpen?" open":""}`} onClick={()=>toggle(GENERAL_ID)}
               style={{display:"flex",alignItems:"center",gap:9,padding:"9px 12px"}}>
-              <div style={{width:4,alignSelf:"stretch",borderRadius:3,background:"linear-gradient(to bottom,#5b9bff,#2563eb)",flexShrink:0}}/>
-              <div style={{width:36,height:36,borderRadius:18,background:"linear-gradient(145deg,#5b9bff,#2563eb)",
+              <div style={{width:36,height:36,borderRadius:18,background:"rgba(0,0,0,0.2)",
                 display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>👥</div>
               <div style={{flex:1,minWidth:0}}>
                 <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:2}}>
-                  <span style={{fontSize:13,fontWeight:800,color:"rgba(147,197,253,0.95)"}}>👥 Загальний чат</span>
-                  <span style={{fontSize:9,color:"rgba(91,155,255,0.8)",fontWeight:700,letterSpacing:0.3}}>ГРУПП. ЧАТ</span>
+                  <span style={{fontSize:13,fontWeight:800,color:"#fff"}}>👥 Загальний чат</span>
+                  <span style={{fontSize:9,color:"rgba(255,255,255,0.75)",fontWeight:700,letterSpacing:0.3}}>ГРУПП. ЧАТ</span>
                 </div>
-                <div style={{fontSize:11,color:DIM}}>
+                <div style={{fontSize:11,color:"rgba(255,255,255,0.8)"}}>
                   {generalMsgs.length > 0 ? generalMsgs[generalMsgs.length-1].text : "Чат учнів між собою"}
                 </div>
               </div>
               <div style={{flexShrink:0,textAlign:"right"}}>
-                <div style={{fontSize:9,color:"rgba(91,155,255,0.6)",fontWeight:700}}>{generalMsgs.length} повід.</div>
+                <div style={{fontSize:9,color:"rgba(255,255,255,0.7)",fontWeight:700}}>{generalMsgs.length} повід.</div>
               </div>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={FAINT} strokeWidth="2.2" strokeLinecap="round"
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.65)" strokeWidth="2.2" strokeLinecap="round"
                 style={{flexShrink:0,transform:generalOpen?"rotate(180deg)":"none",transition:"transform .22s"}}>
                 <polyline points="6 9 12 15 18 9"/>
               </svg>
@@ -407,37 +407,37 @@ export default function ChatsView() {
             const isOpen     = openId === c.id;
             const isDeleting = deletingId === c.id;
             const cMsgs      = messages[c.id] || [];
+            const hueColor   = `hsl(${c.hue},60%,50%)`;
             return (
               <div key={c.id} style={{
-                background:`linear-gradient(155deg,${SURF_HI},${SURFACE})`,
+                background:`linear-gradient(155deg,color-mix(in srgb,${hueColor} 42%,${BG_DEEP}) 0%,color-mix(in srgb,${hueColor} 14%,${BG_DEEP}) 100%)`,
                 borderRadius:13,overflow:"hidden",boxShadow:SO,
-                border:`1px solid ${isDeleting?"rgba(239,68,68,0.5)":isOpen?"rgba(91,155,255,0.25)":BORDER}`,
+                border:`1px solid ${isDeleting?"rgba(239,68,68,0.5)":isOpen?"rgba(255,255,255,0.35)":`color-mix(in srgb,${hueColor} 38%,transparent)`}`,
                 transition:"border-color .2s",
               }}>
                 <div className={`chat-row${isOpen?" open":""}`} onClick={()=>toggle(c.id)}
                   style={{display:"flex",alignItems:"center",gap:9,padding:"9px 12px"}}>
-                  <div style={{width:4,alignSelf:"stretch",borderRadius:3,background:`hsl(${c.hue},60%,55%)`,flexShrink:0}}/>
                   <Ava name={c.name} hue={c.hue} size={36} online={c.online}/>
                   <div style={{flex:1,minWidth:0}}>
                     <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:2}}>
-                      <span style={{fontSize:13,fontWeight:800,color:TEXT,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.name || c.phone}</span>
+                      <span style={{fontSize:13,fontWeight:800,color:"#fff",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.name || c.phone}</span>
                     </div>
-                    <div style={{fontSize:11,color:DIM,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                    <div style={{fontSize:11,color:"rgba(255,255,255,0.78)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
                       {c.lastMsg || c.phone || "Немає повідомлень"}
                     </div>
                   </div>
                   <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4,flexShrink:0}}>
-                    <span style={{fontSize:10,color:FAINT}}>{c.lastTime}</span>
+                    <span style={{fontSize:10,color:"rgba(255,255,255,0.65)"}}>{c.lastTime}</span>
                     {c.unread > 0
                       ? <span style={{background:ACCENT,color:"#fff",borderRadius:9,padding:"1px 6px",fontSize:10,fontWeight:800}}>{c.unread}</span>
-                      : <span style={{width:8,height:8,borderRadius:4,background:BORDER,display:"inline-block"}}/>
+                      : <span style={{width:8,height:8,borderRadius:4,background:"rgba(255,255,255,0.25)",display:"inline-block"}}/>
                     }
                   </div>
                   <button onClick={e=>handleDelete(e,c.id)}
                     className={isDeleting?"del-confirm":""}
                     style={{flexShrink:0,background:"none",border:"none",cursor:"pointer",
                       padding:"4px 6px",borderRadius:8,marginLeft:2,
-                      color:isDeleting?"#f87171":FAINT,fontSize:isDeleting?11:14,fontWeight:isDeleting?700:400,transition:"color .2s"}}>
+                      color:isDeleting?"#f87171":"rgba(255,255,255,0.65)",fontSize:isDeleting?11:14,fontWeight:isDeleting?700:400,transition:"color .2s"}}>
                     {isDeleting?"Видалити?":(
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <polyline points="3 6 5 6 21 6"/>
@@ -447,7 +447,7 @@ export default function ChatsView() {
                       </svg>
                     )}
                   </button>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={FAINT} strokeWidth="2.2" strokeLinecap="round"
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.65)" strokeWidth="2.2" strokeLinecap="round"
                     style={{flexShrink:0,transform:isOpen?"rotate(180deg)":"none",transition:"transform .22s"}}>
                     <polyline points="6 9 12 15 18 9"/>
                   </svg>

@@ -476,9 +476,13 @@ export default function StatsView() {
             {label:"Заповненість", value:`${occupancy}%`,               sub:occupancySub,                        color:occupancy<50?RED:occupancy<80?GOLD:GREEN, trend:0},
             {label:"Прогноз",      value:forecast!=null?fmtK(forecast):"—", sub:forecastSub,                      color:PURPLE,                                   trend:0},
           ].map((k, i) => (
-            <Card key={i} className="fu" style={{padding:"12px 13px"}}>
+            <Card key={i} className="fu" style={{
+              padding:"12px 13px",
+              background:`linear-gradient(155deg,color-mix(in srgb,${k.color} 20%,${BG_DEEP}),color-mix(in srgb,${k.color} 6%,${BG_DEEP}))`,
+              border:`1px solid color-mix(in srgb,${k.color} 30%,transparent)`,
+            }}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:6}}>
-                <div style={{fontSize:9,color:FAINT,letterSpacing:1,textTransform:"uppercase",fontWeight:700}}>{k.label}</div>
+                <div style={{fontSize:9,color:"rgba(255,255,255,0.6)",letterSpacing:1,textTransform:"uppercase",fontWeight:700}}>{k.label}</div>
                 {k.trend !== 0 && (
                   <span style={{
                     fontSize:9, fontWeight:800, padding:"2px 6px", borderRadius:6,
@@ -487,8 +491,8 @@ export default function StatsView() {
                   }}>{k.trend>=0?"+":""}{k.trend}%</span>
                 )}
               </div>
-              <div style={{fontSize:22,fontWeight:900,color:k.color,letterSpacing:-0.5,marginBottom:2}}>{k.value}</div>
-              <div style={{fontSize:10,color:FAINT}}>{k.sub}</div>
+              <div style={{fontSize:22,fontWeight:900,color:"#fff",letterSpacing:-0.5,marginBottom:2}}>{k.value}</div>
+              <div style={{fontSize:10,color:"rgba(255,255,255,0.5)"}}>{k.sub}</div>
             </Card>
           ))}
         </div>
@@ -553,15 +557,19 @@ export default function StatsView() {
         </Card>
 
         {/* ── CHART ── */}
-        <Card className="fu" style={{padding:"14px"}}>
+        <Card className="fu" style={{
+          padding:"14px",
+          background:`linear-gradient(155deg,color-mix(in srgb,${curMetric.color} 14%,${BG_DEEP}),color-mix(in srgb,${curMetric.color} 3%,${BG_DEEP}))`,
+          border:`1px solid color-mix(in srgb,${curMetric.color} 24%,transparent)`,
+        }}>
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10,flexWrap:"wrap",gap:6}}>
-            <span style={{fontSize:13,fontWeight:800,color:TEXT}}>Динаміка</span>
+            <span style={{fontSize:13,fontWeight:800,color:"#fff"}}>Динаміка</span>
             <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
               {METRICS.map(m=>(
                 <button key={m.id} onClick={()=>setMetric(m.id)} style={{
                   padding:"4px 8px", borderRadius:7, border:"none", cursor:"pointer", fontSize:10, fontWeight:700, fontFamily:"inherit",
-                  background:metric===m.id?`${m.color}22`:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,
-                  color:metric===m.id?m.color:FAINT, boxShadow:SO,
+                  background:metric===m.id?m.color:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,
+                  color:metric===m.id?"#fff":FAINT, boxShadow:SO,
                 }}>{m.label}</button>
               ))}
               <button onClick={()=>setChartType(t=>t==="line"?"bar":"line")} style={{
@@ -626,30 +634,38 @@ export default function StatsView() {
 
         {/* ── РОЗПОДІЛ + ПО ДНЯХ ── */}
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7}}>
-          <Card className="fu" style={{padding:"12px"}}>
-            <div style={{fontSize:9,color:FAINT,letterSpacing:1,textTransform:"uppercase",fontWeight:700,marginBottom:9}}>Розподіл</div>
+          <Card className="fu" style={{
+            padding:"12px",
+            background:`linear-gradient(155deg,color-mix(in srgb,${GREEN} 14%,${BG_DEEP}),color-mix(in srgb,${GREEN} 3%,${BG_DEEP}))`,
+            border:`1px solid color-mix(in srgb,${GREEN} 24%,transparent)`,
+          }}>
+            <div style={{fontSize:9,color:"rgba(255,255,255,0.6)",letterSpacing:1,textTransform:"uppercase",fontWeight:700,marginBottom:9}}>Розподіл</div>
             <div style={{display:"flex",alignItems:"center",gap:8}}>
               <Donut school={totalSchool} total={totalSchool+totalPrivate}/>
               <div style={{flex:1}}>
                 {[[GREEN,"Автошкола",totalSchool],[GOLD,"Приватний",totalPrivate]].map(([c,l,v])=>(
                   <div key={l} style={{display:"flex",alignItems:"center",gap:5,marginBottom:6}}>
                     <div style={{width:7,height:7,borderRadius:4,background:c,flexShrink:0}}/>
-                    <span style={{fontSize:10,color:DIM,flex:1}}>{l}</span>
-                    <span style={{fontSize:12,fontWeight:800,color:c}}>{v}</span>
+                    <span style={{fontSize:10,color:"rgba(255,255,255,0.65)",flex:1}}>{l}</span>
+                    <span style={{fontSize:12,fontWeight:800,color:"#fff"}}>{v}</span>
                   </div>
                 ))}
               </div>
             </div>
           </Card>
 
-          <Card className="fu" style={{padding:"12px"}}>
-            <div style={{fontSize:9,color:FAINT,letterSpacing:1,textTransform:"uppercase",fontWeight:700,marginBottom:9}}>{byPeriodLabel}</div>
+          <Card className="fu" style={{
+            padding:"12px",
+            background:`linear-gradient(155deg,color-mix(in srgb,${GOLD} 14%,${BG_DEEP}),color-mix(in srgb,${GOLD} 3%,${BG_DEEP}))`,
+            border:`1px solid color-mix(in srgb,${GOLD} 24%,transparent)`,
+          }}>
+            <div style={{fontSize:9,color:"rgba(255,255,255,0.6)",letterSpacing:1,textTransform:"uppercase",fontWeight:700,marginBottom:9}}>{byPeriodLabel}</div>
             {data.map((d, i) => {
               const maxI = Math.max(...data.map(x => x.income), 1);
               const pct  = d.income / maxI;
               return (
                 <div key={i} style={{display:"flex",alignItems:"center",gap:6,marginBottom:6}}>
-                  <span style={{fontSize:9,color:FAINT,fontWeight:700,width:16,textAlign:"right",flexShrink:0}}>{d.label}</span>
+                  <span style={{fontSize:9,color:"rgba(255,255,255,0.55)",fontWeight:700,width:16,textAlign:"right",flexShrink:0}}>{d.label}</span>
                   <div style={{flex:1,height:5,background:BG_DEEP,borderRadius:3,boxShadow:SI,overflow:"hidden"}}>
                     <div style={{height:"100%",width:`${pct*100}%`,borderRadius:3,background:`linear-gradient(90deg,${GOLD},${GREEN})`,transition:"width .5s ease"}}/>
                   </div>
@@ -662,8 +678,12 @@ export default function StatsView() {
 
         {/* ── ПОПУЛЯРНІ СЛОТИ ── */}
         {popularSlots.length > 0 && (
-          <Card className="fu" style={{padding:"12px 13px"}}>
-            <div style={{fontSize:9,color:FAINT,letterSpacing:1,textTransform:"uppercase",fontWeight:700,marginBottom:10}}>Популярні слоти</div>
+          <Card className="fu" style={{
+            padding:"12px 13px",
+            background:`linear-gradient(155deg,color-mix(in srgb,${GOLD} 14%,${BG_DEEP}),color-mix(in srgb,${GOLD} 3%,${BG_DEEP}))`,
+            border:`1px solid color-mix(in srgb,${GOLD} 24%,transparent)`,
+          }}>
+            <div style={{fontSize:9,color:"rgba(255,255,255,0.6)",letterSpacing:1,textTransform:"uppercase",fontWeight:700,marginBottom:10}}>Популярні слоти</div>
             {popularSlots.map((s, i) => {
               const maxCount = popularSlots[0].count;
               const pct = s.count / maxCount;
@@ -693,8 +713,8 @@ export default function StatsView() {
                 {[["paid","₴"],["lessons","год"]].map(([k,l])=>(
                   <button key={k} onClick={()=>setTopBy(k)} style={{
                     padding:"3px 8px", borderRadius:6, border:"none", cursor:"pointer", fontSize:10, fontWeight:700, fontFamily:"inherit",
-                    background:topBy===k?`${GOLD}22`:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,
-                    color:topBy===k?GOLD:FAINT, boxShadow:SO,
+                    background:topBy===k?GOLD:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,
+                    color:topBy===k?"#1a1a1a":FAINT, boxShadow:SO,
                   }}>{l}</button>
                 ))}
               </div>
@@ -702,12 +722,15 @@ export default function StatsView() {
             {topStudents.map((s, i) => {
               const maxH = topStudents[0][topBy === 'lessons' ? 'hours' : 'paid'];
               const barVal = topBy === 'lessons' ? s.hours : s.paid;
-              const medals = [GOLD,"#94a3b8","#fb923c"];
+              const medals = [GOLD,"#c7ccd1","#c9814f"];
               return (
                 <div key={i} style={{
                   display:"flex", alignItems:"center", gap:9,
-                  padding:"9px 0",
-                  borderBottom: i < topStudents.length-1 ? `1px solid ${BORDER}` : "none",
+                  padding:"9px 8px",
+                  marginBottom: i < topStudents.length-1 ? 4 : 0,
+                  borderRadius:11,
+                  background: i<3 ? `linear-gradient(155deg,color-mix(in srgb,${medals[i]} 22%,${BG_DEEP}),color-mix(in srgb,${medals[i]} 5%,${BG_DEEP}))` : "transparent",
+                  border: i<3 ? `1px solid color-mix(in srgb,${medals[i]} 30%,transparent)` : "none",
                 }}>
                   <div style={{
                     width:24, height:24, borderRadius:7, flexShrink:0,
@@ -752,17 +775,17 @@ export default function StatsView() {
             ].map(e=>(
               <button key={e.label} onClick={e.onClick} style={{
                 padding:"11px 6px", borderRadius:11, border:"none", cursor:"pointer", fontFamily:"inherit",
-                background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,
+                background:`linear-gradient(155deg,color-mix(in srgb,${e.color} 22%,${BG_DEEP}),color-mix(in srgb,${e.color} 6%,${BG_DEEP}))`,
                 display:"flex", flexDirection:"column", alignItems:"center", gap:5, boxShadow:SO,
               }}>
                 <div style={{
                   width:34, height:34, borderRadius:10,
-                  background:`linear-gradient(145deg,${e.color}33,${e.color}11)`,
+                  background:`linear-gradient(145deg,${e.color}55,${e.color}22)`,
                   display:"flex", alignItems:"center", justifyContent:"center", fontSize:18,
-                  boxShadow:`0 2px 8px ${e.color}22`,
+                  boxShadow:`0 2px 8px ${e.color}33`,
                 }}>{e.emoji}</div>
-                <span style={{fontSize:11,fontWeight:800,color:e.color}}>{e.label}</span>
-                <span style={{fontSize:9,color:FAINT}}>{e.sub}</span>
+                <span style={{fontSize:11,fontWeight:800,color:"#fff"}}>{e.label}</span>
+                <span style={{fontSize:9,color:"rgba(255,255,255,0.55)"}}>{e.sub}</span>
               </button>
             ))}
           </div>

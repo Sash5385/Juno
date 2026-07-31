@@ -2,6 +2,7 @@ import React, { useState, useEffect, useContext } from "react";
 import { onValue } from "firebase/database";
 import { iRef } from "../firebase";
 import { ThemeContext } from "../theme.js";
+import { useBackClose } from "../ui";
 
 export const JOURNAL_READ_KEY = "journal_read_at";
 
@@ -100,6 +101,7 @@ function EventDetailSheet({ ev, meta, onClose, theme }) {
   const glow  = a => `rgba(${theme.GLOW},${a})`;
   const byLabel = BY_LABEL[ev.by] || ev.by;
   const _close = () => setClosing(true);
+  useBackClose(true, _close);
 
   return (
     <>
@@ -245,29 +247,33 @@ export default function JournalView() {
         ))}
       </div>
 
-      {/* Type filter chips */}
-      <div style={{ display:"flex", gap:6, alignItems:"center", marginBottom:12, flexWrap:"wrap" }}>
+      {/* Type filter — stat tiles */}
+      <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:6 }}>
+        <span style={{fontSize:10,color:FAINT}}>{bySection.length} {noun(bySection.length)}</span>
+      </div>
+      <div style={{ display:"grid", gridTemplateColumns:"repeat(3,1fr)", gap:6, marginBottom:12 }}>
         {[
-          ["all",        "Всі",         DIM         ],
-          ["new",        "✓ Новий",     theme.GREEN ],
-          ["cancel",     "✕ Скасовано", theme.RED   ],
-          ["reschedule", "↻ Перенос",   theme.GOLD  ],
+          ["new",        "✓ НОВИЙ",     theme.GREEN],
+          ["cancel",     "✕ СКАСОВАНО", theme.RED  ],
+          ["reschedule", "↻ ПЕРЕНОС",   theme.GOLD ],
         ].map(([id, lbl, color]) => {
           const active = typeFilter === id;
+          const count  = bySection.filter(e => e.type === id).length;
           return (
-            <button key={id} onClick={() => setTypeFilter(id)} style={{
-              padding:"5px 11px",borderRadius:12,
-              border:`1.5px solid ${active ? color : "transparent"}`,
-              cursor:"pointer",fontSize:11,fontWeight:700,fontFamily:"inherit",
-              background: active ? `${color}22` : `linear-gradient(145deg,${SURF_HI},${SURFACE})`,
-              color: active ? color : DIM,
-              boxShadow: SO,
+            <button key={id} onClick={() => setTypeFilter(active ? "all" : id)} style={{
+              border: active ? `1px solid color-mix(in srgb,${color} 45%,transparent)` : "1px solid transparent",
+              cursor:"pointer",borderRadius:11,padding:"8px 6px",textAlign:"center",fontFamily:"inherit",
+              background: active
+                ? `linear-gradient(155deg,color-mix(in srgb,${color} 40%,${BG_DEEP}) 0%,color-mix(in srgb,${color} 14%,${BG_DEEP}) 100%)`
+                : `linear-gradient(145deg,${SURF_HI},${SURFACE})`,
+              boxShadow: active ? "none" : SO,
               transition:"all .15s",
-            }}>{lbl}</button>
+            }}>
+              <div style={{fontSize:15,fontWeight:800,color: active ? "#fff" : color}}>{count}</div>
+              <div style={{fontSize:9,fontWeight:700,letterSpacing:0.5,marginTop:2,color: active ? "rgba(255,255,255,0.8)" : FAINT}}>{lbl}</div>
+            </button>
           );
         })}
-        <div style={{flex:1}}/>
-        <span style={{fontSize:10,color:FAINT}}>{filtered.length} {noun(filtered.length)}</span>
       </div>
 
       {/* Empty state */}
@@ -284,67 +290,58 @@ export default function JournalView() {
           {/* Day header */}
           <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6,paddingLeft:2}}>
             <div style={{width:28,height:3,borderRadius:2,background:glow(0.10),flexShrink:0}}/>
-            <span style={{fontSize:10,fontWeight:800,color:FAINT,letterSpacing:1,textTransform:"uppercase",flexShrink:0}}>{group.label}</span>
+            <span style={{fontSize:13,fontWeight:800,color:"#fff",letterSpacing:1,textTransform:"uppercase",flexShrink:0}}>{group.label}</span>
             <div style={{flex:1,height:1,background:BORDER}}/>
             <span style={{fontSize:9,color:FAINT,flexShrink:0}}>{group.evs.length} {noun(group.evs.length)}</span>
           </div>
 
-          {/* Group panel */}
-          <div style={{
-            background:`linear-gradient(155deg,${SURF_HI},${SURFACE})`,borderRadius:16,
-            border:`1px solid ${BORDER}`,overflow:"hidden",
-            boxShadow:SI,
-          }}>
-            {group.evs.map((ev, i) => {
-              const meta    = EVENT_TYPES[ev.type] || { label: ev.type, color: ACCENT };
-              const isNew   = ev.ts > prevReadAt;
-              const byLabel = BY_LABEL[ev.by] || ev.by;
-              const prefix  = TYPE_PREFIX[ev.type] || "•";
+          {/* Events — tinted cards, big time on the left */}
+          {group.evs.map(ev => {
+            const meta    = EVENT_TYPES[ev.type] || { label: ev.type, color: ACCENT };
+            const isNew   = ev.ts > prevReadAt;
+            const byLabel = BY_LABEL[ev.by] || ev.by;
+            const prefix  = TYPE_PREFIX[ev.type] || "•";
 
-              return (
-                <div
-                  key={ev.id}
-                  className="jrow"
-                  onClick={() => setDetail(ev)}
-                  style={{
-                    display:"flex",alignItems:"center",gap:10,padding:"10px 14px",
-                    borderBottom: i < group.evs.length-1 ? `1px solid rgba(255,255,255,0.04)` : "none",
-                  }}
-                >
-                  {/* Colored dot */}
-                  <div style={{
-                    width:8,height:8,borderRadius:"50%",flexShrink:0,
-                    background:meta.color,
-                    boxShadow:`0 0 6px ${meta.color}77`,
-                  }}/>
-
-                  {/* Info */}
-                  <div style={{flex:1,minWidth:0}}>
-                    <div style={{display:"flex",alignItems:"center",gap:5}}>
-                      <span style={{
-                        fontSize:12,fontWeight:isNew?800:700,color:TEXT,
-                        overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",
-                      }}>{ev.name}</span>
-                      {isNew && <div style={{width:5,height:5,borderRadius:"50%",flexShrink:0,background:meta.color,boxShadow:`0 0 4px ${meta.color}`}}/>}
-                    </div>
-                    <div style={{fontSize:10,marginTop:1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-                      <span style={{color:meta.color,fontWeight:700}}>{prefix} {meta.label}</span>
-                      {ev.slot && <span style={{color:FAINT}}> · {ev.slot}</span>}
-                      {byLabel && <span style={{color:FAINT}}> · {byLabel}</span>}
-                    </div>
-                  </div>
-
-                  {/* Time */}
-                  <span style={{fontSize:10,color:FAINT,flexShrink:0}}>{formatTime(ev.ts)}</span>
-
-                  {/* Chevron */}
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={FAINT} strokeWidth="2.5" strokeLinecap="round" style={{flexShrink:0}}>
-                    <polyline points="9 18 15 12 9 6"/>
-                  </svg>
+            return (
+              <div
+                key={ev.id}
+                className="jrow"
+                onClick={() => setDetail(ev)}
+                style={{
+                  display:"flex",alignItems:"center",gap:10,padding:"10px 12px",
+                  borderRadius:13,marginBottom:6,
+                  background:`linear-gradient(155deg,color-mix(in srgb,${meta.color} 45%,${BG_DEEP}) 0%,color-mix(in srgb,${meta.color} 15%,${BG_DEEP}) 100%)`,
+                  border:`1px solid color-mix(in srgb,${meta.color} 40%,transparent)`,
+                }}
+              >
+                {/* Time */}
+                <div style={{fontSize:16,fontWeight:800,color:"#fff",width:52,textAlign:"center",flexShrink:0,fontVariantNumeric:"tabular-nums"}}>
+                  {formatTime(ev.ts)}
                 </div>
-              );
-            })}
-          </div>
+
+                {/* Info */}
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{display:"flex",alignItems:"center",gap:5}}>
+                    <span style={{
+                      fontSize:12.5,fontWeight:isNew?800:700,color:"#fff",
+                      overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",
+                    }}>{ev.name}</span>
+                    {isNew && <div style={{width:5,height:5,borderRadius:"50%",flexShrink:0,background:"#fff",boxShadow:"0 0 4px #fff"}}/>}
+                  </div>
+                  <div style={{fontSize:10.5,marginTop:2,fontWeight:700,color:"rgba(255,255,255,0.8)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                    {prefix} {meta.label}
+                    {ev.slot && <span> · {ev.slot}</span>}
+                    {byLabel && <span> · {byLabel}</span>}
+                  </div>
+                </div>
+
+                {/* Chevron */}
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="2.5" strokeLinecap="round" style={{flexShrink:0}}>
+                  <polyline points="9 18 15 12 9 6"/>
+                </svg>
+              </div>
+            );
+          })}
         </div>
       ))}
 

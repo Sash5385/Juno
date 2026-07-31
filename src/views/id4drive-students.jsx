@@ -4,7 +4,7 @@ import { onValue, update, push, remove, get } from "firebase/database";
 import { iRef } from "../firebase";
 
 import { ThemeContext } from "../theme.js";
-import { UICss, Field, Btn as UIBtn, useFX } from "../ui";
+import { UICss, Field, Btn as UIBtn, useFX, useBackClose } from "../ui";
 
 const M = ["","Січ","Лют","Бер","Кві","Тра","Чер","Лип","Сер","Вер","Жов","Лис","Гру"];
 const fmtS = d => { if(!d) return "—"; const [,m,day]=d.split("-"); return `${parseInt(day)} ${M[parseInt(m)]}`; };
@@ -39,14 +39,15 @@ const ICONS = {
 
 // ─── ACTION BUTTON ───────────────────────────────────────────────
 function ActBtn({ icon, label, onClick, color, danger }) {
-  const { SURFACE, SURF_HI, DIM, SO } = useContext(ThemeContext);
-  const bg = danger
-    ? "linear-gradient(145deg,rgba(239,68,68,.2),rgba(185,28,28,.12))"
-    : color ? `linear-gradient(145deg,${color}22,${color}11)` : `linear-gradient(145deg,${SURF_HI},${SURFACE})`;
+  const { SURFACE, SURF_HI, BG_DEEP, DIM, SO } = useContext(ThemeContext);
+  const tint = danger ? "#ef4444" : color;
+  const bg = tint
+    ? `linear-gradient(155deg,color-mix(in srgb,${tint} 45%,${BG_DEEP}) 0%,${BG_DEEP} 100%)`
+    : `linear-gradient(145deg,${SURF_HI},${SURFACE})`;
   return (
     <button className="act-btn" onClick={onClick} style={{background:bg,boxShadow:SO}}>
       {icon}
-      <span style={{color:danger?"#fca5a5":color||DIM}}>{label}</span>
+      <span style={{color:tint?"#fff":DIM}}>{label}</span>
     </button>
   );
 }
@@ -144,9 +145,10 @@ function StudentForm({ initial, onSave, onCancel, saveLabel="Зберегти" }
   );
 }
 
-// ─── STUDENT CARD (collapsed row only) ──────────────────────────
+// ─── STUDENT CARD (colorway card) ────────────────────────────────
 function StudentCard({ s, onSelect, debtAmount, onMarkPaid }) {
-  const { BG_DEEP, SURF_HI, SURFACE, BORDER, TEXT, DIM, FAINT, GREEN, GOLD, RED, SI } = useContext(ThemeContext);
+  const { BG_DEEP, GREEN, GOLD, RED } = useContext(ThemeContext);
+  const { shade, glow } = useFX();
   const typeColor = s.type === "school" ? GREEN : GOLD;
   const typeLabel = s.type === "school" ? "Автошкола" : "Приватний";
   const ini       = s.name.split(" ").map(w=>w[0]).slice(0,2).join("");
@@ -156,42 +158,43 @@ function StudentCard({ s, onSelect, debtAmount, onMarkPaid }) {
     <div
       onClick={() => onSelect(s)}
       style={{
-        background:`linear-gradient(155deg,${SURF_HI},${SURFACE})`, borderRadius:12, boxShadow:SI,
-        border:`1px solid ${BORDER}`, opacity:s.blocked?0.8:1,
-        display:"flex", overflow:"hidden", cursor:"pointer",
+        position:"relative",overflow:"hidden",borderRadius:13,cursor:"pointer",
+        padding:"9px 11px",display:"flex",alignItems:"center",gap:9,
+        background:`linear-gradient(155deg,color-mix(in srgb,${barColor} 48%,${BG_DEEP}) 0%,color-mix(in srgb,${barColor} 16%,${BG_DEEP}) 100%)`,
+        border:`1px solid color-mix(in srgb,${barColor} 42%,transparent)`,
+        boxShadow:`-2px 5px 13px ${shade(0.4)},inset 1px 1px 0 ${glow(0.15)}`,
+        opacity:s.blocked?0.85:1,
       }}
     >
-      <div style={{width:4,background:barColor,flexShrink:0}} />
-      <div style={{flex:1,padding:"9px 10px 9px 12px",display:"flex",alignItems:"center",gap:9,minWidth:0}}>
-        <div className="icon3d" style={{
-          width:36,height:36,borderRadius:11,flexShrink:0,
-          background:`linear-gradient(145deg,${barColor}44,${barColor}18)`,
-          fontSize:13,fontWeight:900,color:barColor,
-        }}>{ini}</div>
-        <div style={{flex:1,minWidth:0}}>
-          <div style={{fontSize:13,fontWeight:800,color:s.blocked?DIM:TEXT,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-            {s.name}{s.blocked && <span style={{fontSize:9,color:RED,fontWeight:700,marginLeft:6}}>🚫</span>}{birthdayWithinDays(s.birthday) && <span style={{fontSize:13,marginLeft:5}}>🎂</span>}
-          </div>
-          <div style={{fontSize:10,color:typeColor,fontWeight:700,marginTop:2}}>{typeLabel}{s.type==="school"&&(s.hours+(s.hoursOffset||0))>0?` · ${s.hours+(s.hoursOffset||0)}/40 год`:""}</div>
+      <div style={{position:"absolute",pointerEvents:"none",top:0,right:"6%",width:"55%",height:"45%",zIndex:1,
+        background:"radial-gradient(ellipse at top right,rgba(255,255,255,0.18) 0%,transparent 65%)"}}/>
+
+      <div style={{position:"relative",zIndex:2,width:34,height:34,borderRadius:11,flexShrink:0,
+        background:"rgba(0,0,0,0.25)",display:"flex",alignItems:"center",justifyContent:"center",
+        fontSize:12,fontWeight:900,color:"#fff"}}>{ini}</div>
+
+      <div style={{position:"relative",zIndex:2,flex:1,minWidth:0}}>
+        <div style={{fontSize:12.5,fontWeight:800,color:"#fff",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+          {s.isVip && "👑 "}{s.name}{s.blocked && <span style={{fontSize:9,marginLeft:6}}>🚫</span>}{birthdayWithinDays(s.birthday) && <span style={{fontSize:13,marginLeft:5}}>🎂</span>}
         </div>
-        {s.lessonBalance > 0 && <div style={{fontSize:10,fontWeight:800,color:"#4ade80",background:"rgba(74,222,128,0.15)",borderRadius:7,padding:"2px 7px",flexShrink:0,whiteSpace:"nowrap"}}>🎓 {s.lessonBalance}</div>}
-        {s.isVip && <div style={{fontSize:10,fontWeight:800,color:"#c084fc",background:"rgba(168,85,247,0.15)",borderRadius:7,padding:"2px 7px",flexShrink:0,whiteSpace:"nowrap"}}>👑</div>}
-        {s.discount > 0 && <div style={{fontSize:10,fontWeight:800,color:GOLD,background:GOLD+"22",borderRadius:7,padding:"2px 7px",flexShrink:0,whiteSpace:"nowrap"}}>🏷️ {s.discount}%</div>}
-        {debtAmount > 0 && <div style={{fontSize:10,fontWeight:800,color:RED,background:RED+"22",borderRadius:7,padding:"2px 7px",flexShrink:0,whiteSpace:"nowrap"}}>{debtAmount} ₴</div>}
-        {debtAmount > 0 && onMarkPaid && (
+        <div style={{fontSize:10,color:"rgba(255,255,255,0.8)",fontWeight:700,marginTop:1}}>{typeLabel}{s.type==="school"&&(s.hours+(s.hoursOffset||0))>0?` · ${s.hours+(s.hoursOffset||0)}/40 год`:""}</div>
+      </div>
+
+      <div style={{position:"relative",zIndex:2,display:"flex",alignItems:"center",gap:5,flexShrink:0}}>
+        {s.lessonBalance > 0 && <div style={{fontSize:10,fontWeight:800,color:"#fff",background:"rgba(0,0,0,0.25)",borderRadius:7,padding:"2px 7px",whiteSpace:"nowrap"}}>🎓 {s.lessonBalance}</div>}
+        {s.discount > 0 && <div style={{fontSize:10,fontWeight:800,color:"#fff",background:"rgba(0,0,0,0.25)",borderRadius:7,padding:"2px 7px",whiteSpace:"nowrap"}}>🏷️ {s.discount}%</div>}
+        {debtAmount > 0 && <div style={{fontSize:10,fontWeight:800,color:"#fff",background:"rgba(0,0,0,0.25)",borderRadius:7,padding:"2px 7px",whiteSpace:"nowrap"}}>{debtAmount} ₴</div>}
+        {debtAmount > 0 && onMarkPaid ? (
           <button onClick={e=>{e.stopPropagation();onMarkPaid(s.id);}} style={{
             background:"linear-gradient(145deg,#22c55e,#16a34a)",border:"none",borderRadius:8,
             padding:"4px 9px",cursor:"pointer",fontSize:11,fontWeight:800,color:"#fff",flexShrink:0,
           }}>✓</button>
-        )}
-        {!(debtAmount > 0) && (
-          <button onClick={e=>{e.stopPropagation();navTo("chats");}} style={{background:"none",border:"none",cursor:"pointer",padding:0,flexShrink:0}}>
-            <div className="icon3d" style={{width:26,height:26,background:"linear-gradient(145deg,rgba(91,155,255,.35),rgba(37,99,235,.2))",borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center"}}>
-              {ICONS.chat}
-            </div>
+        ) : (
+          <button onClick={e=>{e.stopPropagation();navTo("chats");}} style={{position:"relative",background:"rgba(0,0,0,0.25)",border:"none",borderRadius:8,cursor:"pointer",width:26,height:26,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+            {ICONS.chat}
           </button>
         )}
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={FAINT} strokeWidth="2.5" strokeLinecap="round" style={{flexShrink:0}}>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="2.5" strokeLinecap="round" style={{flexShrink:0}}>
           <polyline points="9 18 15 12 9 6"/>
         </svg>
       </div>
@@ -264,6 +267,7 @@ function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock }) {
   const barColor  = s.blocked ? RED : typeColor;
 
   const _close = () => setClosing(true);
+  useBackClose(true, _close);
 
   return (
     <>
@@ -290,7 +294,8 @@ function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock }) {
             onClose();
           } : undefined}
           style={{
-            width:"100%",maxWidth:480,background:BG_DEEP,
+            width:"100%",maxWidth:480,
+            background:`linear-gradient(165deg,color-mix(in srgb,${barColor} 24%,${BG_DEEP}) 0%,${BG_DEEP} 60%)`,
             borderRadius:"24px 24px 0 0",
             boxShadow:`0 -2px 0 ${glow(0.08)},0 -16px 60px ${shade(0.8)}`,
             display:"flex",flexDirection:"column",
@@ -369,7 +374,7 @@ function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock }) {
                 {s.createdAt && (() => {
                   const d = new Date(s.createdAt);
                   return (
-                    <div style={{fontSize:11,color:FAINT,display:"flex",alignItems:"center",gap:5,padding:"0 2px"}}>
+                    <div style={{fontSize:11,color:"rgba(255,255,255,0.6)",display:"flex",alignItems:"center",gap:5,padding:"0 2px"}}>
                       <span>📅</span>
                       <span>Реєстрація: {d.getDate()} {M[d.getMonth()+1]} {d.getFullYear()}</span>
                     </div>
@@ -694,6 +699,7 @@ export default function StudentsView({ studentJump, onStudentJumpHandled } = {})
     onStudentJumpHandled?.();
   }, [studentJump, students]);
   const [showNew,      setShowNew]      = useState(false);
+  useBackClose(showNew, () => setShowNew(false));
   const [debtMap,      setDebtMap]      = useState({});
   const [debtLoading,  setDebtLoading]  = useState(false);
   const [noShowMap,    setNoShowMap]    = useState({});
