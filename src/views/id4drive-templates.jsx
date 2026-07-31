@@ -4,8 +4,8 @@ import { iRef } from "../firebase";
 import { LangContext } from "../App";
 import { createT } from "../lang";
 
-import { ThemeContext, GOLD, GREEN, RED, TEAL, BLUE, PURPLE } from "../theme.js";
-import { UICss, Modal, Field, Chip, Btn, Toggle, Pill } from "../ui";
+import { ThemeContext, GOLD, GREEN, RED, TEAL, BLUE, PURPLE, BG_DEEP } from "../theme.js";
+import { UICss, Modal, Chip, Btn, Toggle, Pill, useFX } from "../ui";
 
 // ─── CSS (template-specific only; base lives in UICss) ───────────
 const makeCSS = () => `
@@ -199,7 +199,7 @@ function SendModal({ tpl, onClose }) {
 
 // ─── EDIT FORM MODAL ─────────────────────────────────────────────
 function EditModal({ tpl, onSave, onClose }) {
-  const { DIM, FAINT, SURF_HI, SURFACE, BG_DEEP, SURF_LO, SI, BLUE, TEXT } = useContext(ThemeContext);
+  const { DIM, SURF_HI, SURFACE, BG_DEEP, SI, BLUE, TEXT } = useContext(ThemeContext);
   const isNew = !tpl;
   const [form, setForm] = useState(tpl || {
     id:`t-${Date.now()}`, catId:"custom", title:"", channel:"chat",
@@ -208,6 +208,7 @@ function EditModal({ tpl, onSave, onClose }) {
   const upd = (k,v) => setForm(f=>({...f,[k]:v}));
   const insertVar = v => setForm(f=>({...f, body: f.body + v}));
   const valid = (form.title||'').trim() && (form.body||'').trim();
+  const accentColor = catOf(form.catId).color;
 
   return (
     <Modal open onClose={onClose} sheet size="lg" title={isNew?"Новий шаблон":"Редагування шаблону"}
@@ -215,13 +216,23 @@ function EditModal({ tpl, onSave, onClose }) {
         <Btn variant="ghost" flex={1} onClick={onClose}>Скасувати</Btn>
         <Btn variant="primary" flex={1} disabled={!valid} onClick={()=>{ if(valid) onSave(form); }}>{isNew?"Створити":"Зберегти"}</Btn>
       </>}>
+      <div style={{
+        margin:"-14px -20px 0",padding:"16px 20px 20px",transition:"background .2s",
+        background:`linear-gradient(165deg,color-mix(in srgb,${accentColor} 26%,${BG_DEEP}) 0%,${BG_DEEP} 65%)`,
+      }}>
       {/* title */}
-      <Field label="Назва шаблону" value={form.title} onChange={v=>upd("title",v)} placeholder="Наприклад: Нагадування за 24 год"/>
+      <div style={{marginBottom:14}}>
+        <div style={{fontSize:10,color:"rgba(255,255,255,0.55)",letterSpacing:1,marginBottom:6}}>НАЗВА ШАБЛОНУ</div>
+        <Inset style={{padding:"4px 14px"}}>
+          <input value={form.title} onChange={e=>upd("title",e.target.value)} placeholder="Наприклад: Нагадування за 24 год"
+            style={{width:"100%",background:"transparent",border:"none",outline:"none",color:TEXT,fontSize:15,fontWeight:800,padding:"10px 0",fontFamily:"inherit"}}/>
+        </Inset>
+      </div>
 
       {/* category */}
       <div style={{marginBottom:14}}>
-        <div style={{fontSize:10,color:FAINT,letterSpacing:1,marginBottom:8}}>КАТЕГОРІЯ</div>
-        <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+        <div style={{fontSize:10,color:"rgba(255,255,255,0.55)",letterSpacing:1,marginBottom:8}}>КАТЕГОРІЯ</div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:6}}>
           {CATEGORIES.map(c=>(
             <Chip key={c.id} active={form.catId===c.id} color={c.color} onClick={()=>upd("catId",c.id)}>{c.emoji} {c.label}</Chip>
           ))}
@@ -230,8 +241,8 @@ function EditModal({ tpl, onSave, onClose }) {
 
       {/* channel */}
       <div style={{marginBottom:14}}>
-        <div style={{fontSize:10,color:FAINT,letterSpacing:1,marginBottom:8}}>КАНАЛ</div>
-        <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+        <div style={{fontSize:10,color:"rgba(255,255,255,0.55)",letterSpacing:1,marginBottom:8}}>КАНАЛ</div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:6}}>
           {CHANNELS.map(c=>(
             <Chip key={c.id} active={form.channel===c.id} color={c.color} onClick={()=>upd("channel",c.id)}>{c.emoji} {c.label}</Chip>
           ))}
@@ -240,7 +251,7 @@ function EditModal({ tpl, onSave, onClose }) {
 
       {/* trigger */}
       <div style={{marginBottom:14}}>
-        <div style={{fontSize:10,color:FAINT,letterSpacing:1,marginBottom:8}}>УМОВА ВІДПРАВКИ</div>
+        <div style={{fontSize:10,color:"rgba(255,255,255,0.55)",letterSpacing:1,marginBottom:8}}>УМОВА ВІДПРАВКИ</div>
         <div style={{display:"flex",flexDirection:"column",gap:6}}>
           {TRIGGERS.map(t=>(
             <button key={t.id} onClick={()=>upd("trigger",t.id)} style={{
@@ -257,8 +268,8 @@ function EditModal({ tpl, onSave, onClose }) {
 
       {/* body */}
       <div style={{marginBottom:10}}>
-        <div style={{fontSize:10,color:FAINT,letterSpacing:1,marginBottom:8}}>ТЕКСТ ПОВІДОМЛЕННЯ</div>
-        <div style={{fontSize:10,color:FAINT,marginBottom:6}}>Змінні — клікни щоб вставити:</div>
+        <div style={{fontSize:10,color:"rgba(255,255,255,0.55)",letterSpacing:1,marginBottom:8}}>ТЕКСТ ПОВІДОМЛЕННЯ</div>
+        <div style={{fontSize:10,color:"rgba(255,255,255,0.55)",marginBottom:6}}>Змінні — клікни щоб вставити:</div>
         <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:8}}>
           {VARS.map(v=>(
             <span key={v} className="var-chip" onClick={()=>insertVar(v)}>{v}</span>
@@ -274,7 +285,7 @@ function EditModal({ tpl, onSave, onClose }) {
       {/* live bubble preview */}
       {form.body.trim() && (
         <div style={{marginBottom:16}}>
-          <div style={{fontSize:10,color:FAINT,letterSpacing:1,marginBottom:6}}>ПОПЕРЕДНІЙ ПЕРЕГЛЯД</div>
+          <div style={{fontSize:10,color:"rgba(255,255,255,0.55)",letterSpacing:1,marginBottom:6}}>ПОПЕРЕДНІЙ ПЕРЕГЛЯД</div>
           <div className="bubble-preview"><BodyPreview body={form.body}/></div>
         </div>
       )}
@@ -287,48 +298,61 @@ function EditModal({ tpl, onSave, onClose }) {
         </div>
         <Toggle on={form.active} onChange={v=>upd("active",v)}/>
       </div>
+      </div>
     </Modal>
   );
 }
 
-// ─── TEMPLATE ROW ────────────────────────────────────────────────
+// ─── TEMPLATE CARD (colorway card) ────────────────────────────────
 function TemplateCard({ tpl, onEdit, onSend, onToggle, onDelete }) {
-  const { SURF_HI, SURFACE, SO, TEXT, DIM, FAINT } = useContext(ThemeContext);
+  const { shade, glow } = useFX();
   const cat = catOf(tpl.catId);
   const ch  = chOf(tpl.channel);
+  const dimmed = !tpl.active;
+  const stop = e => e.stopPropagation();
 
   return (
-    <div className="fade-in" style={{
-      display:"flex",alignItems:"center",gap:8,padding:"6px 10px",
-      background:`linear-gradient(155deg,${SURF_HI},${SURFACE})`,
-      borderRadius:13,marginBottom:4,boxShadow:SO,
-      opacity:tpl.active?1:0.5,
-      borderLeft:`3px solid ${cat.color}`,
+    <div className="fade-in" onClick={()=>onEdit(tpl)} style={{
+      position:"relative",overflow:"hidden",borderRadius:14,marginBottom:8,padding:"9px 11px 8px",cursor:"pointer",
+      background:`linear-gradient(155deg,color-mix(in srgb,${cat.color} 50%,${BG_DEEP}) 0%,color-mix(in srgb,${cat.color} 18%,${BG_DEEP}) 100%)`,
+      border:`1px solid color-mix(in srgb,${cat.color} 45%,transparent)`,
+      boxShadow:`-2px 5px 13px ${shade(0.45)},inset 1px 1px 0 ${glow(0.15)}`,
+      opacity:dimmed?0.55:1,
     }}>
-      <span style={{fontSize:17,flexShrink:0,lineHeight:1,width:22,textAlign:"center"}}>{cat.emoji}</span>
-      <div style={{flex:1,minWidth:0}}>
-        <div style={{fontSize:12,fontWeight:700,color:TEXT,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{tpl.title}</div>
-        <div style={{fontSize:10,color:DIM,marginTop:1,display:"flex",alignItems:"center",gap:4}}>
-          <span style={{color:ch.color,fontWeight:600}}>{ch.emoji} {ch.label}</span>
-          <span style={{color:FAINT}}>·</span>
-          <span style={{color:tpl.trigger==="manual"?DIM:GOLD}}>{tpl.trigger==="manual"?"✋":"⚡"}</span>
+      <div style={{position:"absolute",pointerEvents:"none",top:0,right:"6%",width:"55%",height:"45%",zIndex:1,
+        background:"radial-gradient(ellipse at top right,rgba(255,255,255,0.18) 0%,transparent 65%)"}}/>
+
+      <button onClick={e=>{stop(e);onDelete(tpl.id);}} style={{
+        position:"absolute",top:6,right:6,zIndex:3,width:20,height:20,borderRadius:"50%",border:"none",cursor:"pointer",
+        background:RED,color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",
+        boxShadow:`0 2px 6px ${shade(0.4)}`,
+      }}>
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+
+      <div style={{position:"relative",zIndex:2,display:"flex",alignItems:"flex-start",gap:8,paddingRight:22}}>
+        <span style={{fontSize:18,flexShrink:0,lineHeight:1}}>{cat.emoji}</span>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontSize:13.5,fontWeight:800,color:"#fff",textShadow:`0 1px 3px ${shade(0.5)}`,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{tpl.title}</div>
+          <div style={{fontSize:10,color:"rgba(255,255,255,0.78)",fontWeight:700,marginTop:2,display:"flex",alignItems:"center",gap:5}}>
+            <span>{ch.emoji} {ch.label}</span>
+            <span>·</span>
+            <span>{tpl.trigger==="manual"?"✋ Вручну":"⚡ Авто"}</span>
+          </div>
         </div>
       </div>
-      <Toggle on={tpl.active} onChange={v=>onToggle(tpl.id,v)}/>
-      {[
-        {grad:`linear-gradient(165deg,#ff7a5c,#ff5a3c)`, fn:()=>onSend(tpl),
-          svg:<><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></>},
-        {grad:"linear-gradient(165deg,#a78bfa,#6d28d9)", fn:()=>onEdit(tpl),
-          svg:<><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></>},
-        {grad:"linear-gradient(165deg,#f87171,#dc2626)", fn:()=>onDelete(tpl.id),
-          svg:<><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></>},
-      ].map((b,i)=>(
-        <button key={i} onClick={b.fn} style={{background:"none",border:"none",cursor:"pointer",padding:"0 2px",flexShrink:0}}>
-          <div className="icon3d" style={{width:24,height:24,background:b.grad,borderRadius:7}}>
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{position:"relative",zIndex:1}}>{b.svg}</svg>
-          </div>
+
+      <div style={{position:"relative",zIndex:2,display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:8}}>
+        <button onClick={e=>{stop(e);onSend(tpl);}} style={{
+          padding:"6px 10px",border:"none",borderRadius:8,cursor:"pointer",fontFamily:"inherit",
+          background:"rgba(0,0,0,0.22)",color:"#fff",fontSize:10.5,fontWeight:700,
+          display:"flex",alignItems:"center",gap:5,
+        }}>
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          Надіслати
         </button>
-      ))}
+        <div onClick={stop}><Toggle on={tpl.active} onChange={v=>onToggle(tpl.id,v)}/></div>
+      </div>
     </div>
   );
 }

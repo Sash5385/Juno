@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo, useContext } from "react";
 import { onValue, update, push, remove } from "firebase/database";
 import { iRef } from "../firebase";
 import { ThemeContext } from "../theme.js";
-import { UICss, Card, Bar, Modal, Field, Chip, Btn, StatTile, Section } from "../ui";
+import { UICss, Card, Bar, Modal, Field, Chip, Btn, Section } from "../ui";
 
 const SERVICES = {
   sv1:{ name:"Автошкола 1г", color:"#7ed957"  },
@@ -99,6 +99,13 @@ function QueueRow({ item, pos, onInvite, onBooked, onArchive, onDelete, dragHand
   const ini = (item.name||"?").split(" ").map(w=>w[0]).slice(0,2).join("").toUpperCase();
   const hrs = getHours(item, svc);
 
+  const STAGES = [
+    { id:"waiting", label:"Очікує",    color:PURPLE },
+    { id:"offered", label:"Запрошено", color:GOLD   },
+    { id:"booked",  label:"Записано",  color:GREEN  },
+  ];
+  const stageIdx = STAGES.findIndex(s => s.id === item.status);
+
   return (
     <Card className={`drag-item fade-in ${isDragging?"dragging":""}`} style={{ marginBottom:8 }}>
       {/* main row */}
@@ -143,11 +150,29 @@ function QueueRow({ item, pos, onInvite, onBooked, onArchive, onDelete, dragHand
             fontSize:11,fontWeight:900,color:GOLD,whiteSpace:"nowrap",
           }}>{hrs} год</div>
         )}
-        {/* status chip */}
-        <span style={{background:st.bg,color:st.color,padding:"3px 8px",borderRadius:7,fontSize:10,fontWeight:700,flexShrink:0,whiteSpace:"nowrap"}}>
-          {st.label}
-        </span>
+        {/* status chip (archived only — не частина прогресу) */}
+        {item.status === "archived" && (
+          <span style={{background:st.bg,color:st.color,padding:"3px 8px",borderRadius:7,fontSize:10,fontWeight:700,flexShrink:0,whiteSpace:"nowrap"}}>
+            {st.label}
+          </span>
+        )}
       </div>
+
+      {/* progress stages */}
+      {stageIdx >= 0 && (
+        <div style={{padding:"0 12px 10px"}}>
+          <div style={{display:"flex",alignItems:"center",gap:4}}>
+            {STAGES.map((s,i)=>(
+              <div key={s.id} style={{flex:1,height:4,borderRadius:2,background:stageIdx>=i?s.color:BORDER}}/>
+            ))}
+          </div>
+          <div style={{display:"flex",justifyContent:"space-between",marginTop:4}}>
+            {STAGES.map((s,i)=>(
+              <span key={s.id} style={{fontSize:8.5,fontWeight:stageIdx===i?800:600,color:stageIdx===i?s.color:FAINT}}>{s.label}</span>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* actions row */}
       {item.status !== "archived" && (
@@ -193,7 +218,7 @@ function QueueRow({ item, pos, onInvite, onBooked, onArchive, onDelete, dragHand
 
 // ─── MAIN ────────────────────────────────────────────────────────
 export default function QueueView({ settings }) {
-  const { DIM, FAINT, GOLD, GREEN, PURPLE, BLUE, ACCENT, TEAL } = useContext(ThemeContext);
+  const { DIM, FAINT, GOLD, GREEN, PURPLE, BLUE, ACCENT, TEAL, BG_DEEP } = useContext(ThemeContext);
   const [all,       setAll]       = useState([]);
   const [showAdd,   setShowAdd]   = useState(false);
 
@@ -262,9 +287,20 @@ export default function QueueView({ settings }) {
 
         {/* ── STATS ── */}
         <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8}}>
-          <StatTile value={waiting}  label="Очікують"  color={PURPLE}/>
-          <StatTile value={offered}  label="Запрошено" color={GOLD}/>
-          <StatTile value={booked_c} label="Записані"  color={GREEN}/>
+          {[
+            {value:waiting,  label:"Очікують",  color:PURPLE},
+            {value:offered,  label:"Запрошено", color:GOLD},
+            {value:booked_c, label:"Записані",  color:GREEN},
+          ].map((s,i)=>(
+            <div key={i} style={{
+              borderRadius:11, padding:"10px 6px", textAlign:"center",
+              background:`linear-gradient(155deg,color-mix(in srgb,${s.color} 22%,${BG_DEEP}),color-mix(in srgb,${s.color} 6%,${BG_DEEP}))`,
+              border:`1px solid color-mix(in srgb,${s.color} 32%,transparent)`,
+            }}>
+              <div style={{fontSize:18,fontWeight:900,color:"#fff"}}>{s.value}</div>
+              <div style={{fontSize:9,color:"rgba(255,255,255,0.6)",marginTop:2,letterSpacing:0.5}}>{s.label.toUpperCase()}</div>
+            </div>
+          ))}
         </div>
 
         {/* ── MODE BADGE ── */}

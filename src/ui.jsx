@@ -3,8 +3,32 @@
 // Single source of truth for windows: panels, modals, fields, buttons.
 // Panel look = gradient SURF_HI→SURFACE. Coffee-correct via glow/shade/ink.
 // ═══════════════════════════════════════════════════════════════
-import { useState, useContext } from "react";
+import { useState, useEffect, useRef, useContext } from "react";
 import { ThemeContext } from "./theme.js";
+
+// ── useBackClose: Android/PWA back gesture closes an open modal/sheet
+//    instead of navigating away from the app ─────────────────────
+export function useBackClose(active, onClose) {
+  const pushedRef = useRef(false);
+  useEffect(() => {
+    if (!active) return;
+    window.history.pushState({ ui4Modal: true }, "");
+    pushedRef.current = true;
+    const onPop = () => {
+      pushedRef.current = false;
+      onClose();
+    };
+    window.addEventListener("popstate", onPop);
+    return () => {
+      window.removeEventListener("popstate", onPop);
+      if (pushedRef.current) {
+        pushedRef.current = false;
+        window.history.back();
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active]);
+}
 
 // ── design tokens ──────────────────────────────────────────────
 export const RADIUS = { pill: 7, chip: 8, control: 10, avatar: 10, card: 14, button: 14, modal: 24 };
@@ -178,6 +202,7 @@ export function StatTile({ value, label, color }) {
 export function Modal({ open, onClose, children, size = "md", sheet = true, title, icon, grabber = true, pad = true, footer, maxH }) {
   const { SURF_HI, SURFACE, BG, TEXT, FAINT, BORDER } = useContext(ThemeContext);
   const { shade, ink } = useFX();
+  useBackClose(open, onClose);
   if (!open) return null;
   const W = typeof size === "number" ? size : ({ sm: 380, md: 460, lg: 560 }[size] ?? size);
   const bodyPad = !pad ? 0 : footer ? "14px 20px" : sheet ? "14px 20px 28px" : "14px 20px 16px";

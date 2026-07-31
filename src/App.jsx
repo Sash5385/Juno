@@ -105,9 +105,9 @@ const TabIcons = makeTabIcons(INACTIVE_DARK);
 const TAB_IDS = [
   { id:"schedule",  lk:"nav.schedule",  badge:null },
   { id:"journal",   lk:"nav.journal",   badge:null },
+  { id:"students",  lk:"nav.students",  badge:null },
   { id:"queue",     lk:"nav.queue",     badge:null },
   { id:"bookings",  lk:"nav.bookings",  badge:null },
-  { id:"students",  lk:"nav.students",  badge:null },
   { id:"services",  lk:"nav.services",  badge:null },
   { id:"chats",     lk:"nav.chats",     badge:null },
   { id:"templates", lk:"nav.templates", badge:null },
@@ -1136,10 +1136,20 @@ const pendingDeletesRef = React.useRef(new Set());
     <LangContext.Provider value={lang}>
     <>
       <style>{css}</style>
+      {!theme.BG_IMAGE && (
+        <div style={{
+          position:"fixed", inset:0, zIndex:0, pointerEvents:"none",
+          background:
+            `radial-gradient(circle at 10% 5%, ${theme.ACCENT}2e, transparent 45%),`+
+            `radial-gradient(circle at 95% 30%, ${theme.PURPLE}29, transparent 45%),`+
+            `radial-gradient(circle at 20% 95%, ${theme.TEAL}24, transparent 45%)`,
+        }}/>
+      )}
       <div style={{
         height:"100dvh",background:"transparent",color:theme.TEXT,
         fontFamily:"ui-sans-serif,-apple-system,BlinkMacSystemFont,system-ui,sans-serif",
-        display:"flex",flexDirection:"column"
+        display:"flex",flexDirection:"column",
+        position:"relative", zIndex:1,
       }}>
         <TrialBanner subscription={subscription}/>
         <TopBar tab={tab} onChange={switchTab} settings={settings} setSettings={setSettings}/>
