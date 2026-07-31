@@ -514,6 +514,7 @@ function BroadcastModal({ initialDate, initialSlot, onClose }) {
         <div onClick={e=>e.stopPropagation()}
           onAnimationEnd={closing ? ()=>{ setClosing(false); onClose(); } : undefined}
           style={{
+            position:"relative",
             width:"100%",maxWidth:480,background:BG_DEEP,
             borderRadius:"24px 24px 0 0",
             boxShadow:`0 -2px 0 rgba(192,132,252,0.3), 0 -16px 60px ${shade(0.6)}`,
@@ -524,6 +525,13 @@ function BroadcastModal({ initialDate, initialSlot, onClose }) {
               ? `_br-down 0.26s ease-in forwards`
               : `_br-up 0.38s cubic-bezier(0.34,1.56,0.64,1)`,
           }}>
+          <button onClick={_close} style={{
+            position:"absolute",top:10,right:12,zIndex:5,
+            width:26,height:26,borderRadius:8,border:"none",cursor:"pointer",
+            background:"rgba(239,68,68,0.18)",color:"#ef4444",
+            display:"flex",alignItems:"center",justifyContent:"center",
+            fontSize:13,fontWeight:800,lineHeight:1,
+          }}>✕</button>
 
           {/* Header */}
           <div style={{
@@ -2231,6 +2239,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
             <div onClick={e=>e.stopPropagation()}
               onAnimationEnd={blockModalClosing ? ()=>{ setBlockModalClosing(false); setBlockModal(null); } : undefined}
               style={{
+                position:"relative",
                 width:"100%",maxWidth:480,background:BG_DEEP,
                 borderRadius:"24px 24px 0 0",
                 boxShadow:`0 -2px 0 ${glow(0.08)}, 0 -16px 60px ${shade(0.8)}`,
@@ -2238,6 +2247,13 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                 pointerEvents: blockModalClosing ? "none" : undefined,
                 animation: blockModalClosing ? `_bl-down 0.26s ease-in forwards` : `_bl-up 0.38s cubic-bezier(0.34,1.56,0.64,1)`,
               }}>
+              <button onClick={_closeBlock} style={{
+                position:"absolute",top:10,right:12,zIndex:5,
+                width:26,height:26,borderRadius:8,border:"none",cursor:"pointer",
+                background:"rgba(239,68,68,0.18)",color:"#ef4444",
+                display:"flex",alignItems:"center",justifyContent:"center",
+                fontSize:13,fontWeight:800,lineHeight:1,
+              }}>✕</button>
               {/* Hero */}
               <div style={{
                 padding:"14px 16px 18px",
@@ -2392,6 +2408,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
           <div onClick={e=>e.stopPropagation()}
             onAnimationEnd={ltmClosing ? ()=>{ setLtmClosing(false); setLongTapMenu(null); } : undefined}
             style={{
+              position:"relative",
               width:"100%",
               background:`linear-gradient(180deg,${SURFACE},${BG_DEEP})`,
               borderRadius:"20px 20px 0 0",
@@ -2405,6 +2422,15 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                   ? `_ltm-sc-sheet 0.38s ease-in forwards`
                   : `_ltm-up 0.38s cubic-bezier(0.34,1.56,0.64,1)`,
             }}>
+            {!_anyClose && (
+              <button onClick={_closeLtm} style={{
+                position:"absolute",top:10,right:12,zIndex:5,
+                width:26,height:26,borderRadius:8,border:"none",cursor:"pointer",
+                background:"rgba(239,68,68,0.18)",color:"#ef4444",
+                display:"flex",alignItems:"center",justifyContent:"center",
+                fontSize:13,fontWeight:800,lineHeight:1,
+              }}>✕</button>
+            )}
             {/* handle */}
             <div style={{width:36,height:4,borderRadius:2,background:ink(0.18),margin:"0 auto 14px"}}/>
             {/* header — time chips */}
@@ -2517,6 +2543,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
           <div onClick={e=>e.stopPropagation()}
             onAnimationEnd={slotClosing ? ()=>{ setSlotClosing(false); setSlotOptions(null); } : undefined}
             style={{
+              position:"relative",
               width:"100%",maxWidth:480,
               background:BG_DEEP,
               borderRadius:"24px 24px 0 0",
@@ -2528,6 +2555,13 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                 ? `_so-down 0.26s ease-in forwards`
                 : `_so-up 0.38s cubic-bezier(0.34,1.56,0.64,1)`,
             }}>
+            <button onClick={_closeSO} style={{
+              position:"absolute",top:10,right:12,zIndex:5,
+              width:26,height:26,borderRadius:8,border:"none",cursor:"pointer",
+              background:"rgba(239,68,68,0.18)",color:"#ef4444",
+              display:"flex",alignItems:"center",justifyContent:"center",
+              fontSize:13,fontWeight:800,lineHeight:1,
+            }}>✕</button>
             {/* header (includes handle) */}
             <div style={{
               padding:"10px 18px 14px",
@@ -2671,6 +2705,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
             <div onClick={e=>e.stopPropagation()}
               onAnimationEnd={vipSlotModalClosing ? ()=>{ setVipSlotModalClosing(false); setVipSlotModal(null); } : undefined}
               style={{
+                position:"relative",
                 width:"100%",maxWidth:480,background:BG_DEEP,
                 borderRadius:"24px 24px 0 0",
                 boxShadow:`0 -2px 0 rgba(168,85,247,0.4), 0 -16px 60px ${shade(0.8)}`,
@@ -2678,6 +2713,13 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                 pointerEvents: vipSlotModalClosing ? "none" : undefined,
                 animation: vipSlotModalClosing ? `_vip-down 0.26s ease-in forwards` : `_vip-up 0.38s cubic-bezier(0.34,1.56,0.64,1)`,
               }}>
+              <button onClick={_closeVip} style={{
+                position:"absolute",top:10,right:12,zIndex:5,
+                width:26,height:26,borderRadius:8,border:"none",cursor:"pointer",
+                background:"rgba(239,68,68,0.18)",color:"#ef4444",
+                display:"flex",alignItems:"center",justifyContent:"center",
+                fontSize:13,fontWeight:800,lineHeight:1,
+              }}>✕</button>
               <div style={{
                 padding:"16px 16px 18px",
                 background:"linear-gradient(145deg,rgba(168,85,247,0.18),rgba(124,58,237,0.08))",
@@ -2898,9 +2940,17 @@ function CreateSlotSheet({ data, settings, onClose }) {
             borderRadius:"24px 24px 0 0",
             boxShadow:`0 -2px 0 ${glow(0.12)}, 0 -16px 60px ${shade(0.6)}`,
             overflow:"hidden",
+            position:"relative",
             pointerEvents: closing ? "none" : undefined,
             animation: closing ? `_cs-down 0.26s ease-in forwards` : `_cs-up 0.38s cubic-bezier(0.34,1.56,0.64,1)`,
           }}>
+          <button onClick={_close} style={{
+            position:"absolute",top:10,right:12,zIndex:5,
+            width:26,height:26,borderRadius:8,border:"none",cursor:"pointer",
+            background:"rgba(239,68,68,0.18)",color:"#ef4444",
+            display:"flex",alignItems:"center",justifyContent:"center",
+            fontSize:13,fontWeight:800,lineHeight:1,
+          }}>✕</button>
           <div style={{
             padding:"10px 20px 14px",
             background:shade(0.04),
@@ -3046,6 +3096,7 @@ function BookingModal({ booking, onClose, onAction, settings, onViewStudent }) {
         <div onClick={e=>e.stopPropagation()}
           onAnimationEnd={closing ? ()=>{ setClosing(false); onClose(); } : undefined}
           style={{
+            position:"relative",
             width:"100%",maxWidth:480,background:BG_DEEP,
             borderRadius:"24px 24px 0 0",
             boxShadow:`0 -2px 0 ${c}66, 0 -16px 60px ${shade(0.6)}`,
@@ -3056,6 +3107,13 @@ function BookingModal({ booking, onClose, onAction, settings, onViewStudent }) {
               ? `_bm-down 0.26s ease-in forwards`
               : `_bm-up 0.38s cubic-bezier(0.34,1.56,0.64,1)`,
           }}>
+          <button onClick={_close} style={{
+            position:"absolute",top:10,right:12,zIndex:5,
+            width:26,height:26,borderRadius:8,border:"none",cursor:"pointer",
+            background:"rgba(239,68,68,0.18)",color:"#ef4444",
+            display:"flex",alignItems:"center",justifyContent:"center",
+            fontSize:13,fontWeight:800,lineHeight:1,
+          }}>✕</button>
 
           {/* Header: handle + student info */}
           <div style={{
@@ -3415,6 +3473,7 @@ function PersonalEventModal({ data, onClose, onConfirm }) {
             else onClose();
           } : undefined}
           style={{
+            position:"relative",
             width:"100%",maxWidth:480,background:BG_DEEP,
             borderRadius:"24px 24px 0 0",
             boxShadow:`0 -2px 0 rgba(45,212,191,0.3), 0 -16px 60px ${shade(0.6)}`,
@@ -3423,6 +3482,13 @@ function PersonalEventModal({ data, onClose, onConfirm }) {
             pointerEvents: closing ? "none" : undefined,
             animation: closing ? `_pe-down 0.26s ease-in forwards` : `_pe-up 0.38s cubic-bezier(0.34,1.56,0.64,1)`,
           }}>
+          <button onClick={_close} style={{
+            position:"absolute",top:10,right:12,zIndex:5,
+            width:26,height:26,borderRadius:8,border:"none",cursor:"pointer",
+            background:"rgba(239,68,68,0.18)",color:"#ef4444",
+            display:"flex",alignItems:"center",justifyContent:"center",
+            fontSize:13,fontWeight:800,lineHeight:1,
+          }}>✕</button>
           <div style={{
             padding:"10px 18px 14px",
             background:"linear-gradient(145deg,rgba(45,212,191,0.12),rgba(20,184,166,0.05))",
@@ -3639,6 +3705,7 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
         <div onClick={e=>e.stopPropagation()}
           onAnimationEnd={closing ? ()=>{ setClosing(false); onClose(); } : undefined}
           style={{
+            position:"relative",
             width:"100%",maxWidth:480,background:BG_DEEP,
             borderRadius:"24px 24px 0 0",
             boxShadow:`0 -2px 0 rgba(34,197,94,0.3), 0 -16px 60px ${shade(0.6)}`,
@@ -3649,6 +3716,13 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
               ? `_nb-down 0.26s ease-in forwards`
               : `_nb-up 0.38s cubic-bezier(0.34,1.56,0.64,1)`,
           }}>
+          <button onClick={_close} style={{
+            position:"absolute",top:10,right:12,zIndex:5,
+            width:26,height:26,borderRadius:8,border:"none",cursor:"pointer",
+            background:"rgba(239,68,68,0.18)",color:"#ef4444",
+            display:"flex",alignItems:"center",justifyContent:"center",
+            fontSize:13,fontWeight:800,lineHeight:1,
+          }}>✕</button>
 
           {/* Header */}
           <div style={{
