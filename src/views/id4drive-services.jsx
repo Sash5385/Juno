@@ -77,9 +77,8 @@ function Inset({ children, style={} }) {
 // ─── SERVICE FORM MODAL ──────────────────────────────────────────
 function ServiceFormModal({ svc, onSave, onClose }) {
   const theme = useContext(ThemeContext);
-  const { SURF_HI, SURFACE, TEXT, DIM, FAINT, ACCENT, ACC_HI, GOLD, SO } = theme;
+  const { SURF_HI, SURFACE, BG_DEEP, TEXT, DIM, ACCENT, ACC_HI, GOLD, SO } = theme;
   const PALETTE = makePalette(theme);
-  const CATEGORIES = makeCategories(theme);
   const { glow, shade } = useFX();
   const isNew = !svc;
   const [form, setForm] = useState(svc || {
@@ -88,8 +87,8 @@ function ServiceFormModal({ svc, onSave, onClose }) {
     accessCats:["cat-all"],lessons:0,income:0,
   });
   const upd = (k,v) => setForm(f=>({...f,[k]:v}));
-  const toggleCat = id => setForm(f=>({...f,accessCats:f.accessCats.includes(id)?f.accessCats.filter(c=>c!==id):[...f.accessCats,id]}));
   const valid = form.name.trim() && form.accessCats.length > 0;
+  const accentColor = PALETTE.find(p=>p.id===form.colorId)?.color || theme.GREEN;
 
   return (
     <Modal open onClose={onClose} sheet size="lg" title={isNew?"Нова послуга":"Редагування послуги"}
@@ -99,19 +98,23 @@ function ServiceFormModal({ svc, onSave, onClose }) {
           {isNew?"Створити послугу":"Зберегти зміни"}
         </Btn>
       </>}>
+      <div style={{
+        margin:"-14px -20px 0",padding:"16px 20px 20px",transition:"background .2s",
+        background:`linear-gradient(165deg,color-mix(in srgb,${accentColor} 26%,${BG_DEEP}) 0%,${BG_DEEP} 65%)`,
+      }}>
       {/* slot preview */}
       <div style={{marginBottom:16}}>
-        <div style={{fontSize:10,color:FAINT,letterSpacing:1.5,textTransform:"uppercase",marginBottom:8}}>ПОПЕРЕДНІЙ ПЕРЕГЛЯД СЛОТУ</div>
+        <div style={{fontSize:10,color:"rgba(255,255,255,0.55)",letterSpacing:1.5,textTransform:"uppercase",marginBottom:8}}>ПОПЕРЕДНІЙ ПЕРЕГЛЯД СЛОТУ</div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
           <SlotPreview svc={form} height={72}/>
           <SlotPreview svc={{...form,duration:form.duration*2}} height={72}/>
         </div>
-        <div style={{fontSize:10,color:FAINT,marginTop:4,textAlign:"center"}}>1 слот · 2 слоти (подвійний)</div>
+        <div style={{fontSize:10,color:"rgba(255,255,255,0.55)",marginTop:4,textAlign:"center"}}>1 слот · 2 слоти (подвійний)</div>
       </div>
 
       {/* name */}
       <div style={{marginBottom:14}}>
-        <div style={{fontSize:10,color:FAINT,letterSpacing:1,marginBottom:6}}>НАЗВА</div>
+        <div style={{fontSize:10,color:"rgba(255,255,255,0.55)",letterSpacing:1,marginBottom:6}}>НАЗВА</div>
         <Inset style={{padding:"4px 14px"}}>
           <input value={form.name} onChange={e=>upd("name",e.target.value)} placeholder="Назва послуги..."
             style={{width:"100%",background:"transparent",border:"none",outline:"none",color:TEXT,fontSize:15,fontWeight:800,padding:"10px 0",fontFamily:"inherit"}}/>
@@ -120,8 +123,8 @@ function ServiceFormModal({ svc, onSave, onClose }) {
 
       {/* type */}
       <div style={{marginBottom:14}}>
-        <div style={{fontSize:10,color:FAINT,letterSpacing:1,marginBottom:8}}>ТИП</div>
-        <div style={{display:"flex",gap:8}}>
+        <div style={{fontSize:10,color:"rgba(255,255,255,0.55)",letterSpacing:1,marginBottom:8}}>ТИП</div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
           <Chip active={form.type==="school"}  color={theme.GREEN} onClick={()=>upd("type","school")}>🏫 Автошкола</Chip>
           <Chip active={form.type==="private"} color={GOLD}        onClick={()=>upd("type","private")}>🚗 Приватний</Chip>
         </div>
@@ -130,7 +133,7 @@ function ServiceFormModal({ svc, onSave, onClose }) {
       {/* duration + price */}
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
         <div>
-          <div style={{fontSize:10,color:FAINT,letterSpacing:1,marginBottom:6}}>ТРИВАЛІСТЬ (хв)</div>
+          <div style={{fontSize:10,color:"rgba(255,255,255,0.55)",letterSpacing:1,marginBottom:6}}>ТРИВАЛІСТЬ (хв)</div>
           <Inset style={{padding:"10px 14px",display:"flex",alignItems:"center",gap:6}}>
             <input type="number" value={form.duration} min={5} max={480} onChange={e=>upd("duration",+e.target.value)}
               style={{flex:1,background:"transparent",border:"none",outline:"none",color:TEXT,fontSize:18,fontWeight:800,width:60,fontFamily:"inherit"}}/>
@@ -147,7 +150,7 @@ function ServiceFormModal({ svc, onSave, onClose }) {
           </div>
         </div>
         <div>
-          <div style={{fontSize:10,color:FAINT,letterSpacing:1,marginBottom:6}}>ЦІНА (₴)</div>
+          <div style={{fontSize:10,color:"rgba(255,255,255,0.55)",letterSpacing:1,marginBottom:6}}>ЦІНА (₴)</div>
           <Inset style={{padding:"10px 14px",display:"flex",alignItems:"center",gap:6}}>
             <input type="number" value={form.price} min={0} onChange={e=>upd("price",+e.target.value)}
               style={{flex:1,background:"transparent",border:"none",outline:"none",color:GOLD,fontSize:18,fontWeight:800,width:80,fontFamily:"inherit"}}/>
@@ -158,38 +161,19 @@ function ServiceFormModal({ svc, onSave, onClose }) {
 
       {/* color */}
       <div style={{marginBottom:14}}>
-        <div style={{fontSize:10,color:FAINT,letterSpacing:1,marginBottom:8}}>КОЛІР СЛОТУ</div>
-        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+        <div style={{fontSize:10,color:"rgba(255,255,255,0.55)",letterSpacing:1,marginBottom:8}}>КОЛІР СЛОТУ</div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:8}}>
           {PALETTE.map(p=>(
             <button key={p.id} title={p.name} onClick={()=>upd("colorId",p.id)} style={{
-              width:34,height:34,borderRadius:10,cursor:"pointer",
+              width:"100%",aspectRatio:"1",borderRadius:10,cursor:"pointer",
               background:`linear-gradient(155deg,${p.color}bb,${p.color}44)`,
               border:form.colorId===p.id?`2.5px solid #fff`:"2px solid transparent",
               boxShadow:form.colorId===p.id?`0 0 12px ${p.color}88,inset 1px 1px 0 ${glow(0.4)}`:`inset 1px 1px 0 ${glow(0.2)},0 2px 6px ${shade(0.3)}`,
-              transform:form.colorId===p.id?"scale(1.12)":"scale(1)",transition:"transform .12s,box-shadow .12s",
+              transform:form.colorId===p.id?"scale(1.06)":"scale(1)",transition:"transform .12s,box-shadow .12s",
             }}/>
           ))}
         </div>
       </div>
-
-      {/* description */}
-      <div style={{marginBottom:14}}>
-        <div style={{fontSize:10,color:FAINT,letterSpacing:1,marginBottom:6}}>ОПИС</div>
-        <Inset style={{padding:"10px 14px"}}>
-          <textarea value={form.description} onChange={e=>upd("description",e.target.value)} placeholder="Короткий опис послуги..." rows={2}
-            style={{width:"100%",background:"transparent",border:"none",outline:"none",color:TEXT,fontSize:13,resize:"none",fontFamily:"inherit"}}/>
-        </Inset>
-      </div>
-
-      {/* access cats */}
-      <div style={{marginBottom:0}}>
-        <div style={{fontSize:10,color:FAINT,letterSpacing:1,marginBottom:8}}>ДОСТУП (для яких категорій учнів)</div>
-        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-          {Object.entries(CATEGORIES).map(([id,c])=>(
-            <Chip key={id} active={form.accessCats.includes(id)} color={c.color} onClick={()=>toggleCat(id)}>{c.name}</Chip>
-          ))}
-        </div>
-        {form.accessCats.length===0 && <div style={{fontSize:11,color:ACCENT,marginTop:6}}>⚠ Вибери хоча б одну категорію</div>}
       </div>
     </Modal>
   );
@@ -291,43 +275,65 @@ function ServiceCard({ svc, isDragging, onEdit, onToggle, onDelete, dragHandlePr
   );
 }
 
-// ─── SERVICE ROW (list mode) ─────────────────────────────────────
+// ─── SERVICE ROW (colorway card) ──────────────────────────────────
 function ServiceRow({ svc, onEdit, onToggle, onDelete, dragHandleProps, isDragging }) {
   const theme = useContext(ThemeContext);
-  const { SURF_HI, SURFACE, BORDER, TEXT, DIM, FAINT, SO } = theme;
+  const { BG_DEEP } = theme;
+  const { shade, glow } = useFX();
   const Ic = makeIc(theme);
   const PALETTE = makePalette(theme);
   const [open, setOpen] = useState(false);
   const c = PALETTE.find(p=>p.id===svc.colorId)?.color || theme.GREEN;
   const hasInstructions = svc.instructions && svc.instructions.trim();
+  const dimmed = !svc.active || svc.archived;
+  const stop = e => e.stopPropagation();
   return (
-    <div className={`drag-item ${isDragging?"dragging":""}`} style={{background:`linear-gradient(155deg,${SURF_HI},${SURFACE})`,borderRadius:13,marginBottom:8,overflow:"hidden",boxShadow:SO,opacity:svc.active&&!svc.archived?1:0.55}}>
-      <div style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px"}}>
-        <div {...dragHandleProps} style={{cursor:"grab",touchAction:"none"}}>{Ic.drag(24)}</div>
-        <div style={{width:8,height:36,borderRadius:4,background:c,boxShadow:`0 0 8px ${c}88`,flexShrink:0}}/>
-        <div style={{flex:1,minWidth:0}} onClick={()=>hasInstructions&&setOpen(v=>!v)}>
-          <div style={{fontSize:13,fontWeight:800,color:TEXT,marginBottom:2}}>{svc.name}</div>
-          <div style={{fontSize:11,color:DIM}}>{fmtDur(svc.duration)} · {svc.price}₴ · {svc.lessons} уроків</div>
+    <div className={`drag-item color-card ${isDragging?"dragging":""}`} onClick={()=>onEdit(svc)} style={{
+      position:"relative",overflow:"hidden",borderRadius:14,marginBottom:8,padding:"9px 11px 8px",cursor:"pointer",
+      background:`linear-gradient(155deg,color-mix(in srgb,${c} 50%,${BG_DEEP}) 0%,color-mix(in srgb,${c} 18%,${BG_DEEP}) 100%)`,
+      border:`1px solid color-mix(in srgb,${c} 45%,transparent)`,
+      boxShadow:`-2px 5px 13px ${shade(0.45)},inset 1px 1px 0 ${glow(0.15)}`,
+      opacity:dimmed?0.55:1,
+    }}>
+      <div style={{position:"absolute",pointerEvents:"none",top:0,right:"6%",width:"55%",height:"45%",zIndex:1,
+        background:"radial-gradient(ellipse at top right,rgba(255,255,255,0.18) 0%,transparent 65%)"}}/>
+
+      <button onClick={e=>{stop(e);onDelete(svc);}} style={{
+        position:"absolute",top:6,right:6,zIndex:3,width:20,height:20,borderRadius:"50%",border:"none",cursor:"pointer",
+        background:theme.RED,color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",
+        boxShadow:`0 2px 6px ${shade(0.4)}`,
+      }}>
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+
+      <div style={{position:"relative",zIndex:2,display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8,paddingRight:22}}>
+        <div style={{display:"flex",alignItems:"center",gap:7,minWidth:0,flex:1}}>
+          <div onClick={stop} {...dragHandleProps} style={{cursor:"grab",touchAction:"none",opacity:0.6,flexShrink:0}}>{Ic.drag(18)}</div>
+          <div style={{minWidth:0}}>
+            <div style={{fontSize:13.5,fontWeight:800,color:"#fff",textShadow:`0 1px 3px ${shade(0.5)}`,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{svc.name}</div>
+            <div style={{fontSize:10,color:"rgba(255,255,255,0.78)",fontWeight:700,marginTop:1,display:"flex",gap:5,alignItems:"center",flexWrap:"wrap"}}>
+              <span>{svc.type==="school"?"🏫 Автошкола":"🚗 Приватний"}</span>
+              {svc.archived && <Pill label="Архів" color="#fff" bg="rgba(0,0,0,0.28)"/>}
+              {!svc.active && !svc.archived && <Pill label="Вимкнена" color="#fff" bg="rgba(0,0,0,0.28)"/>}
+            </div>
+          </div>
         </div>
-        {!svc.active&&<Pill label="Вимк." color={DIM} bg={`${DIM}1a`}/>}
-        {svc.archived&&<Pill label="Архів" color="#fb923c" bg="rgba(251,146,60,0.15)"/>}
-        {hasInstructions && (
-          <button onClick={()=>setOpen(v=>!v)} style={{background:"none",border:"none",cursor:"pointer",padding:"0 2px",color:FAINT,fontSize:11,flexShrink:0}}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"
-              style={{display:"block",transform:open?"rotate(180deg)":"none",transition:"transform .2s"}}>
-              <polyline points="6 9 12 15 18 9"/>
-            </svg>
-          </button>
-        )}
-        <Toggle on={svc.active&&!svc.archived} onChange={v=>onToggle(svc.id,v)}/>
-        <button onClick={()=>onEdit(svc)} style={{background:"none",border:"none",cursor:"pointer",padding:0}}>{Ic.edit(28)}</button>
-        <button onClick={()=>onDelete(svc)} style={{background:"none",border:"none",cursor:"pointer",padding:0}}>{Ic.trash(28)}</button>
+        <div style={{fontSize:15,fontWeight:800,color:"#fff",textShadow:`0 1px 3px ${shade(0.5)}`,flexShrink:0,whiteSpace:"nowrap"}}>{svc.price} ₴</div>
       </div>
+
+      <div style={{position:"relative",zIndex:2,display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:6}}>
+        <div style={{fontSize:10.5,color:"rgba(255,255,255,0.85)",fontWeight:700}}>{fmtDur(svc.duration)} · {svc.lessons} уроків</div>
+        <div onClick={stop}><Toggle on={svc.active&&!svc.archived} onChange={v=>onToggle(svc.id,v)}/></div>
+      </div>
+
+      {hasInstructions && (
+        <button onClick={e=>{stop(e);setOpen(v=>!v);}} style={{position:"relative",zIndex:2,background:"rgba(0,0,0,0.22)",border:"none",borderRadius:7,cursor:"pointer",marginTop:6,padding:"4px 7px",color:"rgba(255,255,255,0.85)",fontSize:10,fontWeight:700,display:"flex",alignItems:"center",gap:5,fontFamily:"inherit"}}>
+          📋 Інструкція
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" style={{transform:open?"rotate(180deg)":"none",transition:"transform .2s"}}><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+      )}
       {open && hasInstructions && (
-        <div style={{padding:"10px 14px 12px",borderTop:`1px solid ${BORDER}`,display:"flex",gap:8,alignItems:"flex-start"}}>
-          <span style={{fontSize:16,flexShrink:0}}>📋</span>
-          <div style={{fontSize:12,color:DIM,lineHeight:1.55}}>{svc.instructions}</div>
-        </div>
+        <div onClick={stop} style={{position:"relative",zIndex:2,marginTop:5,padding:"7px 9px",borderRadius:9,background:"rgba(0,0,0,0.22)",fontSize:11,color:"rgba(255,255,255,0.9)",lineHeight:1.5}}>{svc.instructions}</div>
       )}
     </div>
   );
