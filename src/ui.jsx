@@ -217,7 +217,7 @@ export function Modal({ open, onClose, children, size = "md", sheet = true, titl
           <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 20px 12px", borderBottom: `1px solid ${BORDER}`, flexShrink: 0 }}>
             {icon && <div style={{ width: 34, height: 34, borderRadius: 9, background: ink(0.07), display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>{icon}</div>}
             <div style={{ fontSize: 15, fontWeight: 700, color: TEXT, flex: 1 }}>{title}</div>
-            <div onClick={onClose} style={{ width: 28, height: 28, borderRadius: 8, background: ink(0.07), display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: FAINT, fontSize: 14, flexShrink: 0, userSelect: "none" }}>✕</div>
+            <div onClick={onClose} style={{ width: 28, height: 28, borderRadius: 8, background: "rgba(239,68,68,0.18)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#ef4444", fontSize: 14, fontWeight: 800, flexShrink: 0, userSelect: "none" }}>✕</div>
           </div>
         )}
         <div style={{ flex: 1, overflowY: "auto", padding: bodyPad }}>

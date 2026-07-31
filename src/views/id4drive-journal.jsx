@@ -156,9 +156,9 @@ function EventDetailSheet({ ev, meta, onClose, theme }) {
               onClick={_close}
               style={{
                 width:28,height:28,borderRadius:8,
-                background:glow(0.07),
+                background:"rgba(239,68,68,0.18)",
                 display:"flex",alignItems:"center",justifyContent:"center",
-                cursor:"pointer",color:theme.FAINT,fontSize:14,userSelect:"none",flexShrink:0,
+                cursor:"pointer",color:"#ef4444",fontSize:14,fontWeight:800,userSelect:"none",flexShrink:0,
               }}
             >✕</div>
           </div>

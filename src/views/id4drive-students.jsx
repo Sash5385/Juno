@@ -324,9 +324,9 @@ function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock }) {
               <div style={{fontSize:11,color:typeColor,fontWeight:700,marginTop:2}}>{typeLabel}</div>
             </div>
             <div onClick={_close} style={{
-              width:28,height:28,borderRadius:8,background:glow(0.07),
+              width:28,height:28,borderRadius:8,background:"rgba(239,68,68,0.18)",
               display:"flex",alignItems:"center",justifyContent:"center",
-              cursor:"pointer",color:FAINT,fontSize:14,userSelect:"none",flexShrink:0,
+              cursor:"pointer",color:"#ef4444",fontSize:14,fontWeight:800,userSelect:"none",flexShrink:0,
             }}>✕</div>
           </div>
 
@@ -891,12 +891,20 @@ export default function StudentsView({ studentJump, onStudentJumpHandled } = {})
           backdropFilter:"blur(8px)",
         }}>
           <div className="sheet" onClick={e=>e.stopPropagation()} style={{
+            position:"relative",
             width:"100%",maxWidth:480,background:BG_DEEP,
             borderRadius:"24px 24px 0 0",
             boxShadow:`0 -2px 0 ${BORDER}, 0 -16px 50px rgba(0,0,0,0.6)`,
             padding:"12px 16px calc(20px + env(safe-area-inset-bottom))",
             maxHeight:"88vh",overflowY:"auto",
           }}>
+            <button onClick={()=>setShowNew(false)} style={{
+              position:"absolute",top:10,right:12,zIndex:5,
+              width:26,height:26,borderRadius:8,border:"none",cursor:"pointer",
+              background:"rgba(239,68,68,0.18)",color:"#ef4444",
+              display:"flex",alignItems:"center",justifyContent:"center",
+              fontSize:13,fontWeight:800,lineHeight:1,
+            }}>✕</button>
             <div style={{width:38,height:4,borderRadius:2,background:ink(0.12),margin:"0 auto 14px"}}/>
             <div style={{fontSize:14,fontWeight:800,color:TEXT,marginBottom:12}}>Новий учень</div>
             <StudentForm
