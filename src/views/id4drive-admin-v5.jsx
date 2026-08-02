@@ -698,8 +698,14 @@ function MonthCalendarSheet({ bookings, onClose, onPickDate }) {
         @keyframes _mc-bg-out{from{opacity:1}to{opacity:0}}
         @keyframes _mc-slide-next{from{transform:translateX(28px);opacity:0}to{transform:translateX(0);opacity:1}}
         @keyframes _mc-slide-prev{from{transform:translateX(-28px);opacity:0}to{transform:translateX(0);opacity:1}}
-        @keyframes _mc-zoom-in{from{transform:scale(0.4);opacity:0}to{transform:scale(1);opacity:1}}
-        @keyframes _mc-zoom-out{from{transform:scale(1);opacity:1}to{transform:scale(0.4);opacity:0}}
+        @keyframes _mc-glass-in{
+          from{ transform:translateX(-50%) scale(.7); opacity:0; box-shadow:0 0 0 1px rgba(255,255,255,0.06), 0 8px 24px rgba(0,0,0,0.35); }
+          to{ transform:translateX(-50%) scale(1); opacity:1; box-shadow:0 0 0 1.5px var(--glow-c), 0 0 22px var(--glow-soft), 0 10px 30px rgba(0,0,0,0.5); }
+        }
+        @keyframes _mc-glass-out{
+          from{ transform:translateX(-50%) scale(1); opacity:1; box-shadow:0 0 0 1.5px var(--glow-c), 0 0 22px var(--glow-soft), 0 10px 30px rgba(0,0,0,0.5); }
+          to{ transform:translateX(-50%) scale(.82); opacity:0; box-shadow:0 0 0 1px rgba(255,255,255,0.04), 0 4px 14px rgba(0,0,0,0.3); }
+        }
       `}</style>
       <div onClick={closing ? undefined : close} style={{
         position:"fixed", inset:0, zIndex:200, background:shade(0.55),
@@ -789,12 +795,14 @@ function MonthCalendarSheet({ bookings, onClose, onPickDate }) {
                       {isHeld && (
                         <div style={{
                           position:"absolute", left:"50%", [openUp ? "bottom" : "top"]:"calc(100% + 6px)",
-                          transform:"translateX(-50%)", transformOrigin: openUp ? "bottom center" : "top center",
+                          transformOrigin: openUp ? "bottom center" : "top center",
                           zIndex:31, width:150, maxWidth:"60vw",
-                          background:SURF_HI, borderRadius:12,
-                          boxShadow:`0 8px 24px ${shade(0.5)}, 0 0 0 1px ${ink(0.08)}`,
+                          background:`color-mix(in srgb, ${SURF_HI} 68%, transparent)`,
+                          backdropFilter:"blur(10px)", WebkitBackdropFilter:"blur(10px)",
+                          borderRadius:12,
                           padding:"9px 10px", pointerEvents:"none",
-                          animation: heldClosing ? `_mc-zoom-out 0.18s ease-in forwards` : `_mc-zoom-in 0.18s cubic-bezier(0.34,1.56,0.64,1)`,
+                          "--glow-c": c, "--glow-soft": `color-mix(in srgb, ${c} 45%, transparent)`,
+                          animation: heldClosing ? `_mc-glass-out 0.24s ease-in forwards` : `_mc-glass-in 0.4s cubic-bezier(0.25,1,0.4,1)`,
                         }}>
                           <div style={{fontSize:11, fontWeight:800, color:TEXT, marginBottom:4}}>
                             {d} {monthLabel.split(" ")[0]}
