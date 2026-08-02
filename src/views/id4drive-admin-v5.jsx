@@ -1161,7 +1161,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
     }
   }, [jumpTarget]);
 
-  const TIME_COL_W = 34;
+  const TIME_COL_W = 51;
   const HEADER_H = 64;
   const currentYear = new Date().getFullYear();
   const N_DAYS = PAST_DAYS + 365;
@@ -1650,7 +1650,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                     ? `Зняти всі слоти (${settings.calendarOpenDays||30} днів)`
                     : `Згенерувати слоти на ${settings.calendarOpenDays||30} днів за графіком`}
                   style={{
-                    width:26, height:26, borderRadius:8, border:"none", cursor: isGeneratingAll?"default":"pointer",
+                    width:32, height:32, borderRadius:9, border:"none", cursor: isGeneratingAll?"default":"pointer",
                     background: isGeneratingAll
                       ? (slotsOn ? "rgba(220,60,60,0.12)" : "rgba(99,211,120,0.12)")
                       : (slotsOn ? "rgba(220,60,60,0.18)" : "rgba(99,211,120,0.18)"),
@@ -1658,8 +1658,8 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                     transition:"background .15s", flexShrink:0,
                   }}>
                   {isGeneratingAll
-                    ? <div style={{width:12,height:12,borderRadius:"50%",border:`2px solid ${slotsOn?"rgba(220,60,60,0.3)":"rgba(99,211,120,0.3)"}`,borderTopColor:slotsOn?"rgba(220,60,60,0.9)":"rgba(99,211,120,0.9)",animation:"spin .7s linear infinite"}}/>
-                    : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={slotsOn?"rgba(220,60,60,0.9)":"rgba(99,211,120,0.9)"} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+                    ? <div style={{width:14,height:14,borderRadius:"50%",border:`2px solid ${slotsOn?"rgba(220,60,60,0.3)":"rgba(99,211,120,0.3)"}`,borderTopColor:slotsOn?"rgba(220,60,60,0.9)":"rgba(99,211,120,0.9)",animation:"spin .7s linear infinite"}}/>
+                    : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={slotsOn?"rgba(220,60,60,0.9)":"rgba(99,211,120,0.9)"} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
                   }
                 </button>
               );
@@ -1668,12 +1668,12 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
               onClick={()=>setShowMonthCal(true)}
               title="Місячний календар"
               style={{
-                width:26, height:26, borderRadius:8, border:"none", cursor:"pointer",
+                width:32, height:32, borderRadius:9, border:"none", cursor:"pointer",
                 background:"rgba(91,155,255,0.18)",
                 display:"flex", alignItems:"center", justifyContent:"center",
                 transition:"background .15s", flexShrink:0,
               }}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(91,155,255,0.9)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18M8 2v4M16 2v4"/></svg>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(91,155,255,0.9)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18M8 2v4M16 2v4"/></svg>
             </button>
           </div>
           <div style={{overflow:"hidden", flex:1, position:"relative"}}>
