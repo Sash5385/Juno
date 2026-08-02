@@ -606,6 +606,7 @@ function MonthCalendarSheet({ bookings, onClose, onPickDate }) {
   const today0 = useRef((() => { const d = new Date(); d.setHours(12,0,0,0); return d; })()).current;
   const [viewY, setViewY] = useState(today0.getFullYear());
   const [viewM, setViewM] = useState(today0.getMonth());
+  const [slideDir, setSlideDir] = useState(0);
 
   const close = () => setClosing(true);
 
@@ -645,6 +646,7 @@ function MonthCalendarSheet({ bookings, onClose, onPickDate }) {
   const goMonth = (delta) => {
     let m = viewM + delta, y = viewY;
     if (m < 0) { m = 11; y--; } else if (m > 11) { m = 0; y++; }
+    setSlideDir(delta);
     setViewM(m); setViewY(y);
   };
 
@@ -665,6 +667,8 @@ function MonthCalendarSheet({ bookings, onClose, onPickDate }) {
         @keyframes _mc-down{from{transform:translateY(0);opacity:1}to{transform:translateY(100%);opacity:0}}
         @keyframes _mc-bg-in{from{opacity:0}to{opacity:1}}
         @keyframes _mc-bg-out{from{opacity:1}to{opacity:0}}
+        @keyframes _mc-slide-next{from{transform:translateX(28px);opacity:0}to{transform:translateX(0);opacity:1}}
+        @keyframes _mc-slide-prev{from{transform:translateX(-28px);opacity:0}to{transform:translateX(0);opacity:1}}
       `}</style>
       <div onClick={closing ? undefined : close} style={{
         position:"fixed", inset:0, zIndex:200, background:shade(0.55),
@@ -707,34 +711,38 @@ function MonthCalendarSheet({ bookings, onClose, onPickDate }) {
               }}>›</button>
             </div>
 
-            <div style={{display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:4, marginBottom:6}}>
-              {["Пн","Вт","Ср","Чт","Пт","Сб","Нд"].map(wd => (
-                <div key={wd} style={{fontSize:9, fontWeight:700, color:FAINT, textAlign:"center", textTransform:"uppercase"}}>{wd}</div>
-              ))}
-            </div>
+            <div key={`${viewY}-${viewM}`} style={{
+              animation: slideDir > 0 ? `_mc-slide-next 0.22s ease-out` : slideDir < 0 ? `_mc-slide-prev 0.22s ease-out` : "none",
+            }}>
+              <div style={{display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:4, marginBottom:6}}>
+                {["Пн","Вт","Ср","Чт","Пт","Сб","Нд"].map(wd => (
+                  <div key={wd} style={{fontSize:9, fontWeight:700, color:FAINT, textAlign:"center", textTransform:"uppercase"}}>{wd}</div>
+                ))}
+              </div>
 
-            <div style={{display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:4, paddingBottom:20}}>
-              {cells.map((d, i) => {
-                if (d === null) return <div key={`e${i}`}/>;
-                const n = counts[d] || 0;
-                const c = tierColor(n);
-                const t = Math.min(n, 8) / 8;
-                const a = n === 0 ? 0.06 : 0.14 + t * 0.4;
-                const bg = `color-mix(in srgb, ${c} ${Math.round(a * 100)}%, ${BG_DEEP})`;
-                const isToday = isCurMonth && d === today0.getDate();
-                return (
-                  <button key={d} onClick={()=>pick(d)} style={{
-                    aspectRatio:"1", borderRadius:9, border:"none", cursor:"pointer",
-                    background:bg,
-                    boxShadow: n > 0 ? `inset 0 0 0 1.4px ${c}` : (isToday ? `inset 0 0 0 1.4px ${GOLD}` : "none"),
-                    display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
-                    fontSize:12, fontWeight:800, color: n > 4 ? (isLight ? "#fff" : "#17181b") : TEXT,
-                  }}>
-                    {d}
-                    {n > 0 && <span style={{fontSize:7, fontWeight:700, opacity:0.75, marginTop:1}}>{n}</span>}
-                  </button>
-                );
-              })}
+              <div style={{display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:4, paddingBottom:20}}>
+                {cells.map((d, i) => {
+                  if (d === null) return <div key={`e${i}`}/>;
+                  const n = counts[d] || 0;
+                  const c = tierColor(n);
+                  const t = Math.min(n, 8) / 8;
+                  const a = n === 0 ? 0.06 : 0.14 + t * 0.4;
+                  const bg = `color-mix(in srgb, ${c} ${Math.round(a * 100)}%, ${BG_DEEP})`;
+                  const isToday = isCurMonth && d === today0.getDate();
+                  return (
+                    <button key={d} onClick={()=>pick(d)} style={{
+                      aspectRatio:"1", borderRadius:9, border:"none", cursor:"pointer",
+                      background:bg,
+                      boxShadow: n > 0 ? `inset 0 0 0 1.4px ${c}` : (isToday ? `inset 0 0 0 1.4px ${GOLD}` : "none"),
+                      display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
+                      fontSize:12, fontWeight:800, color: n > 4 ? (isLight ? "#fff" : "#17181b") : TEXT,
+                    }}>
+                      {d}
+                      {n > 0 && <span style={{fontSize:7, fontWeight:700, opacity:0.75, marginTop:1}}>{n}</span>}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </div>
