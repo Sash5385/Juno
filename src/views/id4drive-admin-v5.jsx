@@ -778,7 +778,7 @@ function MonthCalendarSheet({ bookings, onClose, onPickDate }) {
                   return (
                     <div key={d} style={{position:"relative"}}>
                       <button
-                        onClick={()=>pick(d)}
+                        onClick={()=>{ if (!heldRef.current) pick(d); }}
                         onPointerDown={()=>startHold(d)}
                         onPointerUp={endHold}
                         onPointerLeave={endHold}
