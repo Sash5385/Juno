@@ -801,7 +801,7 @@ function MonthCalendarSheet({ bookings, onClose, onPickDate }) {
                           borderRadius:14,
                           padding:"13px 14px", pointerEvents:"none",
                           "--glow-c": c, "--glow-soft": `color-mix(in srgb, ${c} 45%, transparent)`,
-                          animation: heldClosing ? `_mc-glass-out 0.24s ease-in forwards` : `_mc-glass-in 0.4s cubic-bezier(0.25,1,0.4,1)`,
+                          animation: heldClosing ? `_mc-glass-out 0.24s ease-in forwards` : `_mc-glass-in 0.4s cubic-bezier(0.25,1,0.4,1) forwards`,
                         }}>
                           <div style={{fontSize:13, fontWeight:800, color:TEXT, marginBottom:6}}>
                             {d} {monthLabel.split(" ")[0]}
