@@ -638,7 +638,7 @@ function MonthCalendarSheet({ bookings, onClose, onPickDate }) {
 
   const tierColor = (n) => {
     if (n <= 3) return RED;
-    if (n <= 7) return GOLD;
+    if (n <= 6) return GOLD;
     return GREEN;
   };
 
