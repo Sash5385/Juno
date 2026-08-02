@@ -623,8 +623,17 @@ function MonthCalendarSheet({ bookings, onClose, onPickDate }) {
 
   const firstDow = (new Date(viewY, viewM, 1).getDay() + 6) % 7;
   const daysInMonth = new Date(viewY, viewM + 1, 0).getDate();
-  const monthLabel = new Date(viewY, viewM, 1).toLocaleDateString("uk-UA", { month: "long", year: "numeric" });
+  const monthLabel = new Date(viewY, viewM, 1).toLocaleDateString("uk-UA", { month: "long", year: "numeric" }).replace(/\s*р\.?$/i, "");
   const isCurMonth = viewY === today0.getFullYear() && viewM === today0.getMonth();
+
+  const touchRef = useRef({ x: 0, y: 0 });
+  const onTouchStart = (e) => { const t = e.touches[0]; touchRef.current = { x: t.clientX, y: t.clientY }; };
+  const onTouchEnd = (e) => {
+    const t = e.changedTouches[0];
+    const dx = t.clientX - touchRef.current.x;
+    const dy = t.clientY - touchRef.current.y;
+    if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.5) goMonth(dx < 0 ? 1 : -1);
+  };
 
   const tierColor = (n) => {
     if (n === 0) return ink(0.1);
@@ -682,7 +691,7 @@ function MonthCalendarSheet({ bookings, onClose, onPickDate }) {
             fontSize:13, fontWeight:800, lineHeight:1,
           }}>✕</button>
 
-          <div style={{padding:"14px 16px 6px"}}>
+          <div style={{padding:"14px 16px 6px"}} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
             <div style={{width:38, height:4, borderRadius:2, background:ink(0.1), margin:"0 auto 14px"}}/>
             <div style={{display:"flex", alignItems:"center", justifyContent:"center", gap:14, marginBottom:14}}>
               <button onClick={()=>goMonth(-1)} style={{
