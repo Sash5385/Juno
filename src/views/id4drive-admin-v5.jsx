@@ -596,9 +596,148 @@ function BroadcastModal({ initialDate, initialSlot, onClose }) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// MONTH CALENDAR SHEET — bottom-sheet monthly overview, tap a day to jump
+// ═══════════════════════════════════════════════════════════════
+function MonthCalendarSheet({ bookings, onClose, onPickDate }) {
+  const { BG_DEEP, TEXT, FAINT, GOLD, GREEN, BLUE } = useContext(ThemeContext);
+  const { glow, shade, ink } = useFX();
+  const isLight = BG_DEEP !== "#161719";
+  const [closing, setClosing] = useState(false);
+  const today0 = useRef((() => { const d = new Date(); d.setHours(12,0,0,0); return d; })()).current;
+  const [viewY, setViewY] = useState(today0.getFullYear());
+  const [viewM, setViewM] = useState(today0.getMonth());
+
+  const close = () => setClosing(true);
+
+  const counts = useMemo(() => {
+    const map = {};
+    for (const b of bookings) {
+      if (b.type === "block" || b.type === "vip-slot" || b.type === "personal") continue;
+      const d = new Date(today0); d.setDate(d.getDate() + b.day);
+      if (d.getFullYear() === viewY && d.getMonth() === viewM) {
+        map[d.getDate()] = (map[d.getDate()] || 0) + 1;
+      }
+    }
+    return map;
+  }, [bookings, viewY, viewM, today0]);
+
+  const firstDow = (new Date(viewY, viewM, 1).getDay() + 6) % 7;
+  const daysInMonth = new Date(viewY, viewM + 1, 0).getDate();
+  const monthLabel = new Date(viewY, viewM, 1).toLocaleDateString("uk-UA", { month: "long", year: "numeric" });
+  const isCurMonth = viewY === today0.getFullYear() && viewM === today0.getMonth();
+
+  const tierColor = (n) => {
+    if (n === 0) return ink(0.1);
+    if (n < 4) return GOLD;
+    if (n < 7) return GREEN;
+    return BLUE;
+  };
+
+  const goMonth = (delta) => {
+    let m = viewM + delta, y = viewY;
+    if (m < 0) { m = 11; y--; } else if (m > 11) { m = 0; y++; }
+    setViewM(m); setViewY(y);
+  };
+
+  const pick = (day) => {
+    const dateStr = `${viewY}-${String(viewM + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    onPickDate(dateStr);
+    close();
+  };
+
+  const cells = [];
+  for (let i = 0; i < firstDow; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+
+  return (
+    <>
+      <style>{`
+        @keyframes _mc-up{from{transform:translateY(100%)}to{transform:translateY(0)}}
+        @keyframes _mc-down{from{transform:translateY(0);opacity:1}to{transform:translateY(100%);opacity:0}}
+        @keyframes _mc-bg-in{from{opacity:0}to{opacity:1}}
+        @keyframes _mc-bg-out{from{opacity:1}to{opacity:0}}
+      `}</style>
+      <div onClick={closing ? undefined : close} style={{
+        position:"fixed", inset:0, zIndex:200, background:shade(0.55),
+        display:"flex", alignItems:"flex-end", justifyContent:"center",
+        backdropFilter:"blur(8px)",
+        animation: closing ? `_mc-bg-out 0.26s ease-in forwards` : `_mc-bg-in 0.2s ease-out`,
+      }}>
+        <div onClick={e=>e.stopPropagation()}
+          onAnimationEnd={closing ? onClose : undefined}
+          style={{
+            position:"relative", width:"100%", maxWidth:480, background:BG_DEEP,
+            borderRadius:"24px 24px 0 0",
+            boxShadow:`0 -2px 0 ${glow(0.08)}, 0 -16px 60px ${shade(0.8)}`,
+            display:"flex", flexDirection:"column", overflow:"hidden",
+            pointerEvents: closing ? "none" : undefined,
+            animation: closing ? `_mc-down 0.26s ease-in forwards` : `_mc-up 0.38s cubic-bezier(0.34,1.56,0.64,1)`,
+            paddingBottom:"env(safe-area-inset-bottom, 0px)",
+          }}>
+          <button onClick={close} style={{
+            position:"absolute", top:10, right:12, zIndex:5,
+            width:26, height:26, borderRadius:8, border:"none", cursor:"pointer",
+            background:"rgba(239,68,68,0.18)", color:"#ef4444",
+            display:"flex", alignItems:"center", justifyContent:"center",
+            fontSize:13, fontWeight:800, lineHeight:1,
+          }}>✕</button>
+
+          <div style={{padding:"14px 16px 6px"}}>
+            <div style={{width:38, height:4, borderRadius:2, background:ink(0.1), margin:"0 auto 14px"}}/>
+            <div style={{display:"flex", alignItems:"center", justifyContent:"center", gap:14, marginBottom:14}}>
+              <button onClick={()=>goMonth(-1)} style={{
+                width:30, height:30, borderRadius:9, border:"none", cursor:"pointer",
+                background:ink(0.06), color:TEXT, fontSize:16, fontWeight:800,
+                display:"flex", alignItems:"center", justifyContent:"center",
+              }}>‹</button>
+              <div style={{fontSize:15, fontWeight:800, color:TEXT, textTransform:"capitalize", minWidth:150, textAlign:"center"}}>{monthLabel}</div>
+              <button onClick={()=>goMonth(1)} style={{
+                width:30, height:30, borderRadius:9, border:"none", cursor:"pointer",
+                background:ink(0.06), color:TEXT, fontSize:16, fontWeight:800,
+                display:"flex", alignItems:"center", justifyContent:"center",
+              }}>›</button>
+            </div>
+
+            <div style={{display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:4, marginBottom:6}}>
+              {["Пн","Вт","Ср","Чт","Пт","Сб","Нд"].map(wd => (
+                <div key={wd} style={{fontSize:9, fontWeight:700, color:FAINT, textAlign:"center", textTransform:"uppercase"}}>{wd}</div>
+              ))}
+            </div>
+
+            <div style={{display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:4, paddingBottom:20}}>
+              {cells.map((d, i) => {
+                if (d === null) return <div key={`e${i}`}/>;
+                const n = counts[d] || 0;
+                const c = tierColor(n);
+                const t = Math.min(n, 8) / 8;
+                const a = n === 0 ? 0.06 : 0.14 + t * 0.4;
+                const bg = `color-mix(in srgb, ${c} ${Math.round(a * 100)}%, ${BG_DEEP})`;
+                const isToday = isCurMonth && d === today0.getDate();
+                return (
+                  <button key={d} onClick={()=>pick(d)} style={{
+                    aspectRatio:"1", borderRadius:9, border:"none", cursor:"pointer",
+                    background:bg,
+                    boxShadow: n > 0 ? `inset 0 0 0 1.4px ${c}` : (isToday ? `inset 0 0 0 1.4px ${GOLD}` : "none"),
+                    display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
+                    fontSize:12, fontWeight:800, color: n > 4 ? (isLight ? "#fff" : "#17181b") : TEXT,
+                  }}>
+                    {d}
+                    {n > 0 && <span style={{fontSize:7, fontWeight:700, opacity:0.75, marginTop:1}}>{n}</span>}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
 // SCHEDULE VIEW with drag/resize + pinch-to-zoom + day-count
 // ═══════════════════════════════════════════════════════════════
-function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bookings, setBookings, activeDragIds, navTo, slotExistsRef, openSlotsRef, jumpTarget, onViewStudent }) {
+function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bookings, setBookings, activeDragIds, navTo, slotExistsRef, openSlotsRef, jumpTarget, setJumpTarget, onViewStudent }) {
   const { BG, BG_DEEP, SURFACE, SURF_HI, SURF_LO, BORDER, TEXT, DIM, FAINT, ACCENT, ACC_HI, SO, SI, STRIPE_A, STRIPE_B, GLOW, SHADE, INK } = useContext(ThemeContext);
   const isLight = BG !== "#1c1d21";
   const { glow, shade, ink } = useFX();
@@ -611,6 +750,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   const STICKY_BD   = isLight ? "rgba(58,140,30,0.65)"    : "rgba(99,211,120,0.45)";
   const STICKY_CLR  = isLight ? "rgba(58,140,30,0.92)"    : "rgba(99,211,120,0.9)";
   const SURFACE_HI = SURF_HI, SURFACE_LO = SURF_LO, TEXT_DIM = DIM, TEXT_FAINT = FAINT, ACCENT_HI = ACC_HI, SHADOW_OUT = SO, SHADOW_IN = SI;
+  const [showMonthCal, setShowMonthCal] = useState(false);
   const [dragId, setDragId] = useState(null);
   const [holdId, setHoldId] = useState(null);
   const [quickCancelId, setQuickCancelId] = useState(null);
@@ -1499,8 +1639,8 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
           display:"flex", flexDirection:"column",
           borderRight:`1px solid ${ink(0.07)}`,
         }}>
-          {/* Кнопка «Ключик» — тумблер: 1й тап генерує слоти за графіком, 2й знімає їх */}
-          <div style={{height:HEADER_H + 4, flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center"}}>
+          {/* Кнопка «Ключик» — тумблер: 1й тап генерує слоти за графіком, 2й знімає їх; поруч — 📅 місячний календар */}
+          <div style={{height:HEADER_H + 4, flexShrink:0, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:4}}>
             {(() => {
               const slotsOn = hasAnyGeneratedSlots();
               return (
@@ -1510,20 +1650,31 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                     ? `Зняти всі слоти (${settings.calendarOpenDays||30} днів)`
                     : `Згенерувати слоти на ${settings.calendarOpenDays||30} днів за графіком`}
                   style={{
-                    width:28, height:28, borderRadius:8, border:"none", cursor: isGeneratingAll?"default":"pointer",
+                    width:26, height:26, borderRadius:8, border:"none", cursor: isGeneratingAll?"default":"pointer",
                     background: isGeneratingAll
                       ? (slotsOn ? "rgba(220,60,60,0.12)" : "rgba(99,211,120,0.12)")
                       : (slotsOn ? "rgba(220,60,60,0.18)" : "rgba(99,211,120,0.18)"),
                     display:"flex", alignItems:"center", justifyContent:"center",
-                    transition:"background .15s",
+                    transition:"background .15s", flexShrink:0,
                   }}>
                   {isGeneratingAll
                     ? <div style={{width:12,height:12,borderRadius:"50%",border:`2px solid ${slotsOn?"rgba(220,60,60,0.3)":"rgba(99,211,120,0.3)"}`,borderTopColor:slotsOn?"rgba(220,60,60,0.9)":"rgba(99,211,120,0.9)",animation:"spin .7s linear infinite"}}/>
-                    : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={slotsOn?"rgba(220,60,60,0.9)":"rgba(99,211,120,0.9)"} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+                    : <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={slotsOn?"rgba(220,60,60,0.9)":"rgba(99,211,120,0.9)"} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
                   }
                 </button>
               );
             })()}
+            <button
+              onClick={()=>setShowMonthCal(true)}
+              title="Місячний календар"
+              style={{
+                width:26, height:26, borderRadius:8, border:"none", cursor:"pointer",
+                background:"rgba(91,155,255,0.18)",
+                display:"flex", alignItems:"center", justifyContent:"center",
+                transition:"background .15s", flexShrink:0,
+              }}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(91,155,255,0.9)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18M8 2v4M16 2v4"/></svg>
+            </button>
           </div>
           <div style={{overflow:"hidden", flex:1, position:"relative"}}>
             <div ref={timeColRef} style={{position:"absolute", top:0, left:0, right:0, height:gridHeight}}>
@@ -2199,6 +2350,14 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
       </div>{/* /outer flex */}
 
     </Card>
+
+    {showMonthCal && (
+      <MonthCalendarSheet
+        bookings={bookings}
+        onClose={()=>setShowMonthCal(false)}
+        onPickDate={(dateStr)=>{ if (setJumpTarget) setJumpTarget({ date: dateStr, ts: Date.now() }); }}
+      />
+    )}
 
     <BookingModal booking={localSelectedBooking} onClose={()=>setLocalSelectedBooking(null)}
       onAction={handleAction} settings={settings} onViewStudent={onViewStudent}/>
