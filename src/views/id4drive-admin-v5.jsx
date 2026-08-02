@@ -599,7 +599,7 @@ function BroadcastModal({ initialDate, initialSlot, onClose }) {
 // MONTH CALENDAR SHEET — bottom-sheet monthly overview, tap a day to jump
 // ═══════════════════════════════════════════════════════════════
 function MonthCalendarSheet({ bookings, onClose, onPickDate }) {
-  const { BG_DEEP, SURFACE, TEXT, FAINT, GOLD, GREEN, BLUE } = useContext(ThemeContext);
+  const { BG_DEEP, SURFACE, SURF_HI, TEXT, DIM, FAINT, GOLD, GREEN, BLUE } = useContext(ThemeContext);
   const { glow, shade, ink } = useFX();
   const isLight = BG_DEEP !== "#161719";
   const [closing, setClosing] = useState(false);
@@ -656,6 +656,35 @@ function MonthCalendarSheet({ bookings, onClose, onPickDate }) {
     close();
   };
 
+  const [heldDay, setHeldDay] = useState(null);
+  const [heldClosing, setHeldClosing] = useState(false);
+  const holdTimerRef = useRef(null);
+  const heldRef = useRef(false);
+
+  const getDayBookings = (d) => bookings
+    .filter(b => {
+      if (b.type === "block" || b.type === "vip-slot" || b.type === "personal") return false;
+      const dt = new Date(today0); dt.setDate(dt.getDate() + b.day);
+      return dt.getFullYear() === viewY && dt.getMonth() === viewM && dt.getDate() === d;
+    })
+    .sort((a, b) => (a.startMin || 0) - (b.startMin || 0));
+
+  const startHold = (d) => {
+    clearTimeout(holdTimerRef.current);
+    heldRef.current = false;
+    holdTimerRef.current = setTimeout(() => {
+      heldRef.current = true;
+      setHeldDay(d);
+    }, 400);
+  };
+  const endHold = () => {
+    clearTimeout(holdTimerRef.current);
+    if (heldRef.current) {
+      setHeldClosing(true);
+      setTimeout(() => { setHeldDay(null); setHeldClosing(false); heldRef.current = false; }, 180);
+    }
+  };
+
   const cells = [];
   for (let i = 0; i < firstDow; i++) cells.push(null);
   for (let d = 1; d <= daysInMonth; d++) cells.push(d);
@@ -669,6 +698,8 @@ function MonthCalendarSheet({ bookings, onClose, onPickDate }) {
         @keyframes _mc-bg-out{from{opacity:1}to{opacity:0}}
         @keyframes _mc-slide-next{from{transform:translateX(28px);opacity:0}to{transform:translateX(0);opacity:1}}
         @keyframes _mc-slide-prev{from{transform:translateX(-28px);opacity:0}to{transform:translateX(0);opacity:1}}
+        @keyframes _mc-zoom-in{from{transform:scale(0.4);opacity:0}to{transform:scale(1);opacity:1}}
+        @keyframes _mc-zoom-out{from{transform:scale(1);opacity:1}to{transform:scale(0.4);opacity:0}}
       `}</style>
       <div onClick={closing ? undefined : close} style={{
         position:"fixed", inset:0, zIndex:200, background:shade(0.55),
@@ -729,17 +760,57 @@ function MonthCalendarSheet({ bookings, onClose, onPickDate }) {
                   const a = n === 0 ? 0.06 : 0.14 + t * 0.4;
                   const bg = `color-mix(in srgb, ${c} ${Math.round(a * 100)}%, ${BG_DEEP})`;
                   const isToday = isCurMonth && d === today0.getDate();
+                  const isHeld = heldDay === d;
+                  const row = Math.floor(i / 7);
+                  const totalRows = Math.ceil(cells.length / 7);
+                  const openUp = row >= totalRows / 2;
                   return (
-                    <button key={d} onClick={()=>pick(d)} style={{
-                      aspectRatio:"1", borderRadius:9, border:"none", cursor:"pointer",
-                      background:bg,
-                      boxShadow: n > 0 ? `inset 0 0 0 1.4px ${c}` : (isToday ? `inset 0 0 0 1.4px ${GOLD}` : "none"),
-                      display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
-                      fontSize:12, fontWeight:800, color: n > 4 ? (isLight ? "#fff" : "#17181b") : TEXT,
-                    }}>
-                      {d}
-                      {n > 0 && <span style={{fontSize:7, fontWeight:700, opacity:0.75, marginTop:1}}>{n}</span>}
-                    </button>
+                    <div key={d} style={{position:"relative"}}>
+                      <button
+                        onClick={()=>pick(d)}
+                        onPointerDown={()=>startHold(d)}
+                        onPointerUp={endHold}
+                        onPointerLeave={endHold}
+                        onPointerCancel={endHold}
+                        style={{
+                          width:"100%", aspectRatio:"1", borderRadius:9, border:"none", cursor:"pointer",
+                          background:bg,
+                          boxShadow: n > 0 ? `inset 0 0 0 1.4px ${c}` : (isToday ? `inset 0 0 0 1.4px ${GOLD}` : "none"),
+                          display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
+                          fontSize:12, fontWeight:800, color: n > 4 ? (isLight ? "#fff" : "#17181b") : TEXT,
+                          position:"relative", zIndex: isHeld ? 30 : 1,
+                          transform: isHeld ? "scale(1.18)" : "scale(1)",
+                          transition:"transform .18s ease",
+                          WebkitUserSelect:"none", userSelect:"none", touchAction:"manipulation",
+                        }}>
+                        {d}
+                        {n > 0 && <span style={{fontSize:7, fontWeight:700, opacity:0.75, marginTop:1}}>{n}</span>}
+                      </button>
+                      {isHeld && (
+                        <div style={{
+                          position:"absolute", left:"50%", [openUp ? "bottom" : "top"]:"calc(100% + 6px)",
+                          transform:"translateX(-50%)", transformOrigin: openUp ? "bottom center" : "top center",
+                          zIndex:31, width:150, maxWidth:"60vw",
+                          background:SURF_HI, borderRadius:12,
+                          boxShadow:`0 8px 24px ${shade(0.5)}, 0 0 0 1px ${ink(0.08)}`,
+                          padding:"9px 10px", pointerEvents:"none",
+                          animation: heldClosing ? `_mc-zoom-out 0.18s ease-in forwards` : `_mc-zoom-in 0.18s cubic-bezier(0.34,1.56,0.64,1)`,
+                        }}>
+                          <div style={{fontSize:11, fontWeight:800, color:TEXT, marginBottom:4}}>
+                            {d} {monthLabel.split(" ")[0]}
+                          </div>
+                          {(() => {
+                            const list = getDayBookings(d);
+                            if (!list.length) return <div style={{fontSize:10, color:DIM}}>Немає записів</div>;
+                            return list.slice(0, 6).map((b, idx) => (
+                              <div key={b.id || idx} style={{fontSize:10, color:TEXT, lineHeight:1.5, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap"}}>
+                                <span style={{color:DIM, fontWeight:700}}>{fmtTime(b.startMin)}</span> {b.name || "Подія"}
+                              </div>
+                            ));
+                          })()}
+                        </div>
+                      )}
+                    </div>
                   );
                 })}
               </div>
