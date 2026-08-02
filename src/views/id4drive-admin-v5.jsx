@@ -699,12 +699,12 @@ function MonthCalendarSheet({ bookings, onClose, onPickDate }) {
         @keyframes _mc-slide-next{from{transform:translateX(28px);opacity:0}to{transform:translateX(0);opacity:1}}
         @keyframes _mc-slide-prev{from{transform:translateX(-28px);opacity:0}to{transform:translateX(0);opacity:1}}
         @keyframes _mc-glass-in{
-          from{ transform:translateX(-50%) scale(.7); opacity:0; box-shadow:0 0 0 1px rgba(255,255,255,0.06), 0 8px 24px rgba(0,0,0,0.35); }
-          to{ transform:translateX(-50%) scale(1); opacity:1; box-shadow:0 0 0 1.5px var(--glow-c), 0 0 22px var(--glow-soft), 0 10px 30px rgba(0,0,0,0.5); }
+          from{ transform:translateX(var(--tx)) scale(.7); opacity:0; box-shadow:0 0 0 1px rgba(255,255,255,0.06), 0 8px 24px rgba(0,0,0,0.35); }
+          to{ transform:translateX(var(--tx)) scale(1); opacity:1; box-shadow:0 0 0 1.5px var(--glow-c), 0 0 22px var(--glow-soft), 0 10px 30px rgba(0,0,0,0.5); }
         }
         @keyframes _mc-glass-out{
-          from{ transform:translateX(-50%) scale(1); opacity:1; box-shadow:0 0 0 1.5px var(--glow-c), 0 0 22px var(--glow-soft), 0 10px 30px rgba(0,0,0,0.5); }
-          to{ transform:translateX(-50%) scale(.82); opacity:0; box-shadow:0 0 0 1px rgba(255,255,255,0.04), 0 4px 14px rgba(0,0,0,0.3); }
+          from{ transform:translateX(var(--tx)) scale(1); opacity:1; box-shadow:0 0 0 1.5px var(--glow-c), 0 0 22px var(--glow-soft), 0 10px 30px rgba(0,0,0,0.5); }
+          to{ transform:translateX(var(--tx)) scale(.82); opacity:0; box-shadow:0 0 0 1px rgba(255,255,255,0.04), 0 4px 14px rgba(0,0,0,0.3); }
         }
       `}</style>
       <div onClick={closing ? undefined : close} style={{
@@ -769,6 +769,12 @@ function MonthCalendarSheet({ bookings, onClose, onPickDate }) {
                   const isHeld = heldDay === d;
                   const row = Math.floor(i / 7);
                   const openUp = row > 0;
+                  const col = i % 7;
+                  const alignLeft = col <= 1;
+                  const alignRight = col >= 5;
+                  const horiz = alignLeft ? { left: 0 } : alignRight ? { right: 0 } : { left: "50%" };
+                  const tx = alignLeft || alignRight ? "0%" : "-50%";
+                  const hAlign = alignLeft ? "left" : alignRight ? "right" : "center";
                   return (
                     <div key={d} style={{position:"relative"}}>
                       <button
@@ -793,14 +799,14 @@ function MonthCalendarSheet({ bookings, onClose, onPickDate }) {
                       </button>
                       {isHeld && (
                         <div style={{
-                          position:"absolute", left:"50%", [openUp ? "bottom" : "top"]:"calc(100% + 16px)",
-                          transformOrigin: openUp ? "bottom center" : "top center",
+                          position:"absolute", ...horiz, [openUp ? "bottom" : "top"]:"calc(100% + 16px)",
+                          transformOrigin: `${openUp ? "bottom" : "top"} ${hAlign}`,
                           zIndex:31, width:210, maxWidth:"72vw",
                           background:`color-mix(in srgb, ${SURF_HI} 68%, transparent)`,
                           backdropFilter:"blur(10px)", WebkitBackdropFilter:"blur(10px)",
                           borderRadius:14,
                           padding:"13px 14px", pointerEvents:"none",
-                          "--glow-c": c, "--glow-soft": `color-mix(in srgb, ${c} 45%, transparent)`,
+                          "--glow-c": c, "--glow-soft": `color-mix(in srgb, ${c} 45%, transparent)`, "--tx": tx,
                           animation: heldClosing ? `_mc-glass-out 0.24s ease-in forwards` : `_mc-glass-in 0.4s cubic-bezier(0.25,1,0.4,1) forwards`,
                         }}>
                           <div style={{fontSize:13, fontWeight:800, color:TEXT, marginBottom:6}}>
