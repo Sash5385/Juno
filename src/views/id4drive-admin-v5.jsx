@@ -599,7 +599,7 @@ function BroadcastModal({ initialDate, initialSlot, onClose }) {
 // MONTH CALENDAR SHEET — bottom-sheet monthly overview, tap a day to jump
 // ═══════════════════════════════════════════════════════════════
 function MonthCalendarSheet({ bookings, onClose, onPickDate }) {
-  const { BG_DEEP, TEXT, FAINT, GOLD, GREEN, BLUE } = useContext(ThemeContext);
+  const { BG_DEEP, SURFACE, TEXT, FAINT, GOLD, GREEN, BLUE } = useContext(ThemeContext);
   const { glow, shade, ink } = useFX();
   const isLight = BG_DEEP !== "#161719";
   const [closing, setClosing] = useState(false);
@@ -679,7 +679,7 @@ function MonthCalendarSheet({ bookings, onClose, onPickDate }) {
         <div onClick={e=>e.stopPropagation()}
           onAnimationEnd={closing ? onClose : undefined}
           style={{
-            position:"relative", width:"100%", maxWidth:480, background:BG_DEEP,
+            position:"relative", width:"100%", maxWidth:480, background:SURFACE,
             borderRadius:"24px 24px 0 0",
             boxShadow:`0 -2px 0 ${glow(0.08)}, 0 -16px 60px ${shade(0.8)}`,
             display:"flex", flexDirection:"column", overflow:"hidden",
