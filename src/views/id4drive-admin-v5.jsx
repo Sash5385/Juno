@@ -768,8 +768,7 @@ function MonthCalendarSheet({ bookings, onClose, onPickDate }) {
                   const isToday = isCurMonth && d === today0.getDate();
                   const isHeld = heldDay === d;
                   const row = Math.floor(i / 7);
-                  const totalRows = Math.ceil(cells.length / 7);
-                  const openUp = row >= totalRows / 2;
+                  const openUp = row > 0;
                   return (
                     <div key={d} style={{position:"relative"}}>
                       <button
@@ -794,24 +793,24 @@ function MonthCalendarSheet({ bookings, onClose, onPickDate }) {
                       </button>
                       {isHeld && (
                         <div style={{
-                          position:"absolute", left:"50%", [openUp ? "bottom" : "top"]:"calc(100% + 6px)",
+                          position:"absolute", left:"50%", [openUp ? "bottom" : "top"]:"calc(100% + 16px)",
                           transformOrigin: openUp ? "bottom center" : "top center",
-                          zIndex:31, width:150, maxWidth:"60vw",
+                          zIndex:31, width:210, maxWidth:"72vw",
                           background:`color-mix(in srgb, ${SURF_HI} 68%, transparent)`,
                           backdropFilter:"blur(10px)", WebkitBackdropFilter:"blur(10px)",
-                          borderRadius:12,
-                          padding:"9px 10px", pointerEvents:"none",
+                          borderRadius:14,
+                          padding:"13px 14px", pointerEvents:"none",
                           "--glow-c": c, "--glow-soft": `color-mix(in srgb, ${c} 45%, transparent)`,
                           animation: heldClosing ? `_mc-glass-out 0.24s ease-in forwards` : `_mc-glass-in 0.4s cubic-bezier(0.25,1,0.4,1)`,
                         }}>
-                          <div style={{fontSize:11, fontWeight:800, color:TEXT, marginBottom:4}}>
+                          <div style={{fontSize:13, fontWeight:800, color:TEXT, marginBottom:6}}>
                             {d} {monthLabel.split(" ")[0]}
                           </div>
                           {(() => {
                             const list = getDayBookings(d);
-                            if (!list.length) return <div style={{fontSize:10, color:DIM}}>Немає записів</div>;
+                            if (!list.length) return <div style={{fontSize:11.5, color:DIM}}>Немає записів</div>;
                             return list.slice(0, 6).map((b, idx) => (
-                              <div key={b.id || idx} style={{fontSize:10, color:TEXT, lineHeight:1.5, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap"}}>
+                              <div key={b.id || idx} style={{fontSize:11.5, color:TEXT, lineHeight:1.65, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap"}}>
                                 <span style={{color:DIM, fontWeight:700}}>{fmtTime(b.startMin)}</span> {b.name || "Подія"}
                               </div>
                             ));
