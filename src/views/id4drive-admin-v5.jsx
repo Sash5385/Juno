@@ -599,7 +599,7 @@ function BroadcastModal({ initialDate, initialSlot, onClose }) {
 // MONTH CALENDAR SHEET — bottom-sheet monthly overview, tap a day to jump
 // ═══════════════════════════════════════════════════════════════
 function MonthCalendarSheet({ bookings, onClose, onPickDate }) {
-  const { BG, BG_DEEP, SURFACE, SURF_HI, TEXT, DIM, FAINT, GOLD, GREEN, BLUE } = useContext(ThemeContext);
+  const { BG, BG_DEEP, SURFACE, SURF_HI, TEXT, DIM, FAINT, GOLD, GREEN, BLUE, RED } = useContext(ThemeContext);
   const { glow, shade, ink } = useFX();
   const isLight = BG_DEEP !== "#161719";
   const [closing, setClosing] = useState(false);
@@ -637,10 +637,9 @@ function MonthCalendarSheet({ bookings, onClose, onPickDate }) {
   };
 
   const tierColor = (n) => {
-    if (n === 0) return ink(0.1);
-    if (n < 4) return GOLD;
-    if (n < 7) return GREEN;
-    return BLUE;
+    if (n <= 3) return RED;
+    if (n <= 7) return GOLD;
+    return GREEN;
   };
 
   const goMonth = (delta) => {
@@ -764,8 +763,7 @@ function MonthCalendarSheet({ bookings, onClose, onPickDate }) {
                   const n = counts[d] || 0;
                   const c = tierColor(n);
                   const t = Math.min(n, 8) / 8;
-                  const a = n === 0 ? 0.06 : 0.14 + t * 0.4;
-                  const bg = `color-mix(in srgb, ${c} ${Math.round(a * 100)}%, ${BG_DEEP})`;
+                  const fillH = Math.round(t * 100);
                   const isToday = isCurMonth && d === today0.getDate();
                   const isHeld = heldDay === d;
                   const row = Math.floor(i / 7);
@@ -786,17 +784,23 @@ function MonthCalendarSheet({ bookings, onClose, onPickDate }) {
                         onPointerCancel={endHold}
                         style={{
                           width:"100%", aspectRatio:"1", borderRadius:9, border:"none", cursor:"pointer",
-                          background:bg,
-                          boxShadow: n > 0 ? `inset 0 0 0 1.4px ${c}` : (isToday ? `inset 0 0 0 1.4px ${GOLD}` : "none"),
+                          background: ink(0.04),
+                          boxShadow: isToday ? `inset 0 0 0 1.4px ${GOLD}` : "none",
                           display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
-                          fontSize:12, fontWeight:800, color: n > 4 ? (isLight ? "#fff" : "#17181b") : TEXT,
-                          position:"relative", zIndex: isHeld ? 30 : 1,
+                          fontSize:12, fontWeight:800, color:TEXT,
+                          position:"relative", overflow:"hidden", zIndex: isHeld ? 30 : 1,
                           transform: isHeld ? "scale(1.18)" : "scale(1)",
                           transition:"transform .18s ease",
                           WebkitUserSelect:"none", userSelect:"none", touchAction:"manipulation",
                         }}>
-                        {d}
-                        {n > 0 && <span style={{fontSize:7, fontWeight:700, opacity:0.75, marginTop:1}}>{n}</span>}
+                        {n > 0 && (
+                          <div style={{
+                            position:"absolute", bottom:0, left:0, right:0, height:`${fillH}%`,
+                            background:`linear-gradient(0deg, color-mix(in srgb, ${c} 55%, transparent), color-mix(in srgb, ${c} 22%, transparent))`,
+                          }}/>
+                        )}
+                        <span style={{position:"relative", zIndex:1}}>{d}</span>
+                        {n > 0 && <span style={{position:"relative", zIndex:1, fontSize:7, fontWeight:700, opacity:0.75, marginTop:1}}>{n}</span>}
                       </button>
                       {isHeld && (
                         <div style={{
