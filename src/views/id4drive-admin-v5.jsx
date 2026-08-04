@@ -1907,7 +1907,9 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                   alignItems:"center", justifyContent:"space-between",
                   padding:"3px 2px 3px", borderRadius:10, cursor: isPastDay ? "default" : "pointer",
                   opacity: isPastDay ? 0.35 : 1, overflow:"visible",
-                  background: isClosedDay ? `rgba(220,60,60,0.13)` : isToday ? `rgba(247,201,72,0.18)` : isOpenCol ? (isLight ? `rgba(58,140,30,0.12)` : `rgba(99,211,120,0.13)`) : (isLight ? `rgba(0,0,0,0.07)` : `rgba(0,0,0,0.18)`),
+                  // Непрозорий фон (color-mix замість rgba) — інакше цей sticky-заголовок
+                  // просвічує і контент, що скролиться під ним, "наїжджає" на напис.
+                  background: isClosedDay ? `color-mix(in srgb, #dc3c3c 13%, ${BG_DEEP})` : isToday ? `color-mix(in srgb, ${GOLD} 18%, ${BG_DEEP})` : isOpenCol ? (isLight ? `color-mix(in srgb, #3a8c1e 12%, ${BG_DEEP})` : `color-mix(in srgb, #63d378 13%, ${BG_DEEP})`) : (isLight ? `color-mix(in srgb, #000000 7%, ${BG_DEEP})` : `color-mix(in srgb, #000000 18%, ${BG_DEEP})`),
                   boxShadow: isClosedDay ? `inset 0 0 0 1.5px rgba(220,60,60,0.7)` : isToday ? `inset 0 0 0 1.5px rgba(247,201,72,0.55)` : isOpenCol ? (isLight ? `inset 0 0 0 1px rgba(58,140,30,0.5)` : `inset 0 0 0 1px rgba(99,211,120,0.35)`) : "none",
                 }}>
                 <div style={{fontSize:9, fontWeight:700, lineHeight:1.2,
@@ -2219,14 +2221,14 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                         return (
                           <div style={{
                             position:"absolute", top:2, left:4, right:2, bottom:2,
-                            display:"flex", flexDirection:"column", justifyContent:"center",
-                            gap:1, overflow:"hidden",
+                            display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
+                            gap:1, overflow:"hidden", textAlign:"center",
                           }}>
                             <span style={{fontSize:Math.min(fs+1,11), lineHeight:1}}>📌</span>
                             {nameLines.slice(0,2).map((word,i)=>(
                               <div key={i} style={{
                                 fontSize:fs, fontWeight:700, color:"#2dd4bf",
-                                lineHeight:1.2, whiteSpace:"normal",
+                                lineHeight:1.2, whiteSpace:"normal", textAlign:"center",
                                 wordBreak:"break-word", overflowWrap:"anywhere",
                                 textShadow:"none",
                               }}>{word}</div>
@@ -2255,7 +2257,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                           { text: fName,     w: 800, c: si(0.95) },
                           ...(lName          ? [{ text: lName,     w: 700, c: si(0.80) }] : []),
                           { text: typeLabel, w: 600, c: si(0.58) },
-                          ...(priceText      ? [{ text: priceText, w: 900, c: priceColor }] : []),
+                          ...(priceText      ? [{ text: priceText, w: 900, c: priceColor, shadow: !!b.surcharge }] : []),
                         ];
                         const availH = height - 6;
                         const availW = COL_W - 8;
@@ -2282,7 +2284,9 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                                 lineHeight: 1.2, textAlign:"center",
                                 whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis",
                                 width:"100%",
-                                textShadow:"none",
+                                // Надбавка (GOLD) інакше зливається з жовтим кольором слоту —
+                                // темна обводка тримає контраст на будь-якому фоні картки.
+                                textShadow: ln.shadow ? "0 0 3px rgba(0,0,0,0.85), 0 1px 2px rgba(0,0,0,0.7)" : "none",
                               }}>{ln.text}</div>
                             ))}
                           </div>
