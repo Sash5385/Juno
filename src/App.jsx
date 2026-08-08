@@ -432,7 +432,7 @@ function ViewRenderer({ tab, settings, setSettings, bookings, setBookings, onSlo
   if (tab === "services")  return <ServicesView/>;
   if (tab === "chats")     return <ChatsView/>;
   if (tab === "templates") return <TemplatesView/>;
-  if (tab === "stats")     return <StatsView/>;
+  if (tab === "stats")     return <StatsView settings={settings}/>;
   if (tab === "journal")   return <JournalView/>;
   return null;
 }
