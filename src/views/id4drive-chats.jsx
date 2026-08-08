@@ -327,8 +327,8 @@ export default function ChatsView() {
         {/* ── BROADCAST ── */}
         {!search && (
           <div style={{
-            background:`linear-gradient(155deg,color-mix(in srgb,#a855f7 42%,${BG_DEEP}) 0%,color-mix(in srgb,#a855f7 14%,${BG_DEEP}) 100%)`,
-            borderRadius:13,overflow:"hidden",marginBottom:6,boxShadow:SO,
+            background:`linear-gradient(155deg,color-mix(in srgb,#a855f7 50%,${BG_DEEP}) 0%,color-mix(in srgb,#a855f7 18%,${BG_DEEP}) 100%)`,
+            borderRadius:14,overflow:"hidden",marginBottom:6,boxShadow:SO,
             border:`1px solid color-mix(in srgb,#a855f7 ${broadcastOpen?55:38}%,transparent)`}}>
             <div className={`chat-row${broadcastOpen?" broadcast-open":""}`} onClick={()=>toggle(BROADCAST_ID)}
               style={{display:"flex",alignItems:"center",gap:9,padding:"9px 12px"}}>
@@ -359,8 +359,8 @@ export default function ChatsView() {
         {/* ── GENERAL CHAT ── */}
         {!search && (
           <div style={{
-            background:`linear-gradient(155deg,color-mix(in srgb,#5b9bff 42%,${BG_DEEP}) 0%,color-mix(in srgb,#5b9bff 14%,${BG_DEEP}) 100%)`,
-            borderRadius:13,overflow:"hidden",marginBottom:6,boxShadow:SO,
+            background:`linear-gradient(155deg,color-mix(in srgb,#5b9bff 50%,${BG_DEEP}) 0%,color-mix(in srgb,#5b9bff 18%,${BG_DEEP}) 100%)`,
+            borderRadius:14,overflow:"hidden",marginBottom:6,boxShadow:SO,
             border:`1px solid color-mix(in srgb,#5b9bff ${generalOpen?55:38}%,transparent)`}}>
             <div className={`chat-row${generalOpen?" open":""}`} onClick={()=>toggle(GENERAL_ID)}
               style={{display:"flex",alignItems:"center",gap:9,padding:"9px 12px"}}>
@@ -410,8 +410,8 @@ export default function ChatsView() {
             const hueColor   = `hsl(${c.hue},60%,50%)`;
             return (
               <div key={c.id} style={{
-                background:`linear-gradient(155deg,color-mix(in srgb,${hueColor} 42%,${BG_DEEP}) 0%,color-mix(in srgb,${hueColor} 14%,${BG_DEEP}) 100%)`,
-                borderRadius:13,overflow:"hidden",boxShadow:SO,
+                background:`linear-gradient(155deg,color-mix(in srgb,${hueColor} 50%,${BG_DEEP}) 0%,color-mix(in srgb,${hueColor} 18%,${BG_DEEP}) 100%)`,
+                borderRadius:14,overflow:"hidden",boxShadow:SO,
                 border:`1px solid ${isDeleting?"rgba(239,68,68,0.5)":isOpen?"rgba(255,255,255,0.35)":`color-mix(in srgb,${hueColor} 38%,transparent)`}`,
                 transition:"border-color .2s",
               }}>

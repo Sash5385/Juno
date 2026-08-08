@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useLayoutEffect, useMemo, useContext } from "react";
+import { createPortal } from "react-dom";
 import { update, get, onValue, off, remove, push as fbPush } from "firebase/database";
 import { iRef } from "../firebase";
 
@@ -159,8 +160,7 @@ body, html, #root { margin:0; padding:0; }
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-thumb { background: rgba(${INK},0.1); border-radius: 3px; }
 ::-webkit-scrollbar-track { background: transparent; }
-.schedule-scroll::-webkit-scrollbar { height: 24px; }
-.schedule-scroll::-webkit-scrollbar-thumb { background: rgba(${INK},0.2); border-radius: 8px; min-width: 60px; }
+.schedule-scroll::-webkit-scrollbar { display: none; }
 input[type="range"] { accent-color: ${ACCENT}; }
 .tabular { font-variant-numeric: tabular-nums; }
 .drum-scroll::-webkit-scrollbar { display: none; }
@@ -314,6 +314,19 @@ const getDayInfo = (offsetFromToday) => {
   d.setDate(d.getDate() + offsetFromToday);
   const dow = (d.getDay() + 6) % 7; // Mon=0..Sun=6
   return { num: d.getDate(), month: _MLABELS[d.getMonth()], year: d.getFullYear(), label: _DLABELS[dow], fullLabel: _DLABELS_FULL[dow], wk: dow >= 5 };
+};
+
+// Ціна одного booking — та сама формула, що й у картці розкладу.
+// Винесена окремо, щоб рахувати суму для об'єднаних (сусідніх) записів.
+const computeBookingPrice = (b, servicesList) => {
+  const svc = (servicesList || []).find(s => s.id === b.serviceId)
+           || (servicesList || []).find(s => s.active && s.type === (b.serviceType || b.type) && Number(s.duration) === b.durMin);
+  const basePrice = svc
+    ? Math.round((svc.price / svc.duration) * b.durMin)
+    : b.price && b.durationHours
+      ? Math.round((b.price / (b.durationHours * 60)) * b.durMin)
+      : (b.price || 0);
+  return basePrice + (b.surcharge || 0);
 };
 
 
@@ -598,9 +611,429 @@ function BroadcastModal({ initialDate, initialSlot, onClose }) {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// MONTH CALENDAR SHEET — bottom-sheet monthly overview, tap a day to jump
+// ═══════════════════════════════════════════════════════════════
+function MonthCalendarSheet({ bookings, onClose, onPickDate }) {
+  const { BG, BG_DEEP, SURFACE, SURF_HI, TEXT, DIM, FAINT, GOLD, GREEN, BLUE, RED } = useContext(ThemeContext);
+  const { glow, shade, ink } = useFX();
+  const isLight = BG_DEEP !== "#161719";
+  const [closing, setClosing] = useState(false);
+  const today0 = useRef((() => { const d = new Date(); d.setHours(12,0,0,0); return d; })()).current;
+  const [viewY, setViewY] = useState(today0.getFullYear());
+  const [viewM, setViewM] = useState(today0.getMonth());
+  const [slideDir, setSlideDir] = useState(0);
+
+  const close = () => setClosing(true);
+
+  const counts = useMemo(() => {
+    const map = {};
+    for (const b of bookings) {
+      if (b.type === "block" || b.type === "vip-slot" || b.type === "personal") continue;
+      const d = new Date(today0); d.setDate(d.getDate() + b.day);
+      if (d.getFullYear() === viewY && d.getMonth() === viewM) {
+        map[d.getDate()] = (map[d.getDate()] || 0) + 1;
+      }
+    }
+    return map;
+  }, [bookings, viewY, viewM, today0]);
+
+  const firstDow = (new Date(viewY, viewM, 1).getDay() + 6) % 7;
+  const daysInMonth = new Date(viewY, viewM + 1, 0).getDate();
+  const monthLabel = new Date(viewY, viewM, 1).toLocaleDateString("uk-UA", { month: "long", year: "numeric" }).replace(/\s*р\.?$/i, "");
+  const isCurMonth = viewY === today0.getFullYear() && viewM === today0.getMonth();
+
+  const touchRef = useRef({ x: 0, y: 0 });
+  const onTouchStart = (e) => { const t = e.touches[0]; touchRef.current = { x: t.clientX, y: t.clientY }; };
+  const onTouchEnd = (e) => {
+    const t = e.changedTouches[0];
+    const dx = t.clientX - touchRef.current.x;
+    const dy = t.clientY - touchRef.current.y;
+    if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.5) goMonth(dx < 0 ? 1 : -1);
+  };
+
+  const tierColor = (n) => {
+    if (n <= 3) return RED;
+    if (n <= 6) return GOLD;
+    return GREEN;
+  };
+
+  const goMonth = (delta) => {
+    let m = viewM + delta, y = viewY;
+    if (m < 0) { m = 11; y--; } else if (m > 11) { m = 0; y++; }
+    setSlideDir(delta);
+    setViewM(m); setViewY(y);
+  };
+
+  const pick = (day) => {
+    const dateStr = `${viewY}-${String(viewM + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+    onPickDate(dateStr);
+    close();
+  };
+
+  const [heldDay, setHeldDay] = useState(null);
+  const [heldClosing, setHeldClosing] = useState(false);
+  const holdTimerRef = useRef(null);
+  const heldRef = useRef(false);
+
+  const getDayBookings = (d) => bookings
+    .filter(b => {
+      if (b.type === "block" || b.type === "vip-slot" || b.type === "personal") return false;
+      const dt = new Date(today0); dt.setDate(dt.getDate() + b.day);
+      return dt.getFullYear() === viewY && dt.getMonth() === viewM && dt.getDate() === d;
+    })
+    .sort((a, b) => (a.startMin || 0) - (b.startMin || 0));
+
+  const startHold = (d) => {
+    clearTimeout(holdTimerRef.current);
+    heldRef.current = false;
+    holdTimerRef.current = setTimeout(() => {
+      heldRef.current = true;
+      setHeldDay(d);
+    }, 400);
+  };
+  const endHold = () => {
+    clearTimeout(holdTimerRef.current);
+    if (heldRef.current) {
+      setHeldClosing(true);
+      setTimeout(() => { setHeldDay(null); setHeldClosing(false); heldRef.current = false; }, 180);
+    }
+  };
+
+  const cells = [];
+  for (let i = 0; i < firstDow; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+
+  return (
+    <>
+      <style>{`
+        @keyframes _mc-up{from{transform:translateY(100%)}to{transform:translateY(0)}}
+        @keyframes _mc-down{from{transform:translateY(0);opacity:1}to{transform:translateY(100%);opacity:0}}
+        @keyframes _mc-bg-in{from{opacity:0}to{opacity:1}}
+        @keyframes _mc-bg-out{from{opacity:1}to{opacity:0}}
+        @keyframes _mc-slide-next{from{transform:translateX(28px);opacity:0}to{transform:translateX(0);opacity:1}}
+        @keyframes _mc-slide-prev{from{transform:translateX(-28px);opacity:0}to{transform:translateX(0);opacity:1}}
+        @keyframes _mc-glass-in{
+          from{ transform:translateX(var(--tx)) scale(.7); opacity:0; box-shadow:0 0 0 1px rgba(255,255,255,0.06), 0 8px 24px rgba(0,0,0,0.35); }
+          to{ transform:translateX(var(--tx)) scale(1); opacity:1; box-shadow:0 0 0 1.5px var(--glow-c), 0 0 22px var(--glow-soft), 0 10px 30px rgba(0,0,0,0.5); }
+        }
+        @keyframes _mc-glass-out{
+          from{ transform:translateX(var(--tx)) scale(1); opacity:1; box-shadow:0 0 0 1.5px var(--glow-c), 0 0 22px var(--glow-soft), 0 10px 30px rgba(0,0,0,0.5); }
+          to{ transform:translateX(var(--tx)) scale(.82); opacity:0; box-shadow:0 0 0 1px rgba(255,255,255,0.04), 0 4px 14px rgba(0,0,0,0.3); }
+        }
+      `}</style>
+      <div onClick={closing ? undefined : close} style={{
+        position:"fixed", inset:0, zIndex:200, background:shade(0.55),
+        display:"flex", alignItems:"flex-end", justifyContent:"center",
+        backdropFilter:"blur(8px)",
+        animation: closing ? `_mc-bg-out 0.26s ease-in forwards` : `_mc-bg-in 0.2s ease-out`,
+      }}>
+        <div onClick={e=>e.stopPropagation()}
+          onAnimationEnd={closing ? onClose : undefined}
+          style={{
+            position:"relative", width:"100%", maxWidth:480,
+            background:`radial-gradient(130% 90% at 50% 0%, color-mix(in srgb, ${BLUE} 22%, transparent), transparent 60%), ${BG}`,
+            borderRadius:"24px 24px 0 0",
+            boxShadow:`0 -2px 0 ${glow(0.08)}, 0 -16px 60px ${shade(0.8)}`,
+            display:"flex", flexDirection:"column", overflow:"hidden",
+            pointerEvents: closing ? "none" : undefined,
+            animation: closing ? `_mc-down 0.26s ease-in forwards` : `_mc-up 0.38s cubic-bezier(0.34,1.56,0.64,1)`,
+            paddingBottom:"env(safe-area-inset-bottom, 0px)",
+          }}>
+          <button onClick={close} style={{
+            position:"absolute", top:10, right:12, zIndex:5,
+            width:26, height:26, borderRadius:8, border:"none", cursor:"pointer",
+            background:"rgba(239,68,68,0.18)", color:"#ef4444",
+            display:"flex", alignItems:"center", justifyContent:"center",
+            fontSize:13, fontWeight:800, lineHeight:1,
+          }}>✕</button>
+
+          <div style={{padding:"14px 16px 6px"}} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+            <div style={{width:38, height:4, borderRadius:2, background:ink(0.1), margin:"0 auto 14px"}}/>
+            <div style={{display:"flex", alignItems:"center", justifyContent:"center", gap:14, marginBottom:14}}>
+              <button onClick={()=>goMonth(-1)} style={{
+                width:30, height:30, borderRadius:9, border:"none", cursor:"pointer",
+                background:ink(0.06), color:TEXT, fontSize:16, fontWeight:800,
+                display:"flex", alignItems:"center", justifyContent:"center",
+              }}>‹</button>
+              <div style={{fontSize:15, fontWeight:800, color:TEXT, textTransform:"capitalize", minWidth:150, textAlign:"center"}}>{monthLabel}</div>
+              <button onClick={()=>goMonth(1)} style={{
+                width:30, height:30, borderRadius:9, border:"none", cursor:"pointer",
+                background:ink(0.06), color:TEXT, fontSize:16, fontWeight:800,
+                display:"flex", alignItems:"center", justifyContent:"center",
+              }}>›</button>
+            </div>
+
+            <div key={`${viewY}-${viewM}`} style={{
+              animation: slideDir > 0 ? `_mc-slide-next 0.22s ease-out` : slideDir < 0 ? `_mc-slide-prev 0.22s ease-out` : "none",
+            }}>
+              <div style={{display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:4, marginBottom:6}}>
+                {["Пн","Вт","Ср","Чт","Пт","Сб","Нд"].map(wd => (
+                  <div key={wd} style={{fontSize:9, fontWeight:700, color:FAINT, textAlign:"center", textTransform:"uppercase"}}>{wd}</div>
+                ))}
+              </div>
+
+              <div style={{display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:4, paddingBottom:20}}>
+                {cells.map((d, i) => {
+                  if (d === null) return <div key={`e${i}`}/>;
+                  const n = counts[d] || 0;
+                  const c = tierColor(n);
+                  const t = Math.min(n, 8) / 8;
+                  const fillH = Math.round(t * 100);
+                  const isToday = isCurMonth && d === today0.getDate();
+                  const isHeld = heldDay === d;
+                  const row = Math.floor(i / 7);
+                  const openUp = row > 0;
+                  const col = i % 7;
+                  const alignLeft = col <= 1;
+                  const alignRight = col >= 5;
+                  const horiz = alignLeft ? { left: 0 } : alignRight ? { right: 0 } : { left: "50%" };
+                  const tx = alignLeft || alignRight ? "0%" : "-50%";
+                  const hAlign = alignLeft ? "left" : alignRight ? "right" : "center";
+                  return (
+                    <div key={d} style={{position:"relative"}}>
+                      <button
+                        onClick={()=>{ if (!heldRef.current) pick(d); }}
+                        onPointerDown={()=>startHold(d)}
+                        onPointerUp={endHold}
+                        onPointerLeave={endHold}
+                        onPointerCancel={endHold}
+                        style={{
+                          width:"100%", aspectRatio:"1", borderRadius:9, border:"none", cursor:"pointer",
+                          background: ink(0.04),
+                          boxShadow: isToday ? `inset 0 0 0 1.4px ${GOLD}` : "none",
+                          display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
+                          fontSize:12, fontWeight:800, color:TEXT,
+                          position:"relative", overflow:"hidden", zIndex: isHeld ? 30 : 1,
+                          transform: isHeld ? "scale(1.18)" : "scale(1)",
+                          transition:"transform .18s ease",
+                          WebkitUserSelect:"none", userSelect:"none", touchAction:"manipulation",
+                        }}>
+                        {n > 0 && (
+                          <div style={{
+                            position:"absolute", bottom:0, left:0, right:0, height:`${fillH}%`,
+                            background:`linear-gradient(0deg, color-mix(in srgb, ${c} 55%, transparent), color-mix(in srgb, ${c} 22%, transparent))`,
+                          }}/>
+                        )}
+                        <span style={{position:"relative", zIndex:1}}>{d}</span>
+                        {n > 0 && <span style={{position:"relative", zIndex:1, fontSize:7, fontWeight:700, opacity:0.75, marginTop:1}}>{n}</span>}
+                      </button>
+                      {isHeld && (
+                        <div style={{
+                          position:"absolute", ...horiz, [openUp ? "bottom" : "top"]:"calc(100% + 16px)",
+                          transformOrigin: `${openUp ? "bottom" : "top"} ${hAlign}`,
+                          zIndex:31, width:210, maxWidth:"72vw",
+                          background:`color-mix(in srgb, ${SURF_HI} 68%, transparent)`,
+                          backdropFilter:"blur(10px)", WebkitBackdropFilter:"blur(10px)",
+                          borderRadius:14,
+                          padding:"13px 14px", pointerEvents:"none",
+                          "--glow-c": c, "--glow-soft": `color-mix(in srgb, ${c} 45%, transparent)`, "--tx": tx,
+                          animation: heldClosing ? `_mc-glass-out 0.24s ease-in forwards` : `_mc-glass-in 0.4s cubic-bezier(0.25,1,0.4,1) forwards`,
+                        }}>
+                          <div style={{fontSize:13, fontWeight:800, color:TEXT, marginBottom:6}}>
+                            {d} {monthLabel.split(" ")[0]}
+                          </div>
+                          {(() => {
+                            const list = getDayBookings(d);
+                            if (!list.length) return <div style={{fontSize:11.5, color:DIM}}>Немає записів</div>;
+                            return list.slice(0, 6).map((b, idx) => (
+                              <div key={b.id || idx} style={{fontSize:11.5, color:TEXT, lineHeight:1.65, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap"}}>
+                                <span style={{color:DIM, fontWeight:700}}>{fmtTime(b.startMin)}</span> {b.name || "Подія"}
+                              </div>
+                            ));
+                          })()}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+const _fmtHM = (min) => `${String(Math.floor(min/60)).padStart(2,"0")}:${String(min%60).padStart(2,"0")}`;
+
+function DayNotesModal({ dateStr, dayLabel, dayNum, dayMonth, note, settings, onClose }) {
+  const { BG_DEEP, SURFACE, SURF_HI, SURF_LO, BORDER, TEXT, DIM, FAINT, SO, SI } = useContext(ThemeContext);
+  const { glow, shade } = useFX();
+  const [closing, setClosing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [editingHour, setEditingHour] = useState(null);
+  const _close = () => setClosing(true);
+
+  const hours = [];
+  for (let h = settings.workStart; h < settings.workEnd; h++) hours.push(h);
+
+  const [rows, setRows] = useState(() => {
+    const saved = note?.notes || {};
+    const init = {};
+    hours.forEach(h => {
+      const s = saved[h];
+      init[h] = s ? { startMin: s.startMin, text: s.text || "", notify: !!s.notify } : { startMin: h*60, text: "", notify: false };
+    });
+    return init;
+  });
+
+  const clampMin = (m) => Math.max(settings.workStart*60, Math.min(settings.workEnd*60 - 1, m));
+  const setRow = (h, patch) => setRows(rs => ({ ...rs, [h]: { ...rs[h], ...patch } }));
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const notesOut = {};
+      hours.forEach(h => {
+        const r = rows[h];
+        if (r.text.trim() || r.notify) {
+          notesOut[h] = { startMin: r.startMin, text: r.text.trim(), notify: r.notify };
+        }
+      });
+      if (!Object.keys(notesOut).length) {
+        await remove(iRef(`dayNotes/${dateStr}`));
+      } else {
+        await update(iRef(`dayNotes/${dateStr}`), { notes: notesOut, updatedAt: Date.now() });
+      }
+      _close();
+    } catch (e) { /* ignore */ } finally { setSaving(false); }
+  };
+
+  const handleDelete = async () => {
+    setSaving(true);
+    try { await remove(iRef(`dayNotes/${dateStr}`)); _close(); }
+    catch (e) { /* ignore */ } finally { setSaving(false); }
+  };
+
+  const hasAnyNote = !!note;
+
+  return (
+    <>
+      <style>{`
+        @keyframes _dn-up{from{transform:translateY(100%)}to{transform:translateY(0)}}
+        @keyframes _dn-down{from{transform:translateY(0);opacity:1}to{transform:translateY(100%);opacity:0}}
+        @keyframes _dn-bg-in{from{opacity:0}to{opacity:1}}
+        @keyframes _dn-bg-out{from{opacity:1}to{opacity:0}}
+      `}</style>
+      <div onClick={closing ? undefined : _close} style={{
+        position:"fixed", inset:0, zIndex:9999,
+        background:shade(0.55), backdropFilter:"blur(8px)",
+        display:"flex", alignItems:"flex-end", justifyContent:"center",
+        animation: closing ? `_dn-bg-out 0.26s ease-in forwards` : `_dn-bg-in 0.2s ease-out`,
+      }}>
+        <div onClick={e=>e.stopPropagation()}
+          onAnimationEnd={closing ? ()=>{ setClosing(false); onClose(); } : undefined}
+          style={{
+            width:"100%", maxWidth:480, background:BG_DEEP,
+            borderRadius:"24px 24px 0 0",
+            boxShadow:`0 -2px 0 ${GOLD}33, 0 -16px 60px ${shade(0.6)}`,
+            maxHeight:"85vh", overflowY:"auto",
+            padding:"12px 16px calc(20px + env(safe-area-inset-bottom))",
+            boxSizing:"border-box",
+            animation: closing ? `_dn-down 0.26s ease-in forwards` : `_dn-up 0.38s cubic-bezier(0.34,1.56,0.64,1)`,
+          }}>
+          <div style={{width:36,height:4,borderRadius:2,background:glow(0.15),margin:"0 auto 12px"}}/>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
+            <div style={{fontSize:14,fontWeight:800,color:TEXT}}>📝 Нотатки — {dayLabel}, {dayNum} {dayMonth}</div>
+            <div onClick={_close} style={{
+              width:26,height:26,borderRadius:8,background:"rgba(239,68,68,0.18)",
+              display:"flex",alignItems:"center",justifyContent:"center",
+              cursor:"pointer",color:"#ef4444",fontSize:13,fontWeight:800,flexShrink:0,
+            }}>✕</div>
+          </div>
+          <div style={{fontSize:10.5,color:DIM,marginBottom:12,lineHeight:1.4}}>
+            Тап на час — обрати точний інтервал у межах години. Дзвіночок — увімкнути пуш-нагадування.
+          </div>
+
+          <div style={{display:"flex",flexDirection:"column",gap:7,marginBottom:16}}>
+            {hours.map(h=>{
+              const r = rows[h];
+              const isEditing = editingHour === h;
+              return (
+                <div key={h} style={{display:"flex",alignItems:"center",gap:8}}>
+                  {isEditing ? (
+                    <div style={{display:"flex",alignItems:"center",gap:3,flexShrink:0}}>
+                      <button onClick={()=>setRow(h,{startMin:clampMin(r.startMin-60)})} style={{
+                        width:18,height:22,borderRadius:5,border:"none",cursor:"pointer",fontFamily:"inherit",
+                        background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,color:DIM,fontSize:12,fontWeight:800,
+                        display:"flex",alignItems:"center",justifyContent:"center",padding:0,
+                      }}>−</button>
+                      <div style={{width:24,textAlign:"center",fontSize:11,fontWeight:800,color:TEXT,fontVariantNumeric:"tabular-nums"}}>
+                        {String(Math.floor(r.startMin/60)).padStart(2,"0")}
+                      </div>
+                      <button onClick={()=>setRow(h,{startMin:clampMin(r.startMin+60)})} style={{
+                        width:18,height:22,borderRadius:5,border:"none",cursor:"pointer",fontFamily:"inherit",
+                        background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,color:DIM,fontSize:12,fontWeight:800,
+                        display:"flex",alignItems:"center",justifyContent:"center",padding:0,
+                      }}>+</button>
+                      <span style={{color:FAINT,fontSize:10}}>:</span>
+                      <button onClick={()=>setRow(h,{startMin:clampMin(r.startMin-1)})} style={{
+                        width:18,height:22,borderRadius:5,border:"none",cursor:"pointer",fontFamily:"inherit",
+                        background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,color:DIM,fontSize:12,fontWeight:800,
+                        display:"flex",alignItems:"center",justifyContent:"center",padding:0,
+                      }}>−</button>
+                      <div style={{width:24,textAlign:"center",fontSize:11,fontWeight:800,color:TEXT,fontVariantNumeric:"tabular-nums"}}>
+                        {String(r.startMin%60).padStart(2,"0")}
+                      </div>
+                      <button onClick={()=>setRow(h,{startMin:clampMin(r.startMin+1)})} style={{
+                        width:18,height:22,borderRadius:5,border:"none",cursor:"pointer",fontFamily:"inherit",
+                        background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,color:DIM,fontSize:12,fontWeight:800,
+                        display:"flex",alignItems:"center",justifyContent:"center",padding:0,
+                      }}>+</button>
+                      <div onClick={()=>setEditingHour(null)} style={{
+                        width:22,height:22,borderRadius:6,background:`${GOLD}33`,color:GOLD,
+                        display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",fontSize:11,fontWeight:800,flexShrink:0,marginLeft:2,
+                      }}>✓</div>
+                    </div>
+                  ) : (
+                    <div onClick={()=>setEditingHour(h)} style={{
+                      width:44, flexShrink:0, cursor:"pointer", fontSize:10.5, fontWeight:800, color:GOLD,
+                      fontVariantNumeric:"tabular-nums", overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis",
+                    }}>{_fmtHM(r.startMin)}</div>
+                  )}
+                  <input value={r.text} onChange={e=>setRow(h,{text:e.target.value})} placeholder="—"
+                    style={{
+                      flex:1, minWidth:0, boxSizing:"border-box",
+                      background:`linear-gradient(135deg,${BG_DEEP},${SURF_LO})`,
+                      border:`1px solid ${BORDER}`, outline:"none", color:TEXT, fontSize:12,
+                      padding:"7px 9px", borderRadius:8, boxShadow:SI, fontFamily:"inherit",
+                    }}/>
+                  <div onClick={()=>setRow(h,{notify:!r.notify})} title={r.notify?"Нагадування увімкнено":"Нагадування вимкнено"} style={{
+                    width:26, height:26, borderRadius:8, flexShrink:0, cursor:"pointer",
+                    background: r.notify ? `${GOLD}2a` : `linear-gradient(145deg,${SURF_HI},${SURFACE})`,
+                    display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,
+                    boxShadow: r.notify ? "none" : SO,
+                  }}>{r.notify ? "🔔" : "🔕"}</div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div style={{display:"flex",gap:8}}>
+            {hasAnyNote && (
+              <button onClick={handleDelete} disabled={saving} style={{
+                flex:1, padding:"11px", borderRadius:12, border:"1px solid rgba(239,68,68,0.25)",
+                cursor:"pointer", background:"rgba(239,68,68,0.08)", color:"#fca5a5",
+                fontSize:13, fontWeight:700, fontFamily:"inherit",
+              }}>Видалити всі</button>
+            )}
+            <button onClick={handleSave} disabled={saving} style={{
+              flex:2, padding:"11px", borderRadius:12, border:"none", cursor:"pointer",
+              background:`linear-gradient(145deg,${GOLD}cc,${GOLD}88)`, color:"#1a1a1a",
+              fontSize:13, fontWeight:800, fontFamily:"inherit", boxShadow:SO,
+            }}>{saving ? "Збереження…" : "Зберегти"}</button>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
 // SCHEDULE VIEW with drag/resize + pinch-to-zoom + day-count
 // ═══════════════════════════════════════════════════════════════
-function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bookings, setBookings, activeDragIds, navTo, slotExistsRef, openSlotsRef, jumpTarget, onViewStudent }) {
+function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bookings, setBookings, activeDragIds, navTo, slotExistsRef, openSlotsRef, jumpTarget, setJumpTarget, onViewStudent }) {
   const { BG, BG_DEEP, SURFACE, SURF_HI, SURF_LO, BORDER, TEXT, DIM, FAINT, ACCENT, ACC_HI, SO, SI, STRIPE_A, STRIPE_B, GLOW, SHADE, INK } = useContext(ThemeContext);
   const isLight = BG !== "#1c1d21";
   const { glow, shade, ink } = useFX();
@@ -613,12 +1046,51 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   const STICKY_BD   = isLight ? "rgba(58,140,30,0.65)"    : "rgba(99,211,120,0.45)";
   const STICKY_CLR  = isLight ? "rgba(58,140,30,0.92)"    : "rgba(99,211,120,0.9)";
   const SURFACE_HI = SURF_HI, SURFACE_LO = SURF_LO, TEXT_DIM = DIM, TEXT_FAINT = FAINT, ACCENT_HI = ACC_HI, SHADOW_OUT = SO, SHADOW_IN = SI;
+  const [showMonthCal, setShowMonthCal] = useState(false);
+  const [keyPortalEl, setKeyPortalEl] = useState(null);
+  useEffect(() => { setKeyPortalEl(document.getElementById('topbar-key-portal')); }, []);
   const [dragId, setDragId] = useState(null);
   const [holdId, setHoldId] = useState(null);
   const [quickCancelId, setQuickCancelId] = useState(null);
   const quickCancelRef = useRef(null);
   const [cancellingSet, setCancellingSet] = useState(new Set());
   const cancelTimers = useRef({});
+  // Сусідні (без розриву в часі) записи одного учня в один день — об'єднуємо
+  // у вигляді ОДНІЄЇ картки в сітці: тривалість і ціна підсумовуються.
+  // Дані в Firebase лишаються окремими записами — це лише відображення.
+  // map[id] = { mergedIds, mergedDurMin, mergedPrice } для першого запису групи,
+  // map[id] = { hidden:true } для "поглинутих" (не рендеряться окремо).
+  const mergeInfoMap = useMemo(() => {
+    const byGroup = {};
+    for (const b of bookings) {
+      if (b.status === "cancelled") continue;
+      if (b.type === "block" || b.type === "vip-slot" || b.type === "personal") continue;
+      if (!b.userId) continue;
+      const key = `${b.day}_${b.userId}`;
+      (byGroup[key] ||= []).push(b);
+    }
+    const map = {};
+    Object.values(byGroup).forEach(list => {
+      list.sort((a, b2) => a.startMin - b2.startMin);
+      let i = 0;
+      while (i < list.length) {
+        let j = i;
+        while (j + 1 < list.length && list[j + 1].startMin === list[j].startMin + list[j].durMin) j++;
+        if (j > i) {
+          const group = list.slice(i, j + 1);
+          const primary = group[0];
+          map[primary.id] = {
+            mergedIds: group.slice(1).map(g => g.id),
+            mergedDurMin: group.reduce((s, g) => s + g.durMin, 0),
+            mergedPrice: group.reduce((s, g) => s + computeBookingPrice(g, settings.services), 0),
+          };
+          for (let k = i + 1; k <= j; k++) map[list[k].id] = { hidden: true };
+        }
+        i = j + 1;
+      }
+    });
+    return map;
+  }, [bookings, settings.services]);
   const [windowW, setWindowW] = useState(window.innerWidth);
   const [windowH, setWindowH] = useState(window.innerHeight);
   const PAST_DAYS = 30;
@@ -638,6 +1110,10 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   const gridWrapRef = useRef(null);
   const vRangeRef   = useRef({ s: Math.max(0, PAST_DAYS - VBUF), e: PAST_DAYS + 30 });
   const [vRange, setVRange] = useState({ s: Math.max(0, PAST_DAYS - VBUF), e: PAST_DAYS + 30 });
+  // Незабуферений видимий діапазон днів (на відміну від vRange) — для "Авто" висоти годин.
+  const visDayRangeRef = useRef({ s: PAST_DAYS, e: PAST_DAYS + 30 });
+  const [visDayRange, setVisDayRange] = useState(visDayRangeRef.current);
+  const autoScrollToMinRef = useRef(null);
   const xVisibleRef = useRef(false);
   const xJustShownRef = useRef(false);
   const snapTimerRef = useRef(null);
@@ -668,6 +1144,12 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
       });
       setQueueMap(map);
     });
+    return () => unsub();
+  }, []);
+
+  useEffect(() => {
+    const r = iRef("dayNotes");
+    const unsub = onValue(r, snap => setDayNotes(snap.val() || {}));
     return () => unsub();
   }, []);
 
@@ -943,6 +1425,12 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
       vRangeRef.current = { s, e };
       setVRange({ s, e });
     }
+    const vs = Math.max(0, firstVis);
+    const ve = Math.min(nd - 1, lastVis);
+    if (vs !== visDayRangeRef.current.s || ve !== visDayRangeRef.current.e) {
+      visDayRangeRef.current = { s: vs, e: ve };
+      setVisDayRange({ s: vs, e: ve });
+    }
   };
 
   // Скролимо до сьогодні при зміні daysShown (включаючи завантаження settings з Firebase)
@@ -966,6 +1454,10 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   const emptyHoldPosRef   = useRef(null);
   const dayLongPressRef   = useRef(null);
   const dayLongFiredRef   = useRef(false);
+  const dayClickTimerRef  = useRef(null);
+  const dayLastClickRef   = useRef(null); // { absDay, time } — для розпізнавання подвійного тапу
+  const [dayNotesModal, setDayNotesModal] = useState(null); // { dateStr, dayLabel, dayNum, dayMonth }
+  const [dayNotes, setDayNotes] = useState({}); // { "YYYY-MM-DD": { notes:{...}, updatedAt } }
   const [scheduleLocked, setScheduleLocked] = useState(() => localStorage.getItem("scheduleLocked") === "1");
   const lockHoldTimerRef  = useRef(null);
   const lockHoldFiredRef  = useRef(false);
@@ -1037,7 +1529,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
     }
   }, [jumpTarget]);
 
-  const TIME_COL_W = 34;
+  const TIME_COL_W = 51;
   const HEADER_H = 64;
   const currentYear = new Date().getFullYear();
   const N_DAYS = PAST_DAYS + 365;
@@ -1062,6 +1554,72 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   calcRef.current = { PX_PER_MIN, snapMin: settings.snapMin, workStart: effectiveWorkStart, workEnd: effectiveWorkEnd, COL_W, dayOffset, daysShown: settings.daysShown, N_DAYS };
 
   const minToPx = (m) => (m - effectiveWorkStart*60) * PX_PER_MIN;
+
+  // Авто-висота годин ("Авто" замість фіксованих 6/8/9/10/12): підлаштовуємо
+  // hourHeightPx під діапазон "перший запис — останній запис" видимих днів
+  // (6..16 годин). Рахуємо тільки при зміні видимого діапазону днів (скрол).
+  useEffect(() => {
+    if (!settings.autoHourHeight) return;
+    const dayFrom = dayOffset + visDayRange.s;
+    const dayTo   = dayOffset + visDayRange.e;
+    let minStart = Infinity, maxEnd = -Infinity;
+    bookings.forEach(b => {
+      if (b.status === "cancelled") return;
+      if (b.day < dayFrom || b.day > dayTo) return;
+      minStart = Math.min(minStart, b.startMin);
+      maxEnd   = Math.max(maxEnd, b.startMin + b.durMin);
+    });
+    // Порожні (вільні, ще не заброньовані) слоти теж входять у діапазон —
+    // "Авто" має показувати не лише зайняті години, а й доступні для запису.
+    for (let d = dayFrom; d <= dayTo; d++) {
+      const daySlots = openSlots[absDayToDateStr(d)];
+      if (!daySlots) continue;
+      Object.entries(daySlots).forEach(([time, slot]) => {
+        if (!slot.available) return;
+        const [hh, mm] = time.split(':').map(Number);
+        const sMin = hh * 60 + mm;
+        minStart = Math.min(minStart, sMin);
+        maxEnd   = Math.max(maxEnd, sMin + (slot.durMin || 60));
+      });
+    }
+    if (minStart === Infinity) return;
+    const spanHours = Math.ceil((maxEnd - minStart) / 60);
+    const n = Math.max(6, Math.min(16, spanHours));
+    const el = gridRef.current;
+    if (!el) return;
+    const timeCol = timeColRef.current;
+    const headerOffsetReal = timeCol
+      ? timeCol.getBoundingClientRect().top - el.getBoundingClientRect().top + el.scrollTop
+      : (2 + HEADER_H + 10);
+    const BOTTOM_BUFFER = 40;
+    const usableH = Math.max(200, el.clientHeight - headerOffsetReal - BOTTOM_BUFFER);
+    const autoPxPerMinBase = availGridH / totalMin;
+    const targetHpx = Math.max(60, Math.round(usableH / (n * autoPxPerMinBase)));
+    setSettings(s => {
+      if (Math.abs((s.hourHeightPx || 60) - targetHpx) < 1) return s;
+      autoScrollToMinRef.current = minStart;
+      return { ...s, hourHeightPx: targetHpx };
+    });
+  }, [visDayRange.s, visDayRange.e, settings.autoHourHeight]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Прокрутка до першого запису/слоту після зміни висоти "Авто"
+  useLayoutEffect(() => {
+    const targetMin = autoScrollToMinRef.current;
+    if (targetMin == null) return;
+    autoScrollToMinRef.current = null;
+    const el = gridRef.current;
+    if (!el) return;
+    const timeCol = timeColRef.current;
+    const gridOffsetTop = timeCol
+      ? timeCol.getBoundingClientRect().top - el.getBoundingClientRect().top + el.scrollTop
+      : (2 + HEADER_H + 10);
+    const y = gridOffsetTop + (targetMin - effectiveWorkStart * 60) * PX_PER_MIN;
+    // Шапка дати "плаває" (position:sticky) поверх контенту під час скролу —
+    // верхні HEADER_H px видимої області завжди перекриті нею. Тому відступ
+    // зверху має бути не просто "трохи" (8px), а щонайменше HEADER_H, інакше
+    // перший запис ховається під шапкою.
+    el.scrollTop = Math.max(0, y - HEADER_H - 8);
+  }, [settings.hourHeightPx]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const onPointerDown = (e, b, mode) => {
     if (scheduleLocked) return;
@@ -1506,7 +2064,12 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   return (
     <>
     <style>{makeGlobalCSS(SURF_LO, ACCENT, GLOW, SHADE, INK)}</style>
-    <Card style={{padding:"6px 3px 0", overflow:"hidden", flex:1, minHeight:0, display:"flex", flexDirection:"column"}}>
+    <Card style={{
+      padding:"6px 3px 0", overflow:"hidden", flex:1, minHeight:0, display:"flex", flexDirection:"column",
+      // Той самий скляний фон, що й у нижньому навбарі — замість суцільного SURFACE.
+      background: isLight ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.04)",
+      boxShadow: isLight ? "0 8px 24px rgba(92,42,26,0.14)" : "0 8px 24px rgba(0,0,0,0.45)",
+    }}>
       <div style={{display:"flex", flex:1, minHeight:0, overflow:"hidden", position:"relative"}}>
 
         {/* TIME COLUMN — fixed left, never scrolls */}
@@ -1515,7 +2078,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
           display:"flex", flexDirection:"column",
           borderRight:`1px solid ${ink(0.07)}`,
         }}>
-          {/* Кнопка «Ключик» — тумблер: 1й тап генерує слоти за графіком, 2й знімає їх */}
+          {/* Кнопка «Ключик» — тумблер: 1й тап генерує слоти за графіком, 2й знімає їх (📅 місячний календар — тепер у шапці) */}
           <div style={{height:HEADER_H + 4, flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center"}}>
             {(() => {
               const slotsOn = hasAnyGeneratedSlots();
@@ -1526,16 +2089,16 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                     ? `Зняти всі слоти (${settings.calendarOpenDays||30} днів)`
                     : `Згенерувати слоти на ${settings.calendarOpenDays||30} днів за графіком`}
                   style={{
-                    width:28, height:28, borderRadius:8, border:"none", cursor: isGeneratingAll?"default":"pointer",
+                    width:32, height:32, borderRadius:9, border:"none", cursor: isGeneratingAll?"default":"pointer",
                     background: isGeneratingAll
                       ? (slotsOn ? "rgba(220,60,60,0.12)" : "rgba(99,211,120,0.12)")
                       : (slotsOn ? "rgba(220,60,60,0.18)" : "rgba(99,211,120,0.18)"),
                     display:"flex", alignItems:"center", justifyContent:"center",
-                    transition:"background .15s",
+                    transition:"background .15s", flexShrink:0,
                   }}>
                   {isGeneratingAll
-                    ? <div style={{width:12,height:12,borderRadius:"50%",border:`2px solid ${slotsOn?"rgba(220,60,60,0.3)":"rgba(99,211,120,0.3)"}`,borderTopColor:slotsOn?"rgba(220,60,60,0.9)":"rgba(99,211,120,0.9)",animation:"spin .7s linear infinite"}}/>
-                    : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={slotsOn?"rgba(220,60,60,0.9)":"rgba(99,211,120,0.9)"} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+                    ? <div style={{width:14,height:14,borderRadius:"50%",border:`2px solid ${slotsOn?"rgba(220,60,60,0.3)":"rgba(99,211,120,0.3)"}`,borderTopColor:slotsOn?"rgba(220,60,60,0.9)":"rgba(99,211,120,0.9)",animation:"spin .7s linear infinite"}}/>
+                    : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={slotsOn?"rgba(220,60,60,0.9)":"rgba(99,211,120,0.9)"} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
                   }
                 </button>
               );
@@ -1618,7 +2181,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
           }}
           onContextMenu={e=>e.preventDefault()}
           className="schedule-scroll"
-          style={{flex:1, overflowX:"auto", overflowY:"auto", touchAction:"pan-x pan-y", WebkitOverflowScrolling:"touch", userSelect:"none", WebkitUserSelect:"none"}}
+          style={{flex:1, overflowX:"auto", overflowY:"auto", touchAction:"pan-x pan-y", WebkitOverflowScrolling:"touch", userSelect:"none", WebkitUserSelect:"none", scrollbarWidth:"none"}}
         >
           <div ref={gridWrapRef} style={{display:"flex", paddingTop:2}}>
           {vRange.s > 0 && <div style={{width:vRange.s*(COL_W+4), flexShrink:0}}/>}
@@ -1655,8 +2218,29 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
             }}>
               {/* DATE HEADER — sticky top, moves with column horizontally */}
               <div
-                onClick={e=>{ e.stopPropagation(); if(scheduleLocked) return; if(dayLongFiredRef.current){dayLongFiredRef.current=false;return;} if(isPastDay || isLoadingCol || isClosedDay) return; hasAnySlotsCol ? clearDaySlots(absDay) : generateDaySlots(absDay); }}
-                onPointerDown={e=>{ if(scheduleLocked || isPastDay) return; clearTimeout(dayLongPressRef.current); dayLongFiredRef.current=false; dayLongPressRef.current=setTimeout(()=>{ dayLongFiredRef.current=true; toggleDayBlocked(dateStrCol); }, 600); }}
+                onClick={e=>{
+                  e.stopPropagation();
+                  if(scheduleLocked) return;
+                  if(dayLongFiredRef.current){dayLongFiredRef.current=false;return;}
+                  if(isPastDay || isLoadingCol) return;
+                  const now = Date.now();
+                  if (dayLastClickRef.current && dayLastClickRef.current.absDay === absDay && now - dayLastClickRef.current.time < 350) {
+                    // Подвійний тап — закрити/відкрити день
+                    clearTimeout(dayClickTimerRef.current);
+                    dayLastClickRef.current = null;
+                    navigator.vibrate?.([20,20,20]);
+                    toggleDayBlocked(dateStrCol);
+                    return;
+                  }
+                  dayLastClickRef.current = { absDay, time: now };
+                  clearTimeout(dayClickTimerRef.current);
+                  dayClickTimerRef.current = setTimeout(()=>{
+                    dayLastClickRef.current = null;
+                    if (isClosedDay) return;
+                    hasAnySlotsCol ? clearDaySlots(absDay) : generateDaySlots(absDay);
+                  }, 300);
+                }}
+                onPointerDown={e=>{ if(scheduleLocked || isPastDay) return; clearTimeout(dayLongPressRef.current); dayLongFiredRef.current=false; dayLongPressRef.current=setTimeout(()=>{ dayLongFiredRef.current=true; navigator.vibrate?.(30); setDayNotesModal({ dateStr: dateStrCol, dayLabel: day.fullLabel, dayNum: day.num, dayMonth: day.month }); }, 600); }}
                 onPointerUp={()=>clearTimeout(dayLongPressRef.current)}
                 onPointerLeave={()=>clearTimeout(dayLongPressRef.current)}
                 style={{
@@ -1666,7 +2250,9 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                   alignItems:"center", justifyContent:"space-between",
                   padding:"3px 2px 3px", borderRadius:10, cursor: isPastDay ? "default" : "pointer",
                   opacity: isPastDay ? 0.35 : 1, overflow:"visible",
-                  background: isClosedDay ? `rgba(220,60,60,0.13)` : isToday ? `rgba(247,201,72,0.18)` : isOpenCol ? (isLight ? `rgba(58,140,30,0.12)` : `rgba(99,211,120,0.13)`) : (isLight ? `rgba(0,0,0,0.07)` : `rgba(0,0,0,0.18)`),
+                  // Непрозорий фон (color-mix замість rgba) — інакше цей sticky-заголовок
+                  // просвічує і контент, що скролиться під ним, "наїжджає" на напис.
+                  background: isClosedDay ? `color-mix(in srgb, #dc3c3c 13%, ${BG_DEEP})` : isToday ? `color-mix(in srgb, ${GOLD} 18%, ${BG_DEEP})` : isOpenCol ? (isLight ? `color-mix(in srgb, #3a8c1e 12%, ${BG_DEEP})` : `color-mix(in srgb, #63d378 13%, ${BG_DEEP})`) : (isLight ? `color-mix(in srgb, #000000 7%, ${BG_DEEP})` : `color-mix(in srgb, #000000 18%, ${BG_DEEP})`),
                   boxShadow: isClosedDay ? `inset 0 0 0 1.5px rgba(220,60,60,0.7)` : isToday ? `inset 0 0 0 1.5px rgba(247,201,72,0.55)` : isOpenCol ? (isLight ? `inset 0 0 0 1px rgba(58,140,30,0.5)` : `inset 0 0 0 1px rgba(99,211,120,0.35)`) : "none",
                 }}>
                 <div style={{fontSize:9, fontWeight:700, lineHeight:1.2,
@@ -1684,6 +2270,9 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                 <div style={{fontSize:9, lineHeight:1, opacity: isClosedDay ? 1 : 0.7,
                   color: isClosedDay ? RED : isLoadingCol ? FAINT : isOpenCol ? GREEN : FAINT,
                 }}>{isPastDay ? "" : isClosedDay ? "🔒" : isLoadingCol ? "…" : isOpenCol ? "✓" : "＋"}</div>
+                {dayNotes[dateStrCol] && (
+                  <div style={{position:"absolute", top:3, left:4, fontSize:8, lineHeight:1, color:GOLD}}>📝</div>
+                )}
                 {genToast?.absDay === absDay && (
                   <div style={{position:"absolute", bottom:-18, left:"50%", transform:"translateX(-50%)",
                     background: genToast.free > 0 ? "rgba(99,211,120,0.92)" : "rgba(220,80,80,0.92)",
@@ -1877,8 +2466,16 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
               })}
 
               {/* Bookings */}
-              {bookings.filter(b=>b.day===absDay).sort((a,b)=>a.startMin-b.startMin).map(b=>{
-                if (b.status === "cancelled") return null;
+              {bookings.filter(b=>b.day===absDay).sort((a,b)=>a.startMin-b.startMin).map(origB=>{
+                if (origB.status === "cancelled") return null;
+                // Сусідній (без розриву) запис того ж учня — "поглинутий" сусідньою карткою, не рендеримо окремо.
+                const mi = mergeInfoMap[origB.id];
+                if (mi?.hidden) return null;
+                // Для першого запису об'єднаної групи — синтетична копія лише для геометрії/ціни картки
+                // (клік відкриває деталі саме origB, щоб модалка й дії лишались "чесними" для одного запису).
+                const b = mi?.mergedIds?.length
+                  ? { ...origB, durMin: mi.mergedDurMin, _mergedIds: mi.mergedIds, _mergedPrice: mi.mergedPrice }
+                  : origB;
                 const wsMin = effectiveWorkStart * 60;
                 const weMin = effectiveWorkEnd * 60;
                 if (b.startMin >= weMin || b.startMin + b.durMin <= wsMin) return null;
@@ -1895,14 +2492,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                 const slotTimeStr = String(Math.floor(b.startMin/60)).padStart(2,'0')+':'+String(b.startMin%60).padStart(2,'0');
                 const queueCount = b.date ? (queueMap[`${b.date}_${slotTimeStr}`] || 0) : 0;
                 const isDimmed = !isBlock && !isVipSlot && !isPersonal && (b.status==="noshow" || isCancelling);
-                const svc = settings.services.find(s=>s.id===b.serviceId)
-                         || settings.services.find(s=>s.active && s.type===(b.serviceType||b.type) && Number(s.duration)===b.durMin);
-                const basePrice = svc
-                  ? Math.round((svc.price / svc.duration) * b.durMin)
-                  : b.price && b.durationHours
-                    ? Math.round((b.price / (b.durationHours * 60)) * b.durMin)
-                    : (b.price || 0);
-                const price = basePrice + (b.surcharge || 0);
+                const price = b._mergedPrice != null ? b._mergedPrice : computeBookingPrice(b, settings.services);
                 return (
                   /* Обгортка — overflow:visible щоб значок не обрізався */
                   <div key={b.id} style={{
@@ -1931,7 +2521,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                           setCancellingSet(s=>{ const ns=new Set(s); ns.delete(b.id); return ns; });
                           return;
                         }
-                        if(!dragRef.current){ setLocalSelectedBooking(b); onSlotClick?.(b); }
+                        if(!dragRef.current){ setLocalSelectedBooking(origB); onSlotClick?.(origB); }
                       }}
                       style={isVipSlot ? {
                         position:"relative", width:"100%", height:"100%",
@@ -1966,7 +2556,8 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                         filter: isDimmed ? "grayscale(0.6)" : "none",
                         transition:"opacity 0.4s, filter 0.4s",
                       }}>
-                      <div className="slot-handle top" onPointerDown={e=>onPointerDown(e,b,"top")}/>
+                      {/* Ресайз відключений на об'єднаній картці — невідомо, який із поглинутих записів стискати/розтягувати */}
+                      {!b._mergedIds && <div className="slot-handle top" onPointerDown={e=>onPointerDown(e,b,"top")}/>}
                       {!isBlock && !isVipSlot && !isPersonal && <div className="shine-layer"/>}
                       {isVipSlot && height >= 14 && (
                         <span style={{fontSize:11, lineHeight:1}}>👑</span>
@@ -1978,14 +2569,14 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                         return (
                           <div style={{
                             position:"absolute", top:2, left:4, right:2, bottom:2,
-                            display:"flex", flexDirection:"column", justifyContent:"center",
-                            gap:1, overflow:"hidden",
+                            display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
+                            gap:1, overflow:"hidden", textAlign:"center",
                           }}>
                             <span style={{fontSize:Math.min(fs+1,11), lineHeight:1}}>📌</span>
                             {nameLines.slice(0,2).map((word,i)=>(
                               <div key={i} style={{
                                 fontSize:fs, fontWeight:700, color:"#2dd4bf",
-                                lineHeight:1.2, whiteSpace:"normal",
+                                lineHeight:1.2, whiteSpace:"normal", textAlign:"center",
                                 wordBreak:"break-word", overflowWrap:"anywhere",
                                 textShadow:"none",
                               }}>{word}</div>
@@ -2014,7 +2605,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                           { text: fName,     w: 800, c: si(0.95) },
                           ...(lName          ? [{ text: lName,     w: 700, c: si(0.80) }] : []),
                           { text: typeLabel, w: 600, c: si(0.58) },
-                          ...(priceText      ? [{ text: priceText, w: 900, c: priceColor }] : []),
+                          ...(priceText      ? [{ text: priceText, w: 900, c: priceColor, shadow: !!b.surcharge }] : []),
                         ];
                         const availH = height - 6;
                         const availW = COL_W - 8;
@@ -2041,7 +2632,9 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                                 lineHeight: 1.2, textAlign:"center",
                                 whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis",
                                 width:"100%",
-                                textShadow:"none",
+                                // Надбавка (GOLD) інакше зливається з жовтим кольором слоту —
+                                // темна обводка тримає контраст на будь-якому фоні картки.
+                                textShadow: ln.shadow ? "0 0 3px rgba(0,0,0,0.85), 0 1px 2px rgba(0,0,0,0.7)" : "none",
                               }}>{ln.text}</div>
                             ))}
                           </div>
@@ -2076,7 +2669,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                           <span style={{fontSize:7, fontWeight:800, color:GOLD, lineHeight:1}}>{queueCount}</span>
                         </div>
                       )}
-                      <div className="slot-handle bottom" onPointerDown={e=>onPointerDown(e,b,"bottom")}/>
+                      {!b._mergedIds && <div className="slot-handle bottom" onPointerDown={e=>onPointerDown(e,b,"bottom")}/>}
 
                     </div>
 
@@ -2186,38 +2779,64 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
             const cw = calcRef.current.COL_W;
             if (el && cw) el.scrollTo({ left: PAST_DAYS * (cw + 4), behavior:"smooth" });
           }}
+          title="Сьогодні"
           style={{
             position:"absolute",
             bottom:4,
             right:8,
             zIndex:20,
-            padding:"5px 12px",
-            borderRadius:20,
+            width:44,
+            height:44,
+            borderRadius:"50%",
             border:"none",
             background:BLUE,
             color:"#fff",
-            fontSize:12,
-            fontWeight:700,
             cursor:"pointer",
             display:"flex",
             alignItems:"center",
-            gap:5,
+            justifyContent:"center",
             boxShadow:"0 2px 10px rgba(0,0,0,0.3)",
-            letterSpacing:0.2,
             touchAction:"none",
           }}
         >
-          {todayDir==="left" && <svg width="10" height="10" viewBox="0 0 10 10"><path d="M7 1L3 5l4 4" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none"/></svg>}
-          Сьогодні
-          {todayDir==="right" && <svg width="10" height="10" viewBox="0 0 10 10"><path d="M3 1l4 4-4 4" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none"/></svg>}
+          {todayDir==="left" && <svg width="14" height="14" viewBox="0 0 10 10"><path d="M7 1L3 5l4 4" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none"/></svg>}
+          {todayDir==="right" && <svg width="14" height="14" viewBox="0 0 10 10"><path d="M3 1l4 4-4 4" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none"/></svg>}
         </button>
       )}
       </div>{/* /outer flex */}
 
     </Card>
 
+    {/* Кнопка «📅 Місячний календар» — портується в шапку (по центру, замість лого) */}
+    {keyPortalEl && createPortal(
+      <button
+        onClick={()=>setShowMonthCal(true)}
+        title="Місячний календар"
+        style={{
+          width:32, height:32, borderRadius:9, border:"none", cursor:"pointer",
+          background:"rgba(91,155,255,0.18)",
+          display:"flex", alignItems:"center", justifyContent:"center",
+          transition:"background .15s", flexShrink:0,
+        }}>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(91,155,255,0.9)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18M8 2v4M16 2v4"/></svg>
+      </button>
+    , keyPortalEl)}
+
+    {showMonthCal && (
+      <MonthCalendarSheet
+        bookings={bookings}
+        onClose={()=>setShowMonthCal(false)}
+        onPickDate={(dateStr)=>{ if (setJumpTarget) setJumpTarget({ date: dateStr, ts: Date.now() }); }}
+      />
+    )}
+
     <BookingModal booking={localSelectedBooking} onClose={()=>setLocalSelectedBooking(null)}
-      onAction={handleAction} settings={settings} onViewStudent={onViewStudent}/>
+      onAction={handleAction} settings={settings} onViewStudent={onViewStudent}
+      mergeInfo={(() => {
+        const mi = localSelectedBooking && mergeInfoMap[localSelectedBooking.id];
+        if (!mi?.mergedIds?.length) return null;
+        return { durMin: mi.mergedDurMin, price: mi.mergedPrice, count: mi.mergedIds.length + 1 };
+      })()}/>
 
     {/* ── Модалка блокування ── */}
     {(blockModal || blockModalClosing) && (() => {
@@ -2864,6 +3483,17 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
       </div>
     )}
     {broadcastInit && <BroadcastModal initialDate={broadcastInit.date} initialSlot={broadcastInit.slot} onClose={() => setBroadcastInit(null)}/>}
+    {dayNotesModal && (
+      <DayNotesModal
+        dateStr={dayNotesModal.dateStr}
+        dayLabel={dayNotesModal.dayLabel}
+        dayNum={dayNotesModal.dayNum}
+        dayMonth={dayNotesModal.dayMonth}
+        note={dayNotes[dayNotesModal.dateStr]}
+        settings={settings}
+        onClose={() => setDayNotesModal(null)}
+      />
+    )}
     </>
   );
 }
@@ -2992,7 +3622,7 @@ function CreateSlotSheet({ data, settings, onClose }) {
 // ═══════════════════════════════════════════════════════════════
 // BOOKING DETAIL MODAL
 // ═══════════════════════════════════════════════════════════════
-function BookingModal({ booking, onClose, onAction, settings, onViewStudent }) {
+function BookingModal({ booking, onClose, onAction, settings, onViewStudent, mergeInfo }) {
   const { BG, BG_DEEP, SURFACE, SURF_HI, SURF_LO, BORDER, TEXT, DIM, FAINT, ACCENT, ACC_HI, SO, SI , GLOW, SHADE, INK, GREEN } = useContext(ThemeContext);
   const glow=a=>`rgba(${GLOW},${a})`,shade=a=>`rgba(${SHADE},${a})`,ink=a=>`rgba(${INK},${a})`;
   const SURFACE_HI = SURF_HI, SURFACE_LO = SURF_LO, TEXT_DIM = DIM, TEXT_FAINT = FAINT, ACCENT_HI = ACC_HI, SHADOW_OUT = SO, SHADOW_IN = SI;
@@ -3067,7 +3697,11 @@ function BookingModal({ booking, onClose, onAction, settings, onViewStudent }) {
     : booking.price && booking.durationHours
       ? Math.round((booking.price / (booking.durationHours * 60)) * booking.durMin)
       : (booking.price || 0);
-  const price = basePrice + (booking.surcharge || 0);
+  // Сусідні записи цього учня об'єднані на картці розкладу — тут показуємо
+  // сумарну ціну й тривалість (booking сам лишається одним "чесним" записом
+  // для дій: скасувати/неявка/повтор діють лише на нього).
+  const durMinDisplay = mergeInfo ? mergeInfo.durMin : booking.durMin;
+  const price = mergeInfo ? mergeInfo.price : basePrice + (booking.surcharge || 0);
   const ini   = booking.name.trim().split(" ").slice(0, 2).map(w => w[0]).join("");
   const typeLabel = booking.type === "school" ? "🎓 Автошкола" : "🚗 Приватний";
 
@@ -3142,8 +3776,8 @@ function BookingModal({ booking, onClose, onAction, settings, onViewStudent }) {
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:1,background:ink(0.04)}}>
             {[
               { label:"Дата",  val:`${day.num} ${day.month}`, sub:day.label },
-              { label:"Час",   val:`${fmtTime(booking.startMin)}`, sub:`–${fmtTime(booking.startMin+booking.durMin)}` },
-              { label:"Ціна",  val:`${price}₴`, sub: booking.surcharge ? `+${booking.surcharge}₴` : (svc ? `${svc.duration}хв` : "—"), gold: !!booking.surcharge },
+              { label:"Час",   val:`${fmtTime(booking.startMin)}`, sub:`–${fmtTime(booking.startMin+durMinDisplay)}` },
+              { label:"Ціна",  val:`${price}₴`, sub: mergeInfo ? `${mergeInfo.count} записи, ${durMinDisplay}хв` : booking.surcharge ? `+${booking.surcharge}₴` : (svc ? `${svc.duration}хв` : "—"), gold: !!booking.surcharge && !mergeInfo },
             ].map(({ label, val, sub, gold }, i) => (
               <div key={i} style={{
                 padding:"11px 6px",background:BG_DEEP,
