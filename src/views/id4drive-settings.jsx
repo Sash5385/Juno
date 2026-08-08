@@ -574,37 +574,36 @@ select{color-scheme:${isKava?"light":"dark"}}
       )}
 
       <div style={{
-        display:"flex", flexDirection:"column",
+        display:"flex", flexDirection:"row", alignItems:"flex-start", gap:6,
         fontFamily:"ui-sans-serif,-apple-system,system-ui,sans-serif", color:TEXT,
       }}>
 
-        {/* SECTION GRID — symmetric colorway tiles */}
+        {/* SECTION RAIL — вузька колонка іконок зліва, контент розділу — праворуч */}
         <div style={{
-          display:"grid", gridTemplateColumns:"repeat(5,1fr)", gap:7,
-          padding:"4px 4px 10px",
+          display:"flex", flexDirection:"column", gap:5,
+          flexShrink:0, padding:"4px 0 10px 4px",
+          position:"sticky", top:8, alignSelf:"flex-start",
         }}>
           {SECTIONS.map(sec => {
             const isActive = active === sec.id;
             return (
-              <button key={sec.id} onClick={()=>switchSection(sec.id)} style={{
-                borderRadius:13, border:"none", cursor:"pointer",
+              <button key={sec.id} onClick={()=>switchSection(sec.id)} title={sec.title} style={{
+                width:34, height:34, borderRadius:11, border:"none", cursor:"pointer",
                 background: isActive
                   ? `linear-gradient(155deg,${sec.color}dd,${sec.color}66)`
                   : `color-mix(in srgb,${sec.color} 16%,${SURFACE})`,
                 boxShadow: isActive ? `-1px 3px 10px ${sec.color}55, inset 1px 1px 0 rgba(255,255,255,0.18)` : SO,
-                display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
-                gap:3, transition:"all .15s", padding:"9px 4px",
+                display:"flex", alignItems:"center", justifyContent:"center",
+                fontSize:16, lineHeight:1, transition:"all .15s", flexShrink:0,
               }}>
-                <span style={{fontSize:18,lineHeight:1}}>{sec.icon}</span>
-                <span style={{fontSize:8.5,fontWeight:700,lineHeight:1.1,letterSpacing:0.1,textAlign:"center",
-                  color:isActive?"rgba(255,255,255,0.95)":sec.color}}>{sec.label}</span>
+                {sec.icon}
               </button>
             );
           })}
         </div>
 
         {/* PANEL — section content */}
-        <div style={{padding:"0 4px 40px 4px", minWidth:0}}>
+        <div style={{padding:"4px 4px 40px 0", minWidth:0, flex:1}}>
           <div style={{
             borderRadius:16,
             boxShadow:`0 0 0 1.5px ${isKava?"rgba(0,0,0,0.14)":"rgba(255,255,255,0.18)"}, 0 8px 28px rgba(0,0,0,0.28)`,

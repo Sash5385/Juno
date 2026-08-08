@@ -5,7 +5,7 @@ import { iRef } from "../firebase";
 import { ThemeContext } from "../theme.js";
 import { UICss, Modal, Chip, Btn, Toggle, Pill, useFX } from "../ui";
 
-const makePalette = ({GREEN, GOLD, BLUE, PURPLE, ACCENT, TEAL}) => [
+export const makePalette = ({GREEN, GOLD, BLUE, PURPLE, ACCENT, TEAL}) => [
   { id:"green",   name:"Зелений",    color:GREEN  },
   { id:"yellow",  name:"Жовтий",     color:GOLD   },
   { id:"blue",    name:"Синій",      color:BLUE   },

@@ -1,10 +1,11 @@
-import { useState, useEffect, useContext } from "react";
+import { useState, useEffect, useContext, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { onValue, update, push, remove, get } from "firebase/database";
 import { iRef } from "../firebase";
 
 import { ThemeContext } from "../theme.js";
 import { UICss, Field, Btn as UIBtn, useFX, useBackClose } from "../ui";
+import { makePalette } from "./id4drive-services";
 
 const M = ["","Січ","Лют","Бер","Кві","Тра","Чер","Лип","Сер","Вер","Жов","Лис","Гру"];
 const fmtS = d => { if(!d) return "—"; const [,m,day]=d.split("-"); return `${parseInt(day)} ${M[parseInt(m)]}`; };
@@ -146,10 +147,17 @@ function StudentForm({ initial, onSave, onCancel, saveLabel="Зберегти" }
 }
 
 // ─── STUDENT CARD (colorway card) ────────────────────────────────
-function StudentCard({ s, onSelect, debtAmount, onMarkPaid }) {
-  const { BG_DEEP, GREEN, GOLD, RED } = useContext(ThemeContext);
+function StudentCard({ s, onSelect, debtAmount, onMarkPaid, settings }) {
+  const theme = useContext(ThemeContext);
+  const { BG_DEEP, GREEN, GOLD, RED } = theme;
   const { shade, glow } = useFX();
-  const typeColor = s.type === "school" ? GREEN : GOLD;
+  // Колір картки учня — той самий, що обраний для послуги цього типу
+  // (Автошкола/Приватний) на вкладці «Послуги», а не фіксований GREEN/GOLD.
+  const PALETTE = makePalette(theme);
+  const colorOf = id => PALETTE.find(p=>p.id===id)?.color || GREEN;
+  const matchedSvc = (settings?.services || []).find(sv => sv.type === s.type && sv.active)
+                   || (settings?.services || []).find(sv => sv.type === s.type);
+  const typeColor = matchedSvc ? colorOf(matchedSvc.colorId) : (s.type === "school" ? GREEN : GOLD);
   const typeLabel = s.type === "school" ? "Автошкола" : "Приватний";
   const ini       = s.name.split(" ").map(w=>w[0]).slice(0,2).join("");
   const barColor  = s.blocked ? RED : typeColor;
@@ -668,7 +676,7 @@ function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock }) {
 }
 
 // ─── MAIN ────────────────────────────────────────────────────────
-export default function StudentsView({ studentJump, onStudentJumpHandled } = {}) {
+export default function StudentsView({ studentJump, onStudentJumpHandled, bookings=[], settings } = {}) {
   const { BG_DEEP, SURFACE, SURF_HI, BORDER, TEXT, DIM, FAINT, ACCENT, ACC_HI, GREEN, BLUE, SO, SI } = useContext(ThemeContext);
   const { ink } = useFX();
 
@@ -687,6 +695,7 @@ export default function StudentsView({ studentJump, onStudentJumpHandled } = {})
   const [detailStudent,setDetailStudent] = useState(null);
   const [search,       setSearch]       = useState("");
   const [filterType,   setFilterType]   = useState("all");
+  const [sortMode,     setSortMode]     = useState("name");
   const [loading,      setLoading]      = useState(true);
 
   // Перехід із модалки запису в розкладі ("Профіль"/"Історія") — відкриваємо
@@ -783,13 +792,41 @@ export default function StudentsView({ studentJump, onStudentJumpHandled } = {})
     setShowNew(false);
   };
 
+  const studentStats = useMemo(() => {
+    const map = {};
+    (bookings || []).forEach(b => {
+      if (b.status === "cancelled" || !b.userId) return;
+      const cur = map[b.userId] || { lastKey: "", lessons: 0 };
+      cur.lessons += 1;
+      const key = `${b.date || ""} ${b.time || ""}`;
+      if (key > cur.lastKey) cur.lastKey = key;
+      map[b.userId] = cur;
+    });
+    return map;
+  }, [bookings]);
+
   const q    = search.toLowerCase();
   const list = students
     .filter(s=>(!q||(s.name||"").toLowerCase().includes(q)||(s.phone||"").includes(q))&&(filterType==="all"||filterType==="debt"||filterType==="noshow"||filterType==="vip"||s.type===filterType))
     .filter(s=>filterType!=="debt"||debtMap[s.id])
     .filter(s=>filterType!=="noshow"||noShowMap[s.id])
     .filter(s=>filterType!=="vip"||s.isVip)
-    .sort((a,b)=>filterType==="debt"?(debtMap[b.id]||0)-(debtMap[a.id]||0):filterType==="noshow"?(noShowMap[b.id]||0)-(noShowMap[a.id]||0):(a.name||"").localeCompare(b.name||""));
+    .sort((a,b)=>{
+      if (filterType==="debt") return (debtMap[b.id]||0)-(debtMap[a.id]||0);
+      if (filterType==="noshow") return (noShowMap[b.id]||0)-(noShowMap[a.id]||0);
+      if (sortMode === "lastBooking") {
+        const ka = studentStats[a.id]?.lastKey || "";
+        const kb = studentStats[b.id]?.lastKey || "";
+        return kb.localeCompare(ka);
+      }
+      if (sortMode === "createdAt") return (b.createdAt||0) - (a.createdAt||0);
+      if (sortMode === "lessons") {
+        const la = studentStats[a.id]?.lessons || 0;
+        const lb = studentStats[b.id]?.lessons || 0;
+        return lb - la;
+      }
+      return (a.name||"").localeCompare(b.name||"");
+    });
 
   const liveDetail = detailStudent ? students.find(x=>x.id===detailStudent.id) : null;
 
@@ -844,6 +881,16 @@ export default function StudentsView({ studentJump, onStudentJumpHandled } = {})
           })}
         </div>
 
+        <div style={{display:"flex",gap:6,overflowX:"auto",paddingBottom:2}}>
+          {[["name","Алфавіт"],["lastBooking","Останні записи"],["createdAt","Реєстрація"],["lessons","К-сть уроків"]].map(([k,l])=>(
+            <button key={k} onClick={()=>setSortMode(k)} style={{
+              flexShrink:0,padding:"8px 12px",borderRadius:11,border:"none",cursor:"pointer",fontSize:11,fontWeight:700,fontFamily:"inherit",whiteSpace:"nowrap",
+              background:sortMode===k?`linear-gradient(145deg,${ACC_HI},${ACCENT})`:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,
+              color:sortMode===k?"#fff":DIM,boxShadow:SO,
+            }}>{l}</button>
+          ))}
+        </div>
+
         {debtLoading && (
           <div style={{textAlign:"center",padding:"20px",color:FAINT,fontSize:13}}>
             <div style={{width:20,height:20,border:`2px solid ${FAINT}22`,borderTopColor:ACCENT,borderRadius:"50%",animation:"spin .8s linear infinite",margin:"0 auto"}}/>
@@ -851,7 +898,7 @@ export default function StudentsView({ studentJump, onStudentJumpHandled } = {})
         )}
 
         {!debtLoading && list.map(s=>(
-          <StudentCard key={s.id} s={s} onSelect={s=>setDetailStudent(s)} debtAmount={filterType==="debt"?debtMap[s.id]||0:0} onMarkPaid={filterType==="debt"?markAllPaid:null} />
+          <StudentCard key={s.id} s={s} onSelect={s=>setDetailStudent(s)} debtAmount={filterType==="debt"?debtMap[s.id]||0:0} onMarkPaid={filterType==="debt"?markAllPaid:null} settings={settings} />
         ))}
 
         {loading && (

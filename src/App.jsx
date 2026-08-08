@@ -131,16 +131,10 @@ function BottomNav({ active, onChange, settings, chatUnread, journalUnread, queu
   const tabIcons = isKava ? makeTabIcons(INACTIVE_KAVA) : TabIcons;
   const visible = TAB_IDS.filter(t => settings?.navTabs?.includes(t.id) ?? true);
 
-  const navBg = isKava
-    ? `linear-gradient(180deg,#d9c4a0,#ccb48c)`
-    : "linear-gradient(180deg,#3a3b40,#2e2f34)";
-  const navBorder = isKava
-    ? `1px solid ${theme.BORDER}`
-    : "1px solid rgba(255,255,255,0.08)";
-  const navShadow = isKava
-    ? `0 8px 32px rgba(92,42,26,0.18), 0 2px 8px rgba(92,42,26,0.12)`
-    : "0 12px 40px rgba(0,0,0,0.65), 0 4px 16px rgba(0,0,0,0.4), 0 -1px 0 rgba(255,255,255,0.05)";
+  const navBg = isKava ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.04)";
+  const navShadow = isKava ? "0 8px 24px rgba(92,42,26,0.14)" : "0 8px 24px rgba(0,0,0,0.45)";
   const labelInactive = isKava ? theme.DIM : FAINT;
+  const activeBg = `color-mix(in srgb, ${theme.GREEN} 18%, transparent)`;
 
   return (
     <div style={{
@@ -152,45 +146,39 @@ function BottomNav({ active, onChange, settings, chatUnread, journalUnread, queu
     }}>
       <div style={{
         background:navBg,
-        borderRadius:26,
-        border:navBorder,
+        borderRadius:16,
+        border:`1px solid ${theme.BORDER}`,
         boxShadow:navShadow,
-        display:"flex", overflow:"hidden",
+        display:"flex", gap:2, padding:3,
         pointerEvents:"auto",
       }}>
-        {visible.map(t=>(
+        {visible.map(t=>{
+          const isActive = active===t.id;
+          const badgeCount = t.id === 'chats' ? chatUnread : t.id === 'journal' ? journalUnread : t.id === 'queue' ? queueCount : t.id === 'schedule' ? (settings?.pendingEnabled ? pendingCount : 0) : t.badge;
+          const badgeColor = t.id === 'schedule' ? theme.GOLD : theme.ACCENT;
+          return (
           <button key={t.id} onClick={()=>onChange(t.id)} style={{
-            flex:"1 1 0",minWidth:0,padding:"13px 4px 11px",
-            background:"transparent",border:"none",cursor:"pointer",
-            display:"flex",flexDirection:"column",alignItems:"center",gap:5,
+            flex:"1 1 0",minWidth:0,padding:"8px 2px 7px",
+            background: isActive ? activeBg : "transparent",
+            border:"none",cursor:"pointer",borderRadius:11,
+            display:"flex",flexDirection:"column",alignItems:"center",gap:4,
             position:"relative"
           }}>
-            <div style={{
-              transform:active===t.id?"scale(1.1)":"scale(0.94)",
-              transition:"transform .15s",
-              opacity:active===t.id?1:0.52,
-              position:"relative"
-            }}>
-              {tabIcons[t.id]?.(34,active===t.id)}
-              {(t.id === 'chats' ? chatUnread : t.id === 'journal' ? journalUnread : t.id === 'queue' ? queueCount : t.id === 'schedule' ? (settings?.pendingEnabled ? pendingCount : 0) : t.badge) > 0 && (
+            <div style={{position:"relative"}}>
+              {tabIcons[t.id]?.(34,isActive)}
+              {badgeCount > 0 && (
                 <div style={{
                   position:"absolute",top:-4,right:-4,
-                  background:t.id === 'schedule' ? theme.GOLD : theme.ACCENT,color:"#fff",borderRadius:10,
+                  background:badgeColor,color:"#fff",borderRadius:10,
                   padding:"1px 5px",fontSize:9,fontWeight:800,
-                  boxShadow:`0 0 8px ${t.id === 'schedule' ? theme.GOLD : theme.ACCENT}88`,lineHeight:1.4
-                }}>{t.id === 'chats' ? chatUnread : t.id === 'journal' ? journalUnread : t.id === 'queue' ? queueCount : t.id === 'schedule' ? pendingCount : t.badge}</div>
+                  boxShadow:`0 0 8px ${badgeColor}88`,lineHeight:1.4
+                }}>{badgeCount}</div>
               )}
             </div>
-            <span style={{fontSize:9,fontWeight:700,color:active===t.id?theme.ACCENT:labelInactive,whiteSpace:"nowrap"}}>{tl(t.lk)}</span>
-            {active===t.id && (
-              <div style={{
-                position:"absolute",bottom:5,left:"50%",transform:"translateX(-50%)",
-                width:28,height:3,borderRadius:2,
-                background:theme.ACCENT,boxShadow:`0 0 10px ${theme.ACCENT}99`
-              }}/>
-            )}
+            <span style={{fontSize:9,fontWeight:700,color:isActive?theme.GREEN:labelInactive,whiteSpace:"nowrap"}}>{tl(t.lk)}</span>
           </button>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
@@ -276,9 +264,7 @@ function TopBar({ tab, onChange, settings, setSettings }) {
 
   const theme = useContext(ThemeContext);
   const isKava = settings?.theme === "light";
-  const topBgEnd = isKava
-    ? `${theme.BG}ee`
-    : "rgba(28,29,33,0.9)";
+  const navBg = isKava ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.04)";
   const btnInactive = isKava
     ? `rgba(92,42,26,0.12)`
     : `rgba(255,255,255,0.08)`;
@@ -289,21 +275,31 @@ function TopBar({ tab, onChange, settings, setSettings }) {
       <div style={{
         padding:`calc(4px + env(safe-area-inset-top, 0px)) 8px 4px`,
         display:"flex",alignItems:"center",
-        background:`linear-gradient(180deg,${theme.BG} 60%,${topBgEnd})`,
+        background:navBg,
         backdropFilter:"blur(20px)",
         borderBottom:`1px solid ${showInfo ? "transparent" : theme.BORDER}`,
+        borderRadius: showInfo ? 0 : "0 0 16px 16px",
         minHeight:42,
       }}>
         {tab==="schedule" && settings && setSettings ? (
           <>
             {/* Left: годин buttons */}
             <div style={{flex:1,display:"flex",gap:3,alignItems:"center"}}>
-              {[6,8,9,10,12].map(n=>{
+              <button key="hauto" onClick={()=>setSettings(s=>({...s,autoHourHeight:true}))} style={{
+                ...btnBase,
+                background:settings.autoHourHeight?`linear-gradient(165deg,#5b9bff,#2563eb)`:btnInactive,
+                color:settings.autoHourHeight?"#fff":btnInactiveColor,
+                boxShadow:settings.autoHourHeight?`0 3px 8px rgba(91,155,255,0.5)`:"none",
+              }}>
+                <span style={{fontSize:11,fontWeight:800}}>Авто</span>
+                <span style={{fontSize:8,fontWeight:600,opacity:0.8}}>годин</span>
+              </button>
+              {[8,9,10,12].map(n=>{
                 const totalH = (settings.workEnd - settings.workStart) * 60;
                 const targetHpx = Math.round(totalH / n);
-                const active = Math.abs(settings.hourHeightPx - targetHpx) < 5;
+                const active = !settings.autoHourHeight && Math.abs(settings.hourHeightPx - targetHpx) < 5;
                 return (
-                  <button key={`h${n}`} onClick={()=>setSettings(s=>({...s,hourHeightPx:Math.round((s.workEnd-s.workStart)*60/n)}))} style={{
+                  <button key={`h${n}`} onClick={()=>setSettings(s=>({...s,autoHourHeight:false,hourHeightPx:Math.round((s.workEnd-s.workStart)*60/n)}))} style={{
                     ...btnBase,
                     background:active?`linear-gradient(165deg,#5b9bff,#2563eb)`:btnInactive,
                     color:active?"#fff":btnInactiveColor,
@@ -316,10 +312,8 @@ function TopBar({ tab, onChange, settings, setSettings }) {
               })}
             </div>
 
-            {/* Center: logo */}
-            <div style={{flex:"0 0 auto",display:"flex",justifyContent:"center",alignItems:"center",padding:"0 6px"}}>
-              <img src="/icon-192.png" alt="DrivePad" style={{width:26,height:26,borderRadius:"50%",flexShrink:0,boxShadow:"-2px 3px 8px rgba(0,0,0,0.45)"}}/>
-            </div>
+            {/* Center: портал для кнопки «Ключик» (рендериться з ScheduleView через createPortal) */}
+            <div id="topbar-key-portal" style={{flex:"0 0 auto",display:"flex",justifyContent:"center",alignItems:"center",padding:"0 6px",minWidth:36}}/>
 
             {/* Right: діб buttons */}
             <div style={{flex:1,display:"flex",gap:3,alignItems:"center"}}>
@@ -349,9 +343,10 @@ function TopBar({ tab, onChange, settings, setSettings }) {
       {showInfo && instruction && (
         <div style={{
           padding:"8px 14px 10px",
-          background:`linear-gradient(180deg,${theme.BG},${topBgEnd})`,
+          background:navBg,
           backdropFilter:"blur(20px)",
           borderBottom:`1px solid ${theme.BORDER}`,
+          borderRadius:"0 0 16px 16px",
           fontSize:12,color:theme.DIM,lineHeight:1.55,
         }}>
           <span style={{color:theme.GOLD,fontWeight:700,marginRight:6}}>💡</span>{instruction}
@@ -365,7 +360,7 @@ const INITIAL_BOOKINGS = [];
 
 const DEFAULT_SETTINGS = {
   profile: { name:"Олександр", phone:"+380989225442", address:"Київ", experience:8, photo:null },
-  workStart:7, workEnd:20, weekends:[6], daysShown:6, snapMin:30, slotCreateStep:30, hourHeightPx:60,
+  workStart:7, workEnd:20, weekends:[6], daysShown:6, snapMin:30, slotCreateStep:30, hourHeightPx:60, autoHourHeight:false,
   lunchEnabled:true, lunchStart:12, lunchEnd:13, customBlocks:[], pendingEnabled:false,
   theme:"dark", language:"uk", queueAutoFifo:true, queueBroadcast:false, queueManual:false,
   studentCanReschedule:true, studentCanCancel:true, bookCutoffHours:2, calendarOpenDays:30,
@@ -433,7 +428,7 @@ function ViewRenderer({ tab, settings, setSettings, bookings, setBookings, onSlo
   if (tab === "settings")  return <SettingsView settings={settings} setSettings={setSettings}/>;
   if (tab === "bookings")  return <BookingsView settings={settings}/>;
   if (tab === "queue")     return <QueueView settings={settings}/>;
-  if (tab === "students")  return <StudentsView studentJump={studentJump} onStudentJumpHandled={onStudentJumpHandled}/>;
+  if (tab === "students")  return <StudentsView studentJump={studentJump} onStudentJumpHandled={onStudentJumpHandled} bookings={bookings} settings={settings}/>;
   if (tab === "services")  return <ServicesView/>;
   if (tab === "chats")     return <ChatsView/>;
   if (tab === "templates") return <TemplatesView/>;
@@ -709,6 +704,7 @@ export default function App() {
         weekends:        settings.weekends        ?? [],
         daysShown:       settings.daysShown       ?? 6,
         hourHeightPx:    settings.hourHeightPx    ?? 60,
+        autoHourHeight:  settings.autoHourHeight   ?? false,
         pendingEnabled:  settings.pendingEnabled  ?? false,
         studentCanReschedule: settings.studentCanReschedule ?? true,
         studentCanCancel:     settings.studentCanCancel     ?? true,
