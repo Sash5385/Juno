@@ -18,12 +18,18 @@ function getDateStr(d) {
 }
 
 function bkType(b) { return b.serviceType || b.type || "private"; }
+// Та сама формула, що й у розкладі (computeBookingPrice в id4drive-admin-v5.jsx):
+// fallback-пошук послуги за типом+тривалістю, якщо serviceId не знайдено (послугу
+// видалили/заархівували), + надбавка (surcharge) поверх базової ціни.
 function bkIncome(b, svcs) {
-  const svc = (svcs||[]).find(s => s.id === b.serviceId);
   const dur = b.durMin || (b.durationHours ? b.durationHours * 60 : 60);
-  if (svc && svc.price && svc.duration) return Math.round((svc.price / svc.duration) * dur);
-  if (b.price && b.durationHours && b.durMin) return Math.round((b.price / (b.durationHours * 60)) * b.durMin);
-  return b.price || 0;
+  const svc = (svcs||[]).find(s => s.id === b.serviceId)
+           || (svcs||[]).find(s => s.active && s.type === bkType(b) && Number(s.duration) === dur);
+  let base;
+  if (svc && svc.price && svc.duration) base = Math.round((svc.price / svc.duration) * dur);
+  else if (b.price && b.durationHours && b.durMin) base = Math.round((b.price / (b.durationHours * 60)) * b.durMin);
+  else base = b.price || 0;
+  return base + (b.surcharge || 0);
 }
 
 function aggregateBuckets(buckets, bookings, getKey, svcs) {
@@ -44,12 +50,12 @@ function aggregateBuckets(buckets, bookings, getKey, svcs) {
   return buckets.map(b => map[b.key]);
 }
 
-function computeDayData(bookings, offsetDays = 0, svcs) {
+function computeDayData(bookings, offsetDays = 0, svcs, workStart = 8, workEnd = 18) {
   const d = new Date();
   d.setDate(d.getDate() + offsetDays);
   const dateStr = getDateStr(d);
-  const buckets = Array.from({length: 10}, (_, i) => {
-    const h = 8 + i;
+  const buckets = Array.from({length: Math.max(1, workEnd - workStart)}, (_, i) => {
+    const h = workStart + i;
     return { key: `${dateStr}_${h}`, label: `${String(h).padStart(2,'0')}:00` };
   });
   return aggregateBuckets(buckets, bookings, b => {
@@ -337,8 +343,10 @@ const Chip = ({label, active, onClick, color}) => {
 };
 
 // ─── MAIN ────────────────────────────────────────────────────────
-export default function StatsView() {
+export default function StatsView({ settings } = {}) {
   const { BG_DEEP, SURFACE, SURF_HI, BORDER, TEXT, DIM, FAINT, ACCENT, ACC_HI, GREEN, BLUE, PURPLE, GOLD, RED, SO, SI } = useContext(ThemeContext);
+  const workStart = settings?.workStart ?? 8;
+  const workEnd   = settings?.workEnd   ?? 18;
   const lang = useContext(LangContext);
   const t = createT(lang);
   const [period,     setPeriod]    = useState("month");
@@ -392,14 +400,14 @@ export default function StatsView() {
 
   const data     = period === "week"   ? computeWeekData(bookings, 0, services)
                  : period === "year"   ? computeYearData(bookings, 0, services)
-                 : period === "day"    ? computeDayData(bookings, 0, services)
+                 : period === "day"    ? computeDayData(bookings, 0, services, workStart, workEnd)
                  : period === "custom" ? computeCustomData(bookings, customFrom, customTo, services)
                  :                       computeMonthData(bookings, 0, services);
 
   const prevData = period === "custom" ? data
                  : period === "week"   ? computeWeekData(bookings, -1, services)
                  : period === "year"   ? computeYearData(bookings, -1, services)
-                 : period === "day"    ? computeDayData(bookings, -1, services)
+                 : period === "day"    ? computeDayData(bookings, -1, services, workStart, workEnd)
                  :                       computeMonthData(bookings, -5, services);
 
   const cur  = periodSum(data);
@@ -430,8 +438,23 @@ export default function StatsView() {
   const todayLessons = period === "day"
     ? bookings.filter(b => b.date === todayStr && b.status !== "cancelled" && b.type !== "block" && b.type !== "personal" && b.type !== "vip-slot").sort((a, b) => (a.time||"").localeCompare(b.time||""))
     : [];
-  const slotsPerBucket = period === "day" ? 10 : 8;
-  const occupancy    = data.length ? Math.min(100, Math.round((cur.lessons / (data.length * slotsPerBucket)) * 100)) : 0;
+  // Заповненість: для "день" рахуємо по годинних бакетах (як і раніше, лише
+  // діапазон тепер бере робочі години з налаштувань замість жорстко 8–17).
+  // Для тижня/місяця/року/свого періоду бакети (data) не завжди дорівнюють
+  // кількості днів (у місяці/році — це місяці), тому знаменник рахуємо від
+  // реальної кількості календарних днів періоду, а не кількості бакетів.
+  const dayBucketCount = Math.max(1, workEnd - workStart);
+  const occupancyDays  = period === "week"   ? data.length
+                        : period === "custom" ? (customDiffDays || data.length)
+                        : period === "month" || period === "year"
+                          ? data.reduce((sum, d) => {
+                              const [y, m] = (d.key || "").split("-").map(Number);
+                              return sum + (y && m ? new Date(y, m, 0).getDate() : 30);
+                            }, 0)
+                          : data.length;
+  const occupancy    = period === "day"
+    ? (data.length ? Math.min(100, Math.round((cur.lessons / (data.length * dayBucketCount)) * 100)) : 0)
+    : (occupancyDays ? Math.min(100, Math.round((cur.lessons / (occupancyDays * 8)) * 100)) : 0);
   const occupancySub = period === "day" ? "сьогодні" : period === "week" ? "цей тиждень" : period === "month" ? "5 місяців" : period === "custom" ? "свій інтервал" : "рік";
   const forecastSub  = period === "year" ? "рік (прогноз)" : period === "custom" ? "—" : "місяць (прогноз)";
   const byPeriodLabel= period === "day" ? "По годинах" : period === "week" ? "По днях" : period === "custom" && customDiffDays <= 62 ? "По днях" : "По місяцях";
