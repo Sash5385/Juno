@@ -29,9 +29,12 @@ function versionGuard() {
       version = readVersion()
     },
     transformIndexHtml(html) {
+      // Перевіряємо версію одразу при завантаженні, а потім періодично (кожні 45с),
+      // поки вкладка відкрита — так відкрита сесія теж підхоплює новий деплой
+      // без ручного перезавантаження сторінки.
       const guard =
         '<script>(function(){var B=' + JSON.stringify(version) + ';' +
-        'try{fetch("/version.json?_="+Date.now(),{cache:"no-store"})' +
+        'function check(){try{fetch("/version.json?_="+Date.now(),{cache:"no-store"})' +
         '.then(function(r){return r.json()}).then(function(d){' +
         'if(d&&d.version&&d.version!==B){' +
         'var k="vreset_"+d.version;if(sessionStorage.getItem(k))return;' +
@@ -43,7 +46,10 @@ function versionGuard() {
         '.then(function(){return window.caches?caches.keys().then(function(ks){' +
         'return Promise.all(ks.map(function(x){return caches.delete(x)}))}):null})' +
         '.then(done).catch(done)}else{done()}' +
-        '}}).catch(function(){})}catch(e){}})();</script>'
+        '}}).catch(function(){})}catch(e){}}' +
+        'check();setInterval(check,45000);' +
+        'document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible")check()});' +
+        '})();</script>'
       return html.replace('</head>', guard + '</head>')
     },
     generateBundle() {
