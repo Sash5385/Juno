@@ -2236,7 +2236,9 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                   opacity: isPastDay ? 0.35 : 1, overflow:"visible",
                   // Непрозорий фон (color-mix замість rgba) — інакше цей sticky-заголовок
                   // просвічує і контент, що скролиться під ним, "наїжджає" на напис.
-                  background: isClosedDay ? `color-mix(in srgb, #dc3c3c 13%, ${BG_DEEP})` : isToday ? `color-mix(in srgb, ${GOLD} 18%, ${BG_DEEP})` : isOpenCol ? (isLight ? `color-mix(in srgb, #3a8c1e 12%, ${BG_DEEP})` : `color-mix(in srgb, #63d378 13%, ${BG_DEEP})`) : (isLight ? `color-mix(in srgb, #000000 7%, ${BG_DEEP})` : `color-mix(in srgb, #000000 18%, ${BG_DEEP})`),
+                  // Заблокований день — та сама діагональна штриховка, що й у заблокованих
+                  // слотах сітки (STRIPE_A/STRIPE_B) — узгоджена мова "заблоковано" в межах UI.
+                  background: isClosedDay ? `repeating-linear-gradient(45deg,${STRIPE_A},${STRIPE_A} 5px,${STRIPE_B} 5px,${STRIPE_B} 10px)` : isToday ? `color-mix(in srgb, ${GOLD} 18%, ${BG_DEEP})` : isOpenCol ? (isLight ? `color-mix(in srgb, #3a8c1e 12%, ${BG_DEEP})` : `color-mix(in srgb, #63d378 13%, ${BG_DEEP})`) : (isLight ? `color-mix(in srgb, #000000 7%, ${BG_DEEP})` : `color-mix(in srgb, #000000 18%, ${BG_DEEP})`),
                   boxShadow: isClosedDay ? `inset 0 0 0 1.5px rgba(220,60,60,0.7)` : isToday ? `inset 0 0 0 1.5px rgba(247,201,72,0.55)` : isOpenCol ? (isLight ? `inset 0 0 0 1px rgba(58,140,30,0.5)` : `inset 0 0 0 1px rgba(99,211,120,0.35)`) : "none",
                 }}>
                 <div style={{fontSize:9, fontWeight:700, lineHeight:1.2,
@@ -2251,11 +2253,32 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                   color: isClosedDay ? RED : isToday ? GOLD : isOpenCol ? GREEN : FAINT,
                   letterSpacing:0.2,
                 }}>{day.month}{day.year !== currentYear ? ` ${day.year}` : ""}</div>
-                <div style={{fontSize:9, lineHeight:1, opacity: isClosedDay ? 1 : 0.7,
-                  color: isClosedDay ? RED : isLoadingCol ? FAINT : isOpenCol ? GREEN : FAINT,
-                }}>{isPastDay ? "" : isClosedDay ? "🔒" : isLoadingCol ? "…" : isOpenCol ? "✓" : "＋"}</div>
+                <div style={{fontSize:9, lineHeight:1, height:9}}>{!isPastDay && !isClosedDay && isLoadingCol ? "…" : ""}</div>
+                {!isPastDay && !isClosedDay && !isLoadingCol && (
+                  <div style={{
+                    position:"absolute", bottom:-5, right:-5, width:15, height:15, borderRadius:"50%",
+                    background: isOpenCol ? `linear-gradient(155deg,#a6e888,${GREEN})` : `linear-gradient(145deg,${SURF_HI},${SURFACE})`,
+                    boxShadow:"0 1px 3px rgba(0,0,0,0.5)",
+                    display:"flex", alignItems:"center", justifyContent:"center",
+                  }}>
+                    {isOpenCol ? (
+                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#0f2e08" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="5 13 10 18 19 7"/></svg>
+                    ) : (
+                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke={FAINT} strokeWidth="3.5" strokeLinecap="round"><line x1="12" y1="6" x2="12" y2="18"/><line x1="6" y1="12" x2="18" y2="12"/></svg>
+                    )}
+                  </div>
+                )}
                 {dayNotes[dateStrCol] && (
-                  <div style={{position:"absolute", top:3, left:4, fontSize:8, lineHeight:1, color:GOLD}}>📝</div>
+                  <div style={{
+                    position:"absolute", top:-5, left:-5, width:15, height:15, borderRadius:"50%",
+                    background:`linear-gradient(155deg,#ffe28a,${GOLD})`,
+                    boxShadow:"0 1px 3px rgba(0,0,0,0.5)",
+                    display:"flex", alignItems:"center", justifyContent:"center",
+                  }}>
+                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#3a2800" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M14 3v5h5"/><path d="M6 3h8l5 5v13H6z"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/>
+                    </svg>
+                  </div>
                 )}
                 {genToast?.absDay === absDay && (
                   <div style={{position:"absolute", bottom:-18, left:"50%", transform:"translateX(-50%)",
