@@ -1120,6 +1120,8 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   const [shineId, setShineId] = useState(null);
   const slotHoldTimerRef = useRef(null);
   const slotHoldFiredRef = useRef(false);
+  const slotHoldPosRef = useRef(null);
+  const slotMovedRef = useRef(false);
   const [openSlots, setOpenSlots] = useState({}); // { "2025-06-01": ["07:00","08:00",...] }
   const [viewingSlots, setViewingSlots] = useState({});
   const pendingSlotSnapRef = useRef(null);
@@ -2378,17 +2380,28 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                       if (scheduleLocked || isPastDay || isClosedDay) return;
                       e.stopPropagation();
                       slotHoldFiredRef.current = false;
+                      slotMovedRef.current = false;
+                      slotHoldPosRef.current = { startY: e.clientY };
                       slotHoldTimerRef.current = setTimeout(()=>{
                         slotHoldFiredRef.current = true;
                         navigator.vibrate?.(40);
                         setSlotOptions({ dateStr: dateStrCol, time, startTime: time, slot });
                       }, 600);
                     }}
-                    onPointerUp={()=>clearTimeout(slotHoldTimerRef.current)}
-                    onPointerCancel={()=>clearTimeout(slotHoldTimerRef.current)}
+                    onPointerMove={e=>{
+                      // Палець "поплив" на сусідній слот — скасовуємо тап, щоб не
+                      // перемкнути випадково інший (не той, на якому почали) слот.
+                      if (!slotHoldPosRef.current) return;
+                      if (Math.abs(e.clientY - slotHoldPosRef.current.startY) > 8) {
+                        slotMovedRef.current = true;
+                        clearTimeout(slotHoldTimerRef.current);
+                      }
+                    }}
+                    onPointerUp={()=>{ clearTimeout(slotHoldTimerRef.current); slotHoldPosRef.current = null; }}
+                    onPointerCancel={()=>{ clearTimeout(slotHoldTimerRef.current); slotHoldPosRef.current = null; }}
                     onClick={e=>{
                       e.stopPropagation();
-                      if (isPastDay || isClosedDay || slotHoldFiredRef.current) return;
+                      if (isPastDay || isClosedDay || slotHoldFiredRef.current || slotMovedRef.current) return;
                       toggleSlotFree(dateStrCol, time, slot);
                     }}
                     style={{
