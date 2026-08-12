@@ -1923,11 +1923,32 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
       const m = String(fd.newStart % 60).padStart(2, "0");
       const newTime = `${h}:${m}`;
       if (newTime === fd.time) return;
-      const bks = bookingsRef.current || [];
       const durMin = fd.durMin || 60;
-      const occupiedByBooking = bks.some(b => b.date === fd.dateStr && b.startMin < fd.newStart + durMin && b.startMin + b.durMin > fd.newStart);
-      const occupiedBySlot = !!((openSlotsRef?.current || {})[fd.dateStr] || {})[newTime];
-      if (occupiedByBooking || occupiedBySlot) { navigator.vibrate?.([10,10,10]); return; }
+      const newEnd = fd.newStart + durMin;
+      const bks = bookingsRef.current || [];
+      const occupiedByBooking = bks.some(b => b.date === fd.dateStr && b.startMin < newEnd && b.startMin + b.durMin > fd.newStart);
+      if (occupiedByBooking) { navigator.vibrate?.([10,10,10]); return; }
+      // Перенесений слот (особливо розтягнутий на кілька годин) може накрити
+      // собою інші вільні документи на новому місці — так само, як і
+      // розтягування, поглинаємо їх (видаляємо окремі записи); якщо на шляху
+      // VIP/блокування/надбавка — рух забороняємо. РАНІШЕ перевірявся лише
+      // рівно новий час (newTime), тож "проковтнуті" по дорозі старі годинні
+      // документи лишались у базі — і саме вони, а не сам перенесений слот,
+      // обрізали видиму висоту до найближчого з них при рендері.
+      const daySlots = (openSlotsRef?.current || {})[fd.dateStr] || {};
+      const absorbedTimes = [];
+      let blocked = false;
+      Object.keys(daySlots).forEach(t => {
+        if (t === fd.time) return;
+        const [h2, m2] = t.split(":").map(Number);
+        const tm = h2 * 60 + m2;
+        if (tm >= fd.newStart && tm < newEnd) {
+          const s2 = daySlots[t];
+          const s2Free = s2 && s2.available && !s2.vipOnly && !s2.adminBlocked && !s2.surcharge;
+          if (s2Free) absorbedTimes.push(t); else blocked = true;
+        }
+      });
+      if (blocked) { navigator.vibrate?.([10,10,10]); return; }
       const oldSlotId = `slot${fd.time.replace(":", "")}`;
       const newSlotId = `slot${h}${m}`;
       const updates = {};
@@ -1935,6 +1956,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
       updates[`timeslots/${fd.dateStr}/${newSlotId}/available`] = true;
       updates[`timeslots/${fd.dateStr}/${newSlotId}/time`] = newTime;
       updates[`timeslots/${fd.dateStr}/${newSlotId}/durMin`] = durMin;
+      absorbedTimes.forEach(t => { updates[`timeslots/${fd.dateStr}/slot${t.replace(":", "")}`] = null; });
       update(iRef(""), updates).catch(() => {});
       navigator.vibrate?.(20);
     };
