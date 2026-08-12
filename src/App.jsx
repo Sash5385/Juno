@@ -422,6 +422,37 @@ function DashStrip({ bookings }) {
   );
 }
 
+// ─── TAB ERROR BOUNDARY ──────────────────────────────────────────
+// Крах у рендері однієї вкладки (напр. запис учня без імені) раніше зносив
+// весь застосунок (React розмонтовує все дерево) — суцільний чорний екран
+// без жодного індикатора. А оскільки активна вкладка зберігається в
+// localStorage, наступний reload одразу відкривав ту саму вкладку й падав
+// знову — виглядало як нескінченний "бутлуп". Тепер крах ловиться тут,
+// показується кнопка повернення на розклад, і зламана вкладка більше не
+// відкриється сама при наступному завантаженні.
+class TabErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { error: null }; }
+  static getDerivedStateFromError(error) { return { error }; }
+  componentDidUpdate(prevProps) {
+    if (this.state.error && prevProps.tab !== this.props.tab) this.setState({ error: null });
+  }
+  render() {
+    if (this.state.error) {
+      try { localStorage.removeItem("admin_tab"); } catch {}
+      return (
+        <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:14, padding:30, height:"100%" }}>
+          <div style={{ fontSize:14, color:"#8b8d93", textAlign:"center" }}>Ця вкладка не завантажилась через помилку.</div>
+          <button onClick={() => this.props.onReset ? this.props.onReset() : window.location.reload()}
+            style={{ padding:"10px 22px", borderRadius:12, background:"linear-gradient(135deg,#ff7a5c,#ff5a3c)", border:"none", color:"#fff", fontSize:14, fontWeight:700, cursor:"pointer" }}>
+            До розкладу
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 // ─── VIEW RENDERER ───────────────────────────────────────────────
 function ViewRenderer({ tab, settings, setSettings, bookings, setBookings, onSlotClick, onEmptySlotClick, openInfos, toggleInfo, activeDragIds, navTo, slotExistsRef, openSlotsRef, jumpTarget, setJumpTarget, onViewStudent, studentJump, onStudentJumpHandled }) {
   if (tab === "schedule")  return <ScheduleView settings={settings} setSettings={setSettings} bookings={bookings} setBookings={setBookings} onSlotClick={onSlotClick} onEmptySlotClick={onEmptySlotClick} activeDragIds={activeDragIds} navTo={navTo} slotExistsRef={slotExistsRef} openSlotsRef={openSlotsRef} jumpTarget={jumpTarget} setJumpTarget={setJumpTarget} onViewStudent={onViewStudent}/>;
@@ -1177,9 +1208,11 @@ const pendingDeletesRef = React.useRef(new Set());
           background: theme.BG_IMAGE ? "#d4ba96" : "transparent",
         }}>
           {tab === "schedule" && <DashStrip bookings={bookings}/>}
-          <Suspense fallback={<Loader/>}>
-            <ViewRenderer tab={tab} settings={settings} setSettings={setSettings} bookings={bookings} setBookings={handleSetBookings} onSlotClick={setSelectedBooking} onEmptySlotClick={setNewBookingData} openInfos={openInfos} toggleInfo={toggleInfo} activeDragIds={activeDragIds} navTo={switchTab} slotExistsRef={slotExistsRef} openSlotsRef={openSlotsRef} jumpTarget={jumpTarget} setJumpTarget={setJumpTarget} onViewStudent={onViewStudent} studentJump={studentJump} onStudentJumpHandled={()=>setStudentJump(null)}/>
-          </Suspense>
+          <TabErrorBoundary tab={tab} onReset={() => switchTab("schedule")}>
+            <Suspense fallback={<Loader/>}>
+              <ViewRenderer tab={tab} settings={settings} setSettings={setSettings} bookings={bookings} setBookings={handleSetBookings} onSlotClick={setSelectedBooking} onEmptySlotClick={setNewBookingData} openInfos={openInfos} toggleInfo={toggleInfo} activeDragIds={activeDragIds} navTo={switchTab} slotExistsRef={slotExistsRef} openSlotsRef={openSlotsRef} jumpTarget={jumpTarget} setJumpTarget={setJumpTarget} onViewStudent={onViewStudent} studentJump={studentJump} onStudentJumpHandled={()=>setStudentJump(null)}/>
+            </Suspense>
+          </TabErrorBoundary>
         </div>
         <BottomNav active={tab} onChange={switchTab} settings={settings} chatUnread={chatUnread} journalUnread={journalUnread} queueCount={queueCount} pendingCount={bookings.filter(b=>b.status==='pending').length}/>
       </div>
