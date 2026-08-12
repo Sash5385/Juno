@@ -39,7 +39,11 @@ function versionGuard() {
         'if(d&&d.version&&d.version!==B){' +
         'var k="vreset_"+d.version;if(sessionStorage.getItem(k))return;' +
         'sessionStorage.setItem(k,"1");' +
-        'function done(){location.reload()}' +
+        'var done_=false;function done(){if(done_)return;done_=true;location.reload()}' +
+        // Якщо unregister/caches.delete зависне (буває у старих WebView-обгортках
+        // PWA на телефоні) — все одно перезавантажуємо через 2.5с, а не лишаємось
+        // застряглими назавжди на старій версії.
+        'setTimeout(done,2500);' +
         'if("serviceWorker"in navigator){' +
         'navigator.serviceWorker.getRegistrations().then(function(rs){' +
         'return Promise.all(rs.map(function(r){return r.unregister()}))})' +
