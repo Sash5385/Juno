@@ -1121,9 +1121,11 @@ const pendingDeletesRef = React.useRef(new Set());
   if (profileReady === false) return <InstructorSetupScreen onDone={profile => { setSettings(s => ({...s, profile: {...s.profile, ...profile}})); setProfileReady(true); }}/>;
   if (subscription === null) return null;
 
-  const subExpired = !subscription.plan ||
+  // Обліковий запис власника — без пейволу пробного періоду/підписки.
+  const isOwnerAccount = adminUser?.email === "sash5385@gmail.com";
+  const subExpired = !isOwnerAccount && (!subscription.plan ||
     (subscription.plan === 'trial'  && (subscription.trialEndsAt || 0) <= Date.now()) ||
-    (subscription.plan === 'active' && (subscription.expiresAt   || 0) <= Date.now());
+    (subscription.plan === 'active' && (subscription.expiresAt   || 0) <= Date.now()));
   if (subExpired) return <SubscriptionExpiredScreen subscription={subscription}/>;
 
   return (
