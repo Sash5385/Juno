@@ -159,7 +159,7 @@ function StudentCard({ s, onSelect, debtAmount, onMarkPaid, settings }) {
                    || (settings?.services || []).find(sv => sv.type === s.type);
   const typeColor = matchedSvc ? colorOf(matchedSvc.colorId) : (s.type === "school" ? GREEN : GOLD);
   const typeLabel = s.type === "school" ? "Автошкола" : "Приватний";
-  const ini       = s.name.split(" ").map(w=>w[0]).slice(0,2).join("");
+  const ini       = (s.name||"").split(" ").map(w=>w[0]).slice(0,2).join("");
   const barColor  = s.blocked ? RED : typeColor;
 
   return (
@@ -271,7 +271,7 @@ function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock }) {
   const typeColor = s.type === "school" ? GREEN : GOLD;
   const typeLabel = s.type === "school" ? "Автошкола" : "Приватний";
   const phone     = (s.phone||"").replace(/\D/g,"");
-  const ini       = s.name.split(" ").map(w=>w[0]).slice(0,2).join("");
+  const ini       = (s.name||"").split(" ").map(w=>w[0]).slice(0,2).join("");
   const barColor  = s.blocked ? RED : typeColor;
 
   const _close = () => setClosing(true);
@@ -857,7 +857,7 @@ export default function StudentsView({ studentJump, onStudentJumpHandled, bookin
                   background:"rgba(251,146,60,0.1)",color:"#fb923c",fontSize:11,fontWeight:700,
                   cursor:"pointer",fontFamily:"inherit",
                 }}>
-                  {s.name.split(' ')[0]} {s.birthday?.slice(5).split('-').reverse().join('.')}
+                  {(s.name||"").split(' ')[0]} {s.birthday?.slice(5).split('-').reverse().join('.')}
                 </button>
               ))}
             </div>
