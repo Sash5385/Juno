@@ -239,7 +239,7 @@ select{color-scheme:${isKava?"light":"dark"}}
             }} min={1} max={24} suffix=":00"/>
           </Row>
           <Row color={secColor} label={t('set.schedule.days')} last>
-            <NumInput value={settings.daysShown} onChange={v=>upd("daysShown",v)} min={1} max={30} suffix={` ${t('days')}`}/>
+            <NumInput value={settings.daysShown} onChange={v=>upd("daysShown",v)} min={1} max={8} suffix={` ${t('days')}`}/>
           </Row>
           <div style={{paddingTop:8}}>
             <div style={{fontSize:9,color:FAINT,letterSpacing:1,textTransform:"uppercase",marginBottom:6}}>Тижневий шаблон</div>
