@@ -487,6 +487,7 @@ export default function App() {
   const [queueCount,    setQueueCount]    = useState(0);
   const [profileReady,  setProfileReady] = useState(null); // null=checking, false=needs setup, true=ready
   const [subscription,  setSubscription] = useState(null); // null=loading, {}=no data, object=loaded
+  const [loadStuck,     setLoadStuck]    = useState(false); // профіль/підписка не завантажились за розумний час — не лишаємо чорний екран назавжди
 
   const switchTab = t => {
     setTab(t);
@@ -511,8 +512,13 @@ export default function App() {
 
   // Set global instructor ID, check profile, and listen to subscription
   useEffect(() => {
-    if (!adminUser?.uid) { setProfileReady(null); setSubscription(null); return; }
+    if (!adminUser?.uid) { setProfileReady(null); setSubscription(null); setLoadStuck(false); return; }
     setCurrentIid(adminUser.uid);
+    setLoadStuck(false);
+    // Якщо профіль/підписка з якоїсь причини (мережа, зависла офлайн-персистенція
+    // після примусового reload з versionGuard) так і не завантажаться — не лишаємо
+    // користувача на чорному екрані назавжди, а показуємо кнопку перезавантаження.
+    const stuckTimer = setTimeout(() => setLoadStuck(true), 8000);
     get(iRef("admin_settings/profile")).then(snap => {
       const p = snap.val();
       setProfileReady(!!(p && p.name));
@@ -521,7 +527,7 @@ export default function App() {
     const unsub = onValue(iRef("subscription"), snap => {
       setSubscription(snap.val() || {});
     });
-    return unsub;
+    return () => { clearTimeout(stuckTimer); unsub(); };
   }, [adminUser]);
 
   // Initialize journal read timestamp on first ever app load
@@ -1118,6 +1124,17 @@ const pendingDeletesRef = React.useRef(new Set());
 
   if (adminUser === undefined) return null;
   if (adminUser === null) return <LoginScreen/>;
+  if ((profileReady === null || subscription === null) && loadStuck) {
+    return (
+      <div style={{ minHeight:"100vh", background:"#161719", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:14, padding:20 }}>
+        <div style={{ fontSize:14, color:"#8b8d93", textAlign:"center" }}>Не вдалося завантажити дані. Перевірте з'єднання.</div>
+        <button onClick={() => window.location.reload()}
+          style={{ padding:"10px 22px", borderRadius:12, background:"linear-gradient(135deg,#ff7a5c,#ff5a3c)", border:"none", color:"#fff", fontSize:14, fontWeight:700, cursor:"pointer" }}>
+          Перезавантажити
+        </button>
+      </div>
+    );
+  }
   if (profileReady === null) return null;
   if (profileReady === false) return <InstructorSetupScreen onDone={profile => { setSettings(s => ({...s, profile: {...s.profile, ...profile}})); setProfileReady(true); }}/>;
   if (subscription === null) return null;
