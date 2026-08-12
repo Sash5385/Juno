@@ -37,8 +37,15 @@ function versionGuard() {
         'function check(){try{fetch("/version.json?_="+Date.now(),{cache:"no-store"})' +
         '.then(function(r){return r.json()}).then(function(d){' +
         'if(d&&d.version&&d.version!==B){' +
-        'var k="vreset_"+d.version;if(sessionStorage.getItem(k))return;' +
-        'sessionStorage.setItem(k,"1");' +
+        // Ключ зберігає ЧАС останньої спроби, а не постійний прапорець "вже
+        // оброблено" — якщо reload стався, але через якийсь збій (перерваний
+        // unregister, зависла вкладка) клієнт так і лишився на старій версії,
+        // наступна перевірка (за 45с) спробує ще раз, а не мовчки здасться
+        // назавжди. Повторний тригер в межах 10с все одно блокуємо, щоб не
+        // зациклити швидкі перезавантаження одне за одним.
+        'var k="vreset_"+d.version;var last=+(sessionStorage.getItem(k)||0);' +
+        'if(Date.now()-last<10000)return;' +
+        'sessionStorage.setItem(k,String(Date.now()));' +
         'var done_=false;function done(){if(done_)return;done_=true;location.reload()}' +
         // Якщо unregister/caches.delete зависне (буває у старих WebView-обгортках
         // PWA на телефоні) — все одно перезавантажуємо через 2.5с, а не лишаємось
