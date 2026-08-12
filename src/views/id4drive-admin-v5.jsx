@@ -1124,6 +1124,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   const slotHoldFiredRef = useRef(false);
   const slotHoldPosRef = useRef(null);
   const slotMovedRef = useRef(false);
+  const slotClaimedRef = useRef(false); // дотик уже "заявлений" дочірнім вільним слотом — батьківський порожній фон не має відкривати своє меню "новий слот"
   const [openSlots, setOpenSlots] = useState({}); // { "2025-06-01": ["07:00","08:00",...] }
   const [viewingSlots, setViewingSlots] = useState({});
   const pendingSlotSnapRef = useRef(null);
@@ -1672,17 +1673,27 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   useEffect(() => {
     const onMove = (e) => {
       if (swipeRef.current) {
-        const prevX = swipeRef.current.endX;
-        const prevY = swipeRef.current.endY;
         swipeRef.current.endX = e.clientX;
         swipeRef.current.endY = e.clientY;
         if (!dragRef.current && !pendingDragRef.current && swipeRef.current.manualScroll && gridRef.current) {
-          const dx = prevX - e.clientX;
-          const dy = prevY - e.clientY;
-          if (Math.abs(dx) >= Math.abs(dy)) {
-            gridRef.current.scrollLeft += dx;
+          // Абсолютний розрахунок від "якоря" (позиція й scrollLeft/scrollTop
+          // у момент, коли manualScroll щойно увімкнувся) — а не накопичення
+          // через += по кожній крихітній dx/dy. При += будь-яка втрачена/
+          // об'єднана подія pointermove назавжди "губить" частину відстані;
+          // тут же кожна подія наново рахує ПОВНУ відстань від якоря, тож
+          // рідкісні події не шкодять фінальному результату.
+          if (swipeRef.current.scrollAnchorX == null) {
+            swipeRef.current.scrollAnchorX = e.clientX;
+            swipeRef.current.scrollAnchorY = e.clientY;
+            swipeRef.current.scrollStartLeft = gridRef.current.scrollLeft;
+            swipeRef.current.scrollStartTop = gridRef.current.scrollTop;
+          }
+          const totalDx = swipeRef.current.scrollAnchorX - e.clientX;
+          const totalDy = swipeRef.current.scrollAnchorY - e.clientY;
+          if (Math.abs(totalDx) >= Math.abs(totalDy)) {
+            gridRef.current.scrollLeft = swipeRef.current.scrollStartLeft + totalDx;
           } else {
-            gridRef.current.scrollTop += dy;
+            gridRef.current.scrollTop = swipeRef.current.scrollStartTop + totalDy;
           }
         }
       }
@@ -2075,7 +2086,28 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
       <div style={{display:"flex", flex:1, minHeight:0, overflow:"hidden", position:"relative"}}>
 
         {/* TIME COLUMN — fixed left, never scrolls */}
-        <div style={{
+        <div
+          onPointerDown={e=>{
+            // Стовпчик часу — не нащадок gridRef, тому onPointerDownCapture на
+            // gridRef сюди не долітає — ініціалізуємо swipeRef вручну.
+            swipeRef.current = {
+              startX:e.clientX, startY:e.clientY, endX:e.clientX, endY:e.clientY, startTime:Date.now(),
+              scrollAnchorX: e.clientX, scrollStartLeft: gridRef.current?.scrollLeft ?? 0,
+            };
+          }}
+          onPointerMove={e=>{
+            const sr = swipeRef.current;
+            if (!sr) return;
+            sr.endX = e.clientX;
+            sr.endY = e.clientY;
+            // Стовпчик часу керує ЛИШЕ горизонтальним гортанням днів — вертикальний
+            // скрол годин і так синхронізується автоматично з основної сітки
+            // (onScroll ставить transform на timeColRef). Абсолютний розрахунок
+            // від якоря (а не += по кожній крихітній dx) — стійкий до рідкісних/
+            // згрупованих подій pointermove.
+            if (gridRef.current) gridRef.current.scrollLeft = sr.scrollStartLeft + (sr.scrollAnchorX - e.clientX);
+          }}
+          style={{
           width:TIME_COL_W, flexShrink:0, zIndex:10,
           display:"flex", flexDirection:"column",
           borderRight:`1px solid ${ink(0.07)}`,
@@ -2313,6 +2345,10 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
               <div
                 onClick={e=>{ if(xJustShownRef.current){ xJustShownRef.current=false; return; } if(quickCancelId){ xVisibleRef.current=false; setQuickCancelId(null); } }}
                 onPointerDown={e=>{
+                  // Дотик уже "заявлений" дочірнім вільним слотом (без stopPropagation,
+                  // щоб не заважати нативному touch-action панорамуванню) — не відкриваємо
+                  // меню "новий слот" поверх уже існуючого.
+                  if (slotClaimedRef.current) { slotClaimedRef.current = false; return; }
                   if (scheduleLocked || isPastDay) return;
                   if (e.button > 0) return;
                   if (dragRef.current || pendingDragRef.current) return;
@@ -2394,7 +2430,11 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                   <div key={`os-${time}`}
                     onPointerDown={e=>{
                       if (scheduleLocked || isPastDay || isClosedDay) return;
-                      e.stopPropagation();
+                      // Заявляємо дотик БЕЗ stopPropagation — він заважає нативному
+                      // touch-action панорамуванню (свайпу днів) на реальних мобільних
+                      // браузерах. Батьківський порожній фон перевіряє slotClaimedRef
+                      // і сам не відкриває своє меню "новий слот".
+                      slotClaimedRef.current = true;
                       slotHoldFiredRef.current = false;
                       slotMovedRef.current = false;
                       slotHoldPosRef.current = { startY: e.clientY };
