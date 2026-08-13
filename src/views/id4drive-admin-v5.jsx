@@ -2681,16 +2681,18 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                     }}
                     onPointerUp={()=>{
                       const sp = slotPressRef.current;
-                      // Короткий тап (відпущено ще до спрацювання 600мс утримання) по
-                      // звичайному вільному слоту — раніше не робив нічого: клік не
-                      // спрацьовує на дотику через preventDefault у onPointerDown, а
-                      // утримання ще не встигло озброїти drag. Відкриваємо ту саму
-                      // модалку "🟢 Вільний слот", що й довге утримання без руху.
+                      // Короткий тап по звичайному вільному слоту — одразу позначає
+                      // його приватним (жовтий), без проміжної модалки: відкриття
+                      // модалки саме тут провокувало "привида-клік" на щойно
+                      // змонтований оверлей (React встигав вставити його в DOM ще до
+                      // приходу відкладеного click від того ж дотику), який миттєво
+                      // її закривав.
                       const wasQuickTap = sp && !sp.locked && !slotHoldFiredRef.current;
                       clearTimeout(slotHoldTimerRef.current);
                       slotPressRef.current = null;
                       if (wasQuickTap && isPlainFree) {
-                        setSlotOptions({ dateStr: dateStrCol, time, startTime: time, slot });
+                        navigator.vibrate?.(15);
+                        applySlotOption(dateStrCol, time, "private");
                       }
                     }}
                     onPointerCancel={()=>{ clearTimeout(slotHoldTimerRef.current); slotPressRef.current = null; }}
