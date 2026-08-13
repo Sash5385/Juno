@@ -1176,8 +1176,8 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
           const slotTime = slot.time || (m ? `${m[1]}:${m[2]}` : null);
           if (slotTime) {
             slotSet.add(slotTime);
-            if (slot.available !== false || slot.adminBlocked || slot.vipOnly || slot.surcharge) {
-              slotMap[slotTime] = { available: slot.available !== false, adminBlocked: !!slot.adminBlocked, vipOnly: !!slot.vipOnly, surcharge: slot.surcharge || null };
+            if (slot.available !== false || slot.adminBlocked || slot.vipOnly || slot.privateOnly || slot.surcharge) {
+              slotMap[slotTime] = { available: slot.available !== false, adminBlocked: !!slot.adminBlocked, vipOnly: !!slot.vipOnly, privateOnly: !!slot.privateOnly, surcharge: slot.surcharge || null };
             }
           }
           if (slot.viewing && Object.keys(slot.viewing).length > 0) viewTimes.push(slotTime);
@@ -1364,11 +1364,11 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
     if (slot.adminBlocked) {
       update(iRef(`timeslots/${dateStr}/${slotId}`), { available: true, adminBlocked: false, time }).catch(() => {});
     } else {
-      update(iRef(`timeslots/${dateStr}/${slotId}`), { available: false, adminBlocked: true, vipOnly: false, surcharge: null, time }).catch(() => {});
+      update(iRef(`timeslots/${dateStr}/${slotId}`), { available: false, adminBlocked: true, vipOnly: false, privateOnly: false, surcharge: null, time }).catch(() => {});
     }
   };
 
-  // Довгий тап: VIP, надбавка або скидання
+  // Довгий тап: VIP, приватний, надбавка або скидання
   const applySlotOption = (dateStr, time, option) => {
     const slotId = `slot${time.replace(":", "")}`;
     const currentSlot = slotOptions?.slot || {};
@@ -1380,11 +1380,17 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
       } else {
         update(iRef(`timeslots/${dateStr}/${slotId}`), { available: true, adminBlocked: false, vipOnly: true }).catch(() => {});
       }
+    } else if (option === "private") {
+      if (isClosed) {
+        update(iRef(`timeslots/${dateStr}/${slotId}`), { privateOnly: true }).catch(() => {});
+      } else {
+        update(iRef(`timeslots/${dateStr}/${slotId}`), { available: true, adminBlocked: false, privateOnly: true }).catch(() => {});
+      }
     } else if (option === "reset") {
       if (isClosed) {
-        update(iRef(`timeslots/${dateStr}/${slotId}`), { vipOnly: false, surcharge: null }).catch(() => {});
+        update(iRef(`timeslots/${dateStr}/${slotId}`), { vipOnly: false, privateOnly: false, surcharge: null }).catch(() => {});
       } else {
-        update(iRef(`timeslots/${dateStr}/${slotId}`), { available: true, adminBlocked: false, vipOnly: false, surcharge: null }).catch(() => {});
+        update(iRef(`timeslots/${dateStr}/${slotId}`), { available: true, adminBlocked: false, vipOnly: false, privateOnly: false, surcharge: null }).catch(() => {});
       }
     } else if (option === "surcharge_remove") {
       update(iRef(`timeslots/${dateStr}/${slotId}`), { surcharge: null }).catch(() => {});
@@ -1928,7 +1934,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
         const tm = h2 * 60 + m2;
         if (tm >= fd.newStart && tm < newEnd) {
           const s2 = daySlots[t];
-          const s2Free = s2 && s2.available && !s2.vipOnly && !s2.adminBlocked && !s2.surcharge;
+          const s2Free = s2 && s2.available && !s2.vipOnly && !s2.privateOnly && !s2.adminBlocked && !s2.surcharge;
           if (s2Free) absorbedTimes.push(t); else blocked = true;
         }
       });
@@ -2571,15 +2577,16 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                 const isVip = slot.vipOnly;
                 const isBlocked = slot.adminBlocked;
                 const hasSurcharge = !!slot.surcharge;
+                const isPrivateOnly = !!slot.privateOnly;
                 const hasViewer = (viewingSlots[dateStrCol] || []).includes(time);
-                const isSticky = (isVip || isBlocked || hasSurcharge) ? true : isStickySlot(dateStrCol, time);
-                const bg = isVip ? "rgba(168,85,247,0.15)" : isBlocked ? "rgba(239,68,68,0.15)" : hasSurcharge ? "rgba(247,201,72,0.15)" : isSticky ? STICKY_BG : FREE_BG;
-                const borderColor = isVip ? "rgba(168,85,247,0.55)" : isBlocked ? "rgba(239,68,68,0.5)" : hasSurcharge ? (isLight ? "rgba(140,110,0,0.65)" : "rgba(247,201,72,0.6)") : isSticky ? STICKY_BD : FREE_BD;
-                const color = isVip ? "rgba(168,85,247,0.9)" : isBlocked ? "rgba(239,68,68,0.85)" : hasSurcharge ? (isLight ? "rgba(100,75,0,0.9)" : "rgba(247,201,72,0.95)") : isSticky ? STICKY_CLR : FREE_CLR;
+                const isSticky = (isVip || isBlocked || hasSurcharge || isPrivateOnly) ? true : isStickySlot(dateStrCol, time);
+                const bg = isVip ? "rgba(168,85,247,0.15)" : isBlocked ? "rgba(239,68,68,0.15)" : isPrivateOnly ? "rgba(234,179,8,0.15)" : hasSurcharge ? "rgba(247,201,72,0.15)" : isSticky ? STICKY_BG : FREE_BG;
+                const borderColor = isVip ? "rgba(168,85,247,0.55)" : isBlocked ? "rgba(239,68,68,0.5)" : isPrivateOnly ? (isLight ? "rgba(140,110,0,0.65)" : "rgba(234,179,8,0.6)") : hasSurcharge ? (isLight ? "rgba(140,110,0,0.65)" : "rgba(247,201,72,0.6)") : isSticky ? STICKY_BD : FREE_BD;
+                const color = isVip ? "rgba(168,85,247,0.9)" : isBlocked ? "rgba(239,68,68,0.85)" : isPrivateOnly ? (isLight ? "rgba(100,75,0,0.9)" : "rgba(234,179,8,0.95)") : hasSurcharge ? (isLight ? "rgba(100,75,0,0.9)" : "rgba(247,201,72,0.95)") : isSticky ? STICKY_CLR : FREE_CLR;
                 const emptyShadow = isLight
                   ? "inset 2px 2px 5px rgba(0,0,0,0.16), inset -2px -2px 5px rgba(255,255,255,0.55)"
                   : "inset 2px 2px 5px rgba(0,0,0,0.45), inset -2px -2px 5px rgba(255,255,255,0.10)";
-                const isPlainFree = slot.available && !isVip && !isBlocked && !hasSurcharge;
+                const isPlainFree = slot.available && !isVip && !isBlocked && !hasSurcharge && !isPrivateOnly;
                 const isBeingDragged = freeDragPreview && freeDragPreview.dateStr===dateStrCol && freeDragPreview.time===time;
                 const displayStartMin = isBeingDragged ? freeDragPreview.newStart : startMin;
                 // Розтягування вниз може поглинати наступні вільні слоти підряд (без запису,
@@ -2592,7 +2599,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                     const hh2 = String(Math.floor(t / 60)).padStart(2, "0");
                     const mm2 = String(t % 60).padStart(2, "0");
                     const s2 = daySlots[`${hh2}:${mm2}`];
-                    const s2Free = s2 && s2.available && !s2.vipOnly && !s2.adminBlocked && !s2.surcharge;
+                    const s2Free = s2 && s2.available && !s2.vipOnly && !s2.privateOnly && !s2.adminBlocked && !s2.surcharge;
                     if (!s2Free || slotCovered(t)) { resizeLimitMin = t; break; }
                   }
                 }
@@ -2697,6 +2704,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                     }}>
                     {hasSurcharge && <span style={{position:"absolute", top:3, left:4, fontSize:9, fontWeight:800, color:"rgba(247,201,72,0.95)", lineHeight:1}}>+{slot.surcharge}₴</span>}
                     {(isVip || slot.vipOnly) && <span style={{position:"absolute", top:3, right:4, fontSize:10, lineHeight:1}}>👑</span>}
+                    {isPrivateOnly && <span style={{position:"absolute", top:3, right:4, fontSize:10, lineHeight:1}}>🚗</span>}
 
                     {hasViewer && <span style={{position:"absolute", bottom:3, right:4, fontSize:8, lineHeight:1, opacity:0.8}}>👁</span>}
                     {isBlocked && (() => { const qc = queueMap[`${dateStrCol}_${time}`]; return qc > 0 ? (
@@ -3631,6 +3639,16 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                 <span>👑</span> VIP слот
                 {_so.slot?.vipOnly && <span style={{marginLeft:"auto",fontSize:11,color:"#c084fc",opacity:0.7}}>✓ активний</span>}
               </button>
+              {/* Приватний слот */}
+              <button onClick={()=>applySlotOption(_so.dateStr, fmtTime(_soSelMin), "private")} style={{
+                width:"100%",padding:"13px 14px",border:"none",cursor:"pointer",
+                background:"rgba(234,179,8,0.09)",borderRadius:12,
+                color:"#eab308",fontSize:15,fontWeight:700,
+                display:"flex",alignItems:"center",gap:10,
+              }}>
+                <span>🚗</span> Приватний слот
+                {_so.slot?.privateOnly && <span style={{marginLeft:"auto",fontSize:11,color:"#eab308",opacity:0.7}}>✓ активний</span>}
+              </button>
               {/* Видалити слот */}
               <button onClick={()=>{
                 toggleSlotFree(_so.dateStr, fmtTime(_soSelMin), _so.slot);
@@ -3666,7 +3684,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                 })}
               </div>
               {/* Скинути — тільки якщо є що скидати */}
-              {(_so.slot?.vipOnly || _so.slot?.surcharge) && (
+              {(_so.slot?.vipOnly || _so.slot?.privateOnly || _so.slot?.surcharge) && (
                 <button onClick={()=>applySlotOption(_so.dateStr, fmtTime(_soSelMin), "reset")} style={{
                   width:"100%",padding:"12px 0 0",border:"none",cursor:"pointer",
                   background:"none",color:TEXT_FAINT,fontSize:13,fontWeight:600,
