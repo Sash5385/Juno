@@ -2672,11 +2672,24 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                         if (swipeRef.current) swipeRef.current.manualScroll = true;
                       }
                     }}
-                    onPointerUp={()=>{ clearTimeout(slotHoldTimerRef.current); slotPressRef.current = null; }}
+                    onPointerUp={()=>{
+                      const sp = slotPressRef.current;
+                      // Короткий тап (відпущено ще до спрацювання 600мс утримання) по
+                      // звичайному вільному слоту — раніше не робив нічого: клік не
+                      // спрацьовує на дотику через preventDefault у onPointerDown, а
+                      // утримання ще не встигло озброїти drag. Відкриваємо ту саму
+                      // модалку "🟢 Вільний слот", що й довге утримання без руху.
+                      const wasQuickTap = sp && !sp.locked && !slotHoldFiredRef.current;
+                      clearTimeout(slotHoldTimerRef.current);
+                      slotPressRef.current = null;
+                      if (wasQuickTap && isPlainFree) {
+                        setSlotOptions({ dateStr: dateStrCol, time, startTime: time, slot });
+                      }
+                    }}
                     onPointerCancel={()=>{ clearTimeout(slotHoldTimerRef.current); slotPressRef.current = null; }}
                     onClick={e=>{
                       e.stopPropagation();
-                      if (isPastDay || isClosedDay || slotHoldFiredRef.current) return;
+                      if (isPastDay || isClosedDay || slotHoldFiredRef.current || isPlainFree) return;
                       toggleSlotFree(dateStrCol, time, slot);
                     }}
                     style={{
@@ -3633,6 +3646,18 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
               }}>
                 <span>👑</span> VIP слот
                 {_so.slot?.vipOnly && <span style={{marginLeft:"auto",fontSize:11,color:"#c084fc",opacity:0.7}}>✓ активний</span>}
+              </button>
+              {/* Видалити слот */}
+              <button onClick={()=>{
+                toggleSlotFree(_so.dateStr, fmtTime(_soSelMin), _so.slot);
+                setSlotOptions(null);
+              }} style={{
+                width:"100%",padding:"13px 14px",border:"none",cursor:"pointer",
+                background:"rgba(239,68,68,0.09)",borderRadius:12,
+                color:"#ef4444",fontSize:15,fontWeight:700,
+                display:"flex",alignItems:"center",gap:10,
+              }}>
+                <span>🗑️</span> Видалити слот
               </button>
             </div>
             {/* Надбавки — чіпи */}
