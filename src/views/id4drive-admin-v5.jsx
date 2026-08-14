@@ -2522,7 +2522,10 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                   if (dragRef.current || pendingDragRef.current) return;
                   const rect = e.currentTarget.getBoundingClientRect();
                   const rawMin = calcRef.current.workStart * 60 + (e.clientY - rect.top) / calcRef.current.PX_PER_MIN;
-                  const minute = Math.round(rawMin / 30) * 30;
+                  // Округлення вниз (а не до найближчого) — тап у будь-якому місці
+                  // 30-хвилинного рядка має відповідати ЙОГО початку, а не сусідньому,
+                  // інакше дотик у нижній половині рядка показував час на 30хв пізніше.
+                  const minute = Math.floor(rawMin / 30) * 30;
                   emptyHoldPosRef.current = { startY: e.clientY, day: absDay, startMin: minute, dateStr: dateStrCol };
                   emptyHoldTimerRef.current = setTimeout(() => {
                     if (!emptyHoldPosRef.current) return;
