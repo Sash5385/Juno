@@ -2247,8 +2247,8 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
     <style>{makeGlobalCSS(SURF_LO, ACCENT, GLOW, SHADE, INK)}</style>
     <Card style={{
       padding:"6px 3px 0", overflow:"hidden", flex:1, minHeight:0, display:"flex", flexDirection:"column",
-      // Той самий скляний фон, що й у нижньому навбарі — замість суцільного SURFACE.
-      background: isLight ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.04)",
+      // Скляний фон календаря — прозоріший, ніж суцільний SURFACE.
+      background: isLight ? "rgba(255,255,255,0.25)" : "rgba(255,255,255,0.02)",
       boxShadow: isLight ? "0 8px 24px rgba(92,42,26,0.14)" : "0 8px 24px rgba(0,0,0,0.45)",
     }}>
       <div style={{display:"flex", flex:1, minHeight:0, overflow:"hidden", position:"relative"}}>
