@@ -625,13 +625,15 @@ function MonthCalendarSheet({ bookings, onClose, onPickDate }) {
 
   const close = () => setClosing(true);
 
+  // Мапа день → сумарні хвилини уроків (не кількість записів — щоб два
+  // двогодинні уроки рахувались як 4 год, а не як "2").
   const counts = useMemo(() => {
     const map = {};
     for (const b of bookings) {
       if (b.type === "block" || b.type === "vip-slot" || b.type === "personal") continue;
       const d = new Date(today0); d.setDate(d.getDate() + b.day);
       if (d.getFullYear() === viewY && d.getMonth() === viewM) {
-        map[d.getDate()] = (map[d.getDate()] || 0) + 1;
+        map[d.getDate()] = (map[d.getDate()] || 0) + (b.durMin || 60);
       }
     }
     return map;
@@ -775,7 +777,7 @@ function MonthCalendarSheet({ bookings, onClose, onPickDate }) {
               <div style={{display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:4, paddingBottom:20}}>
                 {cells.map((d, i) => {
                   if (d === null) return <div key={`e${i}`}/>;
-                  const n = counts[d] || 0;
+                  const n = (counts[d] || 0) / 60; // години
                   const c = tierColor(n);
                   const t = Math.min(n, 8) / 8;
                   const fillH = Math.round(t * 100);
@@ -815,7 +817,7 @@ function MonthCalendarSheet({ bookings, onClose, onPickDate }) {
                           }}/>
                         )}
                         <span style={{position:"relative", zIndex:1}}>{d}</span>
-                        {n > 0 && <span style={{position:"relative", zIndex:1, fontSize:7, fontWeight:700, opacity:0.75, marginTop:1}}>{n}</span>}
+                        {n > 0 && <span style={{position:"relative", zIndex:1, fontSize:7, fontWeight:700, opacity:0.75, marginTop:1}}>{Number.isInteger(n) ? n : n.toFixed(1)}г</span>}
                       </button>
                       {isHeld && (
                         <div style={{

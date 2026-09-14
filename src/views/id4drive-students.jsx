@@ -761,6 +761,32 @@ export default function StudentsView({ studentJump, onStudentJumpHandled, bookin
     const next=!s.blocked;
     setStudents(ss=>ss.map(x=>x.id===id?{...x,blocked:next}:x));
     update(iRef(`users/${id}`),{blocked:next}).catch(()=>{});
+    if (next) {
+      const today = new Date(); today.setHours(0,0,0,0);
+      const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+      (bookings||[]).filter(b => b.userId === id && b.status !== "cancelled" && b.date >= todayStr).forEach(b => {
+        if (b.date && b.startMin !== undefined) {
+          const durMin = b.durMin || 60;
+          const upd = {};
+          for (let i = 0; i < durMin; i += 30) {
+            const sm = b.startMin + i;
+            const hh = String(Math.floor(sm/60)).padStart(2,'0'), mm = String(sm%60).padStart(2,'0');
+            const path = `timeslots/${b.date}/slot${hh}${mm}`;
+            upd[`${path}/available`] = true; upd[`${path}/time`] = `${hh}:${mm}`; upd[`${path}/phantom`] = null;
+          }
+          update(iRef(''), upd).catch(()=>{});
+        }
+        const ks = [...new Set([b._fbKey, b.id].filter(Boolean))];
+        ks.forEach(k => update(iRef(`bookings/${id}/${k}`),
+          { status:"cancelled", cancelledAt:Date.now(), cancelledBy:"admin" }).catch(()=>{}));
+      });
+      get(iRef("queue")).then(snap=>{
+        const q = snap.val() || {};
+        Object.entries(q).forEach(([slotKey, sq]) => {
+          if (sq?.entries?.[id]) remove(iRef(`queue/${slotKey}/entries/${id}`)).catch(()=>{});
+        });
+      }).catch(()=>{});
+    }
   };
   const updateStudent = (id,patch) => {
     setStudents(ss=>ss.map(x=>x.id===id?{...x,...patch}:x));
