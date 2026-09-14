@@ -1110,7 +1110,29 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   const resizeReadyRef = useRef(null);
   const swipeRef = useRef(null);
   const momentumRef = useRef(null);
+  const pendingScrollRef = useRef(null);
   const gridWrapRef = useRef(null);
+
+  // Один запис scrollLeft/scrollTop за кадр замість запису на кожен pointermove.
+  // pointermove на деяких пристроях (120Hz+ тачскрини) спрацьовує частіше за
+  // рендер екрана — прямий запис у DOM на кожну подію змушує браузер рахувати
+  // layout частіше, ніж він фізично може намалювати, і рух виглядає менш
+  // плавним за нативний скрол (той керується композитором, без цього завалу).
+  // Ця петля просто застосовує ОСТАННЄ обчислене значення раз на кадр.
+  useEffect(() => {
+    let raf;
+    const apply = () => {
+      const p = pendingScrollRef.current;
+      if (p && gridRef.current) {
+        if (p.axis === "x") gridRef.current.scrollLeft = p.value;
+        else gridRef.current.scrollTop = p.value;
+        pendingScrollRef.current = null;
+      }
+      raf = requestAnimationFrame(apply);
+    };
+    raf = requestAnimationFrame(apply);
+    return () => cancelAnimationFrame(raf);
+  }, []);
   const vRangeRef   = useRef({ s: Math.max(0, PAST_DAYS - VBUF), e: PAST_DAYS + 30 });
   const [vRange, setVRange] = useState({ s: Math.max(0, PAST_DAYS - VBUF), e: PAST_DAYS + 30 });
   // Незабуферений видимий діапазон днів (на відміну від vRange) — для "Авто" висоти годин.
@@ -1723,9 +1745,9 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
           const totalDx = swipeRef.current.scrollAnchorX - e.clientX;
           const totalDy = swipeRef.current.scrollAnchorY - e.clientY;
           if (Math.abs(totalDx) >= Math.abs(totalDy)) {
-            gridRef.current.scrollLeft = swipeRef.current.scrollStartLeft + totalDx;
+            pendingScrollRef.current = { axis: "x", value: swipeRef.current.scrollStartLeft + totalDx };
           } else {
-            gridRef.current.scrollTop = swipeRef.current.scrollStartTop + totalDy;
+            pendingScrollRef.current = { axis: "y", value: swipeRef.current.scrollStartTop + totalDy };
           }
         }
       }
@@ -2321,7 +2343,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
             // (onScroll ставить transform на timeColRef). Абсолютний розрахунок
             // від якоря (а не += по кожній крихітній dx) — стійкий до рідкісних/
             // згрупованих подій pointermove.
-            if (gridRef.current) gridRef.current.scrollLeft = sr.scrollStartLeft + (sr.scrollAnchorX - e.clientX);
+            if (gridRef.current) pendingScrollRef.current = { axis: "x", value: sr.scrollStartLeft + (sr.scrollAnchorX - e.clientX) };
           }}
           style={{
           width:TIME_COL_W, flexShrink:0, zIndex:10,
@@ -2432,7 +2454,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
           }}
           onContextMenu={e=>e.preventDefault()}
           className="schedule-scroll"
-          style={{flex:1, overflowX:"auto", overflowY:"auto", touchAction:"pan-x pan-y", WebkitOverflowScrolling:"touch", userSelect:"none", WebkitUserSelect:"none", scrollbarWidth:"none"}}
+          style={{flex:1, overflowX:"auto", overflowY:"auto", touchAction:"pan-x pan-y", WebkitOverflowScrolling:"touch", userSelect:"none", WebkitUserSelect:"none", scrollbarWidth:"none", willChange:"scroll-position"}}
         >
           <div ref={gridWrapRef} style={{display:"flex", paddingTop:2}}>
           {vRange.s > 0 && <div style={{width:vRange.s*(COL_W+4), flexShrink:0}}/>}
