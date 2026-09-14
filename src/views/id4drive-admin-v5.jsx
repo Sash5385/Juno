@@ -1896,14 +1896,19 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
         const axis = Math.abs(totalDx) >= Math.abs(totalDy) ? "x" : "y";
         let v = axis === "x" ? (swipeRef.current.vx || 0) : (swipeRef.current.vy || 0);
         if (momentumRef.current) cancelAnimationFrame(momentumRef.current);
+        v = Math.max(-2.5, Math.min(2.5, v)); // клемп викидів швидкості (рідкісні згруповані pointermove)
         if (Math.abs(v) > 0.02) {
+          // Згасання прив'язане до РЕАЛЬНОГО часу (Math.pow(decay, dt)), а не до кадру
+          // (v *= const щокадрово) — інакше на нерівному фреймрейті (просідання ФПС)
+          // ефективна швидкість гальмування стрибає і рух відчувається ривками.
+          const DECAY_PER_MS = 0.9965;
           let lastT = performance.now();
           const step = (t) => {
-            const dt = Math.min(32, t - lastT);
+            const dt = t - lastT;
             lastT = t;
             if (axis === "x") sr.scrollLeft -= v * dt;
             else sr.scrollTop -= v * dt;
-            v *= 0.95;
+            v *= Math.pow(DECAY_PER_MS, dt);
             momentumRef.current = Math.abs(v) > 0.02 ? requestAnimationFrame(step) : null;
           };
           momentumRef.current = requestAnimationFrame(step);
