@@ -1109,6 +1109,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   const dragEndedRef = useRef(false);
   const resizeReadyRef = useRef(null);
   const swipeRef = useRef(null);
+  const momentumRef = useRef(null);
   const gridWrapRef = useRef(null);
   const vRangeRef   = useRef({ s: Math.max(0, PAST_DAYS - VBUF), e: PAST_DAYS + 30 });
   const [vRange, setVRange] = useState({ s: Math.max(0, PAST_DAYS - VBUF), e: PAST_DAYS + 30 });
@@ -1686,6 +1687,24 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   useEffect(() => {
     const onMove = (e) => {
       if (swipeRef.current) {
+        // Швидкість пальця (px/ms, згладжена) — щоб на pointerup "докрутити" сітку
+        // за інерцією замість миттєвої зупинки. Порожнє місце скролиться нативно
+        // (браузер сам додає інерцію); картки уроків мають touch-action:none і
+        // скролляться вручну через scrollLeft/scrollTop нижче — без цього трекінгу
+        // ручний скрол зупинявся різко, на відміну від нативного.
+        const _now = performance.now();
+        if (swipeRef.current.lastT != null) {
+          const _dt = _now - swipeRef.current.lastT;
+          if (_dt > 0) {
+            const rawVx = (e.clientX - swipeRef.current.lastX) / _dt;
+            const rawVy = (e.clientY - swipeRef.current.lastY) / _dt;
+            swipeRef.current.vx = (swipeRef.current.vx ?? 0) * 0.7 + rawVx * 0.3;
+            swipeRef.current.vy = (swipeRef.current.vy ?? 0) * 0.7 + rawVy * 0.3;
+          }
+        }
+        swipeRef.current.lastT = _now;
+        swipeRef.current.lastX = e.clientX;
+        swipeRef.current.lastY = e.clientY;
         swipeRef.current.endX = e.clientX;
         swipeRef.current.endY = e.clientY;
         if (!dragRef.current && !pendingDragRef.current && swipeRef.current.manualScroll && gridRef.current) {
@@ -1868,6 +1887,28 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
           pendingSlotSnapRef.current = null;
         }
       }, 700);
+      // Інерція для ручного (JS) скролу карток — без цього доскрол по записах
+      // зупинявся миттєво на відміну від нативного скролу по порожньому місцю.
+      if (swipeRef.current?.manualScroll && gridRef.current) {
+        const sr = gridRef.current;
+        const totalDx = swipeRef.current.scrollAnchorX != null ? swipeRef.current.scrollAnchorX - swipeRef.current.endX : 0;
+        const totalDy = swipeRef.current.scrollAnchorY != null ? swipeRef.current.scrollAnchorY - swipeRef.current.endY : 0;
+        const axis = Math.abs(totalDx) >= Math.abs(totalDy) ? "x" : "y";
+        let v = axis === "x" ? (swipeRef.current.vx || 0) : (swipeRef.current.vy || 0);
+        if (momentumRef.current) cancelAnimationFrame(momentumRef.current);
+        if (Math.abs(v) > 0.02) {
+          let lastT = performance.now();
+          const step = (t) => {
+            const dt = Math.min(32, t - lastT);
+            lastT = t;
+            if (axis === "x") sr.scrollLeft -= v * dt;
+            else sr.scrollTop -= v * dt;
+            v *= 0.95;
+            momentumRef.current = Math.abs(v) > 0.02 ? requestAnimationFrame(step) : null;
+          };
+          momentumRef.current = requestAnimationFrame(step);
+        }
+      }
       swipeRef.current = null;
       // Reset any leftover swipe transform so it doesn't skew drag column calculations
       if (gridWrapRef.current) {
@@ -2363,6 +2404,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
         <div
           ref={gridRef}
           onPointerDownCapture={e=>{
+            if (momentumRef.current) { cancelAnimationFrame(momentumRef.current); momentumRef.current = null; }
             swipeRef.current={startX:e.clientX,startY:e.clientY,endX:e.clientX,endY:e.clientY,startTime:Date.now()};
           }}
           onTouchStart={onTouchStart}
