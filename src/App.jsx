@@ -317,7 +317,7 @@ function TopBar({ tab, onChange, settings, setSettings }) {
 
             {/* Right: діб buttons */}
             <div style={{flex:1,display:"flex",gap:3,alignItems:"center"}}>
-              {[3,5,6,7,8].map(n=>{
+              {[3,4,5,6,7].map(n=>{
                 const active = settings.daysShown===n;
                 return (
                   <button key={n} onClick={()=>setSettings(s=>({...s,daysShown:n}))} style={{
