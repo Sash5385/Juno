@@ -24,6 +24,11 @@ const PALETTE = [
 ];
 
 // Мітки на записі — фіксований список, обираються в модалці бронювання
+// 50 рівномірно розподілених відтінків для кольорів учнів (по колу відтінків,
+// фіксовані насиченість/яскравість під темну тему) — з таким запасом кольори
+// НЕ повторюються, поки одночасно активних учнів менше 50.
+const STUDENT_PALETTE = Array.from({ length: 50 }, (_, i) => `hsl(${Math.round(i * 360 / 50)},68%,56%)`);
+
 const TAG_PRESETS = [
   { id:"exam",   icon:"🚨", label:"Іспит",     color: RED },
   { id:"check",  icon:"🔍", label:"Перевірка", color: TEAL },
@@ -2169,14 +2174,27 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   const hours = [];
   for (let h = settings.workStart; h <= settings.workEnd; h++) hours.push(h);
 
-  // Колір картки — стабільний "випадковий" за учнем (хеш ключа учня в PALETTE),
-  // а не за типом уроку/послуги як раніше: так однаковий учень завжди має
-  // однаковий колір у всьому розкладі, і його легко відрізнити на око.
+  // Колір картки — стабільний за учнем, і РІЗНІ учні гарантовано отримують
+  // РІЗНІ кольори (поки їх < 50): порядок призначення визначається часом
+  // першого запису учня (createdAt), а не хешем — хеш у 10-кольоровій палітрі
+  // неминуче колізив уже на кількох учнях.
+  const studentColorMap = useMemo(() => {
+    const firstSeen = new Map();
+    for (const b of bookings) {
+      if (b.type === "block" || b.type === "vip-slot" || b.type === "personal") continue;
+      const key = b.userId || b.phone || b.name;
+      if (!key) continue;
+      const t = b.createdAt ?? 0;
+      if (!firstSeen.has(key) || t < firstSeen.get(key)) firstSeen.set(key, t);
+    }
+    const keys = [...firstSeen.keys()].sort((a, c) => (firstSeen.get(a) - firstSeen.get(c)) || a.localeCompare(c));
+    const map = {};
+    keys.forEach((k, i) => { map[k] = STUDENT_PALETTE[i % STUDENT_PALETTE.length]; });
+    return map;
+  }, [bookings]);
   const studentColor = (b) => {
-    const key = String(b.userId || b.phone || b.name || b.id || "");
-    let h = 0;
-    for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) | 0;
-    return PALETTE[Math.abs(h) % PALETTE.length].color;
+    const key = b.userId || b.phone || b.name || b.id;
+    return studentColorMap[key] || STUDENT_PALETTE[0];
   };
   const slotColor = (b) => studentColor(b);
   // Порядковий номер запису учня серед УСІХ його нескасованих записів (включно
@@ -3017,22 +3035,33 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                     borderRadius: 8,
                   }}>
                     {/* Мітка (іспит/перевірка/1-й урок/борг/повтор) — стрічка над карткою.
-                        Автоматична (за порядком уроку/сумою боргу), поки не змінена вручну. */}
-                    {!isBlock && !isVipSlot && !isPersonal && height >= 16 && (() => {
+                        Автоматична (за порядком уроку/сумою боргу), поки не змінена вручну.
+                        Розмір шрифту/відступів і сама наявність тексту (проти лише іконки)
+                        масштабуються під ширину колонки, щоб охайно виглядало і на
+                        вузьких мобільних колонках, і на широких десктопних. */}
+                    {!isBlock && !isVipSlot && !isPersonal && height >= 14 && (() => {
                       const curTag = effectiveTag(b);
                       if (!curTag) return null;
                       const tp = TAG_PRESETS.find(t => t.id === curTag);
                       if (!tp) return null;
                       const label = curTag === "debt" && b.debtAmount > 0 ? `${tp.label} ${b.debtAmount}₴` : tp.label;
+                      const tagFs = Math.max(6, Math.min(9, Math.round(COL_W / 11)));
+                      const showText = COL_W >= 34;
                       return (
                         <div style={{
-                          position:"absolute", top:-8, left:4, zIndex:8,
-                          fontSize:8, fontWeight:900, color:"#fff",
-                          padding:"2px 6px", borderRadius:5,
-                          background:`linear-gradient(135deg, color-mix(in srgb, ${tp.color} 90%, #fff), ${tp.color})`,
-                          boxShadow:"0 2px 6px rgba(0,0,0,0.4)",
-                          whiteSpace:"nowrap", pointerEvents:"none",
-                        }}>{tp.icon} {label}</div>
+                          position:"absolute", top:-Math.round(tagFs * 0.9), left:3, right:3, zIndex:8,
+                          display:"flex", justifyContent:"flex-start", pointerEvents:"none",
+                        }}>
+                          <div style={{
+                            fontSize:tagFs, fontWeight:900, color:"#fff", lineHeight:1.3,
+                            padding: showText ? `${Math.max(1, Math.round(tagFs*0.25))}px ${Math.max(4, Math.round(tagFs*0.7))}px` : "2px 3px",
+                            borderRadius: Math.max(4, Math.round(tagFs * 0.6)),
+                            background:`linear-gradient(135deg, color-mix(in srgb, ${tp.color} 90%, #fff), ${tp.color})`,
+                            boxShadow:"0 2px 6px rgba(0,0,0,0.4)",
+                            whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis",
+                            maxWidth: Math.max(18, COL_W - 6),
+                          }}>{showText ? `${tp.icon} ${label}` : tp.icon}</div>
+                        </div>
                       );
                     })()}
                     {/* Сам слот */}
