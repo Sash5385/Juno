@@ -1111,6 +1111,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   const swipeRef = useRef(null);
   const momentumRef = useRef(null);
   const pendingScrollRef = useRef(null);
+  const handleActionRef = useRef(null);
   const gridWrapRef = useRef(null);
 
   // Один запис scrollLeft/scrollTop за кадр замість запису на кожен pointermove.
@@ -1780,6 +1781,23 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
           clearTimeout(holdTimerRef.current);
           holdTimerRef.current = null;
           if (quickCancelRef.current !== null) {
+            // Утримання вже спрацювало — рішучий горизонтальний свайп (не вертикальний,
+            // той лишається за drag/перенесенням) трактуємо як швидку дію замість
+            // перетягування: вліво = скасувати, вправо = підтвердити. Спрацьовує лише
+            // ПІСЛЯ hold, тому не конкурує з миттєвим свайпом-скролом по картці.
+            if (Math.abs(dxTotal) > 30 && Math.abs(dxTotal) > Math.abs(dyTotal) * 1.5) {
+              pendingDragRef.current = null;
+              quickCancelRef.current = null;
+              xVisibleRef.current = false;
+              setQuickCancelId(null);
+              setHoldId(null);
+              const bk = (bookingsRef.current || []).find(x => x.id === pd.id);
+              if (bk && !pd.isBlock) {
+                navigator.vibrate?.(dxTotal < 0 ? [20, 30, 20] : 40);
+                handleActionRef.current?.(dxTotal < 0 ? "cancel" : "confirm", bk);
+              }
+              return;
+            }
             // Hold був — дозволяємо drag
             dragRef.current = {...pd};
             pendingDragRef.current = null;
@@ -2267,6 +2285,10 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
     }
     setLocalSelectedBooking(null);
   };
+  // handleAction переоголошується щорендеру — тримаємо свіже посилання в ref
+  // для listeners, підписаних один раз (useEffect з deps:[]), щоб не звертатись
+  // до застарілого closure зі свайп-жесту на картці.
+  useEffect(() => { handleActionRef.current = handleAction; });
   const [blockModal, setBlockModal] = useState(null); // {id, day, startMin, durMin}
   const [blockModalClosing, setBlockModalClosing] = useState(false);
   const [broadcastInit, setBroadcastInit] = useState(null);
