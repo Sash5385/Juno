@@ -3038,7 +3038,8 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                     background: BG_DEEP,
                     borderRadius: 8,
                   }}>
-                    {/* Мітка (іспит/перевірка/1-й урок/борг/повтор) — стрічка над карткою.
+                    {/* Мітка (іспит/перевірка/1-й урок/борг/повтор) — бейдж-пігулка у
+                        верхньому правому куті картки, під кутом (як цінник на маркерах карт).
                         Автоматична (за порядком уроку/сумою боргу), поки не змінена вручну.
                         Розмір шрифту/відступів і сама наявність тексту (проти лише іконки)
                         масштабуються під ширину колонки, щоб охайно виглядало і на
@@ -3053,17 +3054,18 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                       const showText = COL_W >= 34;
                       return (
                         <div style={{
-                          position:"absolute", top:-Math.round(tagFs * 0.9), left:3, right:3, zIndex:8,
-                          display:"flex", justifyContent:"flex-start", pointerEvents:"none",
+                          position:"absolute", top:-Math.round(tagFs * 0.7), right:-Math.round(tagFs * 0.4), zIndex:8,
+                          pointerEvents:"none",
                         }}>
                           <div style={{
                             fontSize:tagFs, fontWeight:900, color:"#fff", lineHeight:1.3,
-                            padding: showText ? `${Math.max(1, Math.round(tagFs*0.25))}px ${Math.max(4, Math.round(tagFs*0.7))}px` : "2px 3px",
-                            borderRadius: Math.max(4, Math.round(tagFs * 0.6)),
+                            padding: showText ? `${Math.max(1, Math.round(tagFs*0.25))}px ${Math.max(5, Math.round(tagFs*0.85))}px` : "2px 3px",
+                            borderRadius:999,
                             background:`linear-gradient(135deg, color-mix(in srgb, ${tp.color} 90%, #fff), ${tp.color})`,
-                            boxShadow:"0 2px 6px rgba(0,0,0,0.4)",
+                            boxShadow:"0 4px 10px rgba(0,0,0,0.45)",
                             whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis",
-                            maxWidth: Math.max(18, COL_W - 6),
+                            maxWidth: Math.max(18, COL_W - 2),
+                            transform:"rotate(11deg)", transformOrigin:"top right",
                           }}>{showText ? `${tp.icon} ${label}` : tp.icon}</div>
                         </div>
                       );
