@@ -2403,6 +2403,29 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   return (
     <>
     <style>{makeGlobalCSS(SURF_LO, ACCENT, GLOW, SHADE, INK)}</style>
+
+    {/* Перемикач к-сті днів для показу — швидкий доступ поверх календаря,
+        без відкриття Налаштувань. Диапазон 3..7 — типові варіанти перегляду. */}
+    <div style={{display:"flex", justifyContent:"center", gap:4, padding:"2px 0 6px", flexShrink:0}}>
+      {[3,4,5,6,7].map(n => {
+        const active = settings.daysShown === n;
+        return (
+          <button
+            key={n}
+            onClick={()=>setSettings(s=>({...s, daysShown:n}))}
+            style={{
+              width:26, height:26, borderRadius:8, cursor:"pointer",
+              border:`1px solid ${active ? ACCENT : BORDER}`,
+              background: active ? ACCENT : "transparent",
+              color: active ? "#fff" : TEXT,
+              fontSize:12, fontWeight:800,
+              transition:"background .15s, border-color .15s",
+            }}
+          >{n}</button>
+        );
+      })}
+    </div>
+
     <Card style={{
       padding:"6px 3px 0", overflow:"hidden", flex:1, minHeight:0, display:"flex", flexDirection:"column",
       // Скляний фон календаря — прозоріший, ніж суцільний SURFACE.
