@@ -3054,7 +3054,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                       const showText = COL_W >= 34;
                       return (
                         <div style={{
-                          position:"absolute", top:-Math.round(tagFs * 0.7), right:-Math.round(tagFs * 0.4), zIndex:8,
+                          position:"absolute", top:Math.round(tagFs * 0.9), right:2, zIndex:8,
                           pointerEvents:"none",
                         }}>
                           <div style={{
@@ -3064,8 +3064,8 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                             background:`linear-gradient(135deg, color-mix(in srgb, ${tp.color} 90%, #fff), ${tp.color})`,
                             boxShadow:"0 4px 10px rgba(0,0,0,0.45)",
                             whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis",
-                            maxWidth: Math.max(18, COL_W - 2),
-                            transform:"rotate(11deg)", transformOrigin:"top right",
+                            maxWidth: Math.max(18, COL_W - 6),
+                            transform:"rotate(9deg)", transformOrigin:"top right",
                           }}>{showText ? `${tp.icon} ${label}` : tp.icon}</div>
                         </div>
                       );
