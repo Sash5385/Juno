@@ -23,6 +23,14 @@ const PALETTE = [
   { id:"lime",   name:"Лайм",      color:"#a3e635" },
 ];
 
+// Мітки на записі — фіксований список, обираються в модалці бронювання
+const TAG_PRESETS = [
+  { id:"exam",   icon:"🚨", label:"Іспит",    color: RED },
+  { id:"first",  icon:"⭐", label:"1-й урок", color: BLUE },
+  { id:"debt",   icon:"💸", label:"Борг",     color: GOLD },
+  { id:"repeat", icon:"🔁", label:"Повтор",   color: GREEN },
+];
+
 // ═══════════════════════════════════════════════════════════════
 // GLOBAL CSS (slots from v4, rest v3)
 // ═══════════════════════════════════════════════════════════════
@@ -2158,19 +2166,16 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   const hours = [];
   for (let h = settings.workStart; h <= settings.workEnd; h++) hours.push(h);
 
-  const slotColor = (b) => {
-    // Записи із самозапису клієнта (анкета) не мають serviceId — лише serviceType+durationHours.
-    // Тому після точного збігу (id, потім тип+тривалість) додаємо запасний пошук просто за типом,
-    // інакше колір послуги не застосовувався й картка падала в дефолтний GREEN.
-    const svcs = settings.services || [];
-    const t = b.serviceType || b.type;
-    const svc = svcs.find(s=>s.id===b.serviceId)
-             || svcs.find(s=>s.active && s.type===t && Number(s.duration)===b.durMin)
-             || svcs.find(s=>s.type===t && Number(s.duration)===b.durMin)
-             || svcs.find(s=>s.active && s.type===t)
-             || svcs.find(s=>s.type===t);
-    return colorOf(svc?.colorId);
+  // Колір картки — стабільний "випадковий" за учнем (хеш ключа учня в PALETTE),
+  // а не за типом уроку/послуги як раніше: так однаковий учень завжди має
+  // однаковий колір у всьому розкладі, і його легко відрізнити на око.
+  const studentColor = (b) => {
+    const key = String(b.userId || b.phone || b.name || b.id || "");
+    let h = 0;
+    for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) | 0;
+    return PALETTE[Math.abs(h) % PALETTE.length].color;
   };
+  const slotColor = (b) => studentColor(b);
 
   const handleColumnClick = (e, absDay) => {
     if (dragRef.current || dragEndedRef.current || pendingDragRef.current) return;
@@ -2277,6 +2282,15 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
     if (action === "sms")      window.location.href=`sms:${b.phone}`;
     if (action === "viber")    window.location.href=`viber://chat?number=%2B${b.phone.replace(/\D/g,"")}`;
     if (action === "telegram") window.location.href=`https://t.me/${b.phone.replace(/\D/g,"")}`;
+    if (action === "setTag") {
+      setBookings(bs=>bs.map(x=>x.id===b.id?{...x,tag:b.tag||null}:x));
+      setLocalSelectedBooking(prev=>prev?{...prev,tag:b.tag||null}:null);
+      if (b.userId) {
+        const key = b._fbKey || b.id;
+        update(iRef(`bookings/${b.userId}/${key}`), { tag: b.tag || null }).catch(()=>{});
+      }
+      return;
+    }
     if (action === "toggleVip") {
       const next = !b.isVipOnly;
       setBookings(bs=>bs.map(x=>x.id===b.id?{...x,isVipOnly:next,categoryId:next?"cat-vip":null}:x));
@@ -2972,6 +2986,21 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                     background: BG_DEEP,
                     borderRadius: 8,
                   }}>
+                    {/* Мітка (іспит/1-й урок/борг/повтор) — стрічка над карткою */}
+                    {!isBlock && !isVipSlot && !isPersonal && b.tag && height >= 16 && (() => {
+                      const tp = TAG_PRESETS.find(t => t.id === b.tag);
+                      if (!tp) return null;
+                      return (
+                        <div style={{
+                          position:"absolute", top:-8, left:4, zIndex:8,
+                          fontSize:8, fontWeight:900, color:"#fff",
+                          padding:"2px 6px", borderRadius:5,
+                          background:`linear-gradient(135deg, color-mix(in srgb, ${tp.color} 90%, #fff), ${tp.color})`,
+                          boxShadow:"0 2px 6px rgba(0,0,0,0.4)",
+                          whiteSpace:"nowrap", pointerEvents:"none",
+                        }}>{tp.icon} {tp.label}</div>
+                      );
+                    })()}
                     {/* Сам слот */}
                     <div
                       className={`slot-base ${(isBlock||isPersonal)?"":"slot-colored"} ${!isBlock&&!isPersonal&&isPending?"slot-pending-ring":""} ${!isBlock&&!isPersonal&&holdId===b.id?"slot-holding":""} ${!isBlock&&!isPersonal&&shineId===b.id&&!isDimmed?"shine-active":""}`}
@@ -4120,6 +4149,8 @@ function BookingModal({ booking, onClose, onAction, settings, onViewStudent, mer
   const SURFACE_HI = SURF_HI, SURFACE_LO = SURF_LO, TEXT_DIM = DIM, TEXT_FAINT = FAINT, ACCENT_HI = ACC_HI, SHADOW_OUT = SO, SHADOW_IN = SI;
   const [queueEntries, setQueueEntries] = useState([]);
   const [closing, setClosing] = useState(false);
+  const [tagPickerOpen, setTagPickerOpen] = useState(false);
+  useEffect(() => { setTagPickerOpen(false); }, [booking?.id]);
   const [isPaid, setIsPaid] = useState(!!booking?.isPaid);
   useEffect(() => { setIsPaid(!!booking?.isPaid); }, [booking?.id]);
   const [instructorNote, setInstructorNote] = useState(booking?.instructorNote || "");
@@ -4350,6 +4381,47 @@ function BookingModal({ booking, onClose, onAction, settings, onViewStudent, mer
               cursor:'pointer',fontSize:11,fontWeight:700,fontFamily:'inherit',
               background:'rgba(59,130,246,0.18)',color:'rgba(96,165,250,0.9)',
             }}>Зберегти</button>
+          </div>
+
+          {/* Мітка */}
+          <div style={{padding:"10px 14px",borderBottom:`1px solid ${ink(0.06)}`}}>
+            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
+              <div style={{fontSize:9,fontWeight:700,letterSpacing:1,color:TEXT_FAINT,textTransform:"uppercase"}}>
+                🏷️ Мітка
+              </div>
+              <div onClick={() => setTagPickerOpen(o => !o)} style={{
+                fontSize:11,fontWeight:800,color:GOLD,cursor:"pointer",padding:"2px 8px",
+                borderRadius:8,background:`${GOLD}22`,
+              }}>{tagPickerOpen ? "Закрити" : (booking.tag ? "Змінити" : "+ Додати")}</div>
+            </div>
+            {booking.tag && !tagPickerOpen && (() => {
+              const tp = TAG_PRESETS.find(t=>t.id===booking.tag);
+              if (!tp) return null;
+              return (
+                <div onClick={()=>onAction("setTag",{...booking,tag:null})} title="Тап — прибрати" style={{
+                  display:"inline-flex",alignItems:"center",gap:5,padding:"5px 9px",borderRadius:20,
+                  background:`${tp.color}18`,border:`1px solid ${tp.color}44`,cursor:"pointer",
+                }}>
+                  <span style={{fontSize:14}}>{tp.icon}</span>
+                  <span style={{fontSize:11,fontWeight:700,color:TEXT}}>{tp.label}</span>
+                </div>
+              );
+            })()}
+            {tagPickerOpen && (
+              <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:7,paddingTop:booking.tag?8:0}}>
+                {TAG_PRESETS.map(tp=>(
+                  <button key={tp.id} onClick={()=>{ onAction("setTag",{...booking,tag: booking.tag===tp.id?null:tp.id}); setTagPickerOpen(false); }} style={{
+                    display:"flex",alignItems:"center",justifyContent:"center",gap:6,
+                    padding:"9px 4px",borderRadius:12,cursor:"pointer",fontFamily:"inherit",
+                    border: booking.tag===tp.id ? `1.5px solid ${tp.color}` : `1px solid ${ink(0.1)}`,
+                    background: booking.tag===tp.id ? `${tp.color}22` : BG_DEEP,
+                  }}>
+                    <span style={{fontSize:15}}>{tp.icon}</span>
+                    <span style={{fontSize:11,fontWeight:700,color:TEXT_DIM}}>{tp.label}</span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Queue */}
