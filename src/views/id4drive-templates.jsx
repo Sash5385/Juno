@@ -80,6 +80,41 @@ function Inset({ children, style={} }) {
 const chOf  = id => CHANNELS.find(c=>c.id===id)||CHANNELS[0];
 const catOf = id => CATEGORIES.find(c=>c.id===id)||CATEGORIES[5];
 
+// підставити {ім'я}/{дата}/{час}/... у тексті (той самий підхід, що й у
+// functions/index.js renderTemplateBody — невідома змінна лишається як є)
+function renderVars(body, vars={}) {
+  return (body||"").replace(/\{[^}]+\}/g, m => {
+    const key = m.slice(1,-1);
+    return vars[key] != null && vars[key] !== "" ? String(vars[key]) : m;
+  });
+}
+
+// найближчий активний (не скасований, у майбутньому) запис учня — для
+// автопідстановки {дата}/{час}/{послуга}/{ціна} при ручній відправці шаблону
+async function nextBookingVars(uid) {
+  try {
+    const snap = await get(iRef(`bookings/${uid}`));
+    const list = Object.values(snap.val() || {});
+    const now = Date.now();
+    let next = null;
+    for (const b of list) {
+      if (!b || b.status === "cancelled" || b.cancelledBy || !b.date || !b.time) continue;
+      const [h,m] = b.time.split(":").map(Number);
+      const ms = new Date(`${b.date}T00:00:00`).getTime() + (h*60+m)*60000;
+      if (ms <= now) continue;
+      if (!next || ms < next.ms) next = { ...b, ms };
+    }
+    if (!next) return {};
+    const vars = {
+      "дата": new Date(`${next.date}T00:00:00`).toLocaleDateString("uk",{day:"numeric",month:"long",weekday:"short"}),
+      "час": next.time,
+    };
+    if (next.serviceName || next.service) vars["послуга"] = next.serviceName || next.service;
+    if (next.price != null) vars["ціна"] = String(next.price);
+    return vars;
+  } catch { return {}; }
+}
+
 // render body with colored vars
 function BodyPreview({ body, style={} }) {
   if (!body) return null;
@@ -129,10 +164,13 @@ function SendModal({ tpl, onClose }) {
     setSending(true);
     const time = new Date().toLocaleTimeString("uk",{hour:"2-digit",minute:"2-digit"});
     const ts   = Date.now();
-    await Promise.all(selected.map(uid =>
-      push(iRef(`chats/${uid}`),{from:"admin",text:preview,time,ts}).catch(()=>{})
-        .then(() => update(iRef(`chatMeta/${uid}`),{unreadForStudent:increment(1),lastMsg:preview,lastTs:ts}).catch(()=>{}))
-    ));
+    await Promise.all(selected.map(async uid => {
+      const student = students.find(s=>s.uid===uid);
+      const vars = { "ім'я": student?.name || "Учень", ...(await nextBookingVars(uid)) };
+      const text = renderVars(preview, vars);
+      return push(iRef(`chats/${uid}`),{from:"admin",text,time,ts}).catch(()=>{})
+        .then(() => update(iRef(`chatMeta/${uid}`),{unreadForStudent:increment(1),lastMsg:text,lastTs:ts}).catch(()=>{}));
+    }));
     setSending(false);
     setSent(true);
     setTimeout(onClose, 1200);
