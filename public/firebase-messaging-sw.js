@@ -31,12 +31,12 @@ messaging.onBackgroundMessage((payload) => {
 self.addEventListener('notificationclick', (e) => {
   e.notification.close()
   const data = e.notification.data || {}
-  const target = data.url || 'https://admin.drivepad.pro'
-  const fullUrl = target.startsWith('http') ? target : ('https://admin.drivepad.pro' + target)
+  const target = data.url || 'https://drivepad-admin.web.app'
+  const fullUrl = target.startsWith('http') ? target : ('https://drivepad-admin.web.app' + target)
   e.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
       for (const c of list) {
-        if (c.url.startsWith('https://admin.drivepad.pro') && 'focus' in c) {
+        if (c.url.startsWith('https://drivepad-admin.web.app') && 'focus' in c) {
           c.focus()
           return c.navigate(fullUrl)
         }
