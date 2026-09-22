@@ -3,6 +3,13 @@ import { getAuth } from "firebase/auth";
 import { getDatabase, ref, set } from "firebase/database";
 import { getMessaging, getToken, onMessage } from "firebase/messaging";
 
+// Multi-tenant: iid — це uid інструктора, що зараз залогінений. Кожен
+// інструктор бачить і пише тільки у свій instructors/{iid}/... (rules).
+let _iid = null;
+export const setCurrentIid = (id) => { _iid = id; };
+export const getCurrentIid = () => _iid;
+export const iRef = (path) => ref(db, path ? `instructors/${_iid}/${path}` : `instructors/${_iid}`);
+
 const firebaseConfig = {
   apiKey: "AIzaSyAJFqq9jMrc2RgkceappeGt9EJ2bM2xKBI",
   authDomain: "drivepad-86fe1.firebaseapp.com",
@@ -81,8 +88,8 @@ export async function registerAdminFCM() {
 
     if (token) {
       const deviceId = getDeviceId();
-      await set(ref(db, `admin/fcmTokens/${deviceId}`), token);
-      console.log("FCM token saved to admin/fcmTokens/" + deviceId);
+      await set(iRef(`fcmTokens/${deviceId}`), token);
+      console.log("FCM token saved to instructors/" + _iid + "/fcmTokens/" + deviceId);
     } else {
       console.warn("FCM: empty token returned");
     }

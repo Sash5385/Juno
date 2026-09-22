@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useContext } from "react";
-import { ref, get, set } from "firebase/database";
-import { db } from "../firebase";
+import { get, set } from "firebase/database";
+import { iRef } from "../firebase";
 
 import { ThemeContext } from "../theme.js";
 import { UICss, Modal, Chip, Btn, Toggle, Pill, useFX } from "../ui";
@@ -416,13 +416,13 @@ export default function ServicesView() {
   const { getHandlers } = useDragReorder(services, setServices);
 
   useEffect(() => {
-    get(ref(db,'admin_data/services')).then(snap=>{const d=snap.val();if(!dirtyRef.current && Array.isArray(d))setServices(d);setLoaded(true);}).catch(()=>setLoaded(true));
+    get(iRef('admin_data/services')).then(snap=>{const d=snap.val();if(!dirtyRef.current && Array.isArray(d))setServices(d);setLoaded(true);}).catch(()=>setLoaded(true));
   }, []);
 
   useEffect(() => {
     if (!loaded) return;
     clearTimeout(saveTimer.current);
-    saveTimer.current=setTimeout(()=>set(ref(db,'admin_data/services'),services).catch(()=>{}),800);
+    saveTimer.current=setTimeout(()=>set(iRef('admin_data/services'),services).catch(()=>{}),800);
   }, [services, loaded]);
 
   const active   = services.filter(s=>!s.archived);

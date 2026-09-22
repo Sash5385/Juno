@@ -1,7 +1,7 @@
 import React, { useState, useEffect, lazy, Suspense, createContext, useContext } from "react";
-import { ref, onValue, update, push, remove, get } from "firebase/database";
-import { db, registerAdminFCM, onAdminForegroundMessage } from "./firebase";
-import { useAdminAuth, LoginScreen } from "./AdminAuth";
+import { onValue, update, push, remove, get } from "firebase/database";
+import { iRef, setCurrentIid, registerAdminFCM, onAdminForegroundMessage } from "./firebase";
+import { useAdminAuth, LoginScreen, InstructorSetupScreen } from "./AdminAuth";
 import { useAppUpdate } from "./hooks/useAppUpdate"
 import { useLicense, isLicenseBlocked } from "./hooks/useLicense"
 import { setGlobalLang, createT } from "./lang";
@@ -200,7 +200,7 @@ function BottomNav({ active, onChange, settings, chatUnread, journalUnread }) {
 function QueueStrip({ tab, onChange }) {
   const [waiting, setWaiting] = useState(0);
   useEffect(() => {
-    return onValue(ref(db, "queue"), snap => {
+    return onValue(iRef( "queue"), snap => {
       const d = snap.val();
       if (!d) { setWaiting(0); return; }
       setWaiting(Object.values(d).filter(q=>q.status==="waiting").length);
@@ -449,8 +449,21 @@ function dayIdxToDate(dayIdx) {
 // ─── MAIN APP ────────────────────────────────────────────────────
 export default function App() {
   const adminUser = useAdminAuth();
-  const license = useLicense();
+  const license = useLicense(adminUser?.uid);
+  const [profileReady, setProfileReady] = useState(null); // null=перевіряємо, false=потрібне налаштування, true=готово
   const { needRefresh, updateServiceWorker, isUpdating } = useAppUpdate()
+
+  // Multi-tenant: iid інструктора = його ж auth.uid. Встановлюємо його одразу
+  // при вході (до будь-яких інших ефектів, що читають instructors/{iid}/...),
+  // і перевіряємо чи вже заповнений профіль (перший вхід → анкета налаштування).
+  useEffect(() => {
+    if (!adminUser?.uid) { setProfileReady(null); return; }
+    setCurrentIid(adminUser.uid);
+    get(iRef("admin_settings/profile")).then(snap => {
+      const p = snap.val();
+      setProfileReady(!!(p && p.name));
+    }).catch(() => setProfileReady(false));
+  }, [adminUser]);
   // Deep-link з push-сповіщення (?date=&time=&uid=&bookingId=) — одразу відкриваємо розклад на потрібній даті
   const [jumpTarget, setJumpTarget] = useState(() => {
     const p = new URLSearchParams(window.location.search);
@@ -555,7 +568,7 @@ export default function App() {
   // Subscribe to unread chat count from chatMeta
   useEffect(() => {
     if (!adminUser) return;
-    const r = ref(db, 'chatMeta');
+    const r = iRef( 'chatMeta');
     const unsub = onValue(r, snap => {
       const data = snap.val() || {};
       const total = Object.values(data).reduce((s, m) => s + (m?.unreadForAdmin || 0), 0);
@@ -612,7 +625,7 @@ export default function App() {
   // Sync services from admin_data/services → settings.services (source of truth for colors)
   useEffect(() => {
     if (!adminUser) return;
-    return onValue(ref(db, "admin_data/services"), snap => {
+    return onValue(iRef( "admin_data/services"), snap => {
       const arr = snap.val();
       if (Array.isArray(arr) && arr.length > 0) {
         setSettings(s => ({ ...s, services: arr }));
@@ -623,7 +636,7 @@ export default function App() {
   // Load settings from Firebase on login
   useEffect(() => {
     if (!adminUser) { setSettingsLoaded(false); return; }
-    get(ref(db, 'admin_settings')).then(snap => {
+    get(iRef( 'admin_settings')).then(snap => {
       const d = snap.val();
       if (d) {
         const { services: _ignoredServices, ...dRest } = d;
@@ -658,7 +671,7 @@ export default function App() {
     if (!adminUser || !settingsLoaded) return;
     clearTimeout(settingsSyncTimer.current);
     settingsSyncTimer.current = setTimeout(() => {
-      update(ref(db, 'admin_settings'), {
+      update(iRef( 'admin_settings'), {
         lunchEnabled:    settings.lunchEnabled    ?? true,
         lunchStart:      settings.lunchStart      ?? 12,
         lunchEnd:        settings.lunchEnd        ?? 13,
@@ -756,7 +769,7 @@ export default function App() {
       moveSaveTimers.current = {};
       return;
     }
-    return onValue(ref(db, "bookings"), snap => {
+    return onValue(iRef( "bookings"), snap => {
       const data = snap.val();
       processBookingsSnap(data);
       const readAt = parseInt(localStorage.getItem("journal_read_at") || "0", 10);
@@ -778,7 +791,7 @@ export default function App() {
   // новий запис у users з createdAt пізніше за останній перегляд журналу).
   useEffect(() => {
     if (!adminUser) return;
-    return onValue(ref(db, "users"), snap => {
+    return onValue(iRef( "users"), snap => {
       const data = snap.val();
       const readAt = parseInt(localStorage.getItem("journal_read_at") || "0", 10);
       if (!readAt || !data) return;
@@ -846,7 +859,7 @@ const pendingDeletesRef = React.useRef(new Set());
           upd[`${key}/lastChangedBy`] = auditBy;
           upd[`${key}/lastChangedAt`] = now;
         }
-        if (!acc && Object.keys(upd).length) update(ref(db, "/"), upd).catch(() => {});
+        if (!acc && Object.keys(upd).length) update(iRef(), upd).catch(() => {});
       };
 
       const freeSlots = (date, startMin, durMin, acc = null) => {
@@ -878,7 +891,7 @@ const pendingDeletesRef = React.useRef(new Set());
             upd[key] = null;
           }
         }
-        if (!acc && Object.keys(upd).length) update(ref(db, "/"), upd).catch(() => {});
+        if (!acc && Object.keys(upd).length) update(iRef(), upd).catch(() => {});
       };
 
       // 1. Deleted bookings — runs even during drag (drag updates never remove bookings from next)
@@ -896,8 +909,8 @@ const pendingDeletesRef = React.useRef(new Set());
           Promise.resolve().then(() => {
             const fbKey = b._fbKey || b.id;
             const now = Date.now();
-            update(ref(db, `bookings/${b.userId}/${fbKey}`), { status:'cancelled', cancelledAt:now, cancelledBy:'admin' }).catch(() =>
-              remove(ref(db, `bookings/${b.userId}/${fbKey}`)).catch(() => {})
+            update(iRef( `bookings/${b.userId}/${fbKey}`), { status:'cancelled', cancelledAt:now, cancelledBy:'admin' }).catch(() =>
+              remove(iRef( `bookings/${b.userId}/${fbKey}`)).catch(() => {})
             ).finally(() => setTimeout(() => pendingDeletesRef.current.delete(b.id), 3000));
           });
         }
@@ -912,7 +925,7 @@ const pendingDeletesRef = React.useRef(new Set());
             const hh = String(Math.floor(b.startMin / 60)).padStart(2, "0");
             const mm = String(b.startMin % 60).padStart(2, "0");
             const date = dayIdxToDate(b.day);
-            update(ref(db, `bookings/${adminUser.uid}/${b.id}`), {
+            update(iRef( `bookings/${adminUser.uid}/${b.id}`), {
               ...b,
               userId: adminUser.uid,
               date,
@@ -937,7 +950,7 @@ const pendingDeletesRef = React.useRef(new Set());
               freeSlots(b.date, b.startMin, b.durMin);
               Promise.resolve().then(() => setBookings(bs => bs.filter(x => x.id !== b.id)));
             }
-            update(ref(db, `bookings/${b.userId}/${b._fbKey || b.id}`), patch).catch(() => {});
+            update(iRef( `bookings/${b.userId}/${b._fbKey || b.id}`), patch).catch(() => {});
             return;
           }
         }
@@ -1005,7 +1018,7 @@ const pendingDeletesRef = React.useRef(new Set());
             const newPrice = Math.round((basePrice + newSurcharge) * discountFactor);
             upd[`${bp}/price`] = newPrice;
             upd[`${bp}/surcharge`] = newSurcharge || null;
-            update(ref(db, "/"), upd).then(() => {
+            update(iRef(), upd).then(() => {
               // Мержимо нову ціну/надбавку в локальний стан одразу — не чекаючи
               // наступного onValue з Firebase (без цього UI показував старе,
               // поки сторінку не перезавантажиш).
@@ -1044,6 +1057,13 @@ const pendingDeletesRef = React.useRef(new Set());
 
   if (adminUser === undefined) return null;
   if (adminUser === null) return <LoginScreen/>;
+  if (profileReady === null) return null;
+  if (profileReady === false) {
+    return <InstructorSetupScreen onDone={profile => {
+      setSettings(s => ({ ...s, profile: { ...s.profile, ...profile } }));
+      setProfileReady(true);
+    }}/>;
+  }
   if (isLicenseBlocked(license)) return <LicenseLockedScreen theme={theme}/>;
 
   return (

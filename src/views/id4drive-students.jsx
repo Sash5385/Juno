@@ -1,7 +1,7 @@
 import { useState, useEffect, useContext, useMemo } from "react";
 import { createPortal } from "react-dom";
-import { ref, onValue, update, push, remove, get } from "firebase/database";
-import { db } from "../firebase";
+import { onValue, update, push, remove, get } from "firebase/database";
+import { iRef } from "../firebase";
 
 import { ThemeContext } from "../theme.js";
 import { UICss, Field, Btn as UIBtn, useFX, useBackClose } from "../ui";
@@ -229,7 +229,7 @@ function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock, onRemoveB
     setHistoryOpen(true);
     if (history !== null) return;
     setHistoryLoading(true);
-    get(ref(db, `bookings/${s.id}`)).then(snap => {
+    get(iRef( `bookings/${s.id}`)).then(snap => {
       const data = snap.val() || {};
       const today = new Date(new Date().toDateString());
       const list = Object.entries(data).map(([id, b]) => ({ id, ...b }))
@@ -265,7 +265,7 @@ function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock, onRemoveB
     if (inviteGenerating) return;
     setInviteGenerating(true); setInviteError(null);
     try {
-      const inviteRef = await push(ref(db, "invites"), { studentKey: s.id, createdAt: Date.now() });
+      const inviteRef = await push(iRef( "invites"), { studentKey: s.id, createdAt: Date.now() });
       setInviteLink(`https://id4drive.pro/auth?invite=${inviteRef.key}`);
       setInviteOpen(true);
     } catch (e) {
@@ -281,7 +281,7 @@ function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock, onRemoveB
     if (!pushBody.trim() || pushSending) return;
     setPushSending(true); setPushError(null);
     try {
-      await push(ref(db, "adminPush"), {
+      await push(iRef( "adminPush"), {
         uid: s.id,
         title: pushTitle.trim() || "Повідомлення",
         body: pushBody.trim(),
@@ -696,7 +696,7 @@ export default function StudentsView({ studentJump, onStudentJumpHandled, bookin
   }, [studentJump, students]);
 
   useEffect(() => {
-    const unsub = onValue(ref(db, "users"), snap => {
+    const unsub = onValue(iRef( "users"), snap => {
       const data = snap.val() || {};
       setStudents(Object.entries(data).map(([uid, u]) => {
         const p = u.profile || {};
@@ -722,7 +722,7 @@ export default function StudentsView({ studentJump, onStudentJumpHandled, bookin
     const s=students.find(x=>x.id===id); if(!s) return;
     const next=!s.blocked;
     setStudents(ss=>ss.map(x=>x.id===id?{...x,blocked:next}:x));
-    update(ref(db,`users/${id}`),{blocked:next}).catch(()=>{});
+    update(iRef(`users/${id}`),{blocked:next}).catch(()=>{});
     if (next) {
       // Блокування — скасовуємо всі майбутні незавершені записи учня і
       // прибираємо його з активних черг, щоб він не отримав слот в обхід.
@@ -738,33 +738,33 @@ export default function StudentsView({ studentJump, onStudentJumpHandled, bookin
             const path = `timeslots/${b.date}/slot${hh}${mm}`;
             upd[`${path}/available`] = true; upd[`${path}/time`] = `${hh}:${mm}`; upd[`${path}/phantom`] = null;
           }
-          update(ref(db,'/'), upd).catch(()=>{});
+          update(iRef('/'), upd).catch(()=>{});
         }
         const ks = [...new Set([b._fbKey, b.id].filter(Boolean))];
-        ks.forEach(k => update(ref(db, `bookings/${id}/${k}`),
+        ks.forEach(k => update(iRef( `bookings/${id}/${k}`),
           { status:"cancelled", cancelledAt:Date.now(), cancelledBy:"admin" }).catch(()=>{}));
       });
-      get(ref(db,"queue")).then(snap=>{
+      get(iRef("queue")).then(snap=>{
         const q = snap.val() || {};
         Object.entries(q).forEach(([slotKey, sq]) => {
-          if (sq?.entries?.[id]) remove(ref(db,`queue/${slotKey}/entries/${id}`)).catch(()=>{});
+          if (sq?.entries?.[id]) remove(iRef(`queue/${slotKey}/entries/${id}`)).catch(()=>{});
         });
       }).catch(()=>{});
     }
   };
   const updateStudent = (id,patch) => {
     setStudents(ss=>ss.map(x=>x.id===id?{...x,...patch}:x));
-    update(ref(db,`users/${id}`),patch).catch(()=>{});
+    update(iRef(`users/${id}`),patch).catch(()=>{});
   };
   const deleteStudent = id => {
     setStudents(ss=>ss.filter(x=>x.id!==id));
-    remove(ref(db,`users/${id}`)).catch(()=>{});
+    remove(iRef(`users/${id}`)).catch(()=>{});
   };
   const removeBadge = (id, badgeId) => {
-    remove(ref(db,`users/${id}/badges/${badgeId}`)).catch(()=>{});
+    remove(iRef(`users/${id}/badges/${badgeId}`)).catch(()=>{});
   };
   const createStudent = async (data) => {
-    const newRef = await push(ref(db,"users"),{
+    const newRef = await push(iRef("users"),{
       name:data.name.trim(), phone:data.phone.trim(), type:data.type,
       discount:Number(data.discount)||0, notes:data.notes.trim(), blocked:false,
       isVip:data.isVip||false, hours:0,

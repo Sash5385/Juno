@@ -1,160 +1,133 @@
 {
   "rules": {
-    "admins": {
-      ".read": "auth != null && auth.token.email === 'sash5385@gmail.com'",
-      ".write": "auth != null && auth.token.email === 'sash5385@gmail.com'"
-    },
-    "admin": {
-      ".read": "auth != null && auth.token.email === 'sash5385@gmail.com'",
-      ".write": "auth != null && auth.token.email === 'sash5385@gmail.com'"
-    },
-    "admin_settings": {
+    "slugs": {
       ".read": true,
-      ".write": "auth != null && auth.token.email === 'sash5385@gmail.com'"
-    },
-    "admin_data": {
-      ".write": "auth != null && auth.token.email === 'sash5385@gmail.com'",
-      "services": {
-        ".read": "auth != null"
-      },
-      "$other": {
-        ".read": "auth != null && auth.token.email === 'sash5385@gmail.com'"
+      "$slug": {
+        ".write": "auth != null && (!data.exists() || data.child('iid').val() === auth.uid)"
       }
     },
-    "timeslots": {
-      ".read": true,
-      ".write": "auth != null",
-      "$date": {
-        "$slotId": {
-          "vipOnly":       { ".validate": "auth.token.email === 'sash5385@gmail.com' || newData.val() === data.val()" },
-          "adminBlocked":  { ".validate": "auth.token.email === 'sash5385@gmail.com' || newData.val() === data.val()" },
-          "privateOnly":   { ".validate": "auth.token.email === 'sash5385@gmail.com' || newData.val() === data.val()" },
-          "surcharge":     { ".validate": "auth.token.email === 'sash5385@gmail.com' || newData.val() === data.val()" },
-          "fixedPrice":    { ".validate": "auth.token.email === 'sash5385@gmail.com' || newData.val() === data.val()" },
-          "lunchOverride": { ".validate": "auth.token.email === 'sash5385@gmail.com' || newData.val() === data.val()" },
-          "durMin":        { ".validate": "auth.token.email === 'sash5385@gmail.com' || newData.val() === data.val()" }
-        }
-      }
-    },
-    "bookings": {
-      ".read": "auth != null && auth.token.email === 'sash5385@gmail.com'",
-      "$uid": {
-        ".read": "auth != null && (auth.uid === $uid || auth.token.email === 'sash5385@gmail.com')",
-        ".write": "auth != null && (auth.uid === $uid || auth.token.email === 'sash5385@gmail.com')"
-      }
-    },
-    "bookings_by_phone": {
-      ".read": "auth != null && auth.token.email === 'sash5385@gmail.com'",
-      "$phone": {
-        ".read": "auth != null",
-        ".write": "auth != null && auth.token.email === 'sash5385@gmail.com'"
-      }
-    },
-    "queue": {
-      ".write": "auth != null && auth.token.email === 'sash5385@gmail.com'",
-      "$slotKey": {
-        "entries": {
-          ".read": "auth != null",
-          "$uid": {
-            ".write": "auth != null && (auth.uid === $uid || auth.token.email === 'sash5385@gmail.com')"
+    "instructors": {
+      "$iid": {
+        ".read": "auth != null && auth.uid === $iid",
+        ".write": "auth != null && auth.uid === $iid",
+
+        "admin_settings": {
+          ".read": true
+        },
+        "admin_data": {
+          "services": { ".read": true }
+        },
+        "timeslots": {
+          ".read": true,
+          "$date": {
+            "$slotId": {
+              "vipOnly":       { ".validate": "auth.uid === $iid || newData.val() === data.val()" },
+              "adminBlocked":  { ".validate": "auth.uid === $iid || newData.val() === data.val()" },
+              "privateOnly":   { ".validate": "auth.uid === $iid || newData.val() === data.val()" },
+              "surcharge":     { ".validate": "auth.uid === $iid || newData.val() === data.val()" },
+              "fixedPrice":    { ".validate": "auth.uid === $iid || newData.val() === data.val()" },
+              "lunchOverride": { ".validate": "auth.uid === $iid || newData.val() === data.val()" },
+              "durMin":        { ".validate": "auth.uid === $iid || newData.val() === data.val()" }
+            }
           }
+        },
+        "bookings": {
+          "$uid": {
+            ".read": "auth != null && (auth.uid === $uid || auth.uid === $iid) || $uid.matches(/^guest_.+/)",
+            ".write": "(auth != null && (auth.uid === $uid || auth.uid === $iid)) || $uid.matches(/^guest_.+/)"
+          }
+        },
+        "bookings_by_phone": {
+          "$phone": {
+            ".read": "auth != null",
+            ".write": "auth != null && auth.uid === $iid"
+          }
+        },
+        "queue": {
+          ".read": "auth != null",
+          "$slotKey": {
+            "entries": {
+              "$uid": {
+                ".write": "auth != null && (auth.uid === $uid || auth.uid === $iid)"
+              }
+            }
+          }
+        },
+        "userQueue": {
+          "$uid": {
+            ".read": "auth != null && (auth.uid === $uid || auth.uid === $iid)",
+            ".write": "auth != null && (auth.uid === $uid || auth.uid === $iid)"
+          }
+        },
+        "users": {
+          "$uid": {
+            ".read": "auth != null && (auth.uid === $uid || auth.uid === $iid)",
+            ".write": "auth != null && (auth.uid === $uid || auth.uid === $iid)",
+            "customPrice": { ".validate": "auth.uid === $iid || newData.val() === data.val()" }
+          }
+        },
+        "chats": {
+          "general": {
+            ".read": "auth != null",
+            ".write": "auth != null"
+          },
+          "$uid": {
+            ".read": "auth != null && (auth.uid === $uid || auth.uid === $iid)",
+            ".write": "auth != null && (auth.uid === $uid || auth.uid === $iid)"
+          }
+        },
+        "chatMeta": {
+          "general": {
+            ".read": "auth != null",
+            ".write": "auth != null"
+          },
+          "$uid": {
+            ".read": "auth != null && (auth.uid === $uid || auth.uid === $iid)",
+            ".write": "auth != null && (auth.uid === $uid || auth.uid === $iid)"
+          }
+        },
+        "notifications": {
+          "$uid": {
+            ".read": "auth != null && auth.uid === $uid",
+            ".write": "auth != null && (auth.uid === $uid || auth.uid === $iid)"
+          }
+        },
+        "settings": {
+          ".read": "auth != null && auth.uid === $iid",
+          ".write": "auth != null && auth.uid === $iid"
+        },
+        "push_tasks": { },
+        "adminPush": { },
+        "recentStudents": {
+          ".write": "auth != null"
+        },
+        "slotBookings": { },
+        "pushTemplates": { },
+        "pushLog": { },
+        "studentTokens": {
+          "$uid": {
+            ".write": "auth != null && auth.uid === $uid"
+          }
+        },
+        "dayNotes": {
+          ".read": "auth != null"
+        },
+        "reviews": {
+          ".read": true,
+          "$uid": {
+            ".write": "auth != null && (auth.uid === $uid || auth.uid === $iid)"
+          }
+        },
+        "invites": { },
+        "fcmTokens": {
+          "$deviceId": {
+            ".write": "auth != null && auth.uid === $iid"
+          }
+        },
+        "license": {
+          ".write": "auth != null && (auth.uid === $iid || auth.token.email === 'sash5385@gmail.com')"
         }
       }
-    },
-    "userQueue": {
-      "$uid": {
-        ".read": "auth != null && (auth.uid === $uid || auth.token.email === 'sash5385@gmail.com')",
-        ".write": "auth != null && (auth.uid === $uid || auth.token.email === 'sash5385@gmail.com')"
-      }
-    },
-    "users": {
-      ".read": "auth != null && auth.token.email === 'sash5385@gmail.com'",
-      "$uid": {
-        ".read": "auth != null && (auth.uid === $uid || auth.token.email === 'sash5385@gmail.com')",
-        ".write": "auth != null && (auth.uid === $uid || auth.token.email === 'sash5385@gmail.com')",
-        "customPrice": { ".validate": "auth.token.email === 'sash5385@gmail.com' || newData.val() === data.val()" }
-      }
-    },
-    "chats": {
-      "general": {
-        ".read": "auth != null",
-        ".write": "auth != null"
-      },
-      "$uid": {
-        ".read": "auth != null && (auth.uid === $uid || auth.token.email === 'sash5385@gmail.com')",
-        ".write": "auth != null && (auth.uid === $uid || auth.token.email === 'sash5385@gmail.com')"
-      }
-    },
-    "chatMeta": {
-      "general": {
-        ".read": "auth != null",
-        ".write": "auth != null"
-      },
-      "$uid": {
-        ".read": "auth != null && (auth.uid === $uid || auth.token.email === 'sash5385@gmail.com')",
-        ".write": "auth != null && (auth.uid === $uid || auth.token.email === 'sash5385@gmail.com')"
-      }
-    },
-    "notifications": {
-      "$uid": {
-        ".read": "auth != null && auth.uid === $uid",
-        ".write": "auth != null && (auth.uid === $uid || auth.token.email === 'sash5385@gmail.com')"
-      }
-    },
-    "settings": {
-      ".read": "auth != null && auth.token.email === 'sash5385@gmail.com'",
-      ".write": "auth != null && auth.token.email === 'sash5385@gmail.com'"
-    },
-    "push_tasks": {
-      ".read": "auth != null && auth.token.email === 'sash5385@gmail.com'",
-      ".write": "auth != null && auth.token.email === 'sash5385@gmail.com'"
-    },
-    "adminPush": {
-      ".read": "auth != null && auth.token.email === 'sash5385@gmail.com'",
-      ".write": "auth != null && auth.token.email === 'sash5385@gmail.com'"
-    },
-    "recentStudents": {
-      ".read": "auth != null && auth.token.email === 'sash5385@gmail.com'",
-      ".write": "auth != null"
-    },
-    "slotBookings": {
-      ".read": "auth != null && auth.token.email === 'sash5385@gmail.com'",
-      ".write": "auth != null && auth.token.email === 'sash5385@gmail.com'"
-    },
-    "pushTemplates": {
-      ".read": "auth != null && auth.token.email === 'sash5385@gmail.com'",
-      ".write": "auth != null && auth.token.email === 'sash5385@gmail.com'"
-    },
-    "pushLog": {
-      ".read": "auth != null && auth.token.email === 'sash5385@gmail.com'"
-    },
-    "calendarSync": {
-      ".read": "auth != null && auth.token.email === 'sash5385@gmail.com'",
-      ".write": false
-    },
-    "studentTokens": {
-      ".read": "auth != null && auth.token.email === 'sash5385@gmail.com'",
-      "$uid": {
-        ".write": "auth != null && auth.uid === $uid"
-      }
-    },
-    "dayNotes": {
-      ".read": "auth != null",
-      ".write": "auth != null && auth.token.email === 'sash5385@gmail.com'"
-    },
-    "reviews": {
-      ".read": true,
-      "$uid": {
-        ".write": "auth != null && (auth.uid === $uid || auth.token.email === 'sash5385@gmail.com')"
-      }
-    },
-    "invites": {
-      ".read": "auth != null && auth.token.email === 'sash5385@gmail.com'",
-      ".write": "auth != null && auth.token.email === 'sash5385@gmail.com'"
-    },
-    "license": {
-      ".read": "auth != null",
-      ".write": "auth != null && auth.token.email === 'sash5385@gmail.com'"
     }
   }
 }

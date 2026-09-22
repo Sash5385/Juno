@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useContext } from "react";
 import { createPortal } from "react-dom";
-import { ref, onValue } from "firebase/database";
-import { db } from "../firebase";
+import { onValue } from "firebase/database";
+import { iRef } from "../firebase";
 import { ThemeContext } from "../theme.js";
 import { useBackClose } from "../ui";
 import { MonthCalendarSheet } from "./id4drive-admin-v5";
@@ -351,14 +351,14 @@ export default function JournalView() {
 
   useEffect(() => {
     setJournalReadAt();
-    const unsub = onValue(ref(db, "bookings"), snap => {
+    const unsub = onValue(iRef( "bookings"), snap => {
       setBookingEvents(buildEvents(snap.val()));
     });
     return unsub;
   }, []);
 
   useEffect(() => {
-    const unsub = onValue(ref(db, "users"), snap => {
+    const unsub = onValue(iRef( "users"), snap => {
       const val = snap.val();
       setStudentEvents(buildStudentEvents(val));
       setLoginEvents(buildLoginEvents(val));

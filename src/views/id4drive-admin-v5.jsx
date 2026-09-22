@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useLayoutEffect, useMemo, useContext } from "react";
 import { createPortal } from "react-dom";
-import { ref, update, get, onValue, off, remove, push as fbPush, increment } from "firebase/database";
-import { db, auth } from "../firebase";
+import { update, get, onValue, off, remove, push as fbPush, increment } from "firebase/database";
+import { iRef, auth } from "../firebase";
 
 import { ThemeContext, GREEN, BLUE, PURPLE, GOLD, RED, TEAL, ACCENT, ACC_HI, SURFACE, SURF_HI, TEXT } from "../theme.js";
 import { useFX } from "../ui";
@@ -518,7 +518,7 @@ function BroadcastModal({ initialDate, initialSlot, onClose }) {
     if (!canSend) return;
     setSending(true);
     try {
-      await fbPush(ref(db, "push_tasks"), { date, slots: slotsArr, comment: comment || null, createdAt: Date.now(), status: "pending" });
+      await fbPush(iRef( "push_tasks"), { date, slots: slotsArr, comment: comment || null, createdAt: Date.now(), status: "pending" });
       setSent(true);
     } catch (e) { setSendError("Помилка: " + e.message); }
     finally { setSending(false); }
@@ -931,9 +931,9 @@ function DayNotesModal({ dateStr, dayLabel, dayNum, dayMonth, note, settings, on
         }
       });
       if (!Object.keys(notesOut).length) {
-        await remove(ref(db, `dayNotes/${dateStr}`));
+        await remove(iRef( `dayNotes/${dateStr}`));
       } else {
-        await update(ref(db, `dayNotes/${dateStr}`), { notes: notesOut, updatedAt: Date.now() });
+        await update(iRef( `dayNotes/${dateStr}`), { notes: notesOut, updatedAt: Date.now() });
       }
       _close();
     } catch (e) { /* ignore */ } finally { setSaving(false); }
@@ -941,7 +941,7 @@ function DayNotesModal({ dateStr, dayLabel, dayNum, dayMonth, note, settings, on
 
   const handleDelete = async () => {
     setSaving(true);
-    try { await remove(ref(db, `dayNotes/${dateStr}`)); _close(); }
+    try { await remove(iRef( `dayNotes/${dateStr}`)); _close(); }
     catch (e) { /* ignore */ } finally { setSaving(false); }
   };
 
@@ -1233,7 +1233,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   const [queueMap, setQueueMap] = useState({}); // { "YYYY-MM-DD_HH:MM": count }
 
   useEffect(() => {
-    const r = ref(db, "queue");
+    const r = iRef( "queue");
     const unsub = onValue(r, snap => {
       const val = snap.val() || {};
       const map = {};
@@ -1248,13 +1248,13 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   }, []);
 
   useEffect(() => {
-    const r = ref(db, "dayNotes");
+    const r = iRef( "dayNotes");
     const unsub = onValue(r, snap => setDayNotes(snap.val() || {}));
     return () => unsub();
   }, []);
 
   useEffect(() => {
-    const r = ref(db, "timeslots");
+    const r = iRef( "timeslots");
     const unsub = onValue(r, snap => {
       const val = snap.val() || {};
       const slots = {};
@@ -1363,7 +1363,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
           }
         });
       });
-      if (Object.keys(upd).length) update(ref(db, "/"), upd).catch(() => {});
+      if (Object.keys(upd).length) update(iRef(), upd).catch(() => {});
     }, 400);
     return () => clearTimeout(t);
   }, [bookings, openSlots]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -1431,10 +1431,10 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
     const dateStr = absDayToDateStr(absDay);
     setGenLoadingDays(s => new Set([...s, absDay]));
     try {
-      await remove(ref(db, `timeslots/${dateStr}`));
+      await remove(iRef( `timeslots/${dateStr}`));
       const result = computeDayUpdates(dateStr, {}, true);
       if (result && Object.keys(result.updates).length) {
-        await update(ref(db, "/"), result.updates);
+        await update(iRef(), result.updates);
       }
     } finally {
       setGenLoadingDays(s => { const ns = new Set(s); ns.delete(absDay); return ns; });
@@ -1448,13 +1448,13 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
       // Прибираємо лише справді вільні (available:true) слоти — те, що
       // додав автозаповнення. Слоти, зайняті записом чи вручну заблоковані
       // адміном (available:false), не чіпаємо, щоб не "звільнити" зайнятий час.
-      const snap = await get(ref(db, `timeslots/${dateStr}`));
+      const snap = await get(iRef( `timeslots/${dateStr}`));
       const day = snap.val() || {};
       const upd = {};
       Object.entries(day).forEach(([slotId, slot]) => {
         if (slot?.available === true) upd[`timeslots/${dateStr}/${slotId}`] = null;
       });
-      if (Object.keys(upd).length) await update(ref(db, "/"), upd);
+      if (Object.keys(upd).length) await update(iRef(), upd);
     } finally {
       setGenLoadingDays(s => { const ns = new Set(s); ns.delete(absDay); return ns; });
     }
@@ -1471,7 +1471,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   const chunkedUpdate = async (updates) => {
     const entries = Object.entries(updates);
     for (let i = 0; i < entries.length; i += CHUNK_SIZE) {
-      await update(ref(db, "/"), Object.fromEntries(entries.slice(i, i + CHUNK_SIZE)));
+      await update(iRef(), Object.fromEntries(entries.slice(i, i + CHUNK_SIZE)));
     }
   };
   // Видалення ЦІЛОГО дня (`timeslots/{date} = null`) прибирає одразу десятки
@@ -1482,7 +1482,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   // а не кількість самих ключів. Тому видаляємо дні ПО ОДНОМУ послідовно.
   const clearDaysRange = async (limit) => {
     for (let d = 0; d <= limit; d++) {
-      await remove(ref(db, `timeslots/${absDayToDateStr(d)}`));
+      await remove(iRef( `timeslots/${absDayToDateStr(d)}`));
     }
   };
 
@@ -1534,16 +1534,16 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   const toggleSlotFree = (dateStr, time, slot) => {
     const slotId = `slot${time.replace(":", "")}`;
     if (slot.adminBlocked) {
-      update(ref(db, `timeslots/${dateStr}/${slotId}`), { available: true, adminBlocked: false, time }).catch(() => {});
+      update(iRef( `timeslots/${dateStr}/${slotId}`), { available: true, adminBlocked: false, time }).catch(() => {});
     } else {
-      update(ref(db, `timeslots/${dateStr}/${slotId}`), { available: false, adminBlocked: true, vipOnly: false, privateOnly: false, surcharge: null, time }).catch(() => {});
+      update(iRef( `timeslots/${dateStr}/${slotId}`), { available: false, adminBlocked: true, vipOnly: false, privateOnly: false, surcharge: null, time }).catch(() => {});
     }
   };
 
   // Повне видалення слота — прибирає запис із Firebase, комірка зникає з сітки
   const deleteSlot = (dateStr, time) => {
     const slotId = `slot${time.replace(":", "")}`;
-    remove(ref(db, `timeslots/${dateStr}/${slotId}`)).catch(() => {});
+    remove(iRef( `timeslots/${dateStr}/${slotId}`)).catch(() => {});
   };
 
   // Довгий тап: VIP, приватний, надбавка або скидання
@@ -1554,37 +1554,37 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
     if (option === "vip") {
       if (isClosed) {
         // Закритий VIP — залишаємо закритим, додаємо VIP прапор
-        update(ref(db, `timeslots/${dateStr}/${slotId}`), { vipOnly: true }).catch(() => {});
+        update(iRef( `timeslots/${dateStr}/${slotId}`), { vipOnly: true }).catch(() => {});
       } else {
-        update(ref(db, `timeslots/${dateStr}/${slotId}`), { available: true, adminBlocked: false, vipOnly: true }).catch(() => {});
+        update(iRef( `timeslots/${dateStr}/${slotId}`), { available: true, adminBlocked: false, vipOnly: true }).catch(() => {});
       }
     } else if (option === "private") {
       if (isClosed) {
-        update(ref(db, `timeslots/${dateStr}/${slotId}`), { privateOnly: true }).catch(() => {});
+        update(iRef( `timeslots/${dateStr}/${slotId}`), { privateOnly: true }).catch(() => {});
       } else {
-        update(ref(db, `timeslots/${dateStr}/${slotId}`), { available: true, adminBlocked: false, privateOnly: true }).catch(() => {});
+        update(iRef( `timeslots/${dateStr}/${slotId}`), { available: true, adminBlocked: false, privateOnly: true }).catch(() => {});
       }
     } else if (option === "reset") {
       if (isClosed) {
-        update(ref(db, `timeslots/${dateStr}/${slotId}`), { vipOnly: false, privateOnly: false, surcharge: null, fixedPrice: null }).catch(() => {});
+        update(iRef( `timeslots/${dateStr}/${slotId}`), { vipOnly: false, privateOnly: false, surcharge: null, fixedPrice: null }).catch(() => {});
       } else {
-        update(ref(db, `timeslots/${dateStr}/${slotId}`), { available: true, adminBlocked: false, vipOnly: false, privateOnly: false, surcharge: null, fixedPrice: null }).catch(() => {});
+        update(iRef( `timeslots/${dateStr}/${slotId}`), { available: true, adminBlocked: false, vipOnly: false, privateOnly: false, surcharge: null, fixedPrice: null }).catch(() => {});
       }
     } else if (option === "surcharge_remove") {
-      update(ref(db, `timeslots/${dateStr}/${slotId}`), { surcharge: null }).catch(() => {});
+      update(iRef( `timeslots/${dateStr}/${slotId}`), { surcharge: null }).catch(() => {});
     } else if (option && typeof option === "object" && option.fixedPrice != null) {
       // Фіксована ціна повністю замінює тарифну — незалежна від VIP/Приватний слот,
       // тому не чіпаємо ці прапорці, лише available/adminBlocked за тим самим
       // патерном, що й VIP/Приватний слот.
       if (isClosed) {
-        update(ref(db, `timeslots/${dateStr}/${slotId}`), { fixedPrice: option.fixedPrice }).catch(() => {});
+        update(iRef( `timeslots/${dateStr}/${slotId}`), { fixedPrice: option.fixedPrice }).catch(() => {});
       } else {
-        update(ref(db, `timeslots/${dateStr}/${slotId}`), { available: true, adminBlocked: false, fixedPrice: option.fixedPrice }).catch(() => {});
+        update(iRef( `timeslots/${dateStr}/${slotId}`), { available: true, adminBlocked: false, fixedPrice: option.fixedPrice }).catch(() => {});
       }
     } else if (option === "fixedPrice_remove") {
-      update(ref(db, `timeslots/${dateStr}/${slotId}`), { fixedPrice: null }).catch(() => {});
+      update(iRef( `timeslots/${dateStr}/${slotId}`), { fixedPrice: null }).catch(() => {});
     } else {
-      update(ref(db, `timeslots/${dateStr}/${slotId}`), { surcharge: option }).catch(() => {});
+      update(iRef( `timeslots/${dateStr}/${slotId}`), { surcharge: option }).catch(() => {});
     }
     setSlotOptions(null);
   };
@@ -1684,12 +1684,12 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
     if (wasClosed) {
       // Відкриваємо день — перегенеровуємо слоти за поточним розкладом.
       const result = computeDayUpdates(dateStr, {}, true, newOverrides);
-      if (result && Object.keys(result.updates).length) update(ref(db, "/"), result.updates).catch(()=>{});
+      if (result && Object.keys(result.updates).length) update(iRef(), result.updates).catch(()=>{});
     } else {
       // Закриваємо день — прибираємо вже згенеровані слоти. Інакше стара
       // сітка (available:true) лишається в Firebase і день і далі показує
       // "відкриті" слоти та їх видно клієнту, попри позначку "закрито".
-      remove(ref(db, `timeslots/${dateStr}`)).catch(()=>{});
+      remove(iRef( `timeslots/${dateStr}`)).catch(()=>{});
     }
   };
 
@@ -2172,7 +2172,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
             const sm = String(m % 60).padStart(2, "0");
             oldUpd[`timeslots/${oldDateStr}/slot${sh}${sm}`] = null;
           }
-          if (Object.keys(oldUpd).length) update(ref(db, "/"), oldUpd).catch(() => {});
+          if (Object.keys(oldUpd).length) update(iRef(), oldUpd).catch(() => {});
           blockPersonalSlots(newDateStr, finalB.startMin, finalB.durMin);
           const hh = String(Math.floor(finalB.startMin / 60)).padStart(2, "0");
           const mm = String(finalB.startMin % 60).padStart(2, "0");
@@ -2180,7 +2180,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
           // Час змінився — старе "reminderSent" від попереднього часу більше
           // не діє, інакше нагадування-будильник на новий час взагалі не
           // прийде (sendPersonalEventReminders пропускає reminderSent:true).
-          update(ref(db, `bookings/personal/${key}`), { date: newDateStr, time: `${hh}:${mm}`, startMin: finalB.startMin, reminderSent: false }).catch(() => {});
+          update(iRef( `bookings/personal/${key}`), { date: newDateStr, time: `${hh}:${mm}`, startMin: finalB.startMin, reminderSent: false }).catch(() => {});
         } else if (finalB && finalB.type !== "personal" &&
                    !(draggedMeta.mergedIds && draggedMeta.mergedIds.length)) {
           // Реальний одиночний запис учня (НЕ злитий merged-блок з кількох
@@ -2203,7 +2203,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
               (seg.day !== draggedMeta.startDay || seg.startMin !== draggedMeta.startMinutes)) {
             const newDateStr = absDayToDateStr(seg.day);
             const key = seg._fbKey || seg.id;
-            update(ref(db, `bookings/${seg.userId}/${key}`), {
+            update(iRef( `bookings/${seg.userId}/${key}`), {
               date: newDateStr, time: fmtTime(seg.startMin), startMin: seg.startMin,
             }).catch(() => {});
           }
@@ -2409,7 +2409,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
       updates[`timeslots/${fd.dateStr}/${newSlotId}/time`] = newTime;
       updates[`timeslots/${fd.dateStr}/${newSlotId}/durMin`] = durMin;
       absorbedTimes.forEach(t => { updates[`timeslots/${fd.dateStr}/slot${t.replace(":", "")}`] = null; });
-      update(ref(db, "/"), updates).catch(() => {});
+      update(iRef(), updates).catch(() => {});
       navigator.vibrate?.(20);
     };
     window.addEventListener("pointermove", onMove);
@@ -2500,7 +2500,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
         openSlotsRef.current = { ...openSlotsRef.current, [fr.dateStr]: day };
       }
       setFreeResizePreview(null);
-      update(ref(db, "/"), updates).catch(() => {});
+      update(iRef(), updates).catch(() => {});
       navigator.vibrate?.(20);
     };
     window.addEventListener("pointermove", onMove);
@@ -2564,7 +2564,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
           // окремим вільним слотом: інакше розтягнутий слот після скасування
           // розпадається на кілька коротших замість одного, як було раніше.
           try {
-            const daySnap = await get(ref(db, `timeslots/${dateStr}`));
+            const daySnap = await get(iRef( `timeslots/${dateStr}`));
             const day = daySnap.val() || {};
             const upd = {};
             for (let i = 0; i < mb.durMin; i += 30) {
@@ -2578,13 +2578,13 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                 upd[`${path}/available`] = true; upd[`${path}/time`] = `${hh}:${mm}`; upd[`${path}/phantom`] = null;
               }
             }
-            await update(ref(db,'/'), upd);
+            await update(iRef('/'), upd);
           } catch {}
         }
         // Позначити cancelled у Firebase (обидва можливих ключі)
         if (mb.userId) {
           const ks = [...new Set([mb._fbKey, mb.id].filter(Boolean))];
-          ks.forEach(k => update(ref(db, `bookings/${mb.userId}/${k}`),
+          ks.forEach(k => update(iRef( `bookings/${mb.userId}/${k}`),
             { status:"cancelled", cancelledAt:Date.now(), cancelledBy:"admin" }).catch(()=>{}));
         }
       };
@@ -2621,7 +2621,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
       setLocalSelectedBooking(prev=>prev?{...prev,...patch}:null);
       if (b.userId) {
         const key = b._fbKey || b.id;
-        update(ref(db, `bookings/${b.userId}/${key}`), patch).catch(()=>{});
+        update(iRef( `bookings/${b.userId}/${key}`), patch).catch(()=>{});
       }
       return;
     }
@@ -2639,7 +2639,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
       setLocalSelectedBooking(prev=>prev?{...prev,...patch}:null);
       if (b.userId) {
         const key = b._fbKey || b.id;
-        update(ref(db, `bookings/${b.userId}/${key}`), patch).catch(()=>{});
+        update(iRef( `bookings/${b.userId}/${key}`), patch).catch(()=>{});
       }
       return;
     }
@@ -2676,7 +2676,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
       // щоб особиста подія не "підсвічувала" день як зайнятий учням.
       upd[`timeslots/${dateStr}/slot${sh}${sm}/personal`] = true;
     }
-    update(ref(db, "/"), upd).catch(() => {});
+    update(iRef(), upd).catch(() => {});
   };
   const unblockPersonalSlots = (dateStr, startMin, durMin) => {
     const upd = {};
@@ -2688,7 +2688,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
       upd[`timeslots/${dateStr}/slot${sh}${sm}/phantom`] = null;
       upd[`timeslots/${dateStr}/slot${sh}${sm}/personal`] = null;
     }
-    update(ref(db, "/"), upd).catch(() => {});
+    update(iRef(), upd).catch(() => {});
   };
 
   const savePersonalEventEdit = () => {
@@ -2713,7 +2713,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
       ...(reminderChanged ? { reminderSent: false } : {}),
     };
     const key = ev._fbKey || ev.id;
-    update(ref(db, `bookings/personal/${key}`), patch).catch(() => {});
+    update(iRef( `bookings/personal/${key}`), patch).catch(() => {});
     const today = new Date(); today.setHours(0, 0, 0, 0);
     const d = new Date(peEditDate); d.setHours(0, 0, 0, 0);
     const newDay = Math.round((d - today) / 86400000);
@@ -2726,7 +2726,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
     if (!ev) return;
     unblockPersonalSlots(ev.date || absDayToDateStr(ev.day), ev.startMin, ev.durMin);
     const key = ev._fbKey || ev.id;
-    remove(ref(db, `bookings/personal/${key}`)).catch(() => {});
+    remove(iRef( `bookings/personal/${key}`)).catch(() => {});
     setBookings(bs => bs.filter(x => x.id !== ev.id));
     setPersonalEventView(null);
   };
@@ -2735,7 +2735,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
     const dateStr = absDayToDateStr(day);
     const hh = String(Math.floor(startMin / 60)).padStart(2, "0");
     const mm = String(startMin % 60).padStart(2, "0");
-    update(ref(db, `timeslots/${dateStr}/slot${hh}${mm}`), {
+    update(iRef( `timeslots/${dateStr}/slot${hh}${mm}`), {
       time: `${hh}:${mm}`, available: true, vipOnly: true,
     }).catch(() => {});
   };
@@ -3805,7 +3805,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                               const path = `timeslots/${dateStr}/slot${hh}${mm}`;
                               slotUpd[`${path}/available`]=true; slotUpd[`${path}/time`]=`${hh}:${mm}`; slotUpd[`${path}/phantom`]=null; slotUpd[`${path}/bookingStart`]=null;
                             }
-                            update(ref(db,'/'), slotUpd).catch(()=>{});
+                            update(iRef('/'), slotUpd).catch(()=>{});
                           }
                           // Прямий запис cancelled у Firebase одразу (не покладаємось на 2с-таймер)
                           const idsCancel = b._mergedIds || [b.id];
@@ -3813,7 +3813,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                             const mb = bookingsRef.current?.find(x => x.id === id) || (id === b.id ? b : null);
                             if (!mb?.userId) return;
                             const ks = [...new Set([mb._fbKey, mb.id].filter(Boolean))];
-                            ks.forEach(k => update(ref(db, `bookings/${mb.userId}/${k}`),
+                            ks.forEach(k => update(iRef( `bookings/${mb.userId}/${k}`),
                               { status:"cancelled", cancelledAt:Date.now(), cancelledBy:"admin" }).catch(()=>{}));
                           });
                           // Починаємо 2с відлік — затемнення → видалення
@@ -4052,7 +4052,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
           <button onClick={()=>{
             const hh = String(Math.floor(addSlotPos.startMin/60)).padStart(2,'0');
             const mm = String(addSlotPos.startMin%60).padStart(2,'0');
-            update(ref(db, `timeslots/${addSlotPos.dateStr}/slot${hh}${mm}`), {
+            update(iRef( `timeslots/${addSlotPos.dateStr}/slot${hh}${mm}`), {
               available: true, time: `${hh}:${mm}`
             }).catch(()=>{});
             setAddSlotPos(null);
@@ -4203,7 +4203,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                   // цей слот своїм окремим фільтром обідньої перерви (він
                   // фільтрує за часом незалежно від того, чи слот реально
                   // існує в базі) — адмін відкрив його вручну саме на цей час.
-                  update(ref(db, `timeslots/${_menu.dateStr}/slot${_hh}${_mm}`), { available: true, time: `${_hh}:${_mm}`, lunchOverride: true }).catch(()=>{});
+                  update(iRef( `timeslots/${_menu.dateStr}/slot${_hh}${_mm}`), { available: true, time: `${_hh}:${_mm}`, lunchOverride: true }).catch(()=>{});
                   _closeLtm();
                 }} style={{
                   flex:1,padding:"16px 8px",borderRadius:16,border:"none",cursor:"pointer",fontFamily:"inherit",
@@ -4557,7 +4557,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                   const dateStr = v._dateStr || absDayToDateStr(v.day);
                   const hh = String(Math.floor(v.startMin / 60)).padStart(2, "0");
                   const mm = String(v.startMin % 60).padStart(2, "0");
-                  update(ref(db, `timeslots/${dateStr}/slot${hh}${mm}`), { vipOnly: false }).catch(() => {});
+                  update(iRef( `timeslots/${dateStr}/slot${hh}${mm}`), { vipOnly: false }).catch(() => {});
                   _closeVip();
                 }} style={{
                   width:"100%",padding:"14px",borderRadius:18,border:"none",cursor:"pointer",
@@ -4590,7 +4590,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
             ...(b.note && { note: b.note }),
           };
           if (b.userId) {
-            update(ref(db, `bookings/${b.userId}/${b.id}`), fbData).catch(()=>{});
+            update(iRef( `bookings/${b.userId}/${b.id}`), fbData).catch(()=>{});
           } else {
             // Клієнт без акаунту (гість) — пишемо в той самий bookings/ дерево під
             // синтетичним guest_<телефон> uid, а не в окремий bookings_by_phone.
@@ -4599,10 +4599,10 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
             // з Google Calendar, звільнення черги тощо).
             const phone = (b.phone || '').replace(/\D/g, '');
             if (phone) {
-              update(ref(db, `bookings/guest_${phone}/${b.id}`), fbData).catch(()=>{});
+              update(iRef( `bookings/guest_${phone}/${b.id}`), fbData).catch(()=>{});
               // Дзеркалимо у users/, звідки читається вкладка "Учні" — інакше
               // гість видно тільки в розкладі/бронюваннях, а не в списку учнів.
-              const studentRef = ref(db, `users/guest_${phone}`);
+              const studentRef = iRef( `users/guest_${phone}`);
               get(studentRef).then(s => {
                 if (s.exists()) {
                   update(studentRef, { name: b.name, phone: b.phone }).catch(()=>{});
@@ -4632,7 +4632,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
             // лише за відстанню між позначками.
             slotUpd[`timeslots/${b.date}/slot${sh}${sm}/bookingStart`] = i === 0;
           }
-          update(ref(db, '/'), slotUpd).catch(() => {});
+          update(iRef(), slotUpd).catch(() => {});
         }
         setFormData(null);
       }}
@@ -4653,7 +4653,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
           reminderHours: b.reminderHours || null, reminderSent: false,
           createdAt: Date.now(), createdBy: "admin",
         };
-        update(ref(db, `bookings/personal/${b.id}`), fbData).catch(() => {});
+        update(iRef( `bookings/personal/${b.id}`), fbData).catch(() => {});
         blockPersonalSlots(b.date, b.startMin, b.durMin);
         setBookings(bs => [...bs, { ...b, userId: "personal", _fbKey: b.id }]);
         setPersonalEventData(null);
@@ -4897,7 +4897,7 @@ function CreateSlotSheet({ data, settings, onClose }) {
       updates[`timeslots/${dateStr}/${id}/time`] = `${h}:${mn}`;
       updates[`timeslots/${dateStr}/${id}/available`] = true;
     }
-    await update(ref(db, '/'), updates).catch(() => {});
+    await update(iRef(), updates).catch(() => {});
     setSaving(false);
     _close();
   };
@@ -5033,7 +5033,7 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
   const [filmingConsent, setFilmingConsent] = useState(null);
   useEffect(() => {
     if (!booking || !booking.userId) { setFilmingConsent(null); return; }
-    const r = ref(db, `users/${booking.userId}/profile/filmingConsent`);
+    const r = iRef( `users/${booking.userId}/profile/filmingConsent`);
     const unsub = onValue(r, snap => setFilmingConsent(snap.exists() ? snap.val() : null));
     return () => unsub();
   }, [booking]);
@@ -5049,7 +5049,7 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
     const hh = String(Math.floor(booking.startMin/60)).padStart(2,'0');
     const mm = String(booking.startMin%60).padStart(2,'0');
     const slotKey = `${dateStr}_${hh}:${mm}`;
-    const r = ref(db, `queue/${slotKey}/entries`);
+    const r = iRef( `queue/${slotKey}/entries`);
     const unsub = onValue(r, snap => {
       if (!snap.exists()) { setQueueEntries([]); return; }
       const entries = Object.values(snap.val())
@@ -5069,9 +5069,9 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
     setBadgePickerOpen(false);
     setTagPickerOpen(false);
     if (!booking.userId) { setManeuverCounts({}); setAllBadges({}); return; }
-    const r = ref(db, `users/${booking.userId}/maneuverCounts`);
+    const r = iRef( `users/${booking.userId}/maneuverCounts`);
     const unsub = onValue(r, snap => setManeuverCounts(snap.val() || {}));
-    const rb = ref(db, `users/${booking.userId}/badges`);
+    const rb = iRef( `users/${booking.userId}/badges`);
     const unsubB = onValue(rb, snap => setAllBadges(snap.val() || {}));
     return () => { unsub(); unsubB(); };
   }, [booking]);
@@ -5080,10 +5080,10 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
     if (!booking || maneuverState[key]) return;
     setManeuverState(s => ({ ...s, [key]: true }));
     setManeuverResults(s => ({ ...s, [key]: "success" }));
-    update(ref(db, `bookings/${booking.userId}/${booking.id}/maneuvers`), { [key]: true }).catch(()=>{});
-    update(ref(db, `bookings/${booking.userId}/${booking.id}/maneuverResults`), { [key]: "success" }).catch(()=>{});
-    update(ref(db, `users/${booking.userId}/maneuverCounts`), { [key]: increment(1) }).catch(()=>{});
-    update(ref(db, `users/${booking.userId}/maneuverSuccessCounts`), { [key]: increment(1) }).catch(()=>{});
+    update(iRef( `bookings/${booking.userId}/${booking.id}/maneuvers`), { [key]: true }).catch(()=>{});
+    update(iRef( `bookings/${booking.userId}/${booking.id}/maneuverResults`), { [key]: "success" }).catch(()=>{});
+    update(iRef( `users/${booking.userId}/maneuverCounts`), { [key]: increment(1) }).catch(()=>{});
+    update(iRef( `users/${booking.userId}/maneuverSuccessCounts`), { [key]: increment(1) }).catch(()=>{});
   };
 
   // Перемикач "вдало/невдало" — доступний лише для вже відпрацьованого в
@@ -5093,20 +5093,20 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
     if (!booking || !maneuverState[key]) return;
     const next = (maneuverResults[key] || "success") === "success" ? "fail" : "success";
     setManeuverResults(s => ({ ...s, [key]: next }));
-    update(ref(db, `bookings/${booking.userId}/${booking.id}/maneuverResults`), { [key]: next }).catch(()=>{});
-    update(ref(db, `users/${booking.userId}/maneuverSuccessCounts`), { [key]: increment(next === "success" ? 1 : -1) }).catch(()=>{});
+    update(iRef( `bookings/${booking.userId}/${booking.id}/maneuverResults`), { [key]: next }).catch(()=>{});
+    update(iRef( `users/${booking.userId}/maneuverSuccessCounts`), { [key]: increment(next === "success" ? 1 : -1) }).catch(()=>{});
   };
 
   // Медаль за конкретний урок — прив'язана до booking.id, тому клієнт може
   // показати її саме біля цього завершеного запису, а не загальним списком.
   const awardBookingBadge = (icon, label) => {
     if (!booking) return;
-    fbPush(ref(db, `users/${booking.userId}/badges`), { icon, label, awardedAt: Date.now(), bookingId: booking.id }).catch(()=>{});
+    fbPush(iRef( `users/${booking.userId}/badges`), { icon, label, awardedAt: Date.now(), bookingId: booking.id }).catch(()=>{});
     setBadgePickerOpen(false);
   };
   const removeBookingBadge = (badgeId) => {
     if (!booking) return;
-    remove(ref(db, `users/${booking.userId}/badges/${badgeId}`)).catch(()=>{});
+    remove(iRef( `users/${booking.userId}/badges/${badgeId}`)).catch(()=>{});
   };
 
   // booking може стати null синхронно (напр. cancel обнуляє вибір), поки closing=true.
@@ -5526,7 +5526,7 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
                     const mm = String(booking.startMin%60).padStart(2,'0');
                     const slotKey = `${dateStr}_${hh}:${mm}`;
                     return (
-                      <button onClick={() => update(ref(db, '/'), {
+                      <button onClick={() => update(iRef(), {
                         [`queue/${slotKey}/entries/${e.uid}`]: null,
                         [`userQueue/${e.uid}/${slotKey}`]: null,
                       }).catch(()=>{})}
@@ -5959,7 +5959,7 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
   const [closing,    setClosing]    = useState(false);
 
   useEffect(()=>{
-    const r = ref(db, "users");
+    const r = iRef( "users");
     const handler = onValue(r, snap => {
       const d = snap.val() || {};
       setStudents(Object.entries(d).map(([uid, u]) => {
@@ -6773,7 +6773,7 @@ function StudentsView() {
   const [savedUid,     setSavedUid]     = useState(null);
 
   useEffect(() => {
-    const r = ref(db, "users");
+    const r = iRef( "users");
     const unsub = onValue(r, snap => {
       const d = snap.val() || {};
       setStudents(Object.entries(d).map(([uid, u]) => {
@@ -6785,7 +6785,7 @@ function StudentsView() {
   }, []);
 
   useEffect(() => {
-    const r = ref(db, "bookings");
+    const r = iRef( "bookings");
     const unsub = onValue(r, snap => {
       const d = snap.val() || {};
       const counts = {};
@@ -6811,10 +6811,10 @@ function StudentsView() {
     if (!editing || !editing.name.trim()) return;
     setSaving(true);
     try {
-      await update(ref(db, `users/${editing.uid}/profile`), {
+      await update(iRef( `users/${editing.uid}/profile`), {
         name: editing.name.trim(), phone: editing.phone.trim(),
       });
-      const bSnap = await get(ref(db, `bookings/${editing.uid}`));
+      const bSnap = await get(iRef( `bookings/${editing.uid}`));
       if (bSnap.exists()) {
         const upd = {};
         bSnap.forEach(child => {
@@ -6824,7 +6824,7 @@ function StudentsView() {
             upd[`bookings/${editing.uid}/${child.key}/name`] = editing.name.trim();
           }
         });
-        if (Object.keys(upd).length) await update(ref(db), upd);
+        if (Object.keys(upd).length) await update(iRef(), upd);
       }
       setSavedUid(editing.uid);
       setTimeout(() => setSavedUid(null), 2500);
@@ -6929,7 +6929,7 @@ function TemplatesView() {
   const glow=a=>`rgba(${GLOW},${a})`,shade=a=>`rgba(${SHADE},${a})`,ink=a=>`rgba(${INK},${a})`;
   const SLO=SURF_LO, DM=DIM, FT=FAINT, AH=ACC_HI, SO2=SO, SI2=SI;
 
-  const ADMIN_UID = "sash5385@gmail.com";
+  const ADMIN_UID = auth.currentUser?.uid || "admin";
 
   const DEFAULTS = {
     booking_confirmed: { title:"✅ Запис підтверджено", body:"{name}, чекаємо тебе {daySlot} 🎯" },
@@ -6955,7 +6955,7 @@ function TemplatesView() {
   const [log,      setLog]      = useState([]);
 
   useEffect(() => {
-    const r = ref(db, "pushTemplates");
+    const r = iRef( "pushTemplates");
     const unsub = onValue(r, snap => {
       const data = snap.val() || {};
       setDrafts(prev => {
@@ -6970,7 +6970,7 @@ function TemplatesView() {
   }, []);
 
   useEffect(() => {
-    const r = ref(db, "pushLog");
+    const r = iRef( "pushLog");
     const unsub = onValue(r, snap => {
       if (!snap.exists()) { setLog([]); return; }
       const items = [];
@@ -6982,7 +6982,7 @@ function TemplatesView() {
   }, []);
 
   const save = async (type) => {
-    await update(ref(db, `pushTemplates/${type}`), drafts[type]).catch(()=>{});
+    await update(iRef( `pushTemplates/${type}`), drafts[type]).catch(()=>{});
     setSaved(s => ({ ...s, [type]:true }));
     setTimeout(() => setSaved(s => ({ ...s, [type]:false })), 2000);
   };
@@ -6990,7 +6990,7 @@ function TemplatesView() {
   const sendTest = async (type) => {
     const meta  = TMETA.find(m => m.type === type);
     const draft = drafts[type];
-    await fbPush(ref(db, "adminPush"), {
+    await fbPush(iRef( "adminPush"), {
       uid:   ADMIN_UID,
       title: applyV(draft.title, meta.sample),
       body:  applyV(draft.body,  meta.sample),
@@ -7154,7 +7154,7 @@ export default function App() {
 
   // Load settings from Firebase on mount
   useEffect(() => {
-    get(ref(db, "admin_settings")).then(snap => {
+    get(iRef( "admin_settings")).then(snap => {
       if (snap.exists()) {
         setSettings(s => ({ ...s, ...snap.val() }));
       }
@@ -7209,7 +7209,7 @@ export default function App() {
   };
 
   useEffect(() => {
-    return onValue(ref(db, "users"), snap => {
+    return onValue(iRef( "users"), snap => {
       usersMapRef.current = snap.val() || {};
       // Re-process already-loaded bookings so TSC cross-reference applies after users arrive
       if (rawBookingsDataRef.current !== null) {
@@ -7220,7 +7220,7 @@ export default function App() {
 
   // Load bookings from Firebase (realtime)
   useEffect(() => {
-    const r = ref(db, "bookings");
+    const r = iRef( "bookings");
     const handler = onValue(r, snap => {
       rawBookingsDataRef.current = snap.val();
       processBookingsRef.current(snap.val());
@@ -7234,7 +7234,7 @@ export default function App() {
       const next = typeof updater === "function" ? updater(prev) : updater;
       clearTimeout(saveTimerRef.current);
       saveTimerRef.current = setTimeout(() => {
-        update(ref(db, "admin_settings"), next).catch(() => {});
+        update(iRef( "admin_settings"), next).catch(() => {});
       }, 1000);
       return next;
     });
@@ -7246,7 +7246,7 @@ export default function App() {
       if (b.userId && b.id) {
         if (b.date && b.startMin !== undefined && b.durMin) {
           // Відновлюємо лише слоти сітки; phantom-вузли видаляємо
-          get(ref(db, `timeslots/${b.date}`)).then(s => {
+          get(iRef( `timeslots/${b.date}`)).then(s => {
             const day = s.val() || {};
             const upd = {};
             for (let i = 0; i < b.durMin; i += 30) {
@@ -7257,12 +7257,12 @@ export default function App() {
               if (!node || node.phantom) { upd[path] = null; continue; }
               upd[`${path}/available`] = true; upd[`${path}/time`] = `${hh}:${mm}`; upd[`${path}/bookingStart`] = null;
             }
-            if (Object.keys(upd).length) update(ref(db,'/'), upd).catch(()=>{});
+            if (Object.keys(upd).length) update(iRef('/'), upd).catch(()=>{});
           }).catch(()=>{});
         }
         // Скасовуємо обидва можливі вузли (дубль міг з'явитись від старого коду)
         const keys = [...new Set([b._fbKey, b.id].filter(Boolean))];
-        keys.forEach(k => update(ref(db, `bookings/${b.userId}/${k}`), { status:"cancelled", cancelledAt:Date.now(), cancelledBy:"admin" }).catch(()=>{}));
+        keys.forEach(k => update(iRef( `bookings/${b.userId}/${k}`), { status:"cancelled", cancelledAt:Date.now(), cancelledBy:"admin" }).catch(()=>{}));
         setBookings(bs=>bs.map(x=>x.id===b.id?{...x,status:"cancelled"}:x));
       } else {
         setBookings(bs=>bs.filter(x=>x.id!==b.id));
@@ -7287,23 +7287,23 @@ export default function App() {
         ...(b.debtAmount > 0 && { debtAmount: b.debtAmount }),
       };
       if (b.userId) {
-        update(ref(db, `bookings/${b.userId}/${b.id}`), fbData).catch(()=>{});
+        update(iRef( `bookings/${b.userId}/${b.id}`), fbData).catch(()=>{});
       } else {
         const phone = (b.phone || '').replace(/\D/g, '');
         if (phone) {
-          update(ref(db, `bookings_by_phone/${phone}/${b.id}`), fbData).catch(()=>{});
+          update(iRef( `bookings_by_phone/${phone}/${b.id}`), fbData).catch(()=>{});
           for (let i = 0; i < b.durMin; i += 30) {
             const slotMin = b.startMin + i;
             const sh = String(Math.floor(slotMin / 60)).padStart(2, '0');
             const sm = String(slotMin % 60).padStart(2, '0');
-            update(ref(db, `slotBookings/${b.date}/slot${sh}${sm}`), {phone, bookingId: b.id}).catch(()=>{});
+            update(iRef( `slotBookings/${b.date}/slot${sh}${sm}`), {phone, bookingId: b.id}).catch(()=>{});
           }
         }
       }
     }
     if (b.date && b.startMin !== undefined && b.durMin) {
       // Вузли поза сіткою дня позначаємо phantom — при скасуванні видаляться
-      get(ref(db, `timeslots/${b.date}`)).then(s => {
+      get(iRef( `timeslots/${b.date}`)).then(s => {
         const day = s.val() || {};
         const slotUpd = {};
         for (let i = 0; i < b.durMin; i += 30) {
@@ -7318,7 +7318,7 @@ export default function App() {
           // його, а не кожен 30-хвилинний блок.
           slotUpd[`timeslots/${b.date}/${id}/bookingStart`] = i === 0;
         }
-        update(ref(db, '/'), slotUpd).catch(() => {});
+        update(iRef(), slotUpd).catch(() => {});
       }).catch(() => {});
     }
     // onValue listener will update setBookings automatically; skip local push to avoid duplicate

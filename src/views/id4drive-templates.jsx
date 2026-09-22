@@ -1,6 +1,6 @@
 import { useState, useRef, useContext, useEffect } from "react";
-import { ref, get, set, push, update, increment } from "firebase/database";
-import { db } from "../firebase";
+import { get, set, push, update, increment } from "firebase/database";
+import { iRef } from "../firebase";
 import { LangContext } from "../App";
 import { createT } from "../lang";
 
@@ -106,7 +106,7 @@ function SendModal({ tpl, onClose }) {
   const ch = chOf(tpl.channel);
 
   useEffect(() => {
-    get(ref(db, "users")).then(snap => {
+    get(iRef( "users")).then(snap => {
       const d = snap.val() || {};
       const list = Object.entries(d).map(([uid, u]) => ({
         uid,
@@ -130,8 +130,8 @@ function SendModal({ tpl, onClose }) {
     const time = new Date().toLocaleTimeString("uk",{hour:"2-digit",minute:"2-digit"});
     const ts   = Date.now();
     await Promise.all(selected.map(uid =>
-      push(ref(db,`chats/${uid}`),{from:"admin",text:preview,time,ts}).catch(()=>{})
-        .then(() => update(ref(db,`chatMeta/${uid}`),{unreadForStudent:increment(1),lastMsg:preview,lastTs:ts}).catch(()=>{}))
+      push(iRef(`chats/${uid}`),{from:"admin",text:preview,time,ts}).catch(()=>{})
+        .then(() => update(iRef(`chatMeta/${uid}`),{unreadForStudent:increment(1),lastMsg:preview,lastTs:ts}).catch(()=>{}))
     ));
     setSending(false);
     setSent(true);
@@ -362,7 +362,7 @@ export default function TemplatesView() {
   const saveTimer = useRef(null);
 
   useEffect(() => {
-    get(ref(db, 'admin_data/templates')).then(snap => {
+    get(iRef( 'admin_data/templates')).then(snap => {
       const d = snap.val();
       if (Array.isArray(d)) setTemplates(d);
       setLoaded(true);
@@ -373,7 +373,7 @@ export default function TemplatesView() {
     if (!loaded) return;
     clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => {
-      set(ref(db, 'admin_data/templates'), templates).catch(() => {});
+      set(iRef( 'admin_data/templates'), templates).catch(() => {});
     }, 800);
   }, [templates, loaded]);
 

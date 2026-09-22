@@ -1,7 +1,7 @@
 import { useState, useContext, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { ref, get, update, onValue, off } from "firebase/database";
-import { db, auth } from "../firebase";
+import { get, update, onValue, off } from "firebase/database";
+import { iRef, auth } from "../firebase";
 import { LangContext } from "../App";
 import { APP_VERSION } from "../version.js";
 import { ThemeContext } from "../theme.js";
@@ -239,7 +239,7 @@ select{color-scheme:${isKava?"light":"dark"}}
   const [active, setActive] = useState("schedule");
   const [showHint, setShowHint] = useState(false);
   const switchSection = (id) => { setActive(id); setShowHint(false); };
-  const license = useLicense();
+  const license = useLicense(auth.currentUser?.uid);
   const [payingWith, setPayingWith] = useState(null); // "liqpay" | "monobank" | null
 
   const payWithLiqPay = async () => {
@@ -292,7 +292,7 @@ select{color-scheme:${isKava?"light":"dark"}}
   // ── відгуки учнів ────────────────────────────────────────────
   const [reviews, setReviews] = useState([]);
   useEffect(() => {
-    const r = ref(db, "reviews");
+    const r = iRef( "reviews");
     const handler = onValue(r, snap => {
       const data = snap.val() || {};
       const list = [];
@@ -305,7 +305,7 @@ select{color-scheme:${isKava?"light":"dark"}}
     return () => off(r, "value", handler);
   }, []);
   const toggleReviewHidden = (review) => {
-    update(ref(db, `reviews/${review.uid}/${review.id}`), { status: review.status === "hidden" ? "approved" : "hidden" }).catch(() => {});
+    update(iRef( `reviews/${review.uid}/${review.id}`), { status: review.status === "hidden" ? "approved" : "hidden" }).catch(() => {});
   };
 
   const [installPrompt, setInstallPrompt] = useState(null);
@@ -386,8 +386,8 @@ select{color-scheme:${isKava?"light":"dark"}}
     setCleanResult(null);
     try {
       const [timeslotsSnap, bookingsSnap] = await Promise.all([
-        get(ref(db, "timeslots")),
-        get(ref(db, "bookings")),
+        get(iRef( "timeslots")),
+        get(iRef( "bookings")),
       ]);
       const timeslots = timeslotsSnap.val() || {};
       const bkByDate = collectBookingsByDate(bookingsSnap.val());
@@ -408,7 +408,7 @@ select{color-scheme:${isKava?"light":"dark"}}
           }
         });
       });
-      if (removed > 0) await update(ref(db, "/"), updates);
+      if (removed > 0) await update(iRef(), updates);
       setCleanResult(removed);
     } catch {
       setCleanResult("Помилка");
@@ -429,7 +429,7 @@ select{color-scheme:${isKava?"light":"dark"}}
     setRestoring(true);
     setRestoreResult(null);
     try {
-      const bookingsSnap = await get(ref(db, "bookings"));
+      const bookingsSnap = await get(iRef( "bookings"));
       const bkByDate = collectBookingsByDate(bookingsSnap.val());
       const updates = {};
       let marked = 0;
@@ -445,7 +445,7 @@ select{color-scheme:${isKava?"light":"dark"}}
           }
         });
       });
-      if (marked > 0) await update(ref(db, "/"), updates);
+      if (marked > 0) await update(iRef(), updates);
       setRestoreResult(marked);
     } catch {
       setRestoreResult("Помилка");

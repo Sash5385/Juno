@@ -1,6 +1,6 @@
 import { useState, useEffect, useContext, useRef } from "react";
-import { ref, onValue, get, update } from "firebase/database";
-import { db } from "../firebase";
+import { onValue, get, update } from "firebase/database";
+import { iRef } from "../firebase";
 import { LangContext } from "../App";
 import { createT } from "../lang";
 
@@ -242,7 +242,7 @@ export default function StatsView() {
 `;
 
   useEffect(() => {
-    return onValue(ref(db, "bookings"), snap => {
+    return onValue(iRef( "bookings"), snap => {
       const d = snap.val();
       if (!d) { setBookings([]); return; }
       const all = [];
@@ -260,14 +260,14 @@ export default function StatsView() {
   }, []);
 
   useEffect(() => {
-    return onValue(ref(db, "admin_settings/services"), snap => {
+    return onValue(iRef( "admin_settings/services"), snap => {
       const d = snap.val();
       setServices(Array.isArray(d) ? d : []);
     }, () => {});
   }, []);
 
   useEffect(() => {
-    get(ref(db, "admin_settings/incomeGoal")).then(s => { if (s.exists()) setIncomeGoal(s.val() || 0); }).catch(() => {});
+    get(iRef( "admin_settings/incomeGoal")).then(s => { if (s.exists()) setIncomeGoal(s.val() || 0); }).catch(() => {});
   }, []);
 
   const data     = period === "week"   ? computeWeekData(bookings, 0, services)
@@ -564,7 +564,7 @@ export default function StatsView() {
               <button onClick={()=>{
                 const val=Math.max(0,parseInt(goalInput,10)||0);
                 setIncomeGoal(val);
-                update(ref(db, "admin_settings"),{incomeGoal:val}).catch(()=>{});
+                update(iRef( "admin_settings"),{incomeGoal:val}).catch(()=>{});
                 setEditingGoal(false);
               }} style={{
                 padding:"8px 14px",borderRadius:9,border:"none",cursor:"pointer",fontFamily:"inherit",fontSize:13,fontWeight:700,
