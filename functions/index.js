@@ -1,6 +1,9 @@
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { onValueCreated, onValueUpdated, onValueWritten } = require("firebase-functions/v2/database");
+const { onRequest } = require("firebase-functions/v2/https");
+const { defineSecret } = require("firebase-functions/params");
 const admin = require("firebase-admin");
+const crypto = require("crypto");
 
 admin.initializeApp();
 const db = admin.database();
@@ -44,7 +47,7 @@ async function pushStudent(uid, title, body, data = {}) {
   const snap = await db.ref(`users/${uid}/fcmTokens`).get();
   const devices = collectDeviceTokens(snap.val());
   if (!devices.length) return false;
-  const link = data.url || "https://id4drive.pro/cabinet";
+  const link = data.url || "https://drivepad.pro/cabinet";
   let sent = false;
   for (const [deviceId, token] of devices) {
     try {
@@ -110,7 +113,7 @@ async function pushAdmin(title, body, data = {}) {
   const devices = collectDeviceTokens(snap.val());
   console.log(`pushAdmin: devices=${devices.length}, title="${title}"`);
   if (!devices.length) { console.warn("pushAdmin: no tokens at admin/fcmTokens"); return false; }
-  const link = data.url || "https://admin.id4drive.pro";
+  const link = data.url || "https://admin.drivepad.pro";
   let sent = false;
   for (const [deviceId, token] of devices) {
     try {
@@ -246,7 +249,7 @@ exports.onBookingChanged = onValueWritten(
     const name       = (after || before)?.studentName || "Учень";
     const date       = (after || before)?.date || "—";
     const time       = (after || before)?.time || "—";
-    const adminLink  = () => buildAdminLink("https://admin.id4drive.pro", { date, time, uid, bookingId });
+    const adminLink  = () => buildAdminLink("https://admin.drivepad.pro", { date, time, uid, bookingId });
 
     // Новий запис (before = null) — блокуємо слоти
     if (before === null && after) {
@@ -258,7 +261,7 @@ exports.onBookingChanged = onValueWritten(
         // Адмін вручну записав учня — сповіщаємо учня
         console.log(`onBookingChanged: admin manual booking uid=${uid}`);
         await pushStudent(uid, "📋 Урок заплановано", `${date} о ${time}`, {
-          url: "https://id4drive.pro/cabinet/bookings",
+          url: "https://drivepad.pro/cabinet/bookings",
         });
         await saveNotification(uid, "📋 Урок заплановано", `${date} о ${time}`, "booking_confirmed");
       } else if (after.createdBy !== "admin" && after.status !== "personal") {
@@ -293,7 +296,7 @@ exports.onBookingChanged = onValueWritten(
       const usedTpl = await sendActiveTemplates(uid, "auto_confirm", vars).catch(() => false);
       if (!usedTpl) {
         await pushStudent(uid, "✅ Урок підтверджено", `${date} о ${time}`, {
-          url: "https://id4drive.pro/cabinet/bookings",
+          url: "https://drivepad.pro/cabinet/bookings",
         });
         await saveNotification(uid, "✅ Урок підтверджено", `${date} о ${time}`, "booking_confirmed");
       }
@@ -309,7 +312,7 @@ exports.onBookingChanged = onValueWritten(
       const usedCancelTpl = await sendActiveTemplates(uid, "auto_cancel", cancelVars).catch(() => false);
       if (!usedCancelTpl) {
         await pushStudent(uid, "❌ Урок скасовано", `${date} о ${time}`, {
-          url: "https://id4drive.pro/cabinet/bookings",
+          url: "https://drivepad.pro/cabinet/bookings",
         });
         await saveNotification(uid, "❌ Урок скасовано", `${date} о ${time}`, "booking_cancelled");
       }
@@ -409,7 +412,7 @@ exports.onNewStudentRegistered = onValueCreated(
     const phone = profile?.phone || "";
     console.log(`onNewStudentRegistered: uid=${uid} name="${name}"`);
     await pushAdmin("🎉 Новий учень", phone ? `${name} · ${phone}` : name, {
-      url: buildAdminLink("https://admin.id4drive.pro", { uid }),
+      url: buildAdminLink("https://admin.drivepad.pro", { uid }),
     });
     await sendActiveTemplates(uid, "auto_welcome", { "ім'я": name }).catch(() => {});
   }
@@ -443,7 +446,7 @@ exports.onQueueInvite = onValueUpdated(
       ...(after.offerDurationHours ? { durationHours: after.offerDurationHours } : {}),
     }).catch(() => {});
 
-    const url = `https://id4drive.pro/cabinet?date=${date}&time=${encodeURIComponent(time)}`;
+    const url = `https://drivepad.pro/cabinet?date=${date}&time=${encodeURIComponent(time)}`;
     const pushTitle = "🎉 Слот зарезервовано для вас!";
     const pushBody = `${date} о ${time} — у вас 30 хвилин щоб записатись`;
     await pushStudent(uid, pushTitle, pushBody, { url, date, time, slotKey });
@@ -564,10 +567,10 @@ exports.unlockVipSlots = onSchedule("every 1 hours", async () => {
       data: {
         title: "🚗 З'явились нові слоти!",
         body: "Відкрились нові години для запису. Поспішай!",
-        url: "https://id4drive.pro/cabinet",
+        url: "https://drivepad.pro/cabinet",
       },
       webpush: {
-        fcmOptions: { link: "https://id4drive.pro/cabinet" },
+        fcmOptions: { link: "https://drivepad.pro/cabinet" },
       },
     }).catch(() => {});
   }
@@ -664,7 +667,7 @@ exports.flushSlotFreedQueue = onSchedule(
       const tpl = await getActiveTemplateText("auto_queue", { "дата": dateFormatted, "час": time }).catch(() => null);
       const title = tpl?.title || "🚗 Звільнився слот!";
       const body  = tpl?.body  || `${dateFormatted} о ${time} — є вільне місце`;
-      const url   = `https://id4drive.pro/cabinet?date=${date}`;
+      const url   = `https://drivepad.pro/cabinet?date=${date}`;
 
       for (const uid of notifyUids) {
         if (lastNotifData[uid] && now - lastNotifData[uid] < RATE_LIMIT_MS) continue;
@@ -696,7 +699,7 @@ exports.flushRescheduleQueue = onSchedule(
       });
     });
     await Promise.all(tasks.map(async ({ uid, bookingId, body }) => {
-      await pushStudent(uid, "🔄 Урок перенесено", body, { url: "https://id4drive.pro/cabinet/bookings" });
+      await pushStudent(uid, "🔄 Урок перенесено", body, { url: "https://drivepad.pro/cabinet/bookings" });
       await saveNotification(uid, "🔄 Урок перенесено", body, "booking_rescheduled");
       await db.ref(`rescheduleQueue/${uid}/${bookingId}`).remove();
       console.log(`flushRescheduleQueue: sent to uid=${uid} bookingId=${bookingId}`);
@@ -794,7 +797,7 @@ exports.sendLessonReminders = onSchedule(
             updates[`sentReminders/${uid}/${bookingId}/r24`] = true;
           } else {
             const pushed = await pushStudent(uid, "🚗 Нагадування про урок", `Завтра о ${b.time} — ${dateFmt}`, {
-              url: "https://id4drive.pro/cabinet/bookings",
+              url: "https://drivepad.pro/cabinet/bookings",
             }).catch(() => false);
             if (pushed) {
               await saveNotification(uid, "🚗 Нагадування про урок", `Завтра о ${b.time} — ${dateFmt}`, "reminder");
@@ -810,7 +813,7 @@ exports.sendLessonReminders = onSchedule(
             updates[`sentReminders/${uid}/${bookingId}/r2`] = true;
           } else {
             const pushed = await pushStudent(uid, "⏰ Урок через 2 години", `о ${b.time} — ${dateFmt}`, {
-              url: "https://id4drive.pro/cabinet/bookings",
+              url: "https://drivepad.pro/cabinet/bookings",
             }).catch(() => false);
             if (pushed) {
               await saveNotification(uid, "⏰ Урок через 2 години", `о ${b.time} — ${dateFmt}`, "reminder");
@@ -854,7 +857,7 @@ exports.sendPersonalEventReminders = onSchedule(
         await pushAdmin(
           `⏰ ${ev.name || "Нагадування"}`,
           `${dateFmt} о ${ev.time}${ev.note ? " · " + ev.note : ""}`,
-          { url: `https://admin.id4drive.pro/?date=${ev.date}`, alarm: "1" }
+          { url: `https://admin.drivepad.pro/?date=${ev.date}`, alarm: "1" }
         );
         updates[`bookings/personal/${id}/reminderSent`] = true;
       }
@@ -893,7 +896,7 @@ exports.onPushTask = onValueCreated(
     const slotsStr = slotsArr.filter(Boolean).join(" та ");
     const title = "🚗 Є вільний слот!";
     const body = `${dateFmt} о ${slotsStr}${comment ? " — " + comment : ""}`;
-    const url = `https://id4drive.pro/cabinet?date=${date}${slotsArr[0] ? `&time=${encodeURIComponent(slotsArr[0])}` : ""}`;
+    const url = `https://drivepad.pro/cabinet?date=${date}${slotsArr[0] ? `&time=${encodeURIComponent(slotsArr[0])}` : ""}`;
 
     let sentCount = 0;
     for (let i = 0; i < tokened.length; i += 500) {
@@ -942,7 +945,7 @@ exports.flushDayNoteReminders = onSchedule(
       console.log(`flushDayNoteReminders: sending push for key=${key}`);
       const title = "🔔 Нагадування";
       const body = note.text || `Нотатка на ${dateStr}`;
-      await pushAdmin(title, body, { url: `https://admin.id4drive.pro/?date=${dateStr}`, alarm: "1" });
+      await pushAdmin(title, body, { url: `https://admin.drivepad.pro/?date=${dateStr}`, alarm: "1" });
       await db.ref(`dayNotes/${dateStr}/notes/${key}/notified`).set(true).catch(() => {});
     }
   }
@@ -966,7 +969,208 @@ exports.checkLicenseExpiry = onSchedule(
     await pushAdmin(
       "⛔ Підписку призупинено",
       "Термін дії ліцензії вийшов — доступ для інструктора заблоковано.",
-      { url: "https://admin.id4drive.pro" }
+      { url: "https://admin.drivepad.pro" }
     ).catch(() => {});
+  }
+);
+
+// ─── Оплата підписки: LiqPay + Monobank ───────────────────────────
+// Обидва провайдери дають готовий hosted-чекаут з Apple Pay/Google Pay/карткою.
+// LiqPay action:"subscribe" — справжнє автосписання щомісяця (вебхук сам
+// продовжує ліцензію, без участі вендора). Monobank Acquiring — рахунок
+// (invoice), не підписка: автосписання карткою Monobank Acquiring не дає,
+// тому інструктору доведеться раз на місяць самому натиснути оплату —
+// але вендору (нам) все одно нічого перемикати вручну, вебхук робить усе сам.
+
+const LIQPAY_PUBLIC_KEY  = defineSecret("LIQPAY_PUBLIC_KEY");
+const LIQPAY_PRIVATE_KEY = defineSecret("LIQPAY_PRIVATE_KEY");
+const MONOBANK_TOKEN     = defineSecret("MONOBANK_TOKEN");
+
+const MONTHLY_PRICE_UAH = 499;
+const LICENSE_PERIOD_MS = 31 * 24 * 3600 * 1000; // трохи більше місяця — запас на затримку вебхука
+
+// LiqPay: signature = base64( sha1_binary(private_key + data + private_key) )
+function liqpaySign(privateKey, data) {
+  return crypto.createHash("sha1").update(privateKey + data + privateKey, "utf8").digest("base64");
+}
+
+// Продовжує ліцензію на місяць від сьогодні, а якщо вона ще активна — від
+// дати закінчення поточного періоду (щоб оплата заздалегідь не "згоряла").
+async function extendLicense(provider, extra = {}) {
+  const now = Date.now();
+  const snap = await db.ref("license").get();
+  const lic = snap.val() || {};
+  const base = lic.status === "active" && lic.expiresAt > now ? lic.expiresAt : now;
+  await db.ref("license").update({
+    status: "active",
+    plan: "monthly",
+    provider,
+    expiresAt: base + LICENSE_PERIOD_MS,
+    lastPaymentAt: now,
+    ...extra,
+  });
+}
+
+// Створення LiqPay-замовлення на підписку. Викликається з фронту (кнопка
+// оплати в Налаштуваннях), авторизований запит — Bearer ID-токен адміна.
+exports.createLiqPayOrder = onRequest(
+  { region: "europe-west1", secrets: [LIQPAY_PUBLIC_KEY, LIQPAY_PRIVATE_KEY], cors: true },
+  async (req, res) => {
+    if (req.method !== "POST") { res.status(405).send("Method not allowed"); return; }
+    try {
+      const authHeader = req.get("Authorization") || "";
+      const idToken = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+      if (!idToken) { res.status(401).json({ error: "unauthorized" }); return; }
+      await admin.auth().verifyIdToken(idToken);
+
+      const publicKey  = LIQPAY_PUBLIC_KEY.value();
+      const privateKey = LIQPAY_PRIVATE_KEY.value();
+      const now = new Date();
+      const pad = n => String(n).padStart(2, "0");
+      const subscribeDateStart = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+      const payload = {
+        version: 3,
+        public_key: publicKey,
+        action: "subscribe",
+        amount: MONTHLY_PRICE_UAH,
+        currency: "UAH",
+        description: "DrivePad — місячна підписка",
+        order_id: "drivepad-" + Date.now(),
+        subscribe: 1,
+        subscribe_date_start: subscribeDateStart,
+        subscribe_periodicity: "month",
+        server_url: "https://europe-west1-drivepad-86fe1.cloudfunctions.net/liqpayCallback",
+        result_url: "https://admin.drivepad.pro/",
+        language: "uk",
+      };
+      const data = Buffer.from(JSON.stringify(payload)).toString("base64");
+      const signature = liqpaySign(privateKey, data);
+      res.json({ data, signature, action: "https://www.liqpay.ua/api/3/checkout" });
+    } catch (e) {
+      console.error("createLiqPayOrder error:", e);
+      res.status(500).json({ error: "server error" });
+    }
+  }
+);
+
+// Серверний колбек LiqPay — приходить POST з полями data+signature напряму
+// від LiqPay (без Firebase Auth, підпис — єдиний захист, тому перевіряємо
+// його завжди перед тим, як довіряти вмісту).
+exports.liqpayCallback = onRequest(
+  { region: "europe-west1", secrets: [LIQPAY_PRIVATE_KEY] },
+  async (req, res) => {
+    try {
+      const { data, signature } = req.body || {};
+      if (!data || !signature) { res.status(400).send("bad request"); return; }
+      const privateKey = LIQPAY_PRIVATE_KEY.value();
+      const expected = liqpaySign(privateKey, data);
+      if (expected !== signature) {
+        console.error("liqpayCallback: invalid signature");
+        res.status(400).send("invalid signature");
+        return;
+      }
+      const payload = JSON.parse(Buffer.from(data, "base64").toString("utf8"));
+      console.log(`liqpayCallback: order=${payload.order_id} status=${payload.status}`);
+      if (["subscribed", "success", "sandbox"].includes(payload.status)) {
+        await extendLicense("liqpay", { liqpayOrderId: payload.order_id });
+        await pushAdmin("✅ Оплата отримана (LiqPay)", "Підписку DrivePad продовжено на місяць.", {}).catch(() => {});
+      } else {
+        console.warn(`liqpayCallback: non-success status "${payload.status}" for order=${payload.order_id}`);
+      }
+      res.status(200).send("ok");
+    } catch (e) {
+      console.error("liqpayCallback error:", e);
+      res.status(500).send("error");
+    }
+  }
+);
+
+const MONOBANK_API = "https://api.monobank.ua/api/merchant";
+let cachedMonoPubKeyPem = null;
+
+async function getMonobankPubKey(token) {
+  if (cachedMonoPubKeyPem) return cachedMonoPubKeyPem;
+  const resp = await fetch(`${MONOBANK_API}/pubkey`, { headers: { "X-Token": token } });
+  const json = await resp.json();
+  cachedMonoPubKeyPem = Buffer.from(json.key, "base64").toString("utf8");
+  return cachedMonoPubKeyPem;
+}
+
+// Створення рахунку Monobank Acquiring (hosted-сторінка з Apple/Google Pay).
+exports.createMonobankInvoice = onRequest(
+  { region: "europe-west1", secrets: [MONOBANK_TOKEN], cors: true },
+  async (req, res) => {
+    if (req.method !== "POST") { res.status(405).send("Method not allowed"); return; }
+    try {
+      const authHeader = req.get("Authorization") || "";
+      const idToken = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
+      if (!idToken) { res.status(401).json({ error: "unauthorized" }); return; }
+      await admin.auth().verifyIdToken(idToken);
+
+      const token = MONOBANK_TOKEN.value();
+      const resp = await fetch(`${MONOBANK_API}/invoice/create`, {
+        method: "POST",
+        headers: { "X-Token": token, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount: MONTHLY_PRICE_UAH * 100,
+          ccy: 980,
+          merchantPaymInfo: {
+            reference: "drivepad-" + Date.now(),
+            destination: "DrivePad — місячна підписка",
+          },
+          redirectUrl: "https://admin.drivepad.pro/",
+          webHookUrl: "https://europe-west1-drivepad-86fe1.cloudfunctions.net/monobankCallback",
+          validity: 3600,
+        }),
+      });
+      const json = await resp.json();
+      if (!resp.ok) {
+        console.error("createMonobankInvoice: monobank error", json);
+        res.status(502).json({ error: "monobank error" });
+        return;
+      }
+      res.json({ pageUrl: json.pageUrl, invoiceId: json.invoiceId });
+    } catch (e) {
+      console.error("createMonobankInvoice error:", e);
+      res.status(500).json({ error: "server error" });
+    }
+  }
+);
+
+// Вебхук Monobank — підпис перевіряємо публічним ключем мерчанта (ECDSA
+// P-256 над сирим тілом запиту). ВАЖЛИВО: формат X-Sign (base64 DER) звірено
+// з відкритою документацією без прямого доступу до офіційних докс (мережевий
+// проксі блокував api.monobank.ua) — перед першим реальним запуском
+// обов'язково перевірити на тестовому вебхуку від Monobank.
+exports.monobankCallback = onRequest(
+  { region: "europe-west1", secrets: [MONOBANK_TOKEN] },
+  async (req, res) => {
+    try {
+      const signatureB64 = req.get("X-Sign");
+      const rawBody = req.rawBody;
+      if (!signatureB64 || !rawBody) { res.status(400).send("bad request"); return; }
+
+      const token = MONOBANK_TOKEN.value();
+      const pubKeyPem = await getMonobankPubKey(token);
+      const verifier = crypto.createVerify("SHA256");
+      verifier.update(rawBody);
+      const valid = verifier.verify(pubKeyPem, Buffer.from(signatureB64, "base64"));
+      if (!valid) {
+        console.error("monobankCallback: invalid signature");
+        res.status(400).send("invalid signature");
+        return;
+      }
+
+      const payload = req.body || {};
+      console.log(`monobankCallback: invoice=${payload.invoiceId} status=${payload.status}`);
+      if (payload.status === "success") {
+        await extendLicense("monobank", { monobankInvoiceId: payload.invoiceId });
+        await pushAdmin("✅ Оплата отримана (Monobank)", "Підписку DrivePad продовжено на місяць.", {}).catch(() => {});
+      }
+      res.status(200).send("ok");
+    } catch (e) {
+      console.error("monobankCallback error:", e);
+      res.status(500).send("error");
+    }
   }
 );

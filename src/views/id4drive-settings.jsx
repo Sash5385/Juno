@@ -1,7 +1,7 @@
 import { useState, useContext, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { ref, get, update, onValue, off } from "firebase/database";
-import { db } from "../firebase";
+import { db, auth } from "../firebase";
 import { LangContext } from "../App";
 import { APP_VERSION } from "../version.js";
 import { ThemeContext } from "../theme.js";
@@ -240,6 +240,54 @@ select{color-scheme:${isKava?"light":"dark"}}
   const [showHint, setShowHint] = useState(false);
   const switchSection = (id) => { setActive(id); setShowHint(false); };
   const license = useLicense();
+  const [payingWith, setPayingWith] = useState(null); // "liqpay" | "monobank" | null
+
+  const payWithLiqPay = async () => {
+    setPayingWith("liqpay");
+    try {
+      const idToken = await auth.currentUser.getIdToken();
+      const resp = await fetch("/api/liqpay-order", {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${idToken}` },
+      });
+      if (!resp.ok) throw new Error("server error");
+      const { data, signature, action } = await resp.json();
+      const form = document.createElement("form");
+      form.method = "POST";
+      form.action = action;
+      form.target = "_blank";
+      [["data", data], ["signature", signature]].forEach(([n, v]) => {
+        const inp = document.createElement("input");
+        inp.type = "hidden"; inp.name = n; inp.value = v;
+        form.appendChild(inp);
+      });
+      document.body.appendChild(form);
+      form.submit();
+      document.body.removeChild(form);
+    } catch {
+      alert("Не вдалося відкрити оплату LiqPay. Спробуйте пізніше.");
+    } finally {
+      setPayingWith(null);
+    }
+  };
+
+  const payWithMonobank = async () => {
+    setPayingWith("monobank");
+    try {
+      const idToken = await auth.currentUser.getIdToken();
+      const resp = await fetch("/api/monobank-invoice", {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${idToken}` },
+      });
+      if (!resp.ok) throw new Error("server error");
+      const { pageUrl } = await resp.json();
+      window.open(pageUrl, "_blank");
+    } catch {
+      alert("Не вдалося відкрити оплату Monobank. Спробуйте пізніше.");
+    } finally {
+      setPayingWith(null);
+    }
+  };
 
   // ── відгуки учнів ────────────────────────────────────────────
   const [reviews, setReviews] = useState([]);
@@ -879,11 +927,34 @@ select{color-scheme:${isKava?"light":"dark"}}
               <div style={{fontSize:12, color:DIM, marginTop:2}}>Залишилось днів: {daysLeft}</div>
             )}
             {blocked && (
-              <div style={{fontSize:12, color:DIM, marginTop:2}}>Зверніться до ID4Drive для продовження доступу.</div>
+              <div style={{fontSize:12, color:DIM, marginTop:2}}>Оплатіть підписку нижче, щоб відновити доступ.</div>
             )}
           </div>
         );
       })()}
+      <div style={{
+        margin:"10px 14px 0", padding:"12px 14px", borderRadius:14,
+        background:SURF_HI, border:`1px solid ${BORDER}`, boxShadow:SI,
+      }}>
+        <div style={{fontSize:11, fontWeight:800, color:DIM, textTransform:"uppercase", letterSpacing:0.5, marginBottom:8}}>Оплата підписки · 499₴/міс</div>
+        <div style={{display:"flex", gap:8}}>
+          <button onClick={payWithLiqPay} disabled={!!payingWith} style={{
+            flex:1, padding:"11px", borderRadius:12, border:"none", cursor: payingWith ? "default" : "pointer",
+            background: payingWith === "liqpay" ? "rgba(52,211,153,0.3)" : "linear-gradient(135deg,#4ade80,#34d399)",
+            color:"#0a2e1a", fontSize:13, fontWeight:800,
+          }}>
+            {payingWith === "liqpay" ? "..." : "LiqPay"}
+          </button>
+          <button onClick={payWithMonobank} disabled={!!payingWith} style={{
+            flex:1, padding:"11px", borderRadius:12, border:"none", cursor: payingWith ? "default" : "pointer",
+            background: payingWith === "monobank" ? "rgba(0,0,0,0.2)" : "linear-gradient(135deg,#3a3a3a,#1a1a1a)",
+            color:"#fff", fontSize:13, fontWeight:800,
+          }}>
+            {payingWith === "monobank" ? "..." : "Monobank"}
+          </button>
+        </div>
+        <div style={{fontSize:11, color:FAINT, marginTop:8, lineHeight:1.4}}>Обидва варіанти підтримують Apple Pay / Google Pay / картку.</div>
+      </div>
       <div onClick={forceUpdate} style={{textAlign:"center",padding:"8px 0 2px",color:FAINT,fontSize:13,fontWeight:600,letterSpacing:0.5,cursor:"pointer"}}>
         {APP_VERSION}
       </div>
