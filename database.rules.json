@@ -32,6 +32,7 @@
           }
         },
         "bookings": {
+          ".read": "auth != null && auth.token.email === 'sash5385@gmail.com'",
           "$uid": {
             ".read": "auth != null && (auth.uid === $uid || auth.uid === $iid) || $uid.matches(/^guest_.+/)",
             ".write": "(auth != null && (auth.uid === $uid || auth.uid === $iid)) || $uid.matches(/^guest_.+/)"

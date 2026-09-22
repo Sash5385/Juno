@@ -247,6 +247,14 @@ function licenseStatusLabel(license) {
   return { text: license.status || "?", color: DIM };
 }
 
+function bookingStatusLabel(b) {
+  if (b.cancelledBy) return { text: "скасовано", color: ACCENT };
+  if (b.status === "confirmed") return { text: "підтверджено", color: "#4caf6b" };
+  if (b.status === "pending")   return { text: "очікує", color: "#e8c547" };
+  if (b.status === "completed") return { text: "завершено", color: DIM };
+  return { text: b.status || "—", color: DIM };
+}
+
 // Панель вендора SaaS — список усіх зареєстрованих інструкторів (instructor_index)
 // з їх поточним статусом ліцензії, і кнопки ручного продовження/призупинення
 // (для інструкторів, що платять поза автоматичними LiqPay/Monobank вебхуками,
@@ -255,6 +263,9 @@ export function SuperAdminScreen() {
   const [index, setIndex] = useState(null);
   const [licenses, setLicenses] = useState({});
   const [busyIid, setBusyIid] = useState(null);
+  const [expandedIid, setExpandedIid] = useState(null);
+  const [bookingsCache, setBookingsCache] = useState({});
+  const [loadingBookingsIid, setLoadingBookingsIid] = useState(null);
 
   useEffect(() => {
     return onValue(ref(db, "instructor_index"), snap => setIndex(snap.val() || {}));
@@ -286,6 +297,33 @@ export function SuperAdminScreen() {
     setBusyIid(iid);
     await update(ref(db, `instructors/${iid}/license`), { status: "suspended" }).catch(() => {});
     setBusyIid(null);
+  };
+
+  // Записи (бронювання) інструктора — вантажимо один раз при розгортанні
+  // картки і кешуємо, щоб повторний клік не робив зайвий запит.
+  const toggleBookings = async (iid) => {
+    if (expandedIid === iid) { setExpandedIid(null); return; }
+    setExpandedIid(iid);
+    if (bookingsCache[iid]) return;
+    setLoadingBookingsIid(iid);
+    try {
+      const snap = await get(ref(db, `instructors/${iid}/bookings`));
+      const data = snap.val() || {};
+      const list = [];
+      Object.entries(data).forEach(([uid, userBookings]) => {
+        if (uid === "personal" || !userBookings || typeof userBookings !== "object") return;
+        Object.entries(userBookings).forEach(([bookingId, b]) => {
+          if (!b) return;
+          list.push({ bookingId, uid, ...b });
+        });
+      });
+      list.sort((a, b) => `${b.date || ""}${b.time || ""}`.localeCompare(`${a.date || ""}${a.time || ""}`));
+      setBookingsCache(prev => ({ ...prev, [iid]: list }));
+    } catch {
+      setBookingsCache(prev => ({ ...prev, [iid]: [] }));
+    } finally {
+      setLoadingBookingsIid(null);
+    }
   };
 
   const rows = index ? Object.entries(index).sort((a, b) => (b[1]?.createdAt || 0) - (a[1]?.createdAt || 0)) : [];
@@ -327,7 +365,32 @@ export function SuperAdminScreen() {
                   style={{ flex:1, padding:"8px", borderRadius:8, background:"rgba(255,90,60,0.1)", border:`1px solid rgba(255,90,60,0.25)`, color:ACCENT, fontSize:12, fontWeight:700, cursor: (busy||lic?.status==="suspended")?"default":"pointer", opacity: lic?.status==="suspended"?0.5:1 }}>
                   Призупинити
                 </button>
+                <button onClick={() => toggleBookings(iid)}
+                  style={{ flex:1, padding:"8px", borderRadius:8, background:"rgba(255,255,255,0.05)", border:`1px solid ${BORDER}`, color:TEXT, fontSize:12, fontWeight:700, cursor:"pointer" }}>
+                  {expandedIid === iid ? "Сховати записи" : "📋 Записи"}
+                </button>
               </div>
+
+              {expandedIid === iid && (
+                <div style={{ marginTop:12, paddingTop:12, borderTop:`1px solid ${BORDER}` }}>
+                  {loadingBookingsIid === iid && <div style={{ color:DIM, fontSize:12, textAlign:"center", padding:12 }}>Завантаження…</div>}
+                  {loadingBookingsIid !== iid && (bookingsCache[iid]?.length ?? 0) === 0 && (
+                    <div style={{ color:DIM, fontSize:12, textAlign:"center", padding:12 }}>Записів нема</div>
+                  )}
+                  {loadingBookingsIid !== iid && bookingsCache[iid]?.map(b => {
+                    const bs = bookingStatusLabel(b);
+                    return (
+                      <div key={`${b.uid}-${b.bookingId}`} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:8, padding:"8px 0", borderBottom:`1px solid ${BORDER}` }}>
+                        <div style={{ minWidth:0 }}>
+                          <div style={{ fontSize:13, color:TEXT, fontWeight:600 }}>{b.studentName || "Клієнт"} <span style={{color:DIM, fontWeight:400}}>· {b.serviceName || b.serviceType || ""}</span></div>
+                          <div style={{ fontSize:11, color:DIM, marginTop:2 }}>{b.date || "—"} о {b.time || "—"}{b.phone ? ` · ${b.phone}` : ""}</div>
+                        </div>
+                        <div style={{ fontSize:11, fontWeight:700, color:bs.color, whiteSpace:"nowrap" }}>{bs.text}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           );
         })}
