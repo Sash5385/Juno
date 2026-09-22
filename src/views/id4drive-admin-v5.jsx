@@ -3447,9 +3447,6 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                   borderRadius:8, pointerEvents:"none",
                   display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:3,
                 }}>
-                  <svg viewBox="0 0 272.7 238.5" style={{width:Math.min(24,(colLunch.end-colLunch.start)*60*PX_PER_MIN*0.45),opacity:0.9,marginTop:6}} fill="#FFC72C">
-                    <path d="m195.8 17.933c23.3 0 42.2 98.3 42.2 219.7h34c0-130.7-34.3-236.5-76.3-236.5-24 0-45.2 31.7-59.2 81.5-14-49.8-35.2-81.5-59-81.5-42 0-76.2 105.7-76.2 236.4h34c0-121.4 18.7-219.6 42-219.6s42.2 90.8 42.2 202.8h33.8c0-112 19-202.8 42.3-202.8" stroke="rgba(0,0,0,0.85)" strokeWidth="16" paintOrder="stroke"/>
-                  </svg>
                   <span style={{fontSize:7,fontWeight:700,color:TEXT_FAINT,letterSpacing:0.5,textTransform:"uppercase"}}>обід</span>
                 </div>
               )}
