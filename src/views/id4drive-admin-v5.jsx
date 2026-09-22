@@ -4219,6 +4219,23 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                 Особиста подія
               </button>
               <button onClick={()=>{
+                const _sm = _menu.selectedMin ?? _menu.startMin;
+                const today = new Date(); today.setHours(0,0,0,0);
+                const dayOffset = Math.round((new Date(_menu.dateStr + "T12:00:00") - today) / 86400000);
+                onEmptySlotClick({ day: Math.max(0, dayOffset), startMin: _sm });
+                _scatterLtm();
+              }} style={{
+                flex:1,padding:"16px 8px",borderRadius:16,cursor:"pointer",fontFamily:"inherit",
+                background:"rgba(99,102,241,0.1)",
+                color:"#818cf8",fontSize:12,fontWeight:800,
+                display:"flex",flexDirection:"column",alignItems:"center",gap:6,
+                border:"1px solid rgba(99,102,241,0.22)",
+                ...(ltmScatter ? {animation:`_ltm-sc-c 0.28s ease-in forwards`} : {}),
+              }}>
+                <span style={{fontSize:24}}>📝</span>
+                Додати запис
+              </button>
+              <button onClick={()=>{
                 toggleDayBlocked(_menu.dateStr);
                 _closeLtm();
               }} style={{
