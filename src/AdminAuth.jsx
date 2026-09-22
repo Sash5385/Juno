@@ -83,7 +83,7 @@ export function LoginScreen() {
   };
 
   return (
-    <div style={{ minHeight:"100vh", background:BG_DEEP, display:"flex", alignItems:"center", justifyContent:"center" }}>
+    <div style={{ minHeight:"100vh", background:BG_DEEP, display:"flex", alignItems:"center", justifyContent:"center", paddingTop:"env(safe-area-inset-top, 0px)", paddingBottom:"env(safe-area-inset-bottom, 0px)" }}>
       <div style={{ background:`linear-gradient(135deg,${SURF_HI},${SURFACE})`, borderRadius:20, padding:"32px 28px", width:"100%", maxWidth:360, boxShadow:SO, border:`1px solid ${BORDER}` }}>
         <div style={{ textAlign:"center", marginBottom:28 }}>
           <img src="/icon-192.png" alt="DrivePad" style={{width:72,height:72,borderRadius:"50%",marginBottom:8,boxShadow:"-3px 5px 14px rgba(0,0,0,0.45)"}}/>
@@ -184,7 +184,7 @@ export function InstructorSetupScreen({ onDone }) {
   };
 
   return (
-    <div style={{ minHeight:"100vh", background:BG_DEEP, display:"flex", alignItems:"center", justifyContent:"center", padding:"20px" }}>
+    <div style={{ minHeight:"100vh", background:BG_DEEP, display:"flex", alignItems:"center", justifyContent:"center", padding:"20px", paddingTop:"calc(20px + env(safe-area-inset-top, 0px))", paddingBottom:"calc(20px + env(safe-area-inset-bottom, 0px))" }}>
       <div style={{ background:`linear-gradient(135deg,${SURF_HI},${SURFACE})`, borderRadius:20, padding:"32px 28px", width:"100%", maxWidth:400, boxShadow:SO, border:`1px solid ${BORDER}` }}>
         <div style={{ textAlign:"center", marginBottom:28 }}>
           <img src="/icon-192.png" alt="DrivePad" style={{width:64,height:64,borderRadius:"50%",marginBottom:10,boxShadow:"-3px 5px 14px rgba(0,0,0,0.45)"}}/>
@@ -329,7 +329,7 @@ export function SuperAdminScreen() {
   const rows = index ? Object.entries(index).sort((a, b) => (b[1]?.createdAt || 0) - (a[1]?.createdAt || 0)) : [];
 
   return (
-    <div style={{ minHeight:"100vh", background:BG_DEEP, padding:"24px 16px" }}>
+    <div style={{ minHeight:"100vh", background:BG_DEEP, padding:"24px 16px", paddingTop:"calc(24px + env(safe-area-inset-top, 0px))", paddingBottom:"calc(24px + env(safe-area-inset-bottom, 0px))" }}>
       <div style={{ maxWidth:640, margin:"0 auto" }}>
         <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:20 }}>
           <div style={{ fontSize:20, fontWeight:800, color:TEXT }}>Суперадмінка · Інструктори</div>
