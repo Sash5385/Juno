@@ -35,6 +35,26 @@ export function LoginScreen() {
   const [error,    setError]    = useState("");
   const [loading,  setLoading]  = useState(false);
 
+  const [installPrompt, setInstallPrompt] = useState(null);
+  const [installed, setInstalled] = useState(false);
+  useEffect(() => {
+    setInstalled(window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true);
+    const handleBeforeInstall = (e) => { e.preventDefault(); setInstallPrompt(e); };
+    const handleInstalled = () => { setInstallPrompt(null); setInstalled(true); };
+    window.addEventListener('beforeinstallprompt', handleBeforeInstall);
+    window.addEventListener('appinstalled', handleInstalled);
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
+      window.removeEventListener('appinstalled', handleInstalled);
+    };
+  }, []);
+  const handleInstallClick = async () => {
+    if (!installPrompt) return;
+    installPrompt.prompt();
+    await installPrompt.userChoice;
+    setInstallPrompt(null);
+  };
+
   const login = async () => {
     setError(""); setLoading(true);
     try {
@@ -71,6 +91,15 @@ export function LoginScreen() {
           style={{ width:"100%", padding:"12px", borderRadius:12, background: loading||!email||!password ? "rgba(255,90,60,0.3)" : "linear-gradient(135deg,#ff7a5c,#ff5a3c)", border:"none", color:"#fff", fontSize:14, fontWeight:700, cursor: loading||!email||!password ? "default":"pointer" }}>
           {loading ? "Вхід..." : "Увійти"}
         </button>
+        {installPrompt && !installed && (
+          <button onClick={handleInstallClick} style={{
+            width:"100%", marginTop:12, padding:"10px", borderRadius:12,
+            background:"rgba(255,255,255,0.05)", border:`1px solid ${BORDER}`,
+            color:TEXT, fontSize:13, fontWeight:700, cursor:"pointer",
+          }}>
+            📲 Встановити застосунок
+          </button>
+        )}
       </div>
     </div>
   );
