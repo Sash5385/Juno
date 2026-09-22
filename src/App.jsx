@@ -1,7 +1,7 @@
 import React, { useState, useEffect, lazy, Suspense, createContext, useContext } from "react";
 import { onValue, update, push, remove, get } from "firebase/database";
 import { iRef, setCurrentIid, registerAdminFCM, onAdminForegroundMessage } from "./firebase";
-import { useAdminAuth, LoginScreen, InstructorSetupScreen } from "./AdminAuth";
+import { useAdminAuth, LoginScreen, InstructorSetupScreen, isVendor, SuperAdminScreen } from "./AdminAuth";
 import { useAppUpdate } from "./hooks/useAppUpdate"
 import { useLicense, isLicenseBlocked } from "./hooks/useLicense"
 import { setGlobalLang, createT } from "./lang";
@@ -449,21 +449,23 @@ function dayIdxToDate(dayIdx) {
 // ─── MAIN APP ────────────────────────────────────────────────────
 export default function App() {
   const adminUser = useAdminAuth();
-  const license = useLicense(adminUser?.uid);
+  const vendor = isVendor(adminUser);
+  const license = useLicense(vendor ? null : adminUser?.uid);
   const [profileReady, setProfileReady] = useState(null); // null=перевіряємо, false=потрібне налаштування, true=готово
   const { needRefresh, updateServiceWorker, isUpdating } = useAppUpdate()
 
   // Multi-tenant: iid інструктора = його ж auth.uid. Встановлюємо його одразу
   // при вході (до будь-яких інших ефектів, що читають instructors/{iid}/...),
   // і перевіряємо чи вже заповнений профіль (перший вхід → анкета налаштування).
+  // Вендор (ви) не має власного тенанта — бачить SuperAdminScreen замість цього.
   useEffect(() => {
-    if (!adminUser?.uid) { setProfileReady(null); return; }
+    if (!adminUser?.uid || vendor) { setProfileReady(null); return; }
     setCurrentIid(adminUser.uid);
     get(iRef("admin_settings/profile")).then(snap => {
       const p = snap.val();
       setProfileReady(!!(p && p.name));
     }).catch(() => setProfileReady(false));
-  }, [adminUser]);
+  }, [adminUser, vendor]);
   // Deep-link з push-сповіщення (?date=&time=&uid=&bookingId=) — одразу відкриваємо розклад на потрібній даті
   const [jumpTarget, setJumpTarget] = useState(() => {
     const p = new URLSearchParams(window.location.search);
@@ -567,7 +569,7 @@ export default function App() {
 
   // Subscribe to unread chat count from chatMeta
   useEffect(() => {
-    if (!adminUser) return;
+    if (!adminUser || vendor) return;
     const r = iRef( 'chatMeta');
     const unsub = onValue(r, snap => {
       const data = snap.val() || {};
@@ -590,7 +592,7 @@ export default function App() {
 
   // Register FCM token on login and every time tab becomes visible (handles token rotation)
   useEffect(() => {
-    if (!adminUser) return;
+    if (!adminUser || vendor) return;
     registerAdminFCM().catch(() => {});
     const onVisible = () => {
       if (document.visibilityState === "visible") registerAdminFCM().catch(() => {});
@@ -601,7 +603,7 @@ export default function App() {
 
   // Show foreground push notifications (when admin tab is open)
   useEffect(() => {
-    if (!adminUser) return;
+    if (!adminUser || vendor) return;
     return onAdminForegroundMessage((payload) => {
       // Data-only push — див. firebase-messaging-sw.js чому без "notification"
       const title = payload.data?.title || "ID4Drive";
@@ -624,7 +626,7 @@ export default function App() {
 
   // Sync services from admin_data/services → settings.services (source of truth for colors)
   useEffect(() => {
-    if (!adminUser) return;
+    if (!adminUser || vendor) return;
     return onValue(iRef( "admin_data/services"), snap => {
       const arr = snap.val();
       if (Array.isArray(arr) && arr.length > 0) {
@@ -635,7 +637,7 @@ export default function App() {
 
   // Load settings from Firebase on login
   useEffect(() => {
-    if (!adminUser) { setSettingsLoaded(false); return; }
+    if (!adminUser || vendor) { setSettingsLoaded(false); return; }
     get(iRef( 'admin_settings')).then(snap => {
       const d = snap.val();
       if (d) {
@@ -668,7 +670,7 @@ export default function App() {
   // Sync all settings to Firebase (guarded until load completes to avoid overwriting with defaults)
   const settingsSyncTimer = React.useRef(null);
   useEffect(() => {
-    if (!adminUser || !settingsLoaded) return;
+    if (!adminUser || vendor || !settingsLoaded) return;
     clearTimeout(settingsSyncTimer.current);
     settingsSyncTimer.current = setTimeout(() => {
       update(iRef( 'admin_settings'), {
@@ -764,7 +766,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!adminUser) {
+    if (!adminUser || vendor) {
       Object.values(moveSaveTimers.current).forEach(clearTimeout);
       moveSaveTimers.current = {};
       return;
@@ -790,7 +792,7 @@ export default function App() {
   // одразу бачив, коли прийшла нова людина (не поточний учень, а саме
   // новий запис у users з createdAt пізніше за останній перегляд журналу).
   useEffect(() => {
-    if (!adminUser) return;
+    if (!adminUser || vendor) return;
     return onValue(iRef( "users"), snap => {
       const data = snap.val();
       const readAt = parseInt(localStorage.getItem("journal_read_at") || "0", 10);
@@ -1057,6 +1059,7 @@ const pendingDeletesRef = React.useRef(new Set());
 
   if (adminUser === undefined) return null;
   if (adminUser === null) return <LoginScreen/>;
+  if (vendor) return <SuperAdminScreen/>;
   if (profileReady === null) return null;
   if (profileReady === false) {
     return <InstructorSetupScreen onDone={profile => {

@@ -1,7 +1,11 @@
 import { useState, useEffect } from "react";
-import { signInWithEmailAndPassword, onAuthStateChanged } from "firebase/auth";
-import { ref, get, update, set } from "firebase/database";
+import { signInWithEmailAndPassword, onAuthStateChanged, signOut } from "firebase/auth";
+import { ref, get, onValue, update, set } from "firebase/database";
 import { auth, iRef, db } from "./firebase";
+
+// Вендор SaaS (ви) — бачить усіх інструкторів замість власного кабінету.
+const VENDOR_EMAIL = "sash5385@gmail.com";
+export const isVendor = (user) => user?.email === VENDOR_EMAIL;
 
 const TRANSLIT = {
   'а':'a','б':'b','в':'v','г':'g','ґ':'g','д':'d','е':'e','є':'ye',
@@ -168,6 +172,9 @@ export function InstructorSetupScreen({ onDone }) {
         "license/trialEndsAt": Date.now() + TRIAL_DAYS * 24 * 3600 * 1000,
       });
       await set(ref(db, `slugs/${slug}`), { iid });
+      await set(ref(db, `instructor_index/${iid}`), {
+        name: profile.name, phone: profile.phone, slug, createdAt: Date.now(),
+      });
       onDone(profile);
     } catch {
       setError("Помилка збереження. Перевірте з'єднання.");
@@ -218,6 +225,112 @@ export function InstructorSetupScreen({ onDone }) {
           style={{ width:"100%", padding:"13px", borderRadius:12, background: saving||!canSave ? "rgba(255,90,60,0.3)" : "linear-gradient(135deg,#ff7a5c,#ff5a3c)", border:"none", color:"#fff", fontSize:15, fontWeight:700, cursor: saving||!canSave ? "default":"pointer" }}>
           {saving ? "Зберігаємо..." : "Розпочати роботу →"}
         </button>
+      </div>
+    </div>
+  );
+}
+
+const LICENSE_PERIOD_MS = 31 * 24 * 3600 * 1000;
+
+function licenseStatusLabel(license) {
+  if (!license) return { text: "немає ліцензії", color: DIM };
+  const now = Date.now();
+  if (license.status === "suspended") return { text: "призупинено", color: ACCENT };
+  if (license.status === "trial") {
+    const left = Math.ceil(((license.trialEndsAt || 0) - now) / 86400000);
+    return left > 0 ? { text: `trial · ${left} дн.`, color: "#e8c547" } : { text: "trial сплив", color: ACCENT };
+  }
+  if (license.status === "active") {
+    const left = Math.ceil(((license.expiresAt || 0) - now) / 86400000);
+    return left > 0 ? { text: `active · ${left} дн.`, color: "#4caf6b" } : { text: "active сплив", color: ACCENT };
+  }
+  return { text: license.status || "?", color: DIM };
+}
+
+// Панель вендора SaaS — список усіх зареєстрованих інструкторів (instructor_index)
+// з їх поточним статусом ліцензії, і кнопки ручного продовження/призупинення
+// (для інструкторів, що платять поза автоматичними LiqPay/Monobank вебхуками,
+// або для пробного продовження).
+export function SuperAdminScreen() {
+  const [index, setIndex] = useState(null);
+  const [licenses, setLicenses] = useState({});
+  const [busyIid, setBusyIid] = useState(null);
+
+  useEffect(() => {
+    return onValue(ref(db, "instructor_index"), snap => setIndex(snap.val() || {}));
+  }, []);
+
+  useEffect(() => {
+    if (!index) return;
+    const unsubs = Object.keys(index).map(iid =>
+      onValue(ref(db, `instructors/${iid}/license`), snap => {
+        setLicenses(prev => ({ ...prev, [iid]: snap.val() }));
+      })
+    );
+    return () => unsubs.forEach(u => u());
+  }, [index]);
+
+  const extend = async (iid) => {
+    setBusyIid(iid);
+    const now = Date.now();
+    const lic = licenses[iid];
+    const base = lic?.status === "active" && lic.expiresAt > now ? lic.expiresAt : now;
+    await update(ref(db, `instructors/${iid}/license`), {
+      status: "active", provider: "manual", lastPaymentAt: now,
+      expiresAt: base + LICENSE_PERIOD_MS,
+    }).catch(() => {});
+    setBusyIid(null);
+  };
+
+  const suspend = async (iid) => {
+    setBusyIid(iid);
+    await update(ref(db, `instructors/${iid}/license`), { status: "suspended" }).catch(() => {});
+    setBusyIid(null);
+  };
+
+  const rows = index ? Object.entries(index).sort((a, b) => (b[1]?.createdAt || 0) - (a[1]?.createdAt || 0)) : [];
+
+  return (
+    <div style={{ minHeight:"100vh", background:BG_DEEP, padding:"24px 16px" }}>
+      <div style={{ maxWidth:640, margin:"0 auto" }}>
+        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:20 }}>
+          <div style={{ fontSize:20, fontWeight:800, color:TEXT }}>Суперадмінка · Інструктори</div>
+          <button onClick={() => signOut(auth)} style={{ background:"none", border:`1px solid ${BORDER}`, borderRadius:8, color:DIM, padding:"6px 12px", fontSize:12, cursor:"pointer" }}>
+            Вийти
+          </button>
+        </div>
+
+        {index === null && <div style={{ color:DIM, textAlign:"center", padding:40 }}>Завантаження…</div>}
+        {index !== null && rows.length === 0 && (
+          <div style={{ color:DIM, textAlign:"center", padding:40 }}>Ще немає зареєстрованих інструкторів</div>
+        )}
+
+        {rows.map(([iid, info]) => {
+          const lic = licenses[iid];
+          const st = licenseStatusLabel(lic);
+          const busy = busyIid === iid;
+          return (
+            <div key={iid} style={{ background:`linear-gradient(135deg,${SURF_HI},${SURFACE})`, borderRadius:16, padding:"16px 18px", marginBottom:12, border:`1px solid ${BORDER}`, boxShadow:SO }}>
+              <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:12 }}>
+                <div style={{ minWidth:0 }}>
+                  <div style={{ fontSize:15, fontWeight:700, color:TEXT }}>{info.name || "—"}</div>
+                  <div style={{ fontSize:12, color:DIM, marginTop:2 }}>{info.phone || "—"} · /i/{info.slug || "—"}</div>
+                </div>
+                <div style={{ fontSize:12, fontWeight:700, color:st.color, whiteSpace:"nowrap" }}>{st.text}</div>
+              </div>
+              <div style={{ display:"flex", gap:8, marginTop:12 }}>
+                <button onClick={() => extend(iid)} disabled={busy}
+                  style={{ flex:1, padding:"8px", borderRadius:8, background:"rgba(76,175,107,0.15)", border:`1px solid rgba(76,175,107,0.3)`, color:"#4caf6b", fontSize:12, fontWeight:700, cursor: busy?"default":"pointer" }}>
+                  + Продовжити на місяць
+                </button>
+                <button onClick={() => suspend(iid)} disabled={busy || lic?.status === "suspended"}
+                  style={{ flex:1, padding:"8px", borderRadius:8, background:"rgba(255,90,60,0.1)", border:`1px solid rgba(255,90,60,0.25)`, color:ACCENT, fontSize:12, fontWeight:700, cursor: (busy||lic?.status==="suspended")?"default":"pointer", opacity: lic?.status==="suspended"?0.5:1 }}>
+                  Призупинити
+                </button>
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

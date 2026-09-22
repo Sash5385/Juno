@@ -125,8 +125,15 @@
           }
         },
         "license": {
+          ".read": "auth != null && (auth.uid === $iid || auth.token.email === 'sash5385@gmail.com')",
           ".write": "auth != null && (auth.uid === $iid || auth.token.email === 'sash5385@gmail.com')"
         }
+      }
+    },
+    "instructor_index": {
+      ".read": "auth != null && auth.token.email === 'sash5385@gmail.com'",
+      "$iid": {
+        ".write": "auth != null && auth.uid === $iid"
       }
     }
   }
