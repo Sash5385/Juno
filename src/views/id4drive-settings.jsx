@@ -936,7 +936,7 @@ select{color-scheme:${isKava?"light":"dark"}}
         margin:"10px 14px 0", padding:"12px 14px", borderRadius:14,
         background:SURF_HI, border:`1px solid ${BORDER}`, boxShadow:SI,
       }}>
-        <div style={{fontSize:11, fontWeight:800, color:DIM, textTransform:"uppercase", letterSpacing:0.5, marginBottom:8}}>Оплата підписки · 499₴/міс</div>
+        <div style={{fontSize:11, fontWeight:800, color:DIM, textTransform:"uppercase", letterSpacing:0.5, marginBottom:8}}>Оплата підписки · 299₴/міс</div>
         <div style={{display:"flex", gap:8}}>
           <button onClick={payWithLiqPay} disabled={!!payingWith} style={{
             flex:1, padding:"11px", borderRadius:12, border:"none", cursor: payingWith ? "default" : "pointer",

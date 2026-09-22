@@ -1008,7 +1008,7 @@ const LIQPAY_PUBLIC_KEY  = defineSecret("LIQPAY_PUBLIC_KEY");
 const LIQPAY_PRIVATE_KEY = defineSecret("LIQPAY_PRIVATE_KEY");
 const MONOBANK_TOKEN     = defineSecret("MONOBANK_TOKEN");
 
-const MONTHLY_PRICE_UAH = 499;
+const MONTHLY_PRICE_UAH = 299;
 const LICENSE_PERIOD_MS = 31 * 24 * 3600 * 1000; // трохи більше місяця — запас на затримку вебхука
 
 // LiqPay: signature = base64( sha1_binary(private_key + data + private_key) )
