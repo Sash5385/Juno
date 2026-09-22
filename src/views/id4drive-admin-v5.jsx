@@ -4222,7 +4222,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                 const _sm = _menu.selectedMin ?? _menu.startMin;
                 const today = new Date(); today.setHours(0,0,0,0);
                 const dayOffset = Math.round((new Date(_menu.dateStr + "T12:00:00") - today) / 86400000);
-                onEmptySlotClick({ day: Math.max(0, dayOffset), startMin: _sm });
+                setFormData({ day: Math.max(0, dayOffset), startMin: _sm });
                 _scatterLtm();
               }} style={{
                 flex:1,padding:"16px 8px",borderRadius:16,cursor:"pointer",fontFamily:"inherit",
@@ -4339,7 +4339,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
             </div>
             {/* actions */}
             <div style={{padding:"8px 10px 12px",display:"flex",flexDirection:"column",gap:5}}>
-              {/* Додати букінг */}
+              {/* Додати запис */}
               <button onClick={()=>{
                 const today = new Date(); today.setHours(0,0,0,0);
                 const slotDate = new Date(_so.dateStr + "T00:00:00");
@@ -4352,7 +4352,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                 color:"#f59e0b",fontSize:15,fontWeight:700,
                 display:"flex",alignItems:"center",gap:10,
               }}>
-                <span>👤</span> Додати букінг
+                <span>👤</span> Додати запис
               </button>
               {/* Особиста подія */}
               <button onClick={()=>{
@@ -6487,8 +6487,8 @@ function SettingsView({ settings, setSettings }) {
 
       {/* ── PENDING ── */}
       <Card style={{padding:"20px"}}>
-        <SectionTitle>Підтвердження букінгів</SectionTitle>
-        <Row label="Вимагати підтвердження" hint="Нові букінги отримують статус 'Очікує' до твого підтвердження">
+        <SectionTitle>Підтвердження записів</SectionTitle>
+        <Row label="Вимагати підтвердження" hint="Нові записи отримують статус 'Очікує' до твого підтвердження">
           <Toggle on={settings.pendingEnabled} onChange={v=>upd("pendingEnabled",v)}/>
         </Row>
       </Card>
@@ -6518,10 +6518,10 @@ function SettingsView({ settings, setSettings }) {
       {/* ── RESTRICTIONS ── */}
       <Card style={{padding:"20px"}}>
         <SectionTitle>Обмеження для учнів</SectionTitle>
-        <Row label="Учень може переносити свої букінги">
+        <Row label="Учень може переносити свої записи">
           <Toggle on={settings.studentCanReschedule} onChange={v=>upd("studentCanReschedule",v)}/>
         </Row>
-        <Row label="Учень може скасовувати букінги">
+        <Row label="Учень може скасовувати записи">
           <Toggle on={settings.studentCanCancel} onChange={v=>upd("studentCanCancel",v)}/>
         </Row>
         <Row label="Заборона запису" hint="За скільки годин до слоту учень не може записатись">
@@ -6665,7 +6665,7 @@ function SettingsView({ settings, setSettings }) {
         <Row label="Вітання при реєстрації нового учня">
           <Toggle on={!!settings.autoWelcome?.enabled} onChange={v=>updNested("autoWelcome","enabled",v)}/>
         </Row>
-        <Row label="Повідомлення про підтвердження букінгу">
+        <Row label="Повідомлення про підтвердження запису">
           <Toggle on={!!settings.autoConfirm?.enabled} onChange={v=>updNested("autoConfirm","enabled",v)}/>
         </Row>
         <Row label="Повідомлення після скасування">
@@ -6725,7 +6725,7 @@ function SettingsView({ settings, setSettings }) {
       {/* ── NOTIFICATIONS ── */}
       <Card style={{padding:"20px"}}>
         <SectionTitle>Нотифікації</SectionTitle>
-        <div style={{fontSize:12,color:TEXT_DIM,marginBottom:14}}>Де показувати нові букінги та повідомлення:</div>
+        <div style={{fontSize:12,color:TEXT_DIM,marginBottom:14}}>Де показувати нові записи та повідомлення:</div>
         {[
           {k:"topbar",l:"У верхньому барі (іконка дзвіночка)"},
           {k:"tab",l:"Окрема вкладка в меню"},

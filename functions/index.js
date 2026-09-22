@@ -209,7 +209,7 @@ async function getActiveTemplateText(iid, triggerId, vars = {}) {
   return { title: tpl.title || "Повідомлення", body: renderTemplateBody(tpl.body, vars) };
 }
 
-// Хелпер: заблокувати / звільнити timeslots для букінгу
+// Хелпер: заблокувати / звільнити timeslots для запису
 function buildSlotUpdates(bookingData, available) {
   const { date, time, durationHours, durMin, startMin } = bookingData || {};
   if (!date || (!time && startMin == null)) return {};
@@ -243,7 +243,7 @@ function buildSlotUpdates(bookingData, available) {
   return updates;
 }
 
-// Всі зміни букінгу → push адміну або клієнту + синхронізація timeslots
+// Всі зміни запису → push адміну або клієнту + синхронізація timeslots
 exports.onBookingChanged = onValueWritten(
   { ref: "instructors/{iid}/bookings/{uid}/{bookingId}", region: "europe-west1" },
   async (event) => {
