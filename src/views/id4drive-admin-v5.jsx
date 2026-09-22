@@ -3412,7 +3412,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                           // сусідній слот у DOM-порядку та стає непроклацуваною. Пігулка (pointer-events:none)
                           // може візуально стирчати нижче — на перехоплення подій це вже не впливає.
                           position:"absolute", bottom:0, left:"50%", transform:"translateX(-50%)",
-                          width:44, height:"20%",
+                          width:44, height:"10%",
                           display:"flex", alignItems:"flex-end", justifyContent:"center",
                           cursor:"ns-resize", touchAction:"none", zIndex:7,
                         }}
