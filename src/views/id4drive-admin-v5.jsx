@@ -4955,9 +4955,6 @@ function CreateSlotSheet({ data, settings, onClose }) {
                 <DrumRoll items={durItems} currentIdx={durIdx} onChange={setDurIdx} itemH={40} visible={3}/>
               </div>
             </div>
-            <div style={{textAlign:"center",fontSize:12,color:TEXT_DIM,marginBottom:14}}>
-              {fmtTime(timeItems[timeIdx]?.value ?? 0)} — {fmtTime((timeItems[timeIdx]?.value ?? 0) + durItems[durIdx].value)}
-            </div>
             <button onClick={handleCreate} disabled={saving} style={{
               width:"100%",padding:14,borderRadius:14,border:"none",cursor:"pointer",fontFamily:"inherit",
               background:saving?shade(0.06):`linear-gradient(165deg,${GREEN},#16a34a)`,
