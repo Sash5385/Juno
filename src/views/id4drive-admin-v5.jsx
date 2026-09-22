@@ -3354,18 +3354,6 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                         {displayHeightMin % 60 === 0 ? `${displayHeightMin/60} год` : displayHeightMin < 60 ? `${displayHeightMin} хв` : `${Math.floor(displayHeightMin/60)}г ${displayHeightMin%60}хв`}
                       </span>
                     )}
-                    {(isPlainFree || isPrivateOnly || isBlocked) && (
-                      // Час у вузькій колонці: "07:30–19:30" одним рядком не влазить —
-                      // розбиваємо початок/кінець на два рядки, щоб точно вміщалось.
-                      <div style={{
-                        display:"flex", flexDirection:"column", alignItems:"center",
-                        fontSize:7.5, fontWeight:800, color, lineHeight:1.2, pointerEvents:"none",
-                        textShadow: isLight ? "none" : "0 1px 2px rgba(0,0,0,0.4)",
-                      }}>
-                        <span>{_fmtHM(displayStartMin)}</span>
-                        <span>{_fmtHM(displayStartMin + displayHeightMin)}</span>
-                      </div>
-                    )}
                     {isPlainFree && !isPastDay && (
                       <div
                         onPointerDown={e=>{
