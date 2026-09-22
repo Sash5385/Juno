@@ -20,9 +20,21 @@ const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getDatabase(app);
 
-let _iid = null;
-export const setCurrentIid = (id) => { _iid = id; };
-export const iRef = (path) => ref(db, path ? `instructors/${_iid}/${path}` : `instructors/${_iid}`);
+// Стабільний id цього браузера/пристрою — щоб токени з різних пристроїв
+// (ПК і телефон адміна) не перезаписували один одного в БД.
+function getDeviceId() {
+  const KEY = "id4_admin_device_id";
+  try {
+    let id = localStorage.getItem(KEY);
+    if (!id) {
+      id = "d" + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+      localStorage.setItem(KEY, id);
+    }
+    return id;
+  } catch {
+    return "d" + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+  }
+}
 
 export async function registerAdminFCM() {
   if (!("Notification" in window)) { console.warn("FCM: Notification API not supported"); return; }
@@ -68,8 +80,9 @@ export async function registerAdminFCM() {
     console.log("FCM token obtained:", !!token, token?.slice(0, 20));
 
     if (token) {
-      await set(iRef("fcmToken"), token);
-      console.log("FCM token saved to admin/fcmToken");
+      const deviceId = getDeviceId();
+      await set(ref(db, `admin/fcmTokens/${deviceId}`), token);
+      console.log("FCM token saved to admin/fcmTokens/" + deviceId);
     } else {
       console.warn("FCM: empty token returned");
     }

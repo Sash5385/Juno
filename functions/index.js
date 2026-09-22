@@ -1,19 +1,100 @@
-const { onValueCreated, onValueUpdated, onValueWritten } = require("firebase-functions/v2/database");
-const { onRequest } = require("firebase-functions/v2/https");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
-const { defineSecret } = require("firebase-functions/params");
+const { onValueCreated, onValueUpdated, onValueWritten } = require("firebase-functions/v2/database");
 const admin = require("firebase-admin");
-const crypto = require("crypto");
-
-const LIQPAY_PUBLIC_KEY  = defineSecret("LIQPAY_PUBLIC_KEY");
-const LIQPAY_PRIVATE_KEY = defineSecret("LIQPAY_PRIVATE_KEY");
+const {
+  CALENDAR_SECRETS, getCalendarClient, buildEvent, getBookingSchedule, fromCalendarEvent, isIgnorableCalendarError,
+} = require("./googleCalendar");
 
 admin.initializeApp();
 const db = admin.database();
 
-const OFFER_WINDOW_MS = 30 * 60 * 1000;
+const OFFER_WINDOW_MS = 30 * 60 * 1000; // 30 хвилин
 
-// ─── MULTI-TENANT HELPERS ────────────────────────────────────────────
+// Хелпер: перевести "YYYY-MM-DDTHH:MM" за київським часом у абсолютні мс.
+// На відміну від фіксованого зсуву "+03:00", коректно враховує DST
+// (Київ — UTC+2 взимку, UTC+3 влітку).
+function kyivLocalToMs(dateStr, timeStr) {
+  const guessMs = new Date(`${dateStr}T${timeStr}:00Z`).getTime();
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Europe/Kiev", hour12: false,
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", second: "2-digit",
+  }).formatToParts(guessMs).reduce((acc, p) => { acc[p.type] = p.value; return acc; }, {});
+  const asUtcIfKyivPartsWereUtc = Date.UTC(
+    parts.year, parts.month - 1, parts.day, parts.hour === "24" ? 0 : parts.hour, parts.minute, parts.second
+  );
+  const offsetMs = asUtcIfKyivPartsWereUtc - guessMs;
+  return guessMs - offsetMs;
+}
+
+// Хелпер: зберегти сповіщення в RTDB для студента
+async function saveNotification(uid, title, body, type = "system") {
+  const ts = Date.now();
+  const time = new Date(ts).toLocaleTimeString("uk", { hour: "2-digit", minute: "2-digit" });
+  const date = new Date(ts).toLocaleDateString("uk", { day: "2-digit", month: "2-digit", year: "numeric" });
+  await db.ref(`notifications/${uid}`).push({ title, body, type, ts, time, date }).catch(() => {});
+}
+
+// Хелпер: зібрати токени всіх пристроїв з вузла { deviceId: token, ... }
+function collectDeviceTokens(devicesVal) {
+  if (!devicesVal || typeof devicesVal !== "object") return [];
+  return Object.entries(devicesVal).filter(([, t]) => !!t);
+}
+
+// Хелпер: відправити push студенту (на всі зареєстровані пристрої —
+// студент міг заходити і з ПК, і з телефону, кожен пристрій має свій токен)
+async function pushStudent(uid, title, body, data = {}) {
+  const snap = await db.ref(`users/${uid}/fcmTokens`).get();
+  const devices = collectDeviceTokens(snap.val());
+  if (!devices.length) return false;
+  const link = data.url || "https://id4drive.pro/cabinet";
+  let sent = false;
+  for (const [deviceId, token] of devices) {
+    try {
+      // Data-only push — title/body/url у data (клієнт читає payload.data),
+      // без notification, щоб браузер не показав дубль поверх showNotification().
+      await admin.messaging().send({
+        token,
+        data: Object.fromEntries(Object.entries({ title, body, url: link, ...data }).map(([k,v]) => [k, String(v)])),
+        webpush: {
+          fcmOptions: { link },
+        },
+      });
+      sent = true;
+    } catch (e) {
+      if (e.code === "messaging/registration-token-not-registered" ||
+          e.code === "messaging/invalid-registration-token") {
+        // Чистимо ОБИДВІ копії токена цього пристрою — studentTokens це окремий
+        // індекс для broadcast-розсилок (flushSlotFreedQueue, unlockVipSlots), і
+        // якщо його не чистити тут, студент назавжди лишається у списку
+        // розсилки, хоча реальний токен вже видалено — пуш мовчки не
+        // відправляється щоразу.
+        await db.ref(`users/${uid}/fcmTokens/${deviceId}`).remove().catch(() => {});
+        await db.ref(`studentTokens/${uid}/${deviceId}`).remove().catch(() => {});
+      }
+    }
+  }
+  return sent;
+}
+
+// Хелпер: запросити наступного в черзі для слота.
+// freedDurationHours — тривалість щойно скасованого уроку: якщо відома,
+// саме на неї треба записати учня з черги, а не на його власний вибір при
+// вступі в чергу (інакше 2-годинний урок звільняється, а бронюється лише 1 год).
+async function inviteNextInQueue(slotKey, excludeUids = [], freedDurationHours = null) {
+  const entriesSnap = await db.ref(`queue/${slotKey}/entries`).get();
+  if (!entriesSnap.exists()) return;
+  const entries = Object.entries(entriesSnap.val())
+    .map(([uid, e]) => ({ uid, ...e }))
+    .filter(e => e.status === "waiting" && !excludeUids.includes(e.uid))
+    .sort((a, b) => (a.addedAt || 0) - (b.addedAt || 0));
+  if (!entries.length) return;
+  const next = entries[0];
+  const upd = { status: "offered" };
+  if (freedDurationHours) upd.offerDurationHours = freedDurationHours;
+  await db.ref(`queue/${slotKey}/entries/${next.uid}`).update(upd);
+  // onQueueInvite спрацює автоматично
+}
 
 // Хелпер: побудувати deep-link на конкретний запис у розкладі адмінки
 function buildAdminLink(base, { date, time, uid, bookingId } = {}) {
@@ -26,64 +107,107 @@ function buildAdminLink(base, { date, time, uid, bookingId } = {}) {
   return qs ? `${base}/?${qs}` : `${base}/`;
 }
 
-async function pushInstructor(iid, title, body, data = {}) {
-  const snap = await db.ref(`instructors/${iid}/fcmToken`).get();
-  const token = snap.val();
-  if (!token) return;
-  const link = data.url || "https://admin.drivepad.pro";
-  try {
-    await admin.messaging().send({
-      token,
-      notification: { title, body },
-      data: Object.fromEntries(Object.entries({ url: link, ...data }).map(([k, v]) => [k, String(v)])),
-      webpush: {
-        notification: { icon: "/favicon.svg" },
-        fcmOptions: { link },
-      },
-    });
-  } catch (e) {
-    if (e.code === "messaging/registration-token-not-registered" ||
-        e.code === "messaging/invalid-registration-token") {
-      await db.ref(`instructors/${iid}/fcmToken`).remove().catch(() => {});
+// Хелпер: відправити push адміну (на всі зареєстровані пристрої)
+async function pushAdmin(title, body, data = {}) {
+  const snap = await db.ref("admin/fcmTokens").get();
+  const devices = collectDeviceTokens(snap.val());
+  console.log(`pushAdmin: devices=${devices.length}, title="${title}"`);
+  if (!devices.length) { console.warn("pushAdmin: no tokens at admin/fcmTokens"); return false; }
+  const link = data.url || "https://admin.id4drive.pro";
+  let sent = false;
+  for (const [deviceId, token] of devices) {
+    try {
+      // Data-only push — адмінка читає payload.data (App.jsx + SW), без
+      // notification, щоб не було дубля поверх showNotification().
+      const result = await admin.messaging().send({
+        token,
+        data: Object.fromEntries(Object.entries({ title, body, url: link, ...data }).map(([k, v]) => [k, String(v)])),
+        webpush: {
+          fcmOptions: { link },
+        },
+      });
+      console.log(`pushAdmin OK: ${title} messageId=${result}`);
+      sent = true;
+    } catch (e) {
+      console.error(`pushAdmin error: code=${e.code} msg=${e.message}`);
+      // Якщо токен протухнув — очищаємо щоб не повторювати помилку
+      if (e.code === "messaging/registration-token-not-registered" ||
+          e.code === "messaging/invalid-registration-token") {
+        await db.ref(`admin/fcmTokens/${deviceId}`).remove().catch(() => {});
+        console.warn(`pushAdmin: stale token removed for device=${deviceId}`);
+      }
     }
   }
+  return sent;
 }
 
-async function pushInstructorStudent(iid, uid, title, body, data = {}) {
-  const snap = await db.ref(`instructors/${iid}/users/${uid}/fcmTokens/web/token`).get();
-  const token = snap.val();
-  if (!token) return false;
-  const link = data.url || "https://drivepad.pro/cabinet";
-  try {
-    await admin.messaging().send({
-      token,
-      notification: { title, body },
-      data: Object.fromEntries(Object.entries({ url: link, ...data }).map(([k, v]) => [k, String(v)])),
-      webpush: {
-        notification: { icon: "/favicon.svg" },
-        fcmOptions: { link },
-      },
-    });
-    return true;
-  } catch (e) {
-    if (e.code === "messaging/registration-token-not-registered" ||
-        e.code === "messaging/invalid-registration-token") {
-      await db.ref(`instructors/${iid}/users/${uid}/fcmTokens/web/token`).remove().catch(() => {});
+// ─── Шаблони повідомлень (admin_data/templates) ───────────────────
+// Хелпер: підставити {ім'я}/{дата}/{час}/... у текст шаблону
+function renderTemplateBody(body, vars = {}) {
+  return (body || "").replace(/\{[^}]+\}/g, (m) => {
+    const key = m.slice(1, -1);
+    return vars[key] != null && vars[key] !== "" ? String(vars[key]) : m;
+  });
+}
+
+// Хелпер: для auto_reminder — 24г чи 2г "кошик" шаблону за полем reminderHours
+// (без поля — типово вважаємо шаблон "за 24 год", як і було раніше)
+function matchesReminderBucket(tpl, targetHours) {
+  const h = Number(tpl.reminderHours);
+  const hours = Number.isFinite(h) ? h : 24;
+  return targetHours === 24 ? hours >= 12 : hours > 0 && hours < 12;
+}
+
+// Хелпер: надіслати учню ВСІ активні шаблони заданого тригера — чат-
+// повідомлення (як ручна відправка з вкладки "Шаблони") + push. Повертає
+// true лише якщо хоч одне повідомлення РЕАЛЬНО дійшло (чат-запис або push) —
+// а не просто "знайдено активний шаблон". Виклик використовує це, щоб
+// вирішити, чи ставити sentReminders / не слати хардкодний фолбек — якщо
+// повернути true при провалі обох каналів, прапорець "відправлено"
+// назавжди заблокував би повторні спроби (той самий клас багу, що вже
+// фіксився для 24г/2г нагадувань).
+async function sendActiveTemplates(uid, triggerId, vars = {}, filterFn = null) {
+  const snap = await db.ref("admin_data/templates").get();
+  const list = snap.val();
+  if (!Array.isArray(list)) return false;
+  let matches = list.filter(t => t && t.trigger === triggerId && t.active && (t.body || "").trim());
+  if (filterFn) matches = matches.filter(filterFn);
+  if (!matches.length) return false;
+
+  let delivered = false;
+  for (const tpl of matches) {
+    const text = renderTemplateBody(tpl.body, vars);
+    const time = new Date().toLocaleTimeString("uk", { hour: "2-digit", minute: "2-digit" });
+    const ts = Date.now();
+    const chatSent = await db.ref(`chats/${uid}`).push({ from: "admin", text, time, ts })
+      .then(() => true).catch(() => false);
+    if (chatSent) {
+      await db.ref(`chatMeta/${uid}`).update({
+        unreadForStudent: admin.database.ServerValue.increment(1), lastMsg: text, lastTs: ts,
+      }).catch(() => {});
     }
-    return false;
+    const pushed = await pushStudent(uid, tpl.title || "Повідомлення", text, {}).catch(() => false);
+    if (pushed) await saveNotification(uid, tpl.title || "Повідомлення", text, "template").catch(() => {});
+    if (chatSent || pushed) delivered = true;
   }
+  return delivered;
 }
 
-async function saveInstructorNotification(iid, uid, title, body, type = "system") {
-  const ts   = Date.now();
-  const time = new Date(ts).toLocaleTimeString("uk", { hour: "2-digit", minute: "2-digit" });
-  const date = new Date(ts).toLocaleDateString("uk", { day: "2-digit", month: "2-digit", year: "numeric" });
-  await db.ref(`instructors/${iid}/notifications/${uid}`).push({ title, body, type, ts, time, date }).catch(() => {});
+// Хелпер: для масових розсилок (auto_queue) — тільки текст першого активного
+// шаблону, БЕЗ запису в чат (уникаємо спаму чату при broadcast на всіх учнів)
+async function getActiveTemplateText(triggerId, vars = {}) {
+  const snap = await db.ref("admin_data/templates").get();
+  const list = snap.val();
+  if (!Array.isArray(list)) return null;
+  const tpl = list.find(t => t && t.trigger === triggerId && t.active && (t.body || "").trim());
+  if (!tpl) return null;
+  return { title: tpl.title || "Повідомлення", body: renderTemplateBody(tpl.body, vars) };
 }
 
-async function freeInstructorSlots(iid, bookingData) {
+// Хелпер: заблокувати / звільнити timeslots для букінгу
+function buildSlotUpdates(bookingData, available) {
   const { date, time, durationHours, durMin, startMin } = bookingData || {};
-  if (!date || (!time && startMin == null)) return;
+  if (!date || (!time && startMin == null)) return {};
   const INTERVAL = 30;
   let start;
   if (startMin != null) {
@@ -97,659 +221,290 @@ async function freeInstructorSlots(iid, bookingData) {
   for (let cur = start; cur < start + dur; cur += INTERVAL) {
     const hh = String(Math.floor(cur / 60)).padStart(2, "0");
     const mm = String(cur % 60).padStart(2, "0");
-    if (cur % 60 !== 0) {
-      updates[`instructors/${iid}/timeslots/${date}/slot${hh}${mm}`] = null;
+    if (available) {
+      // Half-hour slots (9:30, 10:30…) were only created by blockSlots — delete them.
+      // Hour-boundary slots were generated — restore to available.
+      if (cur % 60 !== 0) {
+        updates[`timeslots/${date}/slot${hh}${mm}`] = null;
+      } else {
+        updates[`timeslots/${date}/slot${hh}${mm}/available`] = true;
+        updates[`timeslots/${date}/slot${hh}${mm}/time`] = `${hh}:${mm}`;
+      }
     } else {
-      updates[`instructors/${iid}/timeslots/${date}/slot${hh}${mm}/available`] = true;
-      updates[`instructors/${iid}/timeslots/${date}/slot${hh}${mm}/time`] = `${hh}:${mm}`;
+      updates[`timeslots/${date}/slot${hh}${mm}/available`] = false;
+      updates[`timeslots/${date}/slot${hh}${mm}/time`] = `${hh}:${mm}`;
     }
   }
-  if (Object.keys(updates).length) await db.ref("/").update(updates).catch(() => {});
+  return updates;
 }
 
-// ─── BOOKING TRIGGERS ────────────────────────────────────────────────
-
-// Новий запис → push інструктору + блокуємо слоти
-exports.onInstructorBookingCreated = onValueCreated(
-  { ref: "instructors/{iid}/bookings/{uid}/{bookingId}", region: "europe-west1" },
+// Всі зміни букінгу → push адміну або клієнту + синхронізація timeslots
+exports.onBookingChanged = onValueWritten(
+  { ref: "bookings/{uid}/{bookingId}", region: "europe-west1" },
   async (event) => {
-    const booking = event.data.val();
-    if (!booking) return;
-    const { iid, uid, bookingId } = event.params;
+    const before     = event.data.before.val();
+    const after      = event.data.after.val();
+    const uid        = event.params.uid;
+    const bookingId  = event.params.bookingId;
+    const name       = (after || before)?.studentName || "Учень";
+    const date       = (after || before)?.date || "—";
+    const time       = (after || before)?.time || "—";
+    const adminLink  = () => buildAdminLink("https://admin.id4drive.pro", { date, time, uid, bookingId });
 
-    const name = booking.studentName || booking.name || "Клієнт";
-    const date = booking.date || "—";
-    const time = booking.time || "—";
-    const adminLink = () => buildAdminLink("https://admin.drivepad.pro", { date, time, uid, bookingId });
-
-    if (booking.date && (booking.time || booking.startMin != null)) {
-      const INTERVAL = 30;
-      let start;
-      if (booking.startMin != null) {
-        start = booking.startMin;
-      } else {
-        const [h, m] = (booking.time || "0:0").split(":").map(Number);
-        start = h * 60 + m;
+    // Новий запис (before = null) — блокуємо слоти
+    if (before === null && after) {
+      const slotUpd = buildSlotUpdates(after, false);
+      if (Object.keys(slotUpd).length) await db.ref("/").update(slotUpd).catch(() => {});
+      await db.ref(`activeStudents/${uid}`).set(true).catch(() => {});
+      await db.ref(`recentStudents/${uid}`).set(Date.now()).catch(() => {});
+      if (after.createdBy === "admin" && uid !== "admin") {
+        // Адмін вручну записав учня — сповіщаємо учня
+        console.log(`onBookingChanged: admin manual booking uid=${uid}`);
+        await pushStudent(uid, "📋 Урок заплановано", `${date} о ${time}`, {
+          url: "https://id4drive.pro/cabinet/bookings",
+        });
+        await saveNotification(uid, "📋 Урок заплановано", `${date} о ${time}`, "booking_confirmed");
+      } else if (after.createdBy !== "admin" && after.status !== "personal") {
+        // Учень записався сам — сповіщаємо адміна
+        // (особисті події адміна не мають генерувати цей пуш — у них є власне
+        // нагадування-будильник через sendPersonalEventReminders)
+        console.log(`onBookingChanged: new booking uid=${uid}`);
+        await pushAdmin("📋 Новий запис", `${name} · ${date} о ${time}`, { url: adminLink() });
       }
-      const dur = booking.durMin ?? ((booking.durationHours || 1) * 60);
-      const updates = {};
-      for (let cur = start; cur < start + dur; cur += INTERVAL) {
-        const hh = String(Math.floor(cur / 60)).padStart(2, "0");
-        const mm = String(cur % 60).padStart(2, "0");
-        updates[`instructors/${iid}/timeslots/${booking.date}/slot${hh}${mm}/available`] = false;
-        updates[`instructors/${iid}/timeslots/${booking.date}/slot${hh}${mm}/time`] = `${hh}:${mm}`;
-      }
-      if (Object.keys(updates).length) await db.ref("/").update(updates).catch(() => {});
+      return;
     }
 
-    // Якщо адмін вручну записав клієнта — push клієнту (не гостю)
-    if (booking.createdBy === "admin" && !uid.startsWith("guest_")) {
-      await pushInstructorStudent(iid, uid, "📋 Урок заплановано", `${date} о ${time}`, { url: "https://drivepad.pro/cabinet/bookings" });
-      await saveInstructorNotification(iid, uid, "📋 Урок заплановано", `${date} о ${time}`, "booking_confirmed");
-    } else {
-      await pushInstructor(iid, "📋 Новий запис", `${name} · ${date} о ${time}`, { url: adminLink() });
+    if (!before || !after) return;
+
+    // Учень скасував — звільняємо слоти
+    if (after.cancelledBy === "student" && before.cancelledBy !== "student") {
+      console.log(`onBookingChanged: student cancel uid=${uid}`);
+      const slotUpd = buildSlotUpdates(before, true);
+      if (Object.keys(slotUpd).length) await db.ref("/").update(slotUpd).catch(() => {});
+      await pushAdmin("❌ Урок скасовано", `${name} · ${date} о ${time}`, { url: adminLink() });
+      if (date !== "—" && time !== "—") {
+        const freedDurationHours = before.durationHours || (before.durMin ? before.durMin / 60 : 1);
+        await inviteNextInQueue(`${date}_${time}`, [], freedDurationHours).catch(() => {});
+      }
+      return;
     }
-  }
-);
-
-// Зміни стану букінгу → push клієнту або інструктору
-exports.onInstructorBookingChanged = onValueWritten(
-  { ref: "instructors/{iid}/bookings/{uid}/{bookingId}", region: "europe-west1" },
-  async (event) => {
-    const before = event.data.before.val();
-    const after  = event.data.after.val();
-    if (before === null) return; // нові записи обробляє onInstructorBookingCreated
-
-    const { iid, uid, bookingId } = event.params;
-    const isGuest = uid.startsWith("guest_");
-    const name = (after || before)?.studentName || (after || before)?.name || "Клієнт";
-    const date = (after || before)?.date || "—";
-    const time = (after || before)?.time || "—";
-    const adminLink = () => buildAdminLink("https://admin.drivepad.pro", { date, time, uid, bookingId });
 
     // Адмін підтвердив
-    if (after?.status === "confirmed" && before?.status !== "confirmed") {
-      if (!isGuest) {
-        await pushInstructorStudent(iid, uid, "✅ Урок підтверджено", `${date} о ${time}`, { url: "https://drivepad.pro/cabinet/bookings" });
-        await saveInstructorNotification(iid, uid, "✅ Урок підтверджено", `${date} о ${time}`, "booking_confirmed");
-        // Реферальний бонус: якщо це перший урок і є referredBy
-        const profSnap = await db.ref(`instructors/${iid}/users/${uid}/profile`).get().catch(() => null);
-        const prof = profSnap?.val() || {};
-        if (prof.referredBy && !prof.firstLessonBonusSent) {
-          const allSnap = await db.ref(`instructors/${iid}/bookings/${uid}`).get().catch(() => null);
-          const confirmedCount = allSnap?.exists()
-            ? Object.values(allSnap.val()).filter(b => b.status === "confirmed").length
-            : 0;
-          if (confirmedCount <= 1) {
-            const refUid = prof.referredBy;
-            await db.ref(`instructors/${iid}/users/${uid}/profile/firstLessonBonusSent`).set(true).catch(() => {});
-            await db.ref(`instructors/${iid}/users/${refUid}/referralBonusLessons`).transaction(n => (n || 0) + 1).catch(() => {});
-            await pushInstructorStudent(iid, refUid, "🎁 Ваш друг записався!", "Ви отримали бонусний урок за запрошення", { url: "https://drivepad.pro/cabinet" });
-            await saveInstructorNotification(iid, refUid, "🎁 Реферальний бонус", "Ваш друг записався — +1 бонусний урок!", "referral_bonus");
-          }
-        }
-        await db.ref(`instructors/${iid}/users/${uid}/lessonBalance`).transaction(n => n > 0 ? n - 1 : n).catch(() => {});
+    if (after.status === "confirmed" && before.status !== "confirmed") {
+      console.log(`onBookingChanged: admin confirmed uid=${uid}`);
+      const vars = { "ім'я": name, "дата": date, "час": time, "послуга": after.serviceName || after.service || "", "ціна": after.price != null ? String(after.price) : "" };
+      const usedTpl = await sendActiveTemplates(uid, "auto_confirm", vars).catch(() => false);
+      if (!usedTpl) {
+        await pushStudent(uid, "✅ Урок підтверджено", `${date} о ${time}`, {
+          url: "https://id4drive.pro/cabinet/bookings",
+        });
+        await saveNotification(uid, "✅ Урок підтверджено", `${date} о ${time}`, "booking_confirmed");
       }
       return;
     }
 
-    // Адмін скасував → звільняємо слоти + push клієнту
-    if (after?.status === "cancelled" && before?.status !== "cancelled" && after?.cancelledBy === "admin") {
-      await freeInstructorSlots(iid, before);
-      if (!isGuest) {
-        await pushInstructorStudent(iid, uid, "❌ Урок скасовано", `${date} о ${time}`, { url: "https://drivepad.pro/cabinet/bookings" });
-        await saveInstructorNotification(iid, uid, "❌ Урок скасовано", `${date} о ${time}`, "booking_cancelled");
+    // Адмін скасував — звільняємо слоти
+    if (after.status === "cancelled" && before.status !== "cancelled" && after.cancelledBy === "admin") {
+      console.log(`onBookingChanged: admin cancelled uid=${uid}`);
+      const slotUpd = buildSlotUpdates(before, true);
+      if (Object.keys(slotUpd).length) await db.ref("/").update(slotUpd).catch(() => {});
+      const cancelVars = { "ім'я": name, "дата": date, "час": time };
+      const usedCancelTpl = await sendActiveTemplates(uid, "auto_cancel", cancelVars).catch(() => false);
+      if (!usedCancelTpl) {
+        await pushStudent(uid, "❌ Урок скасовано", `${date} о ${time}`, {
+          url: "https://id4drive.pro/cabinet/bookings",
+        });
+        await saveNotification(uid, "❌ Урок скасовано", `${date} о ${time}`, "booking_cancelled");
+      }
+      if (date !== "—" && time !== "—") {
+        const freedDurationHours = before.durationHours || (before.durMin ? before.durMin / 60 : 1);
+        await inviteNextInQueue(`${date}_${time}`, [], freedDurationHours).catch(() => {});
       }
       return;
     }
 
-    // Клієнт скасував → звільняємо слоти + push інструктору
-    if (after?.cancelledBy === "student" && before?.cancelledBy !== "student") {
-      await freeInstructorSlots(iid, before);
-      await pushInstructor(iid, "❌ Урок скасовано", `${name} · ${date} о ${time}`, { url: adminLink() });
+    // Студент підтвердив присутність
+    if (after.studentConfirmed && !before.studentConfirmed) {
+      console.log(`onBookingChanged: student confirmed uid=${uid}`);
+      await pushAdmin("✅ Підтвердив присутність", `${name} · ${date} о ${time}`, { url: adminLink() });
       return;
     }
 
-    // No-show — повідомляємо студента
-    if (after?.status === "noshow" && before?.status !== "noshow") {
-      if (!isGuest) {
-        await pushInstructorStudent(iid, uid, "😔 Урок пропущено", `${date} о ${time} — зверніться до інструктора`, { url: "https://drivepad.pro/cabinet/bookings" });
-        await saveInstructorNotification(iid, uid, "😔 Урок пропущено", `${date} о ${time}`, "noshow");
-      }
-      return;
-    }
-
-    // Інструктор додав нотатку — повідомляємо студента
-    if (after?.instructorNote && after.instructorNote !== before?.instructorNote) {
-      if (!isGuest) {
-        await pushInstructorStudent(iid, uid, "📝 Інструктор залишив нотатку", `${date} о ${time}`, { url: "https://drivepad.pro/cabinet/bookings" });
-        await saveInstructorNotification(iid, uid, "📝 Нотатка інструктора", after.instructorNote.slice(0, 80), "instructor_note");
-      }
-      return;
-    }
-
-    // Перенесено — push клієнту + інструктору
-    if (after && before && after.status !== "cancelled" &&
-        (after.date !== before.date || after.time !== before.time)) {
+    // Перенесено — тільки блокуємо нове місце (старе залишається blocked до ручної генерації)
+    const rescheduled = after.status !== "cancelled" &&
+      (after.date !== before.date || after.time !== before.time);
+    if (rescheduled) {
+      const blockUpd = buildSlotUpdates(after, false);
+      if (Object.keys(blockUpd).length) await db.ref("/").update(blockUpd).catch(() => {});
       const oldDate = before.date || "—";
       const oldTime = before.time || "—";
       const body = `Новий час: ${date} о ${time} (було ${oldDate} о ${oldTime})`;
-      if (!isGuest) {
-        await pushInstructorStudent(iid, uid, "🔄 Урок перенесено", body, { url: "https://drivepad.pro/cabinet/bookings" });
-        await saveInstructorNotification(iid, uid, "🔄 Урок перенесено", body, "booking_rescheduled");
-      }
-      await pushInstructor(iid, "🔄 Перенос", `${name} · ${body}`, { url: adminLink() });
+      console.log(`onBookingChanged: rescheduled uid=${uid} bookingId=${bookingId} — queuing notif`);
+      await db.ref(`rescheduleQueue/${uid}/${bookingId}`).set({
+        uid, body, sendAfter: Date.now() + 60000,
+      }).catch(() => {});
+      return;
     }
   }
 );
 
-// ─── QUEUE TRIGGER ───────────────────────────────────────────────────
+// Нормалізує телефон до самих цифр для порівняння (+380 67 123-45-67 -> 380671234567)
+function normPhone(p) {
+  return (p || "").replace(/\D/g, "");
+}
 
-// Статус черги → "offered": резервуємо слот у timeslots, push студенту
-exports.onInstructorQueueInvite = onValueUpdated(
-  { ref: "instructors/{iid}/queue/{slotKey}/entries/{uid}", region: "europe-west1" },
+// Учень, доданий вручну адміном (картка учня без .profile), запросив
+// себе через посилання ("🔗 Запросити" в картці учня) або просто
+// самостійно зареєструвався з тим самим номером телефону — зливаємо
+// операційні поля (знижку/фікс.ціну/нотатки/години/VIP/медалі) в щойно
+// зареєстрований акаунт. Історію записів/чатів навмисно НЕ переносимо —
+// це критичний модуль, ризик вищий за користь для типового кейсу
+// (запрошення надсилають ДО першого уроку).
+async function mergeInvitedStudentRecord(uid, profile) {
+  try {
+    let oldKey = null;
+    const token = profile?.inviteToken;
+    if (token) {
+      const invite = (await db.ref(`invites/${token}`).get()).val();
+      if (invite?.studentKey) oldKey = invite.studentKey;
+    }
+    if (!oldKey) {
+      const phone = normPhone(profile?.phone);
+      if (phone) {
+        const usersVal = (await db.ref("users").get()).val() || {};
+        const matches = Object.entries(usersVal).filter(([key, u]) =>
+          key !== uid && !u.profile && normPhone(u.phone) === phone
+        );
+        if (matches.length === 1) oldKey = matches[0][0];
+      }
+    }
+    if (token) await db.ref(`invites/${token}`).remove().catch(() => {});
+    if (!oldKey || oldKey === uid) return;
+
+    const old = (await db.ref(`users/${oldKey}`).get()).val();
+    // Захист: зливаємо тільки із "заглушки" адміна (без .profile) —
+    // ніколи не чіпаємо чужий реальний зареєстрований акаунт.
+    if (!old || old.profile) return;
+
+    const patch = {};
+    [
+      "discount", "customPrice", "notes", "hours", "hoursOffset",
+      "isVip", "noIntervalLimit", "blocked", "badges",
+      "maneuverCounts", "maneuverSuccessCounts", "createdAt",
+    ].forEach((f) => { if (old[f] !== undefined) patch[`users/${uid}/${f}`] = old[f]; });
+    patch[`users/${oldKey}`] = null;
+    patch[`users/${uid}/profile/inviteToken`] = null;
+    await db.ref().update(patch);
+    console.log(`mergeInvitedStudentRecord: merged ${oldKey} -> ${uid}`);
+  } catch (e) {
+    console.error("mergeInvitedStudentRecord failed:", e);
+  }
+}
+
+// Новий учень зареєструвався (заповнив анкету) — сповіщаємо адміна
+exports.onNewStudentRegistered = onValueCreated(
+  { ref: "users/{uid}/profile", region: "europe-west1" },
+  async (event) => {
+    const profile = event.data.val();
+    const { uid } = event.params;
+    await mergeInvitedStudentRecord(uid, profile);
+    const name  = profile?.name  || "Новий учень";
+    const phone = profile?.phone || "";
+    console.log(`onNewStudentRegistered: uid=${uid} name="${name}"`);
+    await pushAdmin("🎉 Новий учень", phone ? `${name} · ${phone}` : name, {
+      url: buildAdminLink("https://admin.id4drive.pro", { uid }),
+    });
+    await sendActiveTemplates(uid, "auto_welcome", { "ім'я": name }).catch(() => {});
+  }
+);
+
+// Кнопка "Запросити": записує offeredTo/{uid} і пушить студента
+exports.onQueueInvite = onValueUpdated(
+  { ref: "queue/{slotKey}/entries/{uid}", region: "europe-west1" },
   async (event) => {
     const before = event.data.before.val();
     const after  = event.data.after.val();
     if (!after || after.status !== "offered" || before?.status === "offered") return;
 
-    const { iid, uid, slotKey } = event.params;
-    const sep  = slotKey.lastIndexOf("_");
+    const uid     = event.params.uid;
+    const slotKey = event.params.slotKey; // "2026-06-10_09:00"
+    const sep = slotKey.lastIndexOf("_");
     const date = slotKey.slice(0, sep);
     const time = slotKey.slice(sep + 1);
     if (!date || !time) return;
-
     const slotId = `slot${time.replace(":", "")}`;
-    const until  = Date.now() + OFFER_WINDOW_MS;
 
-    await db.ref(`instructors/${iid}/timeslots/${date}/${slotId}/offeredTo/${uid}`).set({ until }).catch(() => {});
-    await db.ref(`instructors/${iid}/users/${uid}/queueOffers/${slotKey}`).set({ date, time, until, slotKey }).catch(() => {});
+    // Додаємо uid до offeredTo зі строком дії (перший → теж залишається)
+    const until = Date.now() + OFFER_WINDOW_MS;
+    await db.ref(`timeslots/${date}/${slotId}/offeredTo/${uid}`).set({ until }).catch(() => {});
 
-    const url   = `https://drivepad.pro/cabinet?date=${date}&time=${encodeURIComponent(time)}`;
-    const title = "🎉 Слот зарезервовано для вас!";
-    const body  = `${date} о ${time} — у вас 30 хвилин щоб записатись`;
-    await pushInstructorStudent(iid, uid, title, body, { url, date, time, slotKey });
-    await saveInstructorNotification(iid, uid, title, body, "queue_offer");
+    // In-app сповіщення: клієнт підписаний на цей шлях. Якщо запрошення
+    // прийшло від скасування конкретного уроку — offerDurationHours несе
+    // його тривалість, щоб бронювання з черги зайняло стільки ж часу.
+    await db.ref(`users/${uid}/queueOffers/${slotKey}`).set({
+      date, time, until, slotKey,
+      ...(after.offerDurationHours ? { durationHours: after.offerDurationHours } : {}),
+    }).catch(() => {});
+
+    const url = `https://id4drive.pro/cabinet?date=${date}&time=${encodeURIComponent(time)}`;
+    const pushTitle = "🎉 Слот зарезервовано для вас!";
+    const pushBody = `${date} о ${time} — у вас 30 хвилин щоб записатись`;
+    await pushStudent(uid, pushTitle, pushBody, { url, date, time, slotKey });
+    await saveNotification(uid, pushTitle, pushBody, "queue_offer");
   }
 );
 
-// ─── NEW STUDENT TRIGGER ─────────────────────────────────────────────
 
-// Новий студент зареєструвався (заповнив анкету) → push інструктору
-exports.onInstructorNewStudentRegistered = onValueCreated(
-  { ref: "instructors/{iid}/users/{uid}/profile", region: "europe-west1" },
-  async (event) => {
-    const profile = event.data.val();
-    const { iid, uid } = event.params;
-    const name  = profile?.name  || "Новий учень";
-    const phone = profile?.phone || "";
-    await pushInstructor(iid, "🎉 Новий учень", phone ? `${name} · ${phone}` : name, {
-      url: buildAdminLink("https://admin.drivepad.pro", { uid }),
-    });
-  }
-);
-
-// ─── CHAT TRIGGER ────────────────────────────────────────────────────
-
-// Студент надіслав повідомлення → push інструктору
-exports.onInstructorStudentMessage = onValueCreated(
-  { ref: "instructors/{iid}/chats/{uid}/{msgId}", region: "europe-west1" },
-  async (event) => {
-    const msg = event.data.val();
-    if (!msg || msg.from !== "student") return;
-
-    const { iid, uid } = event.params;
-    const profileSnap = await db.ref(`instructors/${iid}/users/${uid}/profile`).get();
-    const name = profileSnap.val()?.name || "Студент";
-
-    const text = msg.text || "";
-    await pushInstructor(iid, `💬 ${name}`, text.length > 100 ? text.slice(0, 100) + "…" : text);
-  }
-);
-
-// ─── LIQPAY SUBSCRIPTION ─────────────────────────────────────────────
-
-const MONTHLY_PRICE = 499;
-
-exports.createLiqPayOrder = onRequest(
-  {
-    region: "europe-west1",
-    cors: ["https://admin.drivepad.pro", "http://localhost:5173"],
-    secrets: [LIQPAY_PUBLIC_KEY, LIQPAY_PRIVATE_KEY],
-  },
-  async (req, res) => {
-    if (req.method !== "POST") { res.status(405).send("Method Not Allowed"); return; }
-    const { amount, months, iid } = req.body || {};
-    if (!iid) { res.status(400).json({ error: "missing iid" }); return; }
-
-    const pubKey  = LIQPAY_PUBLIC_KEY.value();
-    const privKey = LIQPAY_PRIVATE_KEY.value();
-
-    const orderId = `sub_${iid}_${Date.now()}`;
-    const params = {
-      version:     "3",
-      public_key:  pubKey,
-      action:      "pay",
-      amount:      String(amount || MONTHLY_PRICE),
-      currency:    "UAH",
-      description: `DrivePad підписка ${months || 1} міс.`,
-      order_id:    orderId,
-      result_url:  "https://admin.drivepad.pro/",
-      server_url:  "https://europe-west1-drivepad-86fe1.cloudfunctions.net/liqpayCallback",
-    };
-
-    const data = Buffer.from(JSON.stringify(params)).toString("base64");
-    const signature = crypto.createHash("sha1")
-      .update(privKey + data + privKey)
-      .digest("base64");
-
-    res.json({ data, signature, action: "https://www.liqpay.ua/api/3/checkout" });
-  }
-);
-
-exports.liqpayCallback = onRequest(
-  {
-    region: "europe-west1",
-    cors: true,
-    secrets: [LIQPAY_PRIVATE_KEY],
-  },
-  async (req, res) => {
-    const { data, signature } = req.body || {};
-    if (!data || !signature) { res.status(400).send("Bad request"); return; }
-
-    const privKey = LIQPAY_PRIVATE_KEY.value();
-    const expected = crypto.createHash("sha1")
-      .update(privKey + data + privKey)
-      .digest("base64");
-    if (expected !== signature) { res.status(403).send("Invalid signature"); return; }
-
-    const params = JSON.parse(Buffer.from(data, "base64").toString("utf8"));
-    const { status, order_id, amount } = params;
-
-    if (status !== "success" && status !== "sandbox") { res.send("OK"); return; }
-
-    const match = (order_id || "").match(/^sub_(.+)_\d+$/);
-    if (!match) { res.send("OK"); return; }
-    const iid = match[1];
-
-    const months    = Math.max(1, Math.round(Number(amount) / MONTHLY_PRICE));
-    const now       = Date.now();
-    const expiresAt = now + months * 30 * 24 * 3600 * 1000;
-
-    await db.ref(`instructors/${iid}/subscription`).update({
-      plan: "active",
-      expiresAt,
-      lastPaidAt:        now,
-      lastPaymentAmount: Number(amount),
-    }).catch(console.error);
-
-    console.log(`liqpayCallback: activated iid=${iid} months=${months} expiresAt=${new Date(expiresAt).toISOString()}`);
-    res.send("OK");
-  }
-);
-
-// ─── DEBT REMINDER ───────────────────────────────────────────────
-// Runs daily at 10:00 Kyiv. Sends push to students with unpaid past lessons.
-// Dedup: max once per 7 days per student (debtReminderSentAt field).
-exports.sendDebtReminders = onSchedule(
-  { schedule: "0 7 * * *", region: "europe-west1", timeZone: "UTC" }, // 7:00 UTC = 10:00 Kyiv
-  async () => {
-    const now = Date.now();
-    const todayStr = new Date().toISOString().slice(0, 10);
-    const SEVEN_DAYS = 7 * 24 * 3600 * 1000;
-
-    const snap = await db.ref("instructors").get();
-    if (!snap.exists()) return null;
-
-    const tasks = [];
-    snap.forEach(iSnap => {
-      const iid = iSnap.key;
-      const booksNode = iSnap.child("bookings");
-      if (!booksNode.exists()) return;
-
-      const studentDebt = {};
-      booksNode.forEach(userSnap => {
-        const uid = userSnap.key;
-        if (uid.startsWith("guest_")) return;
-
-        userSnap.forEach(bSnap => {
-          const b = bSnap.val();
-          if (!b || b.status !== "confirmed" || b.isPaid || !b.price || b.price <= 0) return;
-          if (!b.date || b.date >= todayStr) return;
-          if (!studentDebt[uid]) studentDebt[uid] = { total: 0, lastSent: b.debtReminderSentAt || 0 };
-          studentDebt[uid].total += b.price;
-        });
-      });
-
-      Object.entries(studentDebt).forEach(([uid, info]) => {
-        if (info.total <= 0) return;
-        if (now - info.lastSent < SEVEN_DAYS) return;
-        tasks.push({ iid, uid, total: info.total });
-      });
-    });
-
-    if (!tasks.length) return null;
-
-    await Promise.allSettled(tasks.map(async ({ iid, uid, total }) => {
-      await pushInstructorStudent(
-        iid, uid,
-        "💳 Нагадування про оплату",
-        `Є неоплачені уроки на суму ${total} ₴. Зверніться до інструктора.`,
-        { url: "https://drivepad.pro/cabinet/bookings" }
-      );
-      await saveInstructorNotification(
-        iid, uid,
-        "💳 Нагадування про оплату",
-        `Є неоплачені уроки на суму ${total} ₴.`,
-        "debt_reminder"
-      );
-      await db.ref(`instructors/${iid}/bookings`).child(uid).once("value").then(async snap => {
-        const updates = {};
-        snap.forEach(bSnap => {
-          const b = bSnap.val();
-          if (b && b.status === "confirmed" && !b.isPaid && b.price > 0 && b.date < todayStr) {
-            updates[`instructors/${iid}/bookings/${uid}/${bSnap.key}/debtReminderSentAt`] = now;
-          }
-        });
-        if (Object.keys(updates).length) await db.ref("/").update(updates).catch(() => {});
-      }).catch(() => {});
-    }));
-
-    return null;
-  }
-);
-
-// ─── LESSON REMINDER NOTIFICATIONS ───────────────────────────────
-// Runs every 30 min, sends "lesson in 2 hours" push to students.
-// Window: 90–150 min from now. Marks reminderSent/2h to avoid duplicates.
-exports.sendLessonReminders = onSchedule(
-  { schedule: "every 30 minutes", region: "europe-west1", timeZone: "Europe/Kiev" },
-  async () => {
-    const now = Date.now();
-    const WINDOW_MIN = 90  * 60 * 1000;
-    const WINDOW_MAX = 150 * 60 * 1000;
-
-    const snap = await db.ref("instructors").get();
-    if (!snap.exists()) return null;
-
-    const tasks = [];
-    snap.forEach(iSnap => {
-      const iid = iSnap.key;
-      const booksNode = iSnap.child("bookings");
-      if (!booksNode.exists()) return;
-
-      booksNode.forEach(userSnap => {
-        const uid = userSnap.key;
-        if (uid.startsWith("guest_")) return;
-
-        userSnap.forEach(bSnap => {
-          const b = bSnap.val();
-          if (!b || b.status !== "confirmed") return;
-          if (b.reminderSent && b.reminderSent["2h"]) return;
-
-          const { date, time } = b;
-          if (!date || !time) return;
-
-          // Parse as Kyiv local time (UTC+3 in summer; ±1h offset in winter is within the window)
-          const lessonMs = new Date(`${date}T${time}:00+03:00`).getTime();
-          const diff = lessonMs - now;
-          if (diff >= WINDOW_MIN && diff <= WINDOW_MAX) {
-            tasks.push({ iid, uid, key: bSnap.key, date, time });
-          }
-        });
-      });
-    });
-
-    if (!tasks.length) return null;
-
-    await Promise.allSettled(tasks.map(async ({ iid, uid, key, date, time }) => {
-      await pushInstructorStudent(
-        iid, uid,
-        "⏰ Урок через 2 години",
-        `${date} о ${time.slice(0,5)} — не забудьте!`,
-        { url: "https://drivepad.pro/cabinet/bookings" }
-      );
-      await saveInstructorNotification(
-        iid, uid,
-        "⏰ Урок через 2 години",
-        `${date} о ${time.slice(0,5)} — не забудьте!`,
-        "lesson_reminder"
-      );
-      await db.ref(`instructors/${iid}/bookings/${uid}/${key}/reminderSent/2h`).set(now).catch(() => {});
-    }));
-
-    return null;
-  }
-);
-
-// "Tomorrow" reminder — runs daily at 18:00 Kyiv time.
-// Sends push for all confirmed lessons scheduled for tomorrow.
-exports.sendTomorrowReminders = onSchedule(
-  { schedule: "0 15 * * *", region: "europe-west1", timeZone: "UTC" }, // 15:00 UTC = 18:00 Kyiv (+3)
-  async () => {
-    const now = new Date();
-    const tomorrow = new Date(now);
-    tomorrow.setUTCDate(now.getUTCDate() + 1);
-    const tomorrowStr = tomorrow.toISOString().slice(0, 10); // "YYYY-MM-DD"
-
-    const snap = await db.ref("instructors").get();
-    if (!snap.exists()) return null;
-
-    const tasks = [];
-    snap.forEach(iSnap => {
-      const iid = iSnap.key;
-      const booksNode = iSnap.child("bookings");
-      if (!booksNode.exists()) return;
-
-      booksNode.forEach(userSnap => {
-        const uid = userSnap.key;
-        if (uid.startsWith("guest_")) return;
-
-        userSnap.forEach(bSnap => {
-          const b = bSnap.val();
-          if (!b || b.status !== "confirmed") return;
-          if (b.reminderSent && b.reminderSent["day"]) return;
-          if (b.date !== tomorrowStr) return;
-
-          tasks.push({ iid, uid, key: bSnap.key, date: b.date, time: b.time || "" });
-        });
-      });
-    });
-
-    if (!tasks.length) return null;
-
-    const ts = Date.now();
-    await Promise.allSettled(tasks.map(async ({ iid, uid, key, date, time }) => {
-      const t = (time || "").slice(0, 5);
-      await pushInstructorStudent(
-        iid, uid,
-        "📅 Урок завтра",
-        `${date} о ${t} — чекаємо на вас!`,
-        { url: "https://drivepad.pro/cabinet/bookings" }
-      );
-      await saveInstructorNotification(
-        iid, uid,
-        "📅 Урок завтра",
-        `${date} о ${t} — чекаємо на вас!`,
-        "lesson_reminder_day"
-      );
-      await db.ref(`instructors/${iid}/bookings/${uid}/${key}/reminderSent/day`).set(ts).catch(() => {});
-    }));
-
-    return null;
-  }
-);
-
-exports.sendDailySummary = onSchedule(
-  { schedule: "0 18 * * *", region: "europe-west1", timeZone: "UTC" }, // 18:00 UTC = 21:00 Kyiv
-  async () => {
-    const todayStr = new Date().toISOString().slice(0, 10);
-    const snap = await db.ref("instructors").get();
-    if (!snap.exists()) return null;
-
-    const tasks = [];
-    snap.forEach(iSnap => {
-      const iid = iSnap.key;
-      const booksNode = iSnap.child("bookings");
-      if (!booksNode.exists()) return;
-
-      let count = 0, totalEarned = 0, totalPaid = 0, totalHours = 0;
-      booksNode.forEach(userSnap => {
-        userSnap.forEach(bSnap => {
-          const b = bSnap.val();
-          if (!b || b.date !== todayStr || b.status !== "confirmed") return;
-          if (b.type === "personal" || b.type === "block" || b.type === "vip-slot") return;
-          count++;
-          totalEarned += b.price || 0;
-          if (b.isPaid) totalPaid += b.price || 0;
-          totalHours += b.durationHours || 1;
-        });
-      });
-      if (count > 0) tasks.push({ iid, count, totalEarned, totalPaid, totalHours });
-    });
-
-    if (!tasks.length) return null;
-    await Promise.allSettled(tasks.map(async ({ iid, count, totalEarned, totalPaid, totalHours }) => {
-      const notPaid = totalEarned - totalPaid;
-      const body = `Уроків: ${count} (${totalHours} год) · Зароблено: ${totalEarned} ₴` +
-        (notPaid > 0 ? ` · Борг: ${notPaid} ₴` : " · Всі оплачені ✓");
-      await pushInstructor(iid, "📊 Підсумок дня", body);
-    }));
-    return null;
-  }
-);
-
-exports.onAdminPushQueue = onValueCreated(
-  { ref: "instructors/{iid}/pushQueue/{pushId}", region: "europe-west1", instance: "*" },
-  async event => {
-    const { uid, title, body } = event.data.val() || {};
-    if (!uid || !title || !body) { await event.data.ref.remove().catch(() => {}); return; }
-    const iid = event.params.iid;
-    await pushInstructorStudent(iid, uid, title, body);
-    await saveInstructorNotification(iid, uid, title, body, "admin_message");
-    await event.data.ref.remove().catch(() => {});
-  }
-);
-
-// Ручна розсилка інструктора → пуш всім студентам з токеном
-exports.onInstructorPushTask = onValueCreated(
-  { ref: "instructors/{iid}/push_tasks/{taskId}", region: "europe-west1" },
-  async (event) => {
-    const task = event.data.val();
-    if (!task || task.status === "sent") return;
-    const { date, slots, comment } = task;
-    const { iid, taskId } = event.params;
-
-    const usersSnap = await db.ref(`instructors/${iid}/users`).get();
-    if (!usersSnap.exists()) {
-      await db.ref(`instructors/${iid}/push_tasks/${taskId}`).update({ status: "sent", sentCount: 0, sentAt: Date.now() });
-      return;
-    }
-
-    const recipients = [];
-    usersSnap.forEach(uSnap => {
-      const uid = uSnap.key;
-      if (uid.startsWith("guest_")) return;
-      const token = uSnap.child("fcmTokens/web/token").val();
-      if (token) recipients.push({ uid, token });
-    });
-
-    if (!recipients.length) {
-      await db.ref(`instructors/${iid}/push_tasks/${taskId}`).update({ status: "sent", sentCount: 0, sentAt: Date.now() });
-      return;
-    }
-
-    const slotsArr = Array.isArray(slots) ? slots : Object.values(slots || {});
-    const d = new Date((date || "") + "T00:00:00");
-    const dateFmt = d.toLocaleDateString("uk", { day: "numeric", month: "long", weekday: "short" });
-    const slotsStr = slotsArr.filter(Boolean).join(" та ");
-    const title = "🚗 Є вільний слот!";
-    const body = `${dateFmt} о ${slotsStr}${comment ? " — " + comment : ""}`;
-    const url = `https://drivepad.pro/cabinet?date=${date}${slotsArr[0] ? `&time=${encodeURIComponent(slotsArr[0])}` : ""}`;
-
-    const tokens = recipients.map(r => r.token);
-    let sentCount = 0;
-    for (let i = 0; i < tokens.length; i += 500) {
-      const res = await admin.messaging().sendEachForMulticast({
-        tokens: tokens.slice(i, i + 500),
-        notification: { title, body },
-        data: { url, date: date || "", time: slotsArr[0] || "" },
-        webpush: { notification: { icon: "/favicon.svg" }, fcmOptions: { link: url } },
-      }).catch(() => ({ successCount: 0 }));
-      sentCount += res?.successCount || 0;
-    }
-
-    await Promise.all(recipients.map(({ uid }) =>
-      saveInstructorNotification(iid, uid, title, body, "slot_broadcast").catch(() => {})
-    ));
-    await db.ref(`instructors/${iid}/push_tasks/${taskId}`).update({ status: "sent", sentCount, sentAt: Date.now() });
-  }
-);
-
-// ─── QUEUE CASCADE / SLOT NOTIFICATIONS ──────────────────────────────
-
-async function inviteNextInInstructorQueue(iid, slotKey, excludeUids = []) {
-  const entriesSnap = await db.ref(`instructors/${iid}/queue/${slotKey}/entries`).get();
-  if (!entriesSnap.exists()) return;
-  const entries = Object.entries(entriesSnap.val())
-    .map(([uid, e]) => ({ uid, ...e }))
-    .filter(e => e.status === "waiting" && !excludeUids.includes(e.uid))
-    .sort((a, b) => (a.addedAt || 0) - (b.addedAt || 0));
-  if (!entries.length) return;
-  await db.ref(`instructors/${iid}/queue/${slotKey}/entries/${entries[0].uid}`).update({ status: "offered" });
-}
-
-// Кожні 10 хв: прострочені offeredTo → запрошує наступного в черзі
-exports.cascadeQueueInvites = onSchedule(
-  { schedule: "every 10 minutes", region: "europe-west1" },
-  async () => {
-    const now = Date.now();
-    const snap = await db.ref("instructors").get();
-    if (!snap.exists()) return;
-
-    const tasks = [];
-    snap.forEach(iSnap => {
-      const iid = iSnap.key;
-      const slotsNode = iSnap.child("timeslots");
-      if (!slotsNode.exists()) return;
-      slotsNode.forEach(dateSnap => {
-        const date = dateSnap.key;
-        dateSnap.forEach(slotSnap => {
-          const slot = slotSnap.val();
-          if (!slot || !slot.offeredTo || slot.available === false) return;
-          const time = slot.time;
-          if (!time) return;
-          const slotKey = `${date}_${time}`;
-          const expiredUids = Object.entries(slot.offeredTo)
-            .filter(([, o]) => o.until < now).map(([uid]) => uid);
-          if (expiredUids.length) tasks.push({ iid, slotKey });
-        });
-      });
-    });
-
-    await Promise.allSettled(tasks.map(async ({ iid, slotKey }) => {
-      const alreadySnap = await db.ref(`instructors/${iid}/queue/${slotKey}/entries`).get();
-      const alreadyOffered = alreadySnap.exists()
-        ? Object.entries(alreadySnap.val())
+// Кожні 10 хв: для кожного спроченого offeredTo → запрошує наступного
+// (першому резерв залишається — він може й надалі записатися)
+exports.cascadeQueueInvites = onSchedule({ schedule: "every 10 minutes", region: "europe-west1" }, async () => {
+  const now = Date.now();
+  const slotsSnap = await db.ref("timeslots").get();
+  const data = slotsSnap.val() || {};
+
+  for (const [date, dateSlots] of Object.entries(data)) {
+    if (!dateSlots || typeof dateSlots !== "object") continue;
+    for (const [slotId, slot] of Object.entries(dateSlots)) {
+      if (!slot.offeredTo) continue;
+      if (slot.available === false) continue; // слот вже зайнятий
+
+      const time = slot.time;
+      if (!time) continue;
+      const slotKey = `${date}_${time}`;
+
+      const expiredUids = [];
+      for (const [uid, offer] of Object.entries(slot.offeredTo)) {
+        if (offer.until < now) expiredUids.push(uid);
+      }
+
+      if (!expiredUids.length) continue;
+
+      // Всі хто вже отримав запрошення (offered/expired) — щоб не повторювати
+      const alreadyOfferedSnap = await db.ref(`queue/${slotKey}/entries`).get();
+      const alreadyOffered = alreadyOfferedSnap.exists()
+        ? Object.entries(alreadyOfferedSnap.val())
             .filter(([, e]) => e.status === "offered" || e.status === "booked")
             .map(([uid]) => uid)
         : [];
-      await inviteNextInInstructorQueue(iid, slotKey, alreadyOffered);
-    }));
+
+      // Запрошуємо наступного (першому резерв НЕ видаляємо)
+      await inviteNextInQueue(slotKey, alreadyOffered);
+    }
   }
-);
+});
 
 // Адмін відкрив заблокований слот → запрошуємо першого в черзі
 exports.onAdminSlotOpened = onValueWritten(
-  { ref: "instructors/{iid}/timeslots/{date}/{slotId}", region: "europe-west1" },
+  { ref: "timeslots/{date}/{slotId}", region: "europe-west1" },
   async (event) => {
     const before = event.data.before?.val();
     const after  = event.data.after?.val();
     if (!before || !after) return;
+    // Тригер тільки: adminBlocked true → false, available → true
     if (before.adminBlocked !== true) return;
     if (after.adminBlocked !== false || after.available !== true) return;
 
-    const { iid, date, slotId } = event.params;
+    const { date, slotId } = event.params;
     let time = after.time;
     if (!time) {
       const m = slotId.match(/^slot(\d{2})(\d{2})$/);
@@ -758,7 +513,7 @@ exports.onAdminSlotOpened = onValueWritten(
     }
 
     const slotKey = `${date}_${time}`;
-    const qSnap = await db.ref(`instructors/${iid}/queue/${slotKey}/entries`).get();
+    const qSnap = await db.ref(`queue/${slotKey}/entries`).get();
     if (!qSnap.exists()) return;
 
     const entries = Object.entries(qSnap.val())
@@ -767,84 +522,77 @@ exports.onAdminSlotOpened = onValueWritten(
       .sort((a, b) => (a.addedAt || 0) - (b.addedAt || 0));
 
     if (!entries.length) return;
-    await db.ref(`instructors/${iid}/queue/${slotKey}/entries/${entries[0].uid}`).update({ status: "offered" });
+    // Ставимо першого як "offered" → onQueueInvite відправить push і зарезервує слот
+    await db.ref(`queue/${slotKey}/entries/${entries[0].uid}`).update({ status: "offered" });
   }
 );
 
-// Щогодини: відкриває VIP-слоти в межах 48г і пушить студентів інструктора
+// Runs every hour — unlocks VIP slots within 48h and sends push to all non-VIP students
 exports.unlockVipSlots = onSchedule("every 1 hours", async () => {
   const now = Date.now();
   const threshold = now + 48 * 60 * 60 * 1000;
 
-  const snap = await db.ref("instructors").get();
-  if (!snap.exists()) return;
+  const slotsSnap = await db.ref("timeslots").get();
+  const slotsData = slotsSnap.val() || {};
+  const updates = {};
+  let unlocked = false;
 
-  const allUpdates = {};
-  const instructorsToNotify = new Set();
-
-  snap.forEach(iSnap => {
-    const iid = iSnap.key;
-    const slotsNode = iSnap.child("timeslots");
-    if (!slotsNode.exists()) return;
-    slotsNode.forEach(dateSnap => {
-      const date = dateSnap.key;
-      dateSnap.forEach(slotSnap => {
-        const slot = slotSnap.val();
-        const slotId = slotSnap.key;
-        if (!slot || !slot.vipOnly || slot.available === false) return;
-        const time = slot.time;
-        if (!time) return;
-        const slotMs = new Date(`${date}T${time}:00`).getTime();
-        if (slotMs > now && slotMs <= threshold) {
-          allUpdates[`instructors/${iid}/timeslots/${date}/${slotId}/vipOnly`] = false;
-          instructorsToNotify.add(iid);
-        }
-      });
-    });
-  });
-
-  if (!Object.keys(allUpdates).length) return;
-  await db.ref("/").update(allUpdates);
-
-  await Promise.allSettled([...instructorsToNotify].map(async iid => {
-    const usersSnap = await db.ref(`instructors/${iid}/users`).get();
-    if (!usersSnap.exists()) return;
-    const tokens = [];
-    usersSnap.forEach(uSnap => {
-      const token = uSnap.child("fcmTokens/web/token").val();
-      if (token) tokens.push(token);
-    });
-    if (!tokens.length) return;
-    for (let i = 0; i < tokens.length; i += 500) {
-      await admin.messaging().sendEachForMulticast({
-        tokens: tokens.slice(i, i + 500),
-        notification: {
-          title: "🚗 З'явились нові слоти!",
-          body: "Відкрились нові години для запису. Поспішай!",
-        },
-        webpush: {
-          notification: { icon: "/favicon.svg" },
-          fcmOptions: { link: "https://drivepad.pro/cabinet" },
-        },
-      }).catch(() => {});
+  for (const [date, dateSlots] of Object.entries(slotsData)) {
+    if (!dateSlots || typeof dateSlots !== "object") continue;
+    for (const [slotId, slot] of Object.entries(dateSlots)) {
+      if (!slot.vipOnly || slot.available === false) continue;
+      const time = slot.time;
+      if (!time) continue;
+      const slotMs = kyivLocalToMs(date, time);
+      if (slotMs > now && slotMs <= threshold) {
+        updates[`timeslots/${date}/${slotId}/vipOnly`] = false;
+        unlocked = true;
+      }
     }
-  }));
+  }
+
+  if (!unlocked) return;
+  await db.ref().update(updates);
+
+  const tokenSnap = await db.ref("studentTokens").get();
+  const tokens = Object.values(tokenSnap.val() || {})
+    .flatMap(devices => Object.values(devices || {}))
+    .filter(Boolean);
+  if (!tokens.length) return;
+
+  for (let i = 0; i < tokens.length; i += 500) {
+    // Data-only push (title/body в data) — див. onPushTask/SW щодо дублів.
+    await admin.messaging().sendEachForMulticast({
+      tokens: tokens.slice(i, i + 500),
+      data: {
+        title: "🚗 З'явились нові слоти!",
+        body: "Відкрились нові години для запису. Поспішай!",
+        url: "https://id4drive.pro/cabinet",
+      },
+      webpush: {
+        fcmOptions: { link: "https://id4drive.pro/cabinet" },
+      },
+    }).catch(() => {});
+  }
 });
 
 // Слот у найближчі 10 днів звільнився → ставимо в чергу, пуш через 5 хв
 exports.onSlotFreed = onValueWritten(
-  { ref: "instructors/{iid}/timeslots/{date}/{slotId}", region: "europe-west1" },
+  { ref: "timeslots/{date}/{slotId}", region: "europe-west1" },
   async (event) => {
     const before = event.data.before?.val();
     const after  = event.data.after?.val();
-    if (before?.available === true) return;
+
+    // Перехід до available: true (звільнився або з'явився новий слот)
+    if (before?.available === true) return; // вже був вільний — не дублюємо
     if (!after || after.available !== true) return;
 
-    const { iid, date, slotId } = event.params;
-
-    const enabledSnap = await db.ref(`instructors/${iid}/admin_settings/slotFreedPushEnabled`).get();
+    const enabledSnap = await db.ref("admin_settings/slotFreedPushEnabled").get();
     if (enabledSnap.exists() && enabledSnap.val() === false) return;
 
+    const { date, slotId } = event.params;
+
+    // Тільки найближчі 10 днів
     const slotDate = new Date(date + "T00:00:00");
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -855,9 +603,22 @@ exports.onSlotFreed = onValueWritten(
     if (!time) return;
 
     const slotKey = `${date}_${time}`;
-    await db.ref(`instructors/${iid}/slotFreedQueue/${slotKey}`).set({
+    // Записуємо в чергу — пуш відправиться через 5 хв якщо слот ще вільний
+    await db.ref(`slotFreedQueue/${slotKey}`).set({
       date, time, sendAfter: Date.now() + 5 * 60 * 1000,
     }).catch(() => {});
+
+    // Якщо в цьому слоті був phone-only запис — скасовуємо його
+    const slotBookingSnap = await db.ref(`slotBookings/${date}/${slotId}`).get();
+    if (slotBookingSnap.exists()) {
+      const { phone, bookingId } = slotBookingSnap.val();
+      if (phone && bookingId) {
+        await db.ref(`bookings_by_phone/${phone}/${bookingId}`).update({
+          status: "cancelled", cancelledAt: Date.now(), cancelledBy: "admin"
+        }).catch(() => {});
+        await db.ref(`slotBookings/${date}/${slotId}`).remove().catch(() => {});
+      }
+    }
   }
 );
 
@@ -865,65 +626,595 @@ exports.onSlotFreed = onValueWritten(
 exports.flushSlotFreedQueue = onSchedule(
   { schedule: "every 1 minutes", region: "europe-west1" },
   async () => {
+    // Тихі години 23:00–6:00 за Києвом
+    const kyivHour = parseInt(new Date().toLocaleString("uk", { timeZone: "Europe/Kiev", hour: "2-digit", hour12: false }), 10);
+    if (kyivHour >= 23 || kyivHour < 6) return;
+
+    const snap = await db.ref("slotFreedQueue").get();
+    if (!snap.exists()) return;
+    const now = Date.now();
+
+    const tasks = [];
+    snap.forEach(entry => {
+      const val = entry.val();
+      if (val && val.sendAfter <= now) tasks.push({ key: entry.key, ...val });
+    });
+    if (!tasks.length) return;
+
+    // Всі студенти з увімкненими push-сповіщеннями
+    const tokenSnap = await db.ref("studentTokens").get();
+    const notifyUids = tokenSnap.exists() ? Object.keys(tokenSnap.val()) : [];
+    if (!notifyUids.length) return;
+
+    // Rate-limit: не слати одному студенту частіше ніж раз на 30 хвилин
+    const lastNotifSnap = await db.ref("lastSlotNotif").get();
+    const lastNotifData = lastNotifSnap.val() || {};
+    const RATE_LIMIT_MS = 30 * 60 * 1000;
+
+    for (const { key, date, time } of tasks) {
+      await db.ref(`slotFreedQueue/${key}`).remove().catch(() => {});
+
+      // Перевіряємо що слот ще вільний
+      const slotId = `slot${time.replace(":", "")}`;
+      const slotSnap = await db.ref(`timeslots/${date}/${slotId}`).get();
+      const slot = slotSnap.val();
+      if (!slot || slot.available !== true) continue;
+
+      const slotDate = new Date(date + "T00:00:00");
+      const dateFormatted = slotDate.toLocaleDateString("uk", { day: "numeric", month: "long", weekday: "short" });
+      // Broadcast на всіх учнів — беремо текст першого активного шаблону
+      // auto_queue (без запису в чат, щоб не заспамити чат усіх учнів)
+      const tpl = await getActiveTemplateText("auto_queue", { "дата": dateFormatted, "час": time }).catch(() => null);
+      const title = tpl?.title || "🚗 Звільнився слот!";
+      const body  = tpl?.body  || `${dateFormatted} о ${time} — є вільне місце`;
+      const url   = `https://id4drive.pro/cabinet?date=${date}`;
+
+      for (const uid of notifyUids) {
+        if (lastNotifData[uid] && now - lastNotifData[uid] < RATE_LIMIT_MS) continue;
+        const sent = await pushStudent(uid, title, body, { url, date, time }).catch(() => false);
+        if (!sent) continue; // токен мертвий/не знайдено — не займаємо rate-limit слот даремно
+        await saveNotification(uid, title, body, "slot_freed").catch(() => {});
+        lastNotifData[uid] = now; // локально щоб не спамити кілька слотів за один запуск
+        await db.ref(`lastSlotNotif/${uid}`).set(now).catch(() => {});
+      }
+    }
+  }
+);
+
+// Відправляє відкладені повідомлення про перенос уроку (дебаунс 1 хвилина)
+exports.flushRescheduleQueue = onSchedule(
+  { schedule: "every 1 minutes", region: "europe-west1" },
+  async () => {
+    const snap = await db.ref("rescheduleQueue").get();
+    if (!snap.exists()) return;
+    const now = Date.now();
+    const tasks = [];
+    snap.forEach(userSnap => {
+      const uid = userSnap.key;
+      userSnap.forEach(bookingSnap => {
+        const entry = bookingSnap.val();
+        if (entry && entry.sendAfter <= now) {
+          tasks.push({ uid, bookingId: bookingSnap.key, body: entry.body });
+        }
+      });
+    });
+    await Promise.all(tasks.map(async ({ uid, bookingId, body }) => {
+      await pushStudent(uid, "🔄 Урок перенесено", body, { url: "https://id4drive.pro/cabinet/bookings" });
+      await saveNotification(uid, "🔄 Урок перенесено", body, "booking_rescheduled");
+      await db.ref(`rescheduleQueue/${uid}/${bookingId}`).remove();
+      console.log(`flushRescheduleQueue: sent to uid=${uid} bookingId=${bookingId}`);
+    }));
+  }
+);
+
+// Студент надіслав повідомлення → пуш адміну
+exports.onStudentMessage = onValueCreated(
+  { ref: "chats/{uid}/{msgId}", region: "europe-west1" },
+  async (event) => {
+    const msg = event.data.val();
+    if (!msg || msg.from !== "student") return;
+
+    const { uid } = event.params;
+    // Загальний чат (uid="general") кладе ім'я прямо в повідомлення —
+    // users/general/profile не існує, тож інакше завжди був би "Студент".
+    let name = msg.name;
+    if (!name) {
+      const profileSnap = await db.ref(`users/${uid}/profile`).get();
+      name = profileSnap.val()?.name || "Студент";
+    }
+
+    const text = msg.text || "";
+    await pushAdmin(`💬 ${name}`, text.length > 100 ? text.slice(0, 100) + "…" : text);
+  }
+);
+
+// Щогодини: нагадування за 24 год і за 2 год до уроку
+exports.sendLessonReminders = onSchedule(
+  { schedule: "every 1 hours", region: "europe-west1" },
+  async () => {
+    const now = Date.now();
     const kyivHour = parseInt(
       new Date().toLocaleString("uk", { timeZone: "Europe/Kiev", hour: "2-digit", hour12: false }), 10
     );
-    if (kyivHour >= 23 || kyivHour < 6) return;
 
-    const snap = await db.ref("instructors").get();
-    if (!snap.exists()) return;
+    const [activeSnap, tokenSnap] = await Promise.all([
+      db.ref("activeStudents").get(),
+      db.ref("studentTokens").get(),
+    ]);
+    const allUids = new Set([
+      ...(activeSnap.exists() ? Object.keys(activeSnap.val()) : []),
+      ...(tokenSnap.exists() ? Object.keys(tokenSnap.val()) : []),
+    ]);
+    if (!allUids.size) return;
 
-    const now = Date.now();
-    const RATE_LIMIT_MS = 30 * 60 * 1000;
+    const sentSnap = await db.ref("sentReminders").get();
+    const sentData = sentSnap.val() || {};
+    const updates = {};
 
-    const instructors = [];
-    snap.forEach(iSnap => {
-      const iid = iSnap.key;
-      const queueNode = iSnap.child("slotFreedQueue");
-      if (!queueNode.exists()) return;
-      const tasks = [];
-      queueNode.forEach(entry => {
-        const val = entry.val();
-        if (val && val.sendAfter <= now) tasks.push({ key: entry.key, ...val });
-      });
-      if (tasks.length) instructors.push({ iid, tasks });
-    });
+    for (const uid of allUids) {
+      const [bSnap, profilePhoneSnap] = await Promise.all([
+        db.ref(`bookings/${uid}`).get(),
+        db.ref(`users/${uid}/profile/phone`).get(),
+      ]);
 
-    if (!instructors.length) return;
+      const bookingsObj = bSnap.exists() ? { ...bSnap.val() } : {};
 
-    await Promise.allSettled(instructors.map(async ({ iid, tasks }) => {
-      const lastNotifSnap = await db.ref(`instructors/${iid}/lastSlotNotif`).get();
-      const lastNotifData = lastNotifSnap.val() || {};
-
-      const usersSnap = await db.ref(`instructors/${iid}/users`).get();
-      const uids = usersSnap.exists()
-        ? Object.keys(usersSnap.val()).filter(u => !u.startsWith("guest_"))
-        : [];
-      if (!uids.length) return;
-
-      for (const { key, date, time } of tasks) {
-        await db.ref(`instructors/${iid}/slotFreedQueue/${key}`).remove().catch(() => {});
-
-        const slotId = `slot${time.replace(":", "")}`;
-        const slotSnap = await db.ref(`instructors/${iid}/timeslots/${date}/${slotId}`).get();
-        const slot = slotSnap.val();
-        if (!slot || slot.available !== true) continue;
-
-        const dateFormatted = new Date(date + "T00:00:00")
-          .toLocaleDateString("uk", { day: "numeric", month: "long", weekday: "short" });
-        const title = "🚗 Звільнився слот!";
-        const body  = `${dateFormatted} о ${time} — є вільне місце`;
-        const url   = `https://drivepad.pro/cabinet?date=${date}`;
-
-        for (const uid of uids) {
-          if (lastNotifData[uid] && now - lastNotifData[uid] < RATE_LIMIT_MS) continue;
-          const sent = await pushInstructorStudent(iid, uid, title, body, { url, date, time }).catch(() => false);
-          if (!sent) continue;
-          await saveInstructorNotification(iid, uid, title, body, "slot_freed").catch(() => {});
-          lastNotifData[uid] = now;
-          await db.ref(`instructors/${iid}/lastSlotNotif/${uid}`).set(now).catch(() => {});
+      const rawPhone = (profilePhoneSnap.val() || "").replace(/\D/g, "");
+      if (rawPhone) {
+        const phoneBookingsSnap = await db.ref(`bookings_by_phone/${rawPhone}`).get();
+        if (phoneBookingsSnap.exists()) {
+          Object.entries(phoneBookingsSnap.val()).forEach(([id, b]) => {
+            if (!bookingsObj[id]) bookingsObj[id] = b;
+          });
         }
       }
-    }));
+
+      if (!Object.keys(bookingsObj).length) continue;
+
+      for (const [bookingId, b] of Object.entries(bookingsObj)) {
+        if (!b || b.status === "cancelled" || b.cancelledBy) continue;
+        if (!b.date || !b.time) continue;
+
+        const lessonMs = kyivLocalToMs(b.date, b.time);
+        const diffMs = lessonMs - now;
+        if (diffMs <= 0) continue;
+
+        const sent = sentData[uid]?.[bookingId] || {};
+        const dateFmt = new Date(b.date + "T00:00:00").toLocaleDateString("uk", {
+          day: "numeric", month: "long", weekday: "short",
+        });
+
+        const reminderVars = { "ім'я": b.studentName || "Учень", "дата": dateFmt, "час": b.time };
+
+        // 24г нагадування (вікно 23–25г, не в тихі години)
+        if (!sent.r24 && !(kyivHour >= 23 || kyivHour < 6)
+            && diffMs >= 23 * 3600000 && diffMs <= 25 * 3600000) {
+          // Позначаємо "відправлено" лише якщо push реально дійшов — інакше
+          // (немає токена/помилка) прапорець назавжди блокував би повторні
+          // спроби на наступних годинних запусках.
+          const usedTpl24 = await sendActiveTemplates(uid, "auto_reminder", reminderVars, t => matchesReminderBucket(t, 24)).catch(() => false);
+          if (usedTpl24) {
+            updates[`sentReminders/${uid}/${bookingId}/r24`] = true;
+          } else {
+            const pushed = await pushStudent(uid, "🚗 Нагадування про урок", `Завтра о ${b.time} — ${dateFmt}`, {
+              url: "https://id4drive.pro/cabinet/bookings",
+            }).catch(() => false);
+            if (pushed) {
+              await saveNotification(uid, "🚗 Нагадування про урок", `Завтра о ${b.time} — ${dateFmt}`, "reminder");
+              updates[`sentReminders/${uid}/${bookingId}/r24`] = true;
+            }
+          }
+        }
+
+        // 2г нагадування (вікно 1.5–2.5г, завжди)
+        if (!sent.r2 && diffMs >= 90 * 60000 && diffMs <= 150 * 60000) {
+          const usedTpl2 = await sendActiveTemplates(uid, "auto_reminder", reminderVars, t => matchesReminderBucket(t, 2)).catch(() => false);
+          if (usedTpl2) {
+            updates[`sentReminders/${uid}/${bookingId}/r2`] = true;
+          } else {
+            const pushed = await pushStudent(uid, "⏰ Урок через 2 години", `о ${b.time} — ${dateFmt}`, {
+              url: "https://id4drive.pro/cabinet/bookings",
+            }).catch(() => false);
+            if (pushed) {
+              await saveNotification(uid, "⏰ Урок через 2 години", `о ${b.time} — ${dateFmt}`, "reminder");
+              updates[`sentReminders/${uid}/${bookingId}/r2`] = true;
+            }
+          }
+        }
+      }
+    }
+
+    if (Object.keys(updates).length) await db.ref("/").update(updates).catch(() => {});
+  }
+);
+
+// Нагадування "з будильником" для особистих подій адміна (bookings/personal/*)
+// з полем reminderHours. Раз на хвилину — при "За 15 хв"/"За 30 хв" вікно
+// [0, reminderHours] само по собі не ширше за 15/30 хв, і перевірка раз на
+// 15 хв (як було раніше) регулярно повністю проскакувала його між двома
+// тіками, залежно від фази — нагадування мовчки не приходило.
+exports.sendPersonalEventReminders = onSchedule(
+  { schedule: "every 1 minutes", region: "europe-west1" },
+  async () => {
+    const now = Date.now();
+    const snap = await db.ref("bookings/personal").get();
+    if (!snap.exists()) return;
+
+    const updates = {};
+    for (const [id, ev] of Object.entries(snap.val())) {
+      if (!ev || ev.status !== "personal" || ev.reminderSent || !ev.reminderHours) continue;
+      if (!ev.date || !ev.time) continue;
+
+      const startMs = kyivLocalToMs(ev.date, ev.time);
+      const diffMs = startMs - now;
+      if (diffMs <= 0) continue; // подія вже почалась
+
+      const thresholdMs = ev.reminderHours * 3600000;
+      if (diffMs <= thresholdMs) {
+        const dateFmt = new Date(ev.date + "T00:00:00").toLocaleDateString("uk", {
+          day: "numeric", month: "long", weekday: "short",
+        });
+        await pushAdmin(
+          `⏰ ${ev.name || "Нагадування"}`,
+          `${dateFmt} о ${ev.time}${ev.note ? " · " + ev.note : ""}`,
+          { url: `https://admin.id4drive.pro/?date=${ev.date}`, alarm: "1" }
+        );
+        updates[`bookings/personal/${id}/reminderSent`] = true;
+      }
+    }
+
+    if (Object.keys(updates).length) await db.ref("/").update(updates).catch(() => {});
+  }
+);
+
+// Ручна розсилка адміна → пуш УСІМ учням з увімкненими сповіщеннями
+// (раніше — лише активним за останні 30 днів; обмеження прибрано за
+// прямим запитом: розсилка про вільний слот має йти всім).
+exports.onPushTask = onValueCreated(
+  { ref: "push_tasks/{taskId}", region: "europe-west1" },
+  async (event) => {
+    const task = event.data.val();
+    if (!task || task.status === "sent") return;
+    const { date, slots, comment } = task;
+    const taskId = event.params.taskId;
+
+    const tokenSnap = await db.ref("studentTokens").get();
+    const tokened = tokenSnap.exists()
+      ? Object.entries(tokenSnap.val()).flatMap(([uid, devices]) =>
+          Object.values(devices || {}).filter(Boolean).map(token => ({ uid, token }))
+        )
+      : [];
+
+    if (!tokened.length) {
+      await db.ref(`push_tasks/${taskId}`).update({ status: "sent", sentCount: 0, sentAt: Date.now() });
+      return;
+    }
+
+    const slotsArr = Array.isArray(slots) ? slots : Object.values(slots || {});
+    const d = new Date(date + "T00:00:00");
+    const dateFmt = d.toLocaleDateString("uk", { day: "numeric", month: "long", weekday: "short" });
+    const slotsStr = slotsArr.filter(Boolean).join(" та ");
+    const title = "🚗 Є вільний слот!";
+    const body = `${dateFmt} о ${slotsStr}${comment ? " — " + comment : ""}`;
+    const url = `https://id4drive.pro/cabinet?date=${date}${slotsArr[0] ? `&time=${encodeURIComponent(slotsArr[0])}` : ""}`;
+
+    let sentCount = 0;
+    for (let i = 0; i < tokened.length; i += 500) {
+      const batch = tokened.slice(i, i + 500);
+      // Data-only push — title/body в data (клієнт читає payload.data),
+      // без top-level/webpush "notification", інакше браузер показав би
+      // сповіщення ще раз ДОДАТКОВО до showNotification() у SW (дубль).
+      const res = await admin.messaging().sendEachForMulticast({
+        tokens: batch.map(t => t.token),
+        data: { title, body, url, date, time: slotsArr[0] || "" },
+        webpush: { fcmOptions: { link: url } },
+      }).catch(() => ({ successCount: 0 }));
+      sentCount += res?.successCount || 0;
+    }
+
+    const notifiedUids = [...new Set(tokened.map(({ uid }) => uid))];
+    await Promise.all(notifiedUids.map(uid => saveNotification(uid, title, body, "slot_broadcast").catch(() => {})));
+    await db.ref(`push_tasks/${taskId}`).update({ status: "sent", sentCount, sentAt: Date.now() });
+  }
+);
+
+// ─── Google Calendar sync (MVP, тільки особистий календар інструктора) ───
+
+const CALENDAR_SYNC_FIELDS = ["googleEventId", "calendarId", "lastSyncedByApp"];
+const ECHO_WINDOW_MS = 3 * 60 * 1000;
+
+function isRecentEcho(ts) {
+  return !!ts && Date.now() - ts < ECHO_WINDOW_MS;
+}
+
+// Якщо різниця before/after — тільки в полях, які пише сам sync (наше ж відлуння)
+function onlyCalendarFieldsChanged(before, after) {
+  const keys = new Set([...Object.keys(before || {}), ...Object.keys(after || {})]);
+  for (const key of keys) {
+    if (CALENDAR_SYNC_FIELDS.includes(key)) continue;
+    if ((before || {})[key] !== (after || {})[key]) return false;
+  }
+  return true;
+}
+
+// Перевіряє чи діапазон [startMin, startMin+durMin) на дату date вільний
+// від інших активних бронювань і адмін-блокувань (для переносу з календаря)
+async function isRangeFreeForBooking(date, startMin, durMin, excludeUid, excludeBookingId) {
+  const endMin = startMin + durMin;
+
+  const bookingsSnap = await db.ref("bookings").get();
+  const bookingsData = bookingsSnap.val() || {};
+  for (const [uid, userBookings] of Object.entries(bookingsData)) {
+    if (!userBookings || typeof userBookings !== "object") continue;
+    for (const [bookingId, b] of Object.entries(userBookings)) {
+      if (uid === excludeUid && bookingId === excludeBookingId) continue;
+      if (!b || b.status === "cancelled" || b.date !== date) continue;
+      const sched = getBookingSchedule(b);
+      if (!sched) continue;
+      const bEnd = sched.startMin + sched.durMin;
+      if (startMin < bEnd && sched.startMin < endMin) return false;
+    }
+  }
+
+  const slotsSnap = await db.ref(`timeslots/${date}`).get();
+  const slotsData = slotsSnap.val() || {};
+  for (let cur = startMin; cur < endMin; cur += 30) {
+    const hh = String(Math.floor(cur / 60)).padStart(2, "0");
+    const mm = String(cur % 60).padStart(2, "0");
+    if (slotsData[`slot${hh}${mm}`]?.adminBlocked === true) return false;
+  }
+
+  return true;
+}
+
+// Брoнь створена/перенесена/скасована/видалена → відображаємо в Google Calendar
+exports.onBookingSyncToCalendar = onValueWritten(
+  { ref: "bookings/{uid}/{bookingId}", region: "europe-west1", secrets: CALENDAR_SECRETS },
+  async (event) => {
+    const before = event.data.before.val();
+    const after = event.data.after.val();
+    const { uid, bookingId } = event.params;
+
+    if (before && after) {
+      const justSyncedFromCalendar =
+        after.lastSyncedFromCalendar &&
+        after.lastSyncedFromCalendar !== before.lastSyncedFromCalendar &&
+        isRecentEcho(after.lastSyncedFromCalendar);
+      if (onlyCalendarFieldsChanged(before, after) || justSyncedFromCalendar) return;
+    }
+
+    let calendar;
+    try {
+      calendar = getCalendarClient();
+    } catch (e) {
+      console.error(`onBookingSyncToCalendar: client init failed uid=${uid} bookingId=${bookingId}: ${e.message}`);
+      return;
+    }
+
+    try {
+      // Запис видалено повністю
+      if (!after) {
+        if (before?.googleEventId) {
+          await calendar.events
+            .delete({ calendarId: before.calendarId || "primary", eventId: before.googleEventId })
+            .catch((err) => { if (!isIgnorableCalendarError(err)) throw err; });
+        }
+        return;
+      }
+
+      // Скасовано (студентом чи адміном) — прибираємо event з календаря
+      if (after.status === "cancelled") {
+        if (after.googleEventId) {
+          await calendar.events
+            .delete({ calendarId: after.calendarId || "primary", eventId: after.googleEventId })
+            .catch((err) => { if (!isIgnorableCalendarError(err)) throw err; });
+          await event.data.after.ref.update({ lastSyncedByApp: Date.now() });
+        }
+        return;
+      }
+
+      // Новий активний запис — створюємо event
+      if (!before) {
+        const eventBody = buildEvent(after, bookingId, uid);
+        if (!eventBody) return;
+        const res = await calendar.events.insert({ calendarId: "primary", requestBody: eventBody });
+        await event.data.after.ref.update({
+          googleEventId: res.data.id,
+          calendarId: "primary",
+          lastSyncedByApp: Date.now(),
+        });
+        return;
+      }
+
+      // Перенесено дату/час/тривалість — оновлюємо event
+      const rescheduled =
+        after.date !== before.date ||
+        after.time !== before.time ||
+        after.durationHours !== before.durationHours ||
+        after.durMin !== before.durMin ||
+        after.startMin !== before.startMin;
+      if (!rescheduled) return;
+
+      const eventBody = buildEvent(after, bookingId, uid);
+      if (!eventBody) return;
+
+      if (after.googleEventId) {
+        await calendar.events.patch({
+          calendarId: after.calendarId || "primary",
+          eventId: after.googleEventId,
+          requestBody: eventBody,
+        });
+        await event.data.after.ref.update({ lastSyncedByApp: Date.now() });
+      } else {
+        const res = await calendar.events.insert({ calendarId: "primary", requestBody: eventBody });
+        await event.data.after.ref.update({
+          googleEventId: res.data.id,
+          calendarId: "primary",
+          lastSyncedByApp: Date.now(),
+        });
+      }
+    } catch (e) {
+      console.error(`onBookingSyncToCalendar error uid=${uid} bookingId=${bookingId}: ${e.message}`);
+    }
+  }
+);
+
+// Кожні 10 хв: підтягуємо з Google Calendar скасування, зроблені вручну в календарі
+exports.syncCalendarToApp = onSchedule(
+  { schedule: "every 10 minutes", region: "europe-west1", secrets: CALENDAR_SECRETS },
+  async () => {
+    let calendar;
+    try {
+      calendar = getCalendarClient();
+    } catch (e) {
+      console.error(`syncCalendarToApp: client init failed: ${e.message}`);
+      return;
+    }
+
+    const tokenSnap = await db.ref("calendarSync/nextSyncToken").get();
+    const syncToken = tokenSnap.val();
+
+    const events = [];
+    let pageToken;
+    let newSyncToken = null;
+
+    try {
+      do {
+        const params = { calendarId: "primary", maxResults: 250, pageToken };
+        if (syncToken) params.syncToken = syncToken;
+        else params.timeMin = new Date().toISOString();
+        const res = await calendar.events.list(params);
+        events.push(...(res.data.items || []));
+        pageToken = res.data.nextPageToken;
+        if (res.data.nextSyncToken) newSyncToken = res.data.nextSyncToken;
+      } while (pageToken);
+    } catch (e) {
+      const status = e?.code ?? e?.response?.status;
+      if (status === 410) {
+        console.warn("syncCalendarToApp: syncToken expired (410) — reset for full resync");
+        await db.ref("calendarSync/nextSyncToken").remove();
+        return;
+      }
+      console.error(`syncCalendarToApp: events.list failed: ${e.message}`);
+      return;
+    }
+
+    for (const ev of events) {
+      const priv = ev.extendedProperties?.private;
+      if (!priv || priv.appSource !== "id4drive" || !priv.bookingId || !priv.uid) continue;
+
+      const bookingRef = db.ref(`bookings/${priv.uid}/${priv.bookingId}`);
+      const bookingSnap = await bookingRef.get();
+      const booking = bookingSnap.val();
+      if (!booking || booking.status === "cancelled") continue;
+
+      if (ev.status === "cancelled") {
+        // Наше ж недавнє видалення через onBookingSyncToCalendar — ігноруємо
+        if (isRecentEcho(booking.lastSyncedByApp)) continue;
+
+        await bookingRef.update({ status: "cancelled", cancelledBy: "admin" }).catch(() => {});
+        console.log(`syncCalendarToApp: cancelled booking ${priv.bookingId} uid=${priv.uid} (deleted in Google Calendar)`);
+        continue;
+      }
+
+      // Активна подія — перевіряємо чи не перенесена вручну в календарі
+      if (isRecentEcho(booking.lastSyncedByApp) || isRecentEcho(booking.lastSyncedFromCalendar)) continue;
+
+      const calSchedule = fromCalendarEvent(ev);
+      if (!calSchedule) continue; // all-day подія — не наш формат, ігноруємо
+
+      const appSchedule = getBookingSchedule(booking);
+      if (!appSchedule) continue;
+
+      const changed = calSchedule.date !== appSchedule.date ||
+        calSchedule.startMin !== appSchedule.startMin ||
+        calSchedule.durMin !== appSchedule.durMin;
+      if (!changed) continue;
+
+      const free = await isRangeFreeForBooking(
+        calSchedule.date, calSchedule.startMin, calSchedule.durMin, priv.uid, priv.bookingId
+      );
+      if (!free) {
+        console.warn(
+          `syncCalendarToApp: reschedule from calendar bookingId=${priv.bookingId} uid=${priv.uid} → ` +
+          `${calSchedule.date} ${calSchedule.time} conflicts with existing slot, skipped`
+        );
+        continue;
+      }
+
+      await bookingRef.update({
+        date: calSchedule.date,
+        time: calSchedule.time,
+        durMin: calSchedule.durMin,
+        startMin: null,
+        durationHours: null,
+        lastSyncedFromCalendar: Date.now(),
+      }).catch(() => {});
+      console.log(
+        `syncCalendarToApp: rescheduled booking ${priv.bookingId} uid=${priv.uid} → ` +
+        `${calSchedule.date} ${calSchedule.time} (moved in Google Calendar)`
+      );
+    }
+
+    if (newSyncToken) {
+      await db.ref("calendarSync/nextSyncToken").set(newSyncToken);
+    }
+  }
+);
+
+// Кожну хвилину: пуш-нагадування по нотатках дня з увімкненим дзвіночком (notify:true).
+// Спрацьовує один раз, рівно в хвилину початку інтервалу (startMin), за київським часом.
+exports.flushDayNoteReminders = onSchedule(
+  { schedule: "every 1 minutes", region: "europe-west1" },
+  async () => {
+    const now = new Date();
+    const kyivParts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Europe/Kiev", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false,
+    }).formatToParts(now).reduce((acc, p) => { acc[p.type] = p.value; return acc; }, {});
+    const dateStr = `${kyivParts.year}-${kyivParts.month}-${kyivParts.day}`;
+    const nowMin = parseInt(kyivParts.hour, 10) * 60 + parseInt(kyivParts.minute, 10);
+
+    const snap = await db.ref(`dayNotes/${dateStr}/notes`).get();
+    console.log(`flushDayNoteReminders: dateStr=${dateStr} nowMin=${nowMin} notesExist=${snap.exists()}`);
+    if (!snap.exists()) return;
+    const notes = snap.val();
+
+    for (const [key, note] of Object.entries(notes)) {
+      console.log(`flushDayNoteReminders: note key=${key} startMin=${note.startMin} notify=${!!note.notify} notified=${!!note.notified}`);
+      if (!note.notify || note.notified) continue;
+      // Толерантне вікно замість точної рівності хвилини — "every 1 minutes"
+      // у Cloud Scheduler іноді спрацьовує із затримкою (холодний старт,
+      // джиттер), і точна рівність могла "проскочити" цільову хвилину,
+      // назавжди залишаючи нагадування невідправленим.
+      if (nowMin < note.startMin || nowMin > note.startMin + 5) continue;
+      console.log(`flushDayNoteReminders: sending push for key=${key}`);
+      const title = "🔔 Нагадування";
+      const body = note.text || `Нотатка на ${dateStr}`;
+      await pushAdmin(title, body, { url: `https://admin.id4drive.pro/?date=${dateStr}`, alarm: "1" });
+      await db.ref(`dayNotes/${dateStr}/notes/${key}/notified`).set(true).catch(() => {});
+    }
+  }
+);
+
+// Раз на добу: якщо триває пробний період/підписка і термін вийшов —
+// призупиняємо доступ (license/status → suspended) і сповіщаємо вендора.
+// Якщо вузла license нема — нічого не робимо (фіча вимкнена для цього інстансу).
+exports.checkLicenseExpiry = onSchedule(
+  { schedule: "every 24 hours", region: "europe-west1" },
+  async () => {
+    const snap = await db.ref("license").get();
+    const license = snap.val();
+    if (!license || license.status === "suspended") return;
+
+    const now = Date.now();
+    const untilTs = license.status === "trial" ? license.trialEndsAt : license.expiresAt;
+    if (!untilTs || now <= untilTs) return;
+
+    await db.ref("license/status").set("suspended");
+    await pushAdmin(
+      "⛔ Підписку призупинено",
+      "Термін дії ліцензії вийшов — доступ для інструктора заблоковано.",
+      { url: "https://admin.id4drive.pro" }
+    ).catch(() => {});
   }
 );

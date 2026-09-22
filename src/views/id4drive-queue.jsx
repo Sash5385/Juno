@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useMemo, useContext } from "react";
-import { onValue, update, push, remove } from "firebase/database";
-import { iRef } from "../firebase";
+import { ref, onValue, update, push, remove } from "firebase/database";
+import { db } from "../firebase";
 import { ThemeContext } from "../theme.js";
-import { UICss, Card, Modal, Field, Chip, Btn, Section } from "../ui";
+import { UICss, Modal, Field, Chip, Btn, Section, useFX } from "../ui";
 
 const SERVICES = {
   sv1:{ name:"Автошкола 1г", color:"#7ed957"  },
@@ -17,6 +17,18 @@ function fmtWait(ts) {
   if (mins < 60) return `${mins} хв`;
   const h = Math.floor(mins / 60);
   return h < 24 ? `${h} год` : `${Math.floor(h/24)} дн`;
+}
+
+// slotKey формату `${YYYY-MM-DD}_${H:MM}` (див. webID4client/src/firebase/db.js joinQueue)
+function isSlotPast(slotKey) {
+  if (!slotKey) return false;
+  const [datePart, timePart] = slotKey.split("_");
+  if (!datePart || !timePart) return false;
+  const [h, m] = timePart.split(":").map(Number);
+  const dt = new Date(datePart);
+  if (isNaN(dt.getTime())) return false;
+  dt.setHours(h||0, m||0, 0, 0);
+  return dt.getTime() < Date.now();
 }
 
 // ─── DRAG REORDER ────────────────────────────────────────────────
@@ -85,97 +97,61 @@ function getHours(item, svc) {
 }
 
 function QueueRow({ item, pos, onInvite, onBooked, onArchive, onDelete, dragHandleProps, isDragging, svcMap }) {
-  const { BG_DEEP, BORDER, FAINT, TEXT, DIM, GOLD, GREEN, RED, PURPLE, TEAL } = useContext(ThemeContext);
+  const { BORDER, FAINT, GOLD, GREEN, PURPLE, RED, BG_DEEP } = useContext(ThemeContext);
+  const { shade, glow } = useFX();
 
   const STATUS_CFG = {
-    waiting:  { label:"Очікує",       color:PURPLE, bg:`${PURPLE}26` },
-    offered:  { label:"Запрошено",    color:GOLD,   bg:`${GOLD}26`   },
-    booked:   { label:"Записаний",    color:GREEN,  bg:`${GREEN}26`  },
-    archived: { label:"Архів",        color:FAINT,  bg:`${FAINT}26`  },
+    waiting:  { label:"Очікує",    color:PURPLE },
+    offered:  { label:"Запрошено", color:GOLD   },
+    booked:   { label:"Записаний", color:GREEN  },
+    archived: { label:"Архів",     color:FAINT  },
   };
 
   const svc = (svcMap || SERVICES)[item.svcId] || {};
   const st  = STATUS_CFG[item.status] || STATUS_CFG.waiting;
-  const ini = (item.name||"?").split(" ").map(w=>w[0]).slice(0,2).join("").toUpperCase();
   const hrs = getHours(item, svc);
-
-  const STAGES = [
-    { id:"waiting", label:"Очікує",    color:PURPLE },
-    { id:"offered", label:"Запрошено", color:GOLD   },
-    { id:"booked",  label:"Записано",  color:GREEN  },
-  ];
-  const stageIdx = STAGES.findIndex(s => s.id === item.status);
+  const svcLabel = svc.name || (item.studentType && (item.studentType==="school"?"Автошкола":"Приватний"));
+  const initials = (item.name||"?").split(" ").map(w=>w[0]).slice(0,2).join("").toUpperCase();
 
   return (
-    <Card className={`drag-item fade-in ${isDragging?"dragging":""}`} style={{
-      marginBottom:8,
+    <div className={`drag-item fade-in ${isDragging?"dragging":""}`} style={{
+      position:"relative", borderRadius:14, marginBottom:8, overflow:"hidden",
       background:`linear-gradient(155deg,color-mix(in srgb,${st.color} 50%,${BG_DEEP}) 0%,color-mix(in srgb,${st.color} 18%,${BG_DEEP}) 100%)`,
       border:`1px solid color-mix(in srgb,${st.color} 45%,transparent)`,
+      boxShadow:`-2px 5px 13px ${shade(0.45)},inset 1px 1px 0 ${glow(0.15)}`,
     }}>
-      {/* main row */}
-      <div style={{display:"flex",alignItems:"center",gap:9,padding:"9px 12px"}}>
-        {/* drag handle */}
-        <div {...dragHandleProps} style={{cursor:"grab",touchAction:"none",color:FAINT,fontSize:16,flexShrink:0,lineHeight:1}}>
-          ⠿
-        </div>
-        {/* position badge */}
-        <div style={{
-          width:22,height:22,borderRadius:6,background:`linear-gradient(145deg,${st.color}44,${st.color}22)`,
-          display:"flex",alignItems:"center",justifyContent:"center",
-          fontSize:11,fontWeight:900,color:st.color,flexShrink:0,
-        }}>{pos}</div>
-        {/* avatar */}
-        <div className="icon3d" style={{
-          width:34,height:34,borderRadius:10,flexShrink:0,
-          background:`linear-gradient(145deg,${PURPLE}44,${PURPLE}18)`,
-          fontSize:12,fontWeight:900,color:PURPLE,
-        }}>{ini}</div>
-        {/* info */}
-        <div style={{flex:1,minWidth:0}}>
-          <div style={{fontSize:13,fontWeight:800,color:TEXT,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{item.name}</div>
-          <div style={{fontSize:10,color:DIM,marginTop:1}}>
-            {item.phone}
-            {item.slotKey && <> · <span style={{color:GOLD,fontWeight:700}}>{item.slotKey.replace("_"," ")}</span></>}
-            {svc.name && <> · <span style={{color:svc.color}}>{svc.name}</span></>}
-            {item.studentType && !svc.name && <> · <span style={{color:TEAL}}>{item.studentType==="school"?"Автошкола":"Приватний"}{item.durationHours ? ` ${item.durationHours}г` : ""}</span></>}
-            {item.note && <> · <span style={{color:FAINT,fontStyle:"italic"}}>{item.note}</span></>}
-          </div>
-        </div>
-        {/* wait time */}
-        <div style={{fontSize:9,color:FAINT,flexShrink:0,textAlign:"right"}}>
-          {fmtWait(item.addedAt)}
-        </div>
-        {/* hours badge */}
-        {hrs && (
-          <div style={{
-            padding:"4px 7px",borderRadius:7,flexShrink:0,
-            background:`${GOLD}26`,border:`1px solid ${GOLD}4d`,
-            fontSize:11,fontWeight:900,color:GOLD,whiteSpace:"nowrap",
-          }}>{hrs} год</div>
-        )}
-        {/* status chip (archived only — не частина прогресу) */}
-        {item.status === "archived" && (
-          <span style={{background:st.bg,color:st.color,padding:"3px 8px",borderRadius:7,fontSize:10,fontWeight:700,flexShrink:0,whiteSpace:"nowrap"}}>
-            {st.label}
-          </span>
-        )}
-      </div>
+      <div style={{position:"absolute",pointerEvents:"none",top:0,right:"6%",width:"55%",height:"45%",zIndex:1,
+        background:"radial-gradient(ellipse at top right,rgba(255,255,255,0.18) 0%,transparent 65%)"}}/>
 
-      {/* progress stages */}
-      {stageIdx >= 0 && (
-        <div style={{padding:"0 12px 10px"}}>
-          <div style={{display:"flex",alignItems:"center",gap:4}}>
-            {STAGES.map((s,i)=>(
-              <div key={s.id} style={{flex:1,height:4,borderRadius:2,background:stageIdx>=i?s.color:BORDER}}/>
-            ))}
-          </div>
-          <div style={{display:"flex",justifyContent:"space-between",marginTop:4}}>
-            {STAGES.map((s,i)=>(
-              <span key={s.id} style={{fontSize:8.5,fontWeight:stageIdx===i?800:600,color:stageIdx===i?s.color:FAINT}}>{s.label}</span>
-            ))}
+      {/* avatar info row */}
+      <div {...dragHandleProps} style={{position:"relative",zIndex:2,display:"flex",alignItems:"center",gap:10,padding:"9px 11px",cursor:"grab",touchAction:"none"}}>
+        <div style={{position:"relative",flexShrink:0}}>
+          <div style={{
+            width:36,height:36,borderRadius:11,
+            background:`linear-gradient(155deg,${st.color},color-mix(in srgb,${st.color} 40%,#000))`,
+            display:"flex",alignItems:"center",justifyContent:"center",
+            fontSize:13,fontWeight:900,color:"#fff",
+            boxShadow:`-2px 3px 8px color-mix(in srgb,${st.color} 40%,transparent)`,
+          }}>{initials}</div>
+          <div style={{
+            position:"absolute",top:-5,left:-5,width:15,height:15,borderRadius:5,
+            background:BG_DEEP,color:st.color,fontSize:8.5,fontWeight:900,
+            display:"flex",alignItems:"center",justifyContent:"center",
+            border:`1px solid color-mix(in srgb,${st.color} 45%,transparent)`,
+          }}>{pos}</div>
+        </div>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontSize:13,fontWeight:800,color:"#fff",textShadow:`0 1px 3px ${shade(0.5)}`,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{item.name}</div>
+          <div style={{fontSize:10,color:FAINT,marginTop:2,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+            {item.phone}
+            {svcLabel && ` · ${svcLabel}${hrs ? ` ${hrs}г` : ""}`}
           </div>
         </div>
-      )}
+        <div style={{textAlign:"right",flexShrink:0}}>
+          <div style={{fontSize:9.5,fontWeight:800,color:st.color}}>{st.label}</div>
+          <div style={{fontSize:9.5,color:FAINT,marginTop:2}}>{fmtWait(item.addedAt)}</div>
+        </div>
+      </div>
 
       {/* actions row */}
       {item.status !== "archived" && (
@@ -211,11 +187,11 @@ function QueueRow({ item, pos, onInvite, onBooked, onArchive, onDelete, dragHand
         </div>
       )}
       {item.status === "archived" && (
-        <div style={{display:"flex",justifyContent:"flex-end",padding:"4px 12px 8px"}}>
+        <div style={{display:"flex",justifyContent:"flex-end",padding:"4px 10px 7px",borderTop:`1px solid ${BORDER}`}}>
           <button onClick={onDelete} style={{background:"none",border:"none",cursor:"pointer",color:RED,fontSize:11,fontWeight:700}}>🗑 Видалити</button>
         </div>
       )}
-    </Card>
+    </div>
   );
 }
 
@@ -240,7 +216,7 @@ export default function QueueView({ settings }) {
 
   // Firebase sync — підтримує і клієнтську структуру queue/${slotKey}/entries/${uid}
   useEffect(() => {
-    return onValue(iRef("queue"), snap => {
+    return onValue(ref(db, "queue"), snap => {
       const d = snap.val();
       if (!d) { setAll([]); return; }
       const entries = [];
@@ -263,18 +239,20 @@ export default function QueueView({ settings }) {
   // drag reorder
   const { getHandlers } = useDragReorder(all, newArr => {
     setAll(newArr);
-    newArr.forEach((item,i) => update(iRef(`queue/${item.id}`),{order:i}));
+    newArr.forEach((item,i) => update(ref(db,`queue/${item.id}`),{order:i}));
   });
 
-  const active   = all.filter(q => q.status !== "archived");
+  const isExpired = q => q.status === "waiting" && isSlotPast(q.slotKey);
+  const active   = all.filter(q => q.status !== "archived" && !isExpired(q));
+  const expired  = all.filter(q => q.status !== "archived" && isExpired(q));
   const archived = all.filter(q => q.status === "archived");
 
-  const setStatus = (id, status) => update(iRef(`queue/${id}`),{status});
+  const setStatus = (id, status) => update(ref(db,`queue/${id}`),{status});
   const invite    = id => setStatus(id,"offered");
   const booked    = id => setStatus(id,"booked");
   const archive   = id => setStatus(id,"archived");
-  const del       = id => remove(iRef(`queue/${id}`));
-  const add       = form => push(iRef("queue"),{...form,addedAt:Date.now(),status:"waiting",order:all.length});
+  const del       = id => remove(ref(db,`queue/${id}`));
+  const add       = form => push(ref(db,"queue"),{...form,addedAt:Date.now(),status:"waiting",order:all.length});
 
   const queueMode = settings?.queueAutoFifo ? "fifo"
     : settings?.queueBroadcast ? "broadcast" : "manual";
@@ -350,6 +328,23 @@ export default function QueueView({ settings }) {
           </div>
           Додати до черги
         </Btn>
+
+        {/* ── МИНУЛІ (час слота вже пройшов) ── */}
+        {expired.length > 0 && (
+          <Section title={`⏱ Минулі (${expired.length})`}>
+            {expired.map(item=>(
+              <QueueRow
+                key={item.id} item={item} pos="—" isDragging={false}
+                svcMap={svcMap}
+                onInvite={()=>invite(item.id)}
+                onBooked={()=>booked(item.id)}
+                onArchive={()=>archive(item.id)}
+                onDelete={()=>del(item.id)}
+                dragHandleProps={{}}
+              />
+            ))}
+          </Section>
+        )}
 
         {/* ── ARCHIVE ── */}
         {archived.length > 0 && (

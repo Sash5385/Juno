@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useContext } from "react";
-import { get, set } from "firebase/database";
-import { iRef } from "../firebase";
+import { ref, get, set } from "firebase/database";
+import { db } from "../firebase";
 
 import { ThemeContext } from "../theme.js";
 import { UICss, Modal, Chip, Btn, Toggle, Pill, useFX } from "../ui";
@@ -157,6 +157,34 @@ function ServiceFormModal({ svc, onSave, onClose }) {
             <span style={{color:GOLD,fontSize:14,fontWeight:700}}>₴</span>
           </Inset>
         </div>
+      </div>
+
+      {/* scheduled price change */}
+      <div style={{marginBottom:14}}>
+        <div style={{fontSize:10,color:"rgba(255,255,255,0.55)",letterSpacing:1,marginBottom:6}}>ЗАПЛАНОВАНА ЗМІНА ЦІНИ (опційно)</div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr auto",gap:10,alignItems:"center"}}>
+          <Inset style={{padding:"8px 12px"}}>
+            <input type="date" value={form.nextPriceFrom||""} onChange={e=>upd("nextPriceFrom", e.target.value||null)}
+              style={{width:"100%",background:"transparent",border:"none",outline:"none",color:TEXT,fontSize:13,fontFamily:"inherit"}}/>
+          </Inset>
+          <Inset style={{padding:"8px 12px",display:"flex",alignItems:"center",gap:6}}>
+            <input type="number" value={form.nextPrice ?? ""} min={0} placeholder="ціна"
+              onChange={e=>upd("nextPrice", e.target.value===""?null:+e.target.value)}
+              style={{flex:1,background:"transparent",border:"none",outline:"none",color:GOLD,fontSize:15,fontWeight:800,width:70,fontFamily:"inherit"}}/>
+            <span style={{color:GOLD,fontSize:12,fontWeight:700}}>₴</span>
+          </Inset>
+          {(form.nextPrice != null || form.nextPriceFrom) && (
+            <button onClick={()=>{upd("nextPrice",null);upd("nextPriceFrom",null);}} style={{
+              width:32,height:32,borderRadius:9,border:"none",cursor:"pointer",
+              background:`${ACCENT}1f`,color:ACCENT,fontSize:14,fontWeight:800,
+            }}>✕</button>
+          )}
+        </div>
+        {form.nextPrice != null && form.nextPriceFrom && (
+          <div style={{fontSize:10,color:"rgba(255,255,255,0.55)",marginTop:6}}>
+            З {form.nextPriceFrom} ціна автоматично стане {form.nextPrice}₴ для записів на уроки з цією датою й пізніше.
+          </div>
+        )}
       </div>
 
       {/* color */}
@@ -384,26 +412,27 @@ export default function ServicesView() {
   const [editSvc,      setEditSvc]      = useState(null);
   const [deleteSvc,    setDeleteSvc]    = useState(null);
   const saveTimer = useRef(null);
+  const dirtyRef = useRef(false); // true щойно юзер щось поміняв — щоб пізній get() не затер це старими даними
   const { getHandlers } = useDragReorder(services, setServices);
 
   useEffect(() => {
-    get(iRef('admin_data/services')).then(snap=>{const d=snap.val();if(Array.isArray(d))setServices(d);setLoaded(true);}).catch(()=>setLoaded(true));
+    get(ref(db,'admin_data/services')).then(snap=>{const d=snap.val();if(!dirtyRef.current && Array.isArray(d))setServices(d);setLoaded(true);}).catch(()=>setLoaded(true));
   }, []);
 
   useEffect(() => {
     if (!loaded) return;
     clearTimeout(saveTimer.current);
-    saveTimer.current=setTimeout(()=>set(iRef('admin_data/services'),services).catch(()=>{}),800);
+    saveTimer.current=setTimeout(()=>set(ref(db,'admin_data/services'),services).catch(()=>{}),800);
   }, [services, loaded]);
 
   const active   = services.filter(s=>!s.archived);
   const archived = services.filter(s=>s.archived);
   const shown    = showArchived ? services : active;
 
-  const onToggle  = (id,val) => setServices(ss=>ss.map(s=>s.id===id?{...s,active:val,archived:false}:s));
-  const onSave    = form => { setServices(ss=>{const idx=ss.findIndex(s=>s.id===form.id);if(idx>=0){const n=[...ss];n[idx]=form;return n;}return[...ss,form];}); setEditSvc(null); };
-  const onArchive = id => setServices(ss=>ss.map(s=>s.id===id?{...s,archived:true,active:false}:s));
-  const onDelete  = id => setServices(ss=>ss.filter(s=>s.id!==id));
+  const onToggle  = (id,val) => { dirtyRef.current = true; setServices(ss=>ss.map(s=>s.id===id?{...s,active:val,archived:false}:s)); };
+  const onSave    = form => { dirtyRef.current = true; setServices(ss=>{const idx=ss.findIndex(s=>s.id===form.id);if(idx>=0){const n=[...ss];n[idx]=form;return n;}return[...ss,form];}); setEditSvc(null); };
+  const onArchive = id => { dirtyRef.current = true; setServices(ss=>ss.map(s=>s.id===id?{...s,archived:true,active:false}:s)); };
+  const onDelete  = id => { dirtyRef.current = true; setServices(ss=>ss.filter(s=>s.id!==id)); };
 
   return (
     <>

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useContext } from "react";
-import { onValue, push, update, set, increment, remove } from "firebase/database";
-import { iRef } from "../firebase";
+import { ref, onValue, push, update, set, increment, remove } from "firebase/database";
+import { db } from "../firebase";
 import { LangContext } from "../App";
 
 import { ThemeContext } from "../theme.js";
@@ -40,10 +40,17 @@ function Conversation({ contact, messages, onSend, isBroadcast }) {
   const [text, setText] = useState("");
   const [quick, setQuick] = useState(false);
   const bottomRef = useRef(null);
+  const listRef = useRef(null);
   const taRef = useRef(null);
 
   useEffect(() => { setText(""); }, [contact.id]);
-  useEffect(() => { bottomRef.current?.scrollIntoView({behavior:"smooth"}); }, [messages]);
+  // Скрол лише всередині вікна повідомлень (listRef), а не scrollIntoView —
+  // той підіймається по всіх предках і смикав всю сторінку вниз при
+  // кожному відкритті діалогу чи новому повідомленні.
+  useEffect(() => {
+    const el = listRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [messages]);
 
   const send = () => {
     if (!text.trim()) return;
@@ -66,7 +73,7 @@ function Conversation({ contact, messages, onSend, isBroadcast }) {
           </div>
         </div>
       )}
-      <div style={{height:isBroadcast?220:260,overflowY:"auto",padding:"10px 0",display:"flex",flexDirection:"column",gap:3}}>
+      <div ref={listRef} style={{height:isBroadcast?220:260,overflowY:"auto",padding:"10px 0",display:"flex",flexDirection:"column",gap:3}}>
         {(messages||[]).length === 0 && (
           <div style={{textAlign:"center",padding:"30px 20px",color:FAINT,fontSize:12}}>Немає повідомлень</div>
         )}
@@ -174,16 +181,33 @@ export default function ChatsView() {
   const [search,      setSearch]      = useState("");
   const [deletingId,  setDeletingId]  = useState(null);
   const [loading,     setLoading]     = useState(true);
+  const [unreadMeta,  setUnreadMeta]  = useState({});
   const msgUnsubs = useRef({});
+
+  // Лічильник непрочитаних — з chatMeta/{uid}/unreadForAdmin (той самий
+  // authoritative-джерело, що й бейдж у BottomNav). Раніше рахували локально
+  // в підписці на повідомлення, звіряючись зі значенням openId, захопленим
+  // у замиканні при першому підписі — те замикання ніколи не оновлювалось,
+  // тому перевірка "чат зараз відкритий" майже завжди була хибною, і бейдж
+  // міг знову з'явитись navіть під час читання чату.
+  useEffect(() => {
+    const unsub = onValue(ref(db, "chatMeta"), snap => {
+      const data = snap.val() || {};
+      const map = {};
+      Object.entries(data).forEach(([uid, m]) => { map[uid] = m?.unreadForAdmin || 0; });
+      setUnreadMeta(map);
+    });
+    return unsub;
+  }, []);
 
   // ── Load students ─────────────────────────────────────────────
   useEffect(() => {
-    const unsub = onValue(iRef("users"), snap => {
+    const unsub = onValue(ref(db, "users"), snap => {
       const data = snap.val() || {};
       const list = Object.entries(data)
         .map(([uid, u]) => {
           const p = u.profile || {};
-          return { id:uid, name:p.name||"", phone:p.phone||"", hue:hueForUid(uid), online:false, unread:0, lastMsg:"", lastTime:"" };
+          return { id:uid, name:p.name||"", phone:p.phone||"", hue:hueForUid(uid), online:false, lastMsg:"", lastTime:"", lastTs:0 };
         })
         .filter(c => c.name || c.phone);
       setContacts(list);
@@ -200,14 +224,14 @@ export default function ChatsView() {
     });
     contacts.forEach(c => {
       if (msgUnsubs.current[c.id]) return;
-      const r = iRef(`chats/${c.id}`);
+      const r = ref(db, `chats/${c.id}`);
       const unsub = onValue(r, snap => {
         const msgs = Object.entries(snap.val()||{}).map(([id,m])=>({...m,id})).sort((a,b)=>(a.ts||0)-(b.ts||0)||(a.id>b.id?1:-1));
         setMessages(prev => ({...prev, [c.id]: msgs}));
         if (msgs.length > 0) {
           const last = msgs[msgs.length-1];
           setContacts(cs => cs.map(ct => ct.id===c.id
-            ? {...ct, lastMsg:last.text, lastTime:last.time, unread:openId===c.id?0:(ct.unread||0)+(last.from!=='admin'?1:0)}
+            ? {...ct, lastMsg:last.text, lastTime:last.time, lastTs:last.ts||0}
             : ct));
         }
       });
@@ -221,7 +245,7 @@ export default function ChatsView() {
 
   // ── General chat ──────────────────────────────────────────────
   useEffect(() => {
-    const unsub = onValue(iRef("chats/general"), snap => {
+    const unsub = onValue(ref(db, "chats/general"), snap => {
       const msgs = Object.entries(snap.val()||{}).map(([id,m])=>({...m,id})).sort((a,b)=>(a.ts||0)-(b.ts||0)||(a.id>b.id?1:-1));
       setGeneralMsgs(msgs);
     });
@@ -230,7 +254,7 @@ export default function ChatsView() {
 
   // ── Broadcast history ─────────────────────────────────────────
   useEffect(() => {
-    const unsub = onValue(iRef("chats/__broadcast__"), snap => {
+    const unsub = onValue(ref(db, "chats/__broadcast__"), snap => {
       const msgs = Object.entries(snap.val()||{}).map(([id,m])=>({...m,id})).sort((a,b)=>(a.ts||0)-(b.ts||0)||(a.id>b.id?1:-1));
       setBroadcastMsgs(msgs);
     });
@@ -240,17 +264,17 @@ export default function ChatsView() {
   // ── Broadcast free-slot ───────────────────────────────────────
   const applyFreeSlotBroadcast = useCallback((msg, time) => {
     contacts.forEach(c => {
-      push(iRef(`chats/${c.id}`), {from:"admin",text:msg,time,ts:Date.now(),broadcast:true}).catch(()=>{});
+      push(ref(db, `chats/${c.id}`), {from:"admin",text:msg,time,ts:Date.now(),broadcast:true}).catch(()=>{});
     });
-    localStorage.removeItem("drivepad-free-slot");
+    localStorage.removeItem("id4drive-free-slot");
   }, [contacts]);
 
   useEffect(() => {
-    const pending = localStorage.getItem("drivepad-free-slot");
+    const pending = localStorage.getItem("id4drive-free-slot");
     if (pending) { try { const {msg,time}=JSON.parse(pending); if(msg) applyFreeSlotBroadcast(msg,time); } catch(_){} }
     const handler = e => { const {msg,time}=e.detail||{}; if(msg) applyFreeSlotBroadcast(msg,time); };
-    window.addEventListener("drivepad-free-slot", handler);
-    return () => window.removeEventListener("drivepad-free-slot", handler);
+    window.addEventListener("id4drive-free-slot", handler);
+    return () => window.removeEventListener("id4drive-free-slot", handler);
   }, [applyFreeSlotBroadcast]);
 
   // ── Actions ───────────────────────────────────────────────────
@@ -258,8 +282,8 @@ export default function ChatsView() {
     if (deletingId) { setDeletingId(null); return; }
     setOpenId(prev => prev===id ? null : id);
     if (id !== BROADCAST_ID && id !== GENERAL_ID) {
-      setContacts(cs => cs.map(c => c.id===id ? {...c,unread:0} : c));
-      set(iRef(`chatMeta/${id}/unreadForAdmin`), 0).catch(()=>{});
+      setUnreadMeta(m => ({...m, [id]:0}));
+      set(ref(db, `chatMeta/${id}/unreadForAdmin`), 0).catch(()=>{});
     }
   };
 
@@ -267,16 +291,16 @@ export default function ChatsView() {
     const time = nowTime(); const ts = Date.now();
     const msg = {from:"admin",text,time,ts};
     if (contactId === BROADCAST_ID) {
-      push(iRef("chats/__broadcast__"),{...msg,broadcast:true}).catch(()=>{});
+      push(ref(db,"chats/__broadcast__"),{...msg,broadcast:true}).catch(()=>{});
       contacts.forEach(c => {
-        push(iRef(`chats/${c.id}`),{...msg,broadcast:true}).catch(()=>{});
-        update(iRef(`chatMeta/${c.id}`),{unreadForStudent:increment(1),lastMsg:text,lastTs:ts}).catch(()=>{});
+        push(ref(db,`chats/${c.id}`),{...msg,broadcast:true}).catch(()=>{});
+        update(ref(db,`chatMeta/${c.id}`),{unreadForStudent:increment(1),lastMsg:text,lastTs:ts}).catch(()=>{});
       });
     } else if (contactId === GENERAL_ID) {
-      push(iRef("chats/general"),{from:"admin",uid:"__admin__",name:"Інструктор",text,time,ts}).catch(()=>{});
+      push(ref(db,"chats/general"),{from:"admin",uid:"__admin__",name:"Інструктор",text,time,ts}).catch(()=>{});
     } else {
-      push(iRef(`chats/${contactId}`),msg).catch(()=>{});
-      update(iRef(`chatMeta/${contactId}`),{unreadForStudent:increment(1),lastMsg:text,lastTs:ts}).catch(()=>{});
+      push(ref(db,`chats/${contactId}`),msg).catch(()=>{});
+      update(ref(db,`chatMeta/${contactId}`),{unreadForStudent:increment(1),lastMsg:text,lastTs:ts}).catch(()=>{});
     }
   };
 
@@ -288,16 +312,19 @@ export default function ChatsView() {
       setDeletingId(null);
       msgUnsubs.current[id]?.(); delete msgUnsubs.current[id];
       setMessages(prev => { const n={...prev}; delete n[id]; return n; });
-      remove(iRef(`chats/${id}`)).catch(()=>{});
-      remove(iRef(`chatMeta/${id}`)).catch(()=>{});
+      remove(ref(db, `chats/${id}`)).catch(()=>{});
+      remove(ref(db, `chatMeta/${id}`)).catch(()=>{});
     } else {
       setDeletingId(id);
       setTimeout(() => setDeletingId(di => di===id ? null : di), 3000);
     }
   };
 
-  const filtered      = contacts.filter(c => (c.name||"").toLowerCase().includes(search.toLowerCase()) || (c.phone||"").includes(search));
-  const totalUnread   = contacts.reduce((s,c)=>s+c.unread, 0);
+  // Активні чати — з непрочитаними та/або нещодавнім листуванням — зверху списку.
+  const filtered      = contacts
+    .filter(c => (c.name||"").toLowerCase().includes(search.toLowerCase()) || (c.phone||"").includes(search))
+    .sort((a,b) => ((unreadMeta[b.id]||0)>0)-((unreadMeta[a.id]||0)>0) || (b.lastTs||0)-(a.lastTs||0));
+  const totalUnread   = contacts.reduce((s,c)=>s+(unreadMeta[c.id]||0), 0);
   const broadcastOpen = openId === BROADCAST_ID;
   const generalOpen   = openId === GENERAL_ID;
 
@@ -428,8 +455,8 @@ export default function ChatsView() {
                   </div>
                   <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4,flexShrink:0}}>
                     <span style={{fontSize:10,color:"rgba(255,255,255,0.65)"}}>{c.lastTime}</span>
-                    {c.unread > 0
-                      ? <span style={{background:ACCENT,color:"#fff",borderRadius:9,padding:"1px 6px",fontSize:10,fontWeight:800}}>{c.unread}</span>
+                    {(unreadMeta[c.id]||0) > 0
+                      ? <span style={{background:ACCENT,color:"#fff",borderRadius:9,padding:"1px 6px",fontSize:10,fontWeight:800}}>{unreadMeta[c.id]}</span>
                       : <span style={{width:8,height:8,borderRadius:4,background:"rgba(255,255,255,0.25)",display:"inline-block"}}/>
                     }
                   </div>

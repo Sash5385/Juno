@@ -1,6 +1,6 @@
 import { useState, useEffect, useContext } from "react";
-import { onValue, update, push, remove } from "firebase/database";
-import { iRef } from "../firebase";
+import { ref, onValue, update, push, remove } from "firebase/database";
+import { db } from "../firebase";
 
 import { ThemeContext } from "../theme.js";
 import { UICss, Modal, Btn } from "../ui";
@@ -113,7 +113,7 @@ textarea{color-scheme:dark}
   const [queueOffer,   setQueueOffer]   = useState(null);
 
   useEffect(() => {
-    return onValue(iRef("admin_data/services"),snap=>{
+    return onValue(ref(db,"admin_data/services"),snap=>{
       const arr=snap.val(); if(!Array.isArray(arr)) return;
       const map={}; arr.forEach(s=>{if(s?.id)map[s.id]={...s,color:colorOf(s.colorId)};});
       if(Object.keys(map).length) setSvcsMap(map);
@@ -121,7 +121,7 @@ textarea{color-scheme:dark}
   }, []);
 
   useEffect(() => {
-    return onValue(iRef("queue"),snap=>{
+    return onValue(ref(db,"queue"),snap=>{
       const d=snap.val();
       if(!d){setQueue([]);setQueueOpen(prev=>prev===null?false:prev);return;}
       const arr=[];
@@ -140,17 +140,17 @@ textarea{color-scheme:dark}
     },()=>{});
   }, []);
 
-  const addToQueue     = form => push(iRef("queue"),{...form,addedAt:Date.now(),status:"waiting"});
+  const addToQueue     = form => push(ref(db,"queue"),{...form,addedAt:Date.now(),status:"waiting"});
   const removeFromQueue= item => {
-    if(typeof item==="string"){remove(iRef(`queue/${item}`));return;}
-    if(item._nested)remove(iRef(`queue/${item._slotKey}/entries/${item._uid}`));
-    else remove(iRef(`queue/${item.id}`));
+    if(typeof item==="string"){remove(ref(db,`queue/${item}`));return;}
+    if(item._nested)remove(ref(db,`queue/${item._slotKey}/entries/${item._uid}`));
+    else remove(ref(db,`queue/${item.id}`));
   };
   const markOffered = item => {
     const p={status:"offered",offeredAt:Date.now()};
-    if(typeof item==="string"){update(iRef(`queue/${item}`),p);return;}
-    if(item._nested)update(iRef(`queue/${item._slotKey}/entries/${item._uid}`),p);
-    else update(iRef(`queue/${item.id}`),p);
+    if(typeof item==="string"){update(ref(db,`queue/${item}`),p);return;}
+    if(item._nested)update(ref(db,`queue/${item._slotKey}/entries/${item._uid}`),p);
+    else update(ref(db,`queue/${item.id}`),p);
   };
   const queueMode = settings?.queueAutoFifo?"fifo":settings?.queueBroadcast?"broadcast":"manual";
 

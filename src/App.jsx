@@ -1,9 +1,9 @@
 import React, { useState, useEffect, lazy, Suspense, createContext, useContext } from "react";
-import { onValue, update, push, remove, get } from "firebase/database";
-import { iRef, setCurrentIid, registerAdminFCM, onAdminForegroundMessage } from "./firebase";
-import { useAdminAuth, LoginScreen, InstructorSetupScreen } from "./AdminAuth";
-import { TrialBanner, SubscriptionExpiredScreen } from "./SubscriptionScreen";
+import { ref, onValue, update, push, remove, get } from "firebase/database";
+import { db, registerAdminFCM, onAdminForegroundMessage } from "./firebase";
+import { useAdminAuth, LoginScreen } from "./AdminAuth";
 import { useAppUpdate } from "./hooks/useAppUpdate"
+import { useLicense, isLicenseBlocked } from "./hooks/useLicense"
 import { setGlobalLang, createT } from "./lang";
 import { ThemeContext, getTheme } from "./theme.js";
 import { APP_VERSION } from "./version.js";
@@ -45,7 +45,15 @@ body,html{margin:0;padding:0;background:${theme.BG}${theme.BG_IMAGE ? `;backgrou
 ::-webkit-scrollbar-thumb{background:${scrollThumb};border-radius:3px}
 @keyframes spin{to{transform:rotate(360deg)}}
 .spinner{width:32px;height:32px;border:3px solid ${spinnerBorder};border-top-color:${theme.ACCENT};border-radius:50%;animation:spin .8s linear infinite}
-@keyframes fade-tab{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+/* transform:none, а НЕ translateY(0) — критично.
+   .tab-anim має fill-mode "both", тому кінцевий кадр залишається на елементі
+   назавжди. Будь-який transform (навіть нульовий) робить елемент containing
+   block для position:fixed нащадків. А .tab-anim — це ще й скрол-контейнер
+   вкладки, тож усі шторки (місячний календар тощо) прив'язувались до нього
+   і "з'їжджали" разом зі скролом замість того, щоб триматись вікна:
+   після автоскролу до дати календар відкривався за межами екрана.
+   transform:none знімає containing block — fixed знову рахується від вікна. */
+@keyframes fade-tab{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 .tab-anim{animation:fade-tab .22s ease both}
 `;
 };
@@ -123,7 +131,7 @@ const TAB_TITLES = {
 
 
 // ─── BOTTOM NAV ──────────────────────────────────────────────────
-function BottomNav({ active, onChange, settings, chatUnread, journalUnread, queueCount, pendingCount }) {
+function BottomNav({ active, onChange, settings, chatUnread, journalUnread }) {
   const lang = useContext(LangContext);
   const tl = createT(lang);
   const theme = useContext(ThemeContext);
@@ -131,13 +139,18 @@ function BottomNav({ active, onChange, settings, chatUnread, journalUnread, queu
   const tabIcons = isKava ? makeTabIcons(INACTIVE_KAVA) : TabIcons;
   const visible = TAB_IDS.filter(t => settings?.navTabs?.includes(t.id) ?? true);
 
+  // "Щільний ряд скляних чипів" (обраний варіант дизайну) — компактні чипи в
+  // напівпрозорій рамці; активна вкладка підсвічується зеленим (theme.GREEN),
+  // іконки лишають власний фірмовий колір із tabIcons (не чіпаємо).
   const navBg = isKava ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.04)";
-  const navShadow = isKava ? "0 8px 24px rgba(92,42,26,0.14)" : "0 8px 24px rgba(0,0,0,0.45)";
+  const navShadow = isKava
+    ? "0 8px 24px rgba(92,42,26,0.14)"
+    : "0 8px 24px rgba(0,0,0,0.45)";
   const labelInactive = isKava ? theme.DIM : FAINT;
   const activeBg = `color-mix(in srgb, ${theme.GREEN} 18%, transparent)`;
 
   return (
-    <div style={{
+    <div id="app-bottomnav" style={{
       flexShrink:0,
       padding:`0 3px calc(10px + env(safe-area-inset-bottom, 0px))`,
       background: isKava ? "#d4ba96" : "transparent",
@@ -154,8 +167,7 @@ function BottomNav({ active, onChange, settings, chatUnread, journalUnread, queu
       }}>
         {visible.map(t=>{
           const isActive = active===t.id;
-          const badgeCount = t.id === 'chats' ? chatUnread : t.id === 'journal' ? journalUnread : t.id === 'queue' ? queueCount : t.id === 'schedule' ? (settings?.pendingEnabled ? pendingCount : 0) : t.badge;
-          const badgeColor = t.id === 'schedule' ? theme.GOLD : theme.ACCENT;
+          const badgeCount = t.id === 'chats' ? chatUnread : t.id === 'journal' ? journalUnread : t.badge;
           return (
           <button key={t.id} onClick={()=>onChange(t.id)} style={{
             flex:"1 1 0",minWidth:0,padding:"8px 2px 7px",
@@ -169,9 +181,9 @@ function BottomNav({ active, onChange, settings, chatUnread, journalUnread, queu
               {badgeCount > 0 && (
                 <div style={{
                   position:"absolute",top:-4,right:-4,
-                  background:badgeColor,color:"#fff",borderRadius:10,
+                  background:theme.ACCENT,color:"#fff",borderRadius:10,
                   padding:"1px 5px",fontSize:9,fontWeight:800,
-                  boxShadow:`0 0 8px ${badgeColor}88`,lineHeight:1.4
+                  boxShadow:`0 0 8px ${theme.ACCENT}88`,lineHeight:1.4
                 }}>{badgeCount}</div>
               )}
             </div>
@@ -188,7 +200,7 @@ function BottomNav({ active, onChange, settings, chatUnread, journalUnread, queu
 function QueueStrip({ tab, onChange }) {
   const [waiting, setWaiting] = useState(0);
   useEffect(() => {
-    return onValue(iRef("queue"), snap => {
+    return onValue(ref(db, "queue"), snap => {
       const d = snap.val();
       if (!d) { setWaiting(0); return; }
       setWaiting(Object.values(d).filter(q=>q.status==="waiting").length);
@@ -294,7 +306,7 @@ function TopBar({ tab, onChange, settings, setSettings }) {
                 <span style={{fontSize:11,fontWeight:800}}>Авто</span>
                 <span style={{fontSize:8,fontWeight:600,opacity:0.8}}>годин</span>
               </button>
-              {[8,9,10,12].map(n=>{
+              {[8,10,12,14].map(n=>{
                 const totalH = (settings.workEnd - settings.workStart) * 60;
                 const targetHpx = Math.round(totalH / n);
                 const active = !settings.autoHourHeight && Math.abs(settings.hourHeightPx - targetHpx) < 5;
@@ -335,8 +347,10 @@ function TopBar({ tab, onChange, settings, setSettings }) {
           </>
         ) : (
           <div style={{display:"flex",alignItems:"center",gap:6,flex:1}}>
-            <img src="/icon-192.png" alt="DrivePad" style={{width:22,height:22,borderRadius:"50%",flexShrink:0,boxShadow:"-2px 3px 8px rgba(0,0,0,0.45)"}}/>
-            <div style={{fontSize:13,fontWeight:800,letterSpacing:-0.3,color:theme.TEXT}}>{tabLabel}</div>
+            <img src="/icon-192.png" alt="ID4Drive" style={{width:22,height:22,borderRadius:"50%",flexShrink:0,boxShadow:"-2px 3px 8px rgba(0,0,0,0.45)"}}/>
+            <div style={{fontSize:13,fontWeight:800,letterSpacing:-0.3,color:theme.TEXT,flex:1}}>{tabLabel}</div>
+            {/* Портал для кнопки «Місячний календар» — рендериться з Journal/Bookings через createPortal, той самий слот що і в Розкладі */}
+            <div id="topbar-key-portal" style={{flex:"0 0 auto",display:"flex",justifyContent:"center",alignItems:"center",minWidth:0}}/>
           </div>
         )}
       </div>
@@ -356,14 +370,31 @@ function TopBar({ tab, onChange, settings, setSettings }) {
   );
 }
 
+function LicenseLockedScreen({ theme }) {
+  return (
+    <div style={{
+      minHeight:"100dvh", background:theme.BG_DEEP, display:"flex",
+      alignItems:"center", justifyContent:"center", padding:20,
+    }}>
+      <div style={{ maxWidth:340, textAlign:"center", color:theme.TEXT }}>
+        <div style={{ fontSize:40, marginBottom:12 }}>🔒</div>
+        <div style={{ fontSize:18, fontWeight:800, marginBottom:8 }}>Доступ призупинено</div>
+        <div style={{ fontSize:14, color:theme.DIM, lineHeight:1.5 }}>
+          Підписку призупинено або закінчився пробний період. Зв'яжіться з адміністратором ID4Drive для продовження доступу.
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const INITIAL_BOOKINGS = [];
 
 const DEFAULT_SETTINGS = {
   profile: { name:"Олександр", phone:"+380989225442", address:"Київ", experience:8, photo:null },
   workStart:7, workEnd:20, weekends:[6], daysShown:6, snapMin:30, slotCreateStep:30, hourHeightPx:60, autoHourHeight:false,
-  lunchEnabled:true, lunchStart:12, lunchEnd:13, customBlocks:[], pendingEnabled:false,
+  lunchEnabled:true, lunchStart:12, lunchEnd:13, customBlocks:[], pendingEnabled:false, lockPastBookings:false,
   theme:"dark", language:"uk", queueAutoFifo:true, queueBroadcast:false, queueManual:false,
-  studentCanReschedule:true, studentCanCancel:true, bookCutoffHours:2, calendarOpenDays:30,
+  studentCanReschedule:true, studentCanCancel:true, bookCutoffHours:2, calendarOpenDays:30, schoolCalendarOpenDays:14, slotGenDays:30,
   stickyTime:"both", notifLocation:"topbar", showCompleteBtn:true,
   navTabs:["schedule","journal","bookings","students","services","chats","templates","stats","settings"],
   autoReminders:[
@@ -385,37 +416,6 @@ const DEFAULT_SETTINGS = {
   ],
 };
 
-// ─── TAB ERROR BOUNDARY ──────────────────────────────────────────
-// Крах у рендері однієї вкладки (напр. запис учня без імені) раніше зносив
-// весь застосунок (React розмонтовує все дерево) — суцільний чорний екран
-// без жодного індикатора. А оскільки активна вкладка зберігається в
-// localStorage, наступний reload одразу відкривав ту саму вкладку й падав
-// знову — виглядало як нескінченний "бутлуп". Тепер крах ловиться тут,
-// показується кнопка повернення на розклад, і зламана вкладка більше не
-// відкриється сама при наступному завантаженні.
-class TabErrorBoundary extends React.Component {
-  constructor(props) { super(props); this.state = { error: null }; }
-  static getDerivedStateFromError(error) { return { error }; }
-  componentDidUpdate(prevProps) {
-    if (this.state.error && prevProps.tab !== this.props.tab) this.setState({ error: null });
-  }
-  render() {
-    if (this.state.error) {
-      try { localStorage.removeItem("admin_tab"); } catch {}
-      return (
-        <div style={{ display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:14, padding:30, height:"100%" }}>
-          <div style={{ fontSize:14, color:"#8b8d93", textAlign:"center" }}>Ця вкладка не завантажилась через помилку.</div>
-          <button onClick={() => this.props.onReset ? this.props.onReset() : window.location.reload()}
-            style={{ padding:"10px 22px", borderRadius:12, background:"linear-gradient(135deg,#ff7a5c,#ff5a3c)", border:"none", color:"#fff", fontSize:14, fontWeight:700, cursor:"pointer" }}>
-            До розкладу
-          </button>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
-
 // ─── VIEW RENDERER ───────────────────────────────────────────────
 function ViewRenderer({ tab, settings, setSettings, bookings, setBookings, onSlotClick, onEmptySlotClick, openInfos, toggleInfo, activeDragIds, navTo, slotExistsRef, openSlotsRef, jumpTarget, setJumpTarget, onViewStudent, studentJump, onStudentJumpHandled }) {
   if (tab === "schedule")  return <ScheduleView settings={settings} setSettings={setSettings} bookings={bookings} setBookings={setBookings} onSlotClick={onSlotClick} onEmptySlotClick={onEmptySlotClick} activeDragIds={activeDragIds} navTo={navTo} slotExistsRef={slotExistsRef} openSlotsRef={openSlotsRef} jumpTarget={jumpTarget} setJumpTarget={setJumpTarget} onViewStudent={onViewStudent}/>;
@@ -426,7 +426,7 @@ function ViewRenderer({ tab, settings, setSettings, bookings, setBookings, onSlo
   if (tab === "services")  return <ServicesView/>;
   if (tab === "chats")     return <ChatsView/>;
   if (tab === "templates") return <TemplatesView/>;
-  if (tab === "stats")     return <StatsView settings={settings}/>;
+  if (tab === "stats")     return <StatsView/>;
   if (tab === "journal")   return <JournalView/>;
   return null;
 }
@@ -449,6 +449,7 @@ function dayIdxToDate(dayIdx) {
 // ─── MAIN APP ────────────────────────────────────────────────────
 export default function App() {
   const adminUser = useAdminAuth();
+  const license = useLicense();
   const { needRefresh, updateServiceWorker, isUpdating } = useAppUpdate()
   // Deep-link з push-сповіщення (?date=&time=&uid=&bookingId=) — одразу відкриваємо розклад на потрібній даті
   const [jumpTarget, setJumpTarget] = useState(() => {
@@ -477,11 +478,12 @@ export default function App() {
   const [selectedBooking,  setSelectedBooking]  = useState(null);
   const [newBookingData,   setNewBookingData]    = useState(null);
   const [chatUnread,    setChatUnread]    = useState(0);
-  const [journalUnread, setJournalUnread] = useState(0);
-  const [queueCount,    setQueueCount]    = useState(0);
-  const [profileReady,  setProfileReady] = useState(null); // null=checking, false=needs setup, true=ready
-  const [subscription,  setSubscription] = useState(null); // null=loading, {}=no data, object=loaded
-  const [loadStuck,     setLoadStuck]    = useState(false); // профіль/підписка не завантажились за розумний час — не лишаємо чорний екран назавжди
+  // Розділено на дві частини — записи-події (bookings) і нові реєстрації
+  // учнів (users) — бо це два незалежні onValue-слухачі, і кожен рахує
+  // свою частину бейджа окремо, а бейдж — їхня сума.
+  const [journalUnreadBookings, setJournalUnreadBookings] = useState(0);
+  const [journalUnreadStudents, setJournalUnreadStudents] = useState(0);
+  const journalUnread = journalUnreadBookings + journalUnreadStudents;
 
   const switchTab = t => {
     setTab(t);
@@ -492,8 +494,7 @@ export default function App() {
       setChatUnread(0);
       if ('clearAppBadge' in navigator) navigator.clearAppBadge();
     }
-    if (t === 'journal') setJournalUnread(0);
-    if (t === 'queue') setQueueCount(0);
+    if (t === 'journal') { setJournalUnreadBookings(0); setJournalUnreadStudents(0); }
   };
 
   // Профіль/Історія з модалки запису → відкрити картку учня на вкладці "Учні"
@@ -503,26 +504,6 @@ export default function App() {
     switchTab("students");
   };
   const toggleInfo = key => setOpenInfos(s => ({...s, [key]: !s[key]}));
-
-  // Set global instructor ID, check profile, and listen to subscription
-  useEffect(() => {
-    if (!adminUser?.uid) { setProfileReady(null); setSubscription(null); setLoadStuck(false); return; }
-    setCurrentIid(adminUser.uid);
-    setLoadStuck(false);
-    // Якщо профіль/підписка з якоїсь причини (мережа, зависла офлайн-персистенція
-    // після примусового reload з versionGuard) так і не завантажаться — не лишаємо
-    // користувача на чорному екрані назавжди, а показуємо кнопку перезавантаження.
-    const stuckTimer = setTimeout(() => setLoadStuck(true), 8000);
-    get(iRef("admin_settings/profile")).then(snap => {
-      const p = snap.val();
-      setProfileReady(!!(p && p.name));
-    }).catch(() => setProfileReady(false));
-    setSubscription(null);
-    const unsub = onValue(iRef("subscription"), snap => {
-      setSubscription(snap.val() || {});
-    });
-    return () => { clearTimeout(stuckTimer); unsub(); };
-  }, [adminUser]);
 
   // Initialize journal read timestamp on first ever app load
   useEffect(() => {
@@ -534,8 +515,8 @@ export default function App() {
   // Tab navigation via custom event (from child components)
   useEffect(() => {
     const nav = e => switchTab(e.detail);
-    window.addEventListener("drivepad-nav", nav);
-    return () => window.removeEventListener("drivepad-nav", nav);
+    window.addEventListener("id4drive-nav", nav);
+    return () => window.removeEventListener("id4drive-nav", nav);
   }, []);
 
   // Network version check — bypasses SW cache. On mismatch, fully reset the
@@ -571,20 +552,10 @@ export default function App() {
     return () => { clearTimeout(t0); clearInterval(id); };
   }, []);
 
-  // Subscribe to queue waiting count
-  useEffect(() => {
-    if (!adminUser) return;
-    return onValue(iRef("queue"), snap => {
-      const data = snap.val() || {};
-      const count = Object.values(data).filter(e => e && e.status === "waiting").length;
-      setQueueCount(tab === "queue" ? 0 : count);
-    });
-  }, [adminUser, tab]);
-
   // Subscribe to unread chat count from chatMeta
   useEffect(() => {
     if (!adminUser) return;
-    const r = iRef("chatMeta");
+    const r = ref(db, 'chatMeta');
     const unsub = onValue(r, snap => {
       const data = snap.val() || {};
       const total = Object.values(data).reduce((s, m) => s + (m?.unreadForAdmin || 0), 0);
@@ -619,15 +590,18 @@ export default function App() {
   useEffect(() => {
     if (!adminUser) return;
     return onAdminForegroundMessage((payload) => {
-      const title = payload.notification?.title || "DrivePad";
-      const body  = payload.notification?.body  || "";
+      // Data-only push — див. firebase-messaging-sw.js чому без "notification"
+      const title = payload.data?.title || "ID4Drive";
+      const body  = payload.data?.body  || "";
+      const isAlarm = payload.data?.alarm === "1";
       if (Notification.permission === "granted" && "serviceWorker" in navigator) {
         navigator.serviceWorker.ready.then(reg => {
           reg.showNotification(title, {
             body,
-            icon: "/favicon.svg",
+            icon: "/icon-192.png",
             tag: "admin-" + Date.now(),
             requireInteraction: true,
+            vibrate: isAlarm ? [400, 200, 400, 200, 400, 200, 400] : undefined,
             data: payload.data || {},
           });
         });
@@ -638,7 +612,7 @@ export default function App() {
   // Sync services from admin_data/services → settings.services (source of truth for colors)
   useEffect(() => {
     if (!adminUser) return;
-    return onValue(iRef("admin_data/services"), snap => {
+    return onValue(ref(db, "admin_data/services"), snap => {
       const arr = snap.val();
       if (Array.isArray(arr) && arr.length > 0) {
         setSettings(s => ({ ...s, services: arr }));
@@ -649,7 +623,7 @@ export default function App() {
   // Load settings from Firebase on login
   useEffect(() => {
     if (!adminUser) { setSettingsLoaded(false); return; }
-    get(iRef("admin_settings")).then(snap => {
+    get(ref(db, 'admin_settings')).then(snap => {
       const d = snap.val();
       if (d) {
         const { services: _ignoredServices, ...dRest } = d;
@@ -684,7 +658,7 @@ export default function App() {
     if (!adminUser || !settingsLoaded) return;
     clearTimeout(settingsSyncTimer.current);
     settingsSyncTimer.current = setTimeout(() => {
-      update(iRef("admin_settings"), {
+      update(ref(db, 'admin_settings'), {
         lunchEnabled:    settings.lunchEnabled    ?? true,
         lunchStart:      settings.lunchStart      ?? 12,
         lunchEnd:        settings.lunchEnd        ?? 13,
@@ -710,6 +684,7 @@ export default function App() {
         studentCanCancel:     settings.studentCanCancel     ?? true,
         bookCutoffHours:      settings.bookCutoffHours      ?? 2,
         calendarOpenDays:     settings.calendarOpenDays     ?? 30,
+        schoolCalendarOpenDays: settings.schoolCalendarOpenDays ?? 14,
         stickyTime:      settings.stickyTime      ?? "both",
         notifLocation:   settings.notifLocation   ?? "topbar",
         navTabs:         settings.navTabs         ?? [],
@@ -725,6 +700,8 @@ export default function App() {
         stickyTimeEnabled:    settings.stickyTimeEnabled    ?? true,
         minBookingIntervalDays: settings.minBookingIntervalDays ?? 0,
         slotFreedPushEnabled: settings.slotFreedPushEnabled ?? true,
+        paymentCard:     settings.paymentCard      ?? "",
+        lockPastBookings: settings.lockPastBookings ?? false,
       }).catch(() => {});
     }, 800);
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -779,7 +756,7 @@ export default function App() {
       moveSaveTimers.current = {};
       return;
     }
-    return onValue(iRef("bookings"), snap => {
+    return onValue(ref(db, "bookings"), snap => {
       const data = snap.val();
       processBookingsSnap(data);
       const readAt = parseInt(localStorage.getItem("journal_read_at") || "0", 10);
@@ -791,99 +768,28 @@ export default function App() {
           if (b.cancelledAt   && b.cancelledAt   > readAt) cnt++;
           if (b.rescheduledAt && b.rescheduledAt > readAt) cnt++;
         }); });
-        setJournalUnread(cnt);
+        setJournalUnreadBookings(cnt);
       }
     });
   }, [adminUser, processBookingsSnap]);
 
+  // Нові реєстрації учнів — окремий лічильник бейджа "Журнал", щоб адмін
+  // одразу бачив, коли прийшла нова людина (не поточний учень, а саме
+  // новий запис у users з createdAt пізніше за останній перегляд журналу).
   useEffect(() => {
     if (!adminUser) return;
-    const seenRef = React.createRef();
-    seenRef.current = new Set();
-    return onValue(iRef('newBookingAlerts'), snap => {
-      if (!snap.exists()) return;
-      Object.entries(snap.val()).forEach(([key, alert]) => {
-        if (!alert || seenRef.current.has(key)) return;
-        seenRef.current.add(key);
-        if (alert.ts && Date.now() - alert.ts < 300000) {
-          if (Notification.permission === 'granted') {
-            new Notification('Нове бронювання 📅', {
-              body: `${alert.studentName || 'Студент'} — ${alert.date} о ${alert.time}`,
-              icon: '/icon-192.png',
-            });
-          }
-        }
-        remove(iRef(`newBookingAlerts/${key}`)).catch(() => {});
+    return onValue(ref(db, "users"), snap => {
+      const data = snap.val();
+      const readAt = parseInt(localStorage.getItem("journal_read_at") || "0", 10);
+      if (!readAt || !data) return;
+      let cnt = 0;
+      Object.values(data).forEach(u => {
+        const ts = u?.profile?.createdAt || u?.createdAt;
+        if (ts && ts > readAt) cnt++;
       });
+      setJournalUnreadStudents(cnt);
     });
   }, [adminUser]);
-
-  useEffect(() => {
-    if (settings.pendingEnabled) return;
-    bookings.forEach(b => {
-      if (b.status !== 'pending') return;
-      const bookKey = b._fbKey || b.id;
-      if (b.userId) {
-        const _n = new Date();
-        const _dl = `${String(_n.getDate()).padStart(2,'0')}.${String(_n.getMonth()+1).padStart(2,'0')}`;
-        const _tl = `${String(_n.getHours()).padStart(2,'0')}:${String(_n.getMinutes()).padStart(2,'0')}`;
-        update(iRef(`bookings/${b.userId}/${bookKey}`), { status: 'confirmed', confirmedAt: Date.now(), confirmedBy: 'auto' }).catch(() => {});
-        push(iRef(`notifications/${b.userId}`), { type:'booking_confirmed', title:'Урок підтверджено', body:`${b.date} о ${b.time}`, date:_dl, time:_tl, ts:Date.now() }).catch(()=>{});
-        if (!b.userId.startsWith('guest_')) push(iRef('pushQueue'), { uid:b.userId, title:'Урок підтверджено ✅', body:`${b.date} о ${b.time}`, ts:Date.now() }).catch(()=>{});
-      }
-    });
-  }, [bookings, settings.pendingEnabled]);
-
-  useEffect(() => {
-    if (!settings.autoCancel?.enabled) return;
-    const now = Date.now();
-    bookings.forEach(b => {
-      if (b.status !== 'pending') return;
-      const [y, mo, d] = (b.date || '').split('-');
-      const [hh, mm] = (b.time || '0:0').split(':');
-      if (!y || !hh) return;
-      const bookingTs = new Date(Number(y), Number(mo)-1, Number(d), Number(hh), Number(mm)).getTime();
-      if (now < bookingTs) return;
-      const bookKey = b._fbKey || b.id;
-      if (b.userId) {
-        const _n = new Date();
-        const _dl = `${String(_n.getDate()).padStart(2,'0')}.${String(_n.getMonth()+1).padStart(2,'0')}`;
-        const _tl = `${String(_n.getHours()).padStart(2,'0')}:${String(_n.getMinutes()).padStart(2,'0')}`;
-        update(iRef(`bookings/${b.userId}/${bookKey}`), { status:'cancelled', cancelledAt:Date.now(), cancelledBy:'auto' }).catch(()=>{});
-        if (!b.userId.startsWith('guest_')) {
-          push(iRef(`notifications/${b.userId}`), { type:'booking_cancelled', title:'Урок скасовано', body:`${b.date} о ${b.time} (не підтверджено)`, date:_dl, time:_tl, ts:Date.now() }).catch(()=>{});
-          push(iRef('pushQueue'), { uid:b.userId, title:'Урок скасовано ❌', body:`${b.date} о ${b.time} — не було підтверджено`, ts:Date.now() }).catch(()=>{});
-        }
-      } else if (b.phone) {
-        const ph = (b.phone || '').replace(/\D/g, '');
-        update(iRef(`bookings/guest_${ph}/${bookKey}`), { status:'cancelled', cancelledAt:Date.now(), cancelledBy:'auto' }).catch(()=>{});
-      }
-    });
-  }, [bookings, settings.autoCancel]);
-
-  useEffect(() => {
-    const enabled = (settings.autoReminders || []).filter(r => r.enabled);
-    if (!enabled.length) return;
-    const now = Date.now();
-    bookings.forEach(b => {
-      if (b.status !== 'confirmed' || b.reminderSent) return;
-      if (!b.userId || b.userId.startsWith('guest_')) return;
-      const [y, mo, d] = (b.date || '').split('-');
-      const [hh, mm] = (b.time || '0:0').split(':');
-      if (!y || !hh) return;
-      const bookingTs = new Date(Number(y), Number(mo)-1, Number(d), Number(hh), Number(mm)).getTime();
-      if (now >= bookingTs) return;
-      const hoursUntil = (bookingTs - now) / 3600000;
-      if (!enabled.some(r => hoursUntil <= r.hoursBefore)) return;
-      const bookKey = b._fbKey || b.id;
-      const _n = new Date();
-      const _dl = `${String(_n.getDate()).padStart(2,'0')}.${String(_n.getMonth()+1).padStart(2,'0')}`;
-      const _tl = `${String(_n.getHours()).padStart(2,'0')}:${String(_n.getMinutes()).padStart(2,'0')}`;
-      update(iRef(`bookings/${b.userId}/${bookKey}`), { reminderSent: true }).catch(()=>{});
-      push(iRef(`notifications/${b.userId}`), { type:'reminder', title:'Нагадування про урок', body:`${b.date} о ${b.time}`, date:_dl, time:_tl, ts:Date.now() }).catch(()=>{});
-      push(iRef('pushQueue'), { uid:b.userId, title:'Нагадування ⏰', body:`Урок ${b.date} о ${b.time}`, ts:Date.now() }).catch(()=>{});
-    });
-  }, [bookings, settings.autoReminders]);
 
   // Debounce map for move/resize saves (avoids Firebase write on every pointermove)
   const moveSaveTimers = React.useRef({});
@@ -912,9 +818,10 @@ const pendingDeletesRef = React.useRef(new Set());
       // (видно, чому слот став доступним/недоступним).
       const auditBy = adminUser?.uid || "admin";
 
-      // Годинний слот H зайнятий, якщо запис перетинає [H:00, H+1:00). Перебираємо
-      // всі години, які перекриває запис (а не лише позицію startMin), щоб слот,
-      // накритий навіть наполовину (напр. запис о :30), теж ставав недоступним.
+      // Перебираємо 30-хв кроки від фактичного startMin (а не від початку години),
+      // щоб слоти з отриманим зі сторони клієнта зсувом (напр. запис о :30)
+      // теж коректно блокувались/звільнялись — так само, як markSlotsUnavailable/
+      // cancelBooking роблять у клієнтському застосунку.
       // acc !== null → пишемо в спільний об'єкт (атомарний запис разом з бронюванням),
       // інакше робимо самостійний update.
       const blockSlots = (date, startMin, durMin, onlyExisting = false, acc = null) => {
@@ -923,20 +830,23 @@ const pendingDeletesRef = React.useRef(new Set());
         const endMin = startMin + durMin;
         const upd = acc || {};
         const now = Date.now();
-        for (let cur = Math.floor(startMin / 60) * 60; cur < endMin; cur += 60) {
+        for (let cur = startMin; cur < endMin; cur += 30) {
           const h = String(Math.floor(cur / 60)).padStart(2, "0");
-          const m = "00";
+          const m = String(cur % 60).padStart(2, "0");
           // При переносі (onlyExisting) позначаємо зайнятими лише вже згенеровані
           // слоти — не створюємо нові вузли в днях без розкладу, інакше
           // перетягування «спавнить» вільні слоти в чужих днях.
           if (onlyExisting && !existsForDate?.has(`${h}:${m}`)) continue;
           const key = `timeslots/${date}/slot${h}${m}`;
+          // Вузол, якого нема в сітці дня, створюється лише під запис —
+          // позначаємо phantom, щоб при звільненні видалити, а не оживити.
+          if (!existsForDate?.has(`${h}:${m}`)) upd[`${key}/phantom`] = true;
           upd[`${key}/available`] = false;
           upd[`${key}/time`] = `${h}:${m}`;
           upd[`${key}/lastChangedBy`] = auditBy;
           upd[`${key}/lastChangedAt`] = now;
         }
-        if (!acc && Object.keys(upd).length) update(iRef(""), upd).catch(() => {});
+        if (!acc && Object.keys(upd).length) update(ref(db, "/"), upd).catch(() => {});
       };
 
       const freeSlots = (date, startMin, durMin, acc = null) => {
@@ -945,17 +855,21 @@ const pendingDeletesRef = React.useRef(new Set());
         const endMin = startMin + durMin;
         const upd = acc || {};
         const now = Date.now();
-        for (let cur = Math.floor(startMin / 60) * 60; cur < endMin; cur += 60) {
-          const slotEnd = cur + 60;
-          // Не звільняємо годину, яку все ще перекриває інший активний запис
+        for (let i = 0, cur = startMin; cur < endMin; cur += 30, i += 30) {
+          const slotEnd = cur + 30;
+          // Не звільняємо інтервал, який все ще перекриває інший активний запис
           // (інакше слот, поділений між двома записами, помилково став би вільним).
           const stillTaken = next.some(x =>
             x.status !== "cancelled" && bookingDateOf(x) === date &&
             x.startMin < slotEnd && x.startMin + x.durMin > cur);
           if (stillTaken) continue;
           const h = String(Math.floor(cur / 60)).padStart(2, "0");
-          const m = "00";
+          const m = String(cur % 60).padStart(2, "0");
           const key = `timeslots/${date}/slot${h}${m}`;
+          // Слот, що належить сітці дня (:00 та :30 — обидва канонічні),
+          // відновлюємо available:true. Вузол поза сіткою (phantom, створений
+          // лише на час бронювання) — видаляємо повністю, щоб не спавнились
+          // випадкові вільні слоти.
           if (existsForDate?.has(`${h}:${m}`)) {
             upd[`${key}/available`] = true;
             upd[`${key}/lastChangedBy`] = auditBy;
@@ -964,14 +878,16 @@ const pendingDeletesRef = React.useRef(new Set());
             upd[key] = null;
           }
         }
-        if (!acc && Object.keys(upd).length) update(iRef(""), upd).catch(() => {});
+        if (!acc && Object.keys(upd).length) update(ref(db, "/"), upd).catch(() => {});
       };
 
       // 1. Deleted bookings — runs even during drag (drag updates never remove bookings from next)
       prev.forEach(b => {
         if (!nextIds.has(b.id) && b.userId && b.id) {
+          // Cancel pending drag-save so doSaveMove won't fire for a deleted booking
           clearTimeout(moveSaveTimers.current[b.id]);
           delete moveSaveTimers.current[b.id];
+          // Free original slot (before any drag) if booking was moved before deletion
           const orig = moveOriginals.current[b.id];
           if (orig && orig.date) freeSlots(orig.date, orig.startMin, orig.durMin);
           delete moveOriginals.current[b.id];
@@ -980,8 +896,8 @@ const pendingDeletesRef = React.useRef(new Set());
           Promise.resolve().then(() => {
             const fbKey = b._fbKey || b.id;
             const now = Date.now();
-            update(iRef(`bookings/${b.userId}/${fbKey}`), { status:'cancelled', cancelledAt:now, cancelledBy:'admin' }).catch(() =>
-              remove(iRef(`bookings/${b.userId}/${fbKey}`)).catch(() => {})
+            update(ref(db, `bookings/${b.userId}/${fbKey}`), { status:'cancelled', cancelledAt:now, cancelledBy:'admin' }).catch(() =>
+              remove(ref(db, `bookings/${b.userId}/${fbKey}`)).catch(() => {})
             ).finally(() => setTimeout(() => pendingDeletesRef.current.delete(b.id), 3000));
           });
         }
@@ -996,7 +912,7 @@ const pendingDeletesRef = React.useRef(new Set());
             const hh = String(Math.floor(b.startMin / 60)).padStart(2, "0");
             const mm = String(b.startMin % 60).padStart(2, "0");
             const date = dayIdxToDate(b.day);
-            update(iRef(`bookings/${adminUser.uid}/${b.id}`), {
+            update(ref(db, `bookings/${adminUser.uid}/${b.id}`), {
               ...b,
               userId: adminUser.uid,
               date,
@@ -1021,7 +937,7 @@ const pendingDeletesRef = React.useRef(new Set());
               freeSlots(b.date, b.startMin, b.durMin);
               Promise.resolve().then(() => setBookings(bs => bs.filter(x => x.id !== b.id)));
             }
-            update(iRef(`bookings/${b.userId}/${b._fbKey || b.id}`), patch).catch(() => {});
+            update(ref(db, `bookings/${b.userId}/${b._fbKey || b.id}`), patch).catch(() => {});
             return;
           }
         }
@@ -1051,8 +967,17 @@ const pendingDeletesRef = React.useRef(new Set());
               const sm = String(slotMin % 60).padStart(2, "0");
               newSurcharge += newSlotsForDate[`${sh}:${sm}`]?.surcharge || 0;
             }
-            const oldSurcharge = b.surcharge || 0;
             const discountFactor = 1 - (b.discountPct || 0) / 100;
+            // Базова ціна за послугою (як у розкладі/деталях запису) — а не
+            // дельта від старої b.price, якої може не бути (записи, створені
+            // вручну через NewBookingModal, price/surcharge не зберігають).
+            const svc = (settings.services || []).find(s => s.id === b.serviceId)
+                     || (settings.services || []).find(s => s.active && s.type === (b.serviceType || b.type) && Number(s.duration) === b.durMin);
+            const basePrice = svc
+              ? Math.round((svc.price / svc.duration) * b.durMin)
+              : b.price && b.durationHours
+                ? Math.round((b.price / (b.durationHours * 60)) * b.durMin)
+                : (b.price || 0);
             // Атомарність: звільнення старих слотів + блокування нових + оновлення
             // запису одним update(). Якщо Firebase відхилить — не запишеться нічого,
             // тож не буде стану «слот вільний, але запис уже там» чи навпаки.
@@ -1074,18 +999,19 @@ const pendingDeletesRef = React.useRef(new Set());
             upd[`${bp}/date`]          = newDate;
             upd[`${bp}/time`]          = `${hh}:${mm}`;
             upd[`${bp}/rescheduledAt`] = Date.now();
-            if (b.price != null) {
-              upd[`${bp}/price`] = b.price + Math.round((newSurcharge - oldSurcharge) * discountFactor);
-              if (newSurcharge) upd[`${bp}/surcharge`] = newSurcharge;
-            }
-            update(iRef(""), upd).then(() => {
-              if (b.userId && !b.userId.startsWith('guest_')) {
-                const _n = new Date();
-                const _dl = `${String(_n.getDate()).padStart(2,'0')}.${String(_n.getMonth()+1).padStart(2,'0')}`;
-                const _tl = `${String(_n.getHours()).padStart(2,'0')}:${String(_n.getMinutes()).padStart(2,'0')}`;
-                push(iRef(`notifications/${b.userId}`), { type:'booking_rescheduled', title:'Урок перенесено', body:`${newDate} о ${hh}:${mm}`, date:_dl, time:_tl, ts:Date.now() }).catch(()=>{});
-                push(iRef('pushQueue'), { uid:b.userId, title:'Урок перенесено 🔄', body:`${newDate} о ${hh}:${mm}`, ts:Date.now() }).catch(()=>{});
-              }
+            // Завжди перераховуємо ціну під нову позицію (навіть якщо price
+            // раніше не зберігався) і надбавку саме нового слоту (0, якщо
+            // новий слот без надбавки, — стара надбавка не має «прилипати»).
+            const newPrice = Math.round((basePrice + newSurcharge) * discountFactor);
+            upd[`${bp}/price`] = newPrice;
+            upd[`${bp}/surcharge`] = newSurcharge || null;
+            update(ref(db, "/"), upd).then(() => {
+              // Мержимо нову ціну/надбавку в локальний стан одразу — не чекаючи
+              // наступного onValue з Firebase (без цього UI показував старе,
+              // поки сторінку не перезавантажиш).
+              setBookings(bs => bs.map(x => x.id === b.id
+                ? { ...x, price: newPrice, surcharge: newSurcharge || null }
+                : x));
             }).catch(() => {
               // Відкат: атомарний запис не пройшов, тож у Firebase нічого не
               // змінилось. Повертаємо картку на старе місце, щоб UI не розходився з БД.
@@ -1118,27 +1044,7 @@ const pendingDeletesRef = React.useRef(new Set());
 
   if (adminUser === undefined) return null;
   if (adminUser === null) return <LoginScreen/>;
-  if ((profileReady === null || subscription === null) && loadStuck) {
-    return (
-      <div style={{ minHeight:"100vh", background:"#161719", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:14, padding:20 }}>
-        <div style={{ fontSize:14, color:"#8b8d93", textAlign:"center" }}>Не вдалося завантажити дані. Перевірте з'єднання.</div>
-        <button onClick={() => window.location.reload()}
-          style={{ padding:"10px 22px", borderRadius:12, background:"linear-gradient(135deg,#ff7a5c,#ff5a3c)", border:"none", color:"#fff", fontSize:14, fontWeight:700, cursor:"pointer" }}>
-          Перезавантажити
-        </button>
-      </div>
-    );
-  }
-  if (profileReady === null) return null;
-  if (profileReady === false) return <InstructorSetupScreen onDone={profile => { setSettings(s => ({...s, profile: {...s.profile, ...profile}})); setProfileReady(true); }}/>;
-  if (subscription === null) return null;
-
-  // Обліковий запис власника — без пейволу пробного періоду/підписки.
-  const isOwnerAccount = adminUser?.email === "sash5385@gmail.com";
-  const subExpired = !isOwnerAccount && (!subscription.plan ||
-    (subscription.plan === 'trial'  && (subscription.trialEndsAt || 0) <= Date.now()) ||
-    (subscription.plan === 'active' && (subscription.expiresAt   || 0) <= Date.now()));
-  if (subExpired) return <SubscriptionExpiredScreen subscription={subscription}/>;
+  if (isLicenseBlocked(license)) return <LicenseLockedScreen theme={theme}/>;
 
   return (
     <ThemeContext.Provider value={theme}>
@@ -1160,7 +1066,6 @@ const pendingDeletesRef = React.useRef(new Set());
         display:"flex",flexDirection:"column",
         position:"relative", zIndex:1,
       }}>
-        <TrialBanner subscription={subscription}/>
         <TopBar tab={tab} onChange={switchTab} settings={settings} setSettings={setSettings}/>
         <div className="tab-anim" key={`${tab}-${tabVisits[tab]||0}`} style={{
           flex:1, minHeight:0,
@@ -1170,19 +1075,17 @@ const pendingDeletesRef = React.useRef(new Set());
           flexDirection:"column",
           background: theme.BG_IMAGE ? "#d4ba96" : "transparent",
         }}>
-          <TabErrorBoundary tab={tab} onReset={() => switchTab("schedule")}>
-            <Suspense fallback={<Loader/>}>
-              <ViewRenderer tab={tab} settings={settings} setSettings={setSettings} bookings={bookings} setBookings={handleSetBookings} onSlotClick={setSelectedBooking} onEmptySlotClick={setNewBookingData} openInfos={openInfos} toggleInfo={toggleInfo} activeDragIds={activeDragIds} navTo={switchTab} slotExistsRef={slotExistsRef} openSlotsRef={openSlotsRef} jumpTarget={jumpTarget} setJumpTarget={setJumpTarget} onViewStudent={onViewStudent} studentJump={studentJump} onStudentJumpHandled={()=>setStudentJump(null)}/>
-            </Suspense>
-          </TabErrorBoundary>
+          <Suspense fallback={<Loader/>}>
+            <ViewRenderer tab={tab} settings={settings} setSettings={setSettings} bookings={bookings} setBookings={handleSetBookings} onSlotClick={setSelectedBooking} onEmptySlotClick={setNewBookingData} openInfos={openInfos} toggleInfo={toggleInfo} activeDragIds={activeDragIds} navTo={switchTab} slotExistsRef={slotExistsRef} openSlotsRef={openSlotsRef} jumpTarget={jumpTarget} setJumpTarget={setJumpTarget} onViewStudent={onViewStudent} studentJump={studentJump} onStudentJumpHandled={()=>setStudentJump(null)}/>
+          </Suspense>
         </div>
-        <BottomNav active={tab} onChange={switchTab} settings={settings} chatUnread={chatUnread} journalUnread={journalUnread} queueCount={queueCount} pendingCount={bookings.filter(b=>b.status==='pending').length}/>
+        <BottomNav active={tab} onChange={switchTab} settings={settings} chatUnread={chatUnread} journalUnread={journalUnread}/>
       </div>
       {needRefresh && (
         <div className={`update-banner${isUpdating ? ' update-banner--loading' : ''}`} onClick={updateServiceWorker}>
           {isUpdating
             ? <><span className="update-spinner" /> Оновлення...</>
-            : 'Доступне оновлення — натисніть щоб оновити'
+            : <>Доступне оновлення {APP_VERSION} — натисніть щоб оновити</>
           }
         </div>
       )}

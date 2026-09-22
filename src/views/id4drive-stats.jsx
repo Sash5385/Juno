@@ -1,6 +1,6 @@
-import { useState, useEffect, useContext } from "react";
-import { onValue, get, update } from "firebase/database";
-import { iRef } from "../firebase";
+import { useState, useEffect, useContext, useRef } from "react";
+import { ref, onValue, get, update } from "firebase/database";
+import { db } from "../firebase";
 import { LangContext } from "../App";
 import { createT } from "../lang";
 
@@ -18,44 +18,75 @@ function getDateStr(d) {
 }
 
 function bkType(b) { return b.serviceType || b.type || "private"; }
-// Та сама формула, що й у розкладі (computeBookingPrice в id4drive-admin-v5.jsx):
-// fallback-пошук послуги за типом+тривалістю, якщо serviceId не знайдено (послугу
-// видалили/заархівували), + надбавка (surcharge) поверх базової ціни.
+// Ціна послуги на дату уроку: якщо задано nextPrice/nextPriceFrom і дата
+// уроку вже досягла nextPriceFrom — використовуємо нову ціну (див. id4drive-admin-v5.jsx).
+function effectivePrice(svc, dateStr) {
+  if (!svc) return 0;
+  if (svc.nextPrice != null && svc.nextPriceFrom && dateStr && dateStr >= svc.nextPriceFrom) {
+    return svc.nextPrice;
+  }
+  return svc.price;
+}
 function bkIncome(b, svcs) {
+  if (b.manualPrice != null) return b.manualPrice;
+  const svc = (svcs||[]).find(s => s.id === b.serviceId);
   const dur = b.durMin || (b.durationHours ? b.durationHours * 60 : 60);
-  const svc = (svcs||[]).find(s => s.id === b.serviceId)
-           || (svcs||[]).find(s => s.active && s.type === bkType(b) && Number(s.duration) === dur);
-  let base;
-  if (svc && svc.price && svc.duration) base = Math.round((svc.price / svc.duration) * dur);
-  else if (b.price && b.durationHours && b.durMin) base = Math.round((b.price / (b.durationHours * 60)) * b.durMin);
-  else base = b.price || 0;
-  return base + (b.surcharge || 0);
+  if (svc && svc.price && svc.duration) return Math.round((effectivePrice(svc, b.date) / svc.duration) * dur);
+  if (b.price && b.durationHours && b.durMin) return Math.round((b.price / (b.durationHours * 60)) * b.durMin);
+  return b.price || 0;
+}
+
+// Сусідні (без розриву в часі) записи одного учня в один день адмінка
+// показує ОДНІЄЮ карткою в розкладі — тут так само рахуємо їх ОДНИМ уроком,
+// а не по кожному окремому Firebase-запису (інакше 2-годинний урок,
+// збережений як два сусідні 1-годинні записи, рахувався як "2 уроки").
+function markMergedContinuations(bookings) {
+  const byGroup = {};
+  bookings.forEach(b => {
+    const st = b.status || "confirmed";
+    if ((st !== "confirmed" && st !== "pending") || !b.date || b.startMin == null || !b.durMin) return;
+    (byGroup[`${b.date}_${b._uid}`] ||= []).push(b);
+  });
+  const continuations = new Set();
+  Object.values(byGroup).forEach(list => {
+    list.sort((a, b) => a.startMin - b.startMin);
+    for (let i = 1; i < list.length; i++) {
+      if (list[i].startMin === list[i-1].startMin + list[i-1].durMin) continuations.add(list[i]._key);
+    }
+  });
+  return continuations;
 }
 
 function aggregateBuckets(buckets, bookings, getKey, svcs) {
   const map = {};
-  buckets.forEach(b => { map[b.key] = { ...b, income:0, lessons:0, school:0, private:0, noshow:0, cancel:0 }; });
+  buckets.forEach(b => { map[b.key] = { ...b, income:0, lessons:0, hours:0, school:0, private:0, noshow:0, cancel:0 }; });
+  const continuations = markMergedContinuations(bookings);
   bookings.forEach(b => {
     const k = getKey(b);
     if (!map[k]) return;
     const st = b.status || "confirmed";
     if (st === "confirmed" || st === "pending") {
-      map[k].income  += bkIncome(b, svcs);
-      map[k].lessons += 1;
-      if (bkType(b) === "school") map[k].school++;
-      else map[k].private++;
+      map[k].income += bkIncome(b, svcs);
+      // Годин рахуємо по КОЖНОМУ запису (не по злитих уроках) — урок може
+      // тривати 2-3 години і складатись з кількох сусідніх записів.
+      map[k].hours += (b.durMin || (b.durationHours ? b.durationHours*60 : 60)) / 60;
+      if (!continuations.has(b._key)) {
+        map[k].lessons += 1;
+        if (bkType(b) === "school") map[k].school++;
+        else map[k].private++;
+      }
     } else if (st === "noshow")    { map[k].noshow++; }
     else if (st === "cancelled")  { map[k].cancel++; }
   });
   return buckets.map(b => map[b.key]);
 }
 
-function computeDayData(bookings, offsetDays = 0, svcs, workStart = 8, workEnd = 18) {
+function computeDayData(bookings, offsetDays = 0, svcs) {
   const d = new Date();
   d.setDate(d.getDate() + offsetDays);
   const dateStr = getDateStr(d);
-  const buckets = Array.from({length: Math.max(1, workEnd - workStart)}, (_, i) => {
-    const h = workStart + i;
+  const buckets = Array.from({length: 10}, (_, i) => {
+    const h = 8 + i;
     return { key: `${dateStr}_${h}`, label: `${String(h).padStart(2,'0')}:00` };
   });
   return aggregateBuckets(buckets, bookings, b => {
@@ -78,14 +109,20 @@ function computeWeekData(bookings, offset = 0, svcs) {
   return aggregateBuckets(buckets, bookings, b => b.date || "", svcs);
 }
 
+// Бакети по днях довільного місяця (рік/місяць передаються напряму —
+// потрібно для навігації календаря вперед/назад, не лише "поточний ± offset").
+function computeCalendarMonthData(bookings, year, month, svcs) {
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const buckets = Array.from({length: daysInMonth}, (_, i) => {
+    const d = new Date(year, month, i + 1);
+    return { key: getDateStr(d), label: String(i + 1) };
+  });
+  return aggregateBuckets(buckets, bookings, b => b.date || "", svcs);
+}
+
 function computeMonthData(bookings, offsetMonths = 0, svcs) {
   const now = new Date();
-  const buckets = Array.from({length: 5}, (_, i) => {
-    const d = new Date(now.getFullYear(), now.getMonth() - 4 + i + offsetMonths, 1);
-    const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-    return { key, label: UK_MONTHS[d.getMonth()] };
-  });
-  return aggregateBuckets(buckets, bookings, b => (b.date||"").slice(0, 7), svcs);
+  return computeCalendarMonthData(bookings, now.getFullYear(), now.getMonth() + offsetMonths, svcs);
 }
 
 function computeYearData(bookings, offsetYears = 0, svcs) {
@@ -98,42 +135,24 @@ function computeYearData(bookings, offsetYears = 0, svcs) {
   return aggregateBuckets(buckets, bookings, b => (b.date||"").slice(0, 7), svcs);
 }
 
-function filterByPeriod(bookings, data, period, cfrom, cto) {
-  if (period === 'custom') return bookings.filter(b => cfrom && cto && b.date >= cfrom && b.date <= cto);
+function filterByPeriod(bookings, data, period) {
   const keys = new Set(data.map(b => b.key));
   return bookings.filter(b => {
     if (period === 'day') return keys.has(`${b.date}_${parseInt((b.time||'').split(':')[0], 10)}`);
-    if (period === 'week') return keys.has(b.date||'');
+    if (period === 'week' || period === 'month' || period === 'custom') return keys.has(b.date||'');
     return keys.has((b.date||'').slice(0, 7));
   });
 }
 
-function parseLocalDate(str) {
-  const [y, m, d] = str.split('-').map(Number);
-  return new Date(y, m - 1, d);
-}
-
-function computeCustomData(bookings, from, to, svcs) {
-  if (!from || !to || from > to) return [];
-  const fromD = parseLocalDate(from), toD = parseLocalDate(to);
-  const diffDays = Math.round((toD - fromD) / 86400000) + 1;
-  if (diffDays <= 62) {
-    const buckets = Array.from({length: diffDays}, (_, i) => {
-      const d = new Date(fromD.getFullYear(), fromD.getMonth(), fromD.getDate() + i);
-      const key = getDateStr(d);
-      return { key, label: `${d.getDate()}.${String(d.getMonth()+1).padStart(2,'0')}` };
-    });
-    return aggregateBuckets(buckets, bookings, b => b.date || '', svcs);
-  }
-  const arr = [];
-  const cur = new Date(fromD.getFullYear(), fromD.getMonth(), 1);
-  const end = new Date(toD.getFullYear(), toD.getMonth(), 1);
-  while (cur <= end) {
-    const key = `${cur.getFullYear()}-${String(cur.getMonth()+1).padStart(2,'0')}`;
-    arr.push({ key, label: UK_MONTHS[cur.getMonth()] });
-    cur.setMonth(cur.getMonth() + 1);
-  }
-  return aggregateBuckets(arr, bookings, b => (b.date||'').slice(0, 7), svcs);
+// Довільний набір обраних днів (не обов'язково суцільний діапазон) —
+// з календаря можна вибрати кілька окремих смуг днів довгим тапом+протяжкою.
+function computeSelectedDaysData(bookings, selectedDates, svcs) {
+  const sorted = [...selectedDates].sort();
+  const buckets = sorted.map(dateStr => {
+    const d = new Date(dateStr + "T00:00:00");
+    return { key: dateStr, label: `${d.getDate()}.${String(d.getMonth()+1).padStart(2,'0')}` };
+  });
+  return aggregateBuckets(buckets, bookings, b => b.date || '', svcs);
 }
 
 function computeTopStudents(bookings, sortBy = 'paid', svcs) {
@@ -167,29 +186,6 @@ function computePopularSlots(bookings, svcs) {
   return Object.values(map).sort((a, b) => b.count - a.count).slice(0, 6);
 }
 
-function computeMonthForecast(bookings, svcs) {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const dayOfMonth = now.getDate();
-  if (dayOfMonth < 3) return null;
-  const monthKey = `${year}-${String(month+1).padStart(2,'0')}`;
-  const monthIncome = bookings
-    .filter(b => (b.status === 'confirmed' || b.status === 'pending') && (b.date||'').startsWith(monthKey))
-    .reduce((s, b) => s + bkIncome(b, svcs), 0);
-  return Math.round((monthIncome / dayOfMonth) * daysInMonth);
-}
-
-function computeYearForecast(bookings, svcs) {
-  const now = new Date();
-  const dayOfYear = Math.floor((now - new Date(now.getFullYear(), 0, 0)) / 86400000);
-  if (dayOfYear < 10) return null;
-  const yearIncome = bookings
-    .filter(b => (b.status === 'confirmed' || b.status === 'pending') && (b.date||'').startsWith(`${now.getFullYear()}`))
-    .reduce((s, b) => s + bkIncome(b, svcs), 0);
-  return Math.round((yearIncome / dayOfYear) * 365);
-}
 
 function periodSum(data) {
   return {
@@ -200,134 +196,8 @@ function periodSum(data) {
 }
 
 function trendPct(cur, prev) {
-  if (!prev && !cur) return 0;
-  if (!prev) return cur > 0 ? 100 : 0;
+  if (!prev) return null; // немає з чим порівнювати — не вигадуємо фальшиві +100%
   return Math.round(((cur - prev) / prev) * 100);
-}
-
-function exportCSV(bookings, svcs) {
-  const rows = bookings
-    .filter(b => b.status === 'confirmed' || b.status === 'pending')
-    .sort((a, b) => (b.date||'').localeCompare(a.date||''))
-    .map(b => [
-      b.date||'', b.time||'',
-      (b.studentName||b.name||'').replace(/,/g,' '),
-      b.serviceType||'', bkIncome(b, svcs), b.durMin || (b.durationHours ? b.durationHours*60 : 60),
-      b.isPaid ? 'так' : 'ні',
-    ].join(','));
-  const csv = ['Дата,Час,Учень,Тип,Сума,Хвилин,Оплачено', ...rows].join('\n');
-  const blob = new Blob(['﻿'+csv], {type:'text/csv;charset=utf-8;'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `drivepad-${new Date().toISOString().slice(0,10)}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
-// ─── INSET ───────────────────────────────────────────────────────
-const Inset = ({children, style={}}) => {
-  const { SURF_HI, SURFACE, SI } = useContext(ThemeContext);
-  return (
-    <div style={{background:`linear-gradient(155deg,${SURF_HI},${SURFACE})`, borderRadius:10, boxShadow:SI, ...style}}>{children}</div>
-  );
-};
-
-// ─── SVG LINE CHART ──────────────────────────────────────────────
-function LineChart({ data, valueKey, color, height=120 }) {
-  const { FAINT } = useContext(ThemeContext);
-  const { ink } = useFX();
-  const W=320, H=height, P=12;
-  const vals = data.map(d => d[valueKey]);
-  const max = Math.max(...vals), min = Math.min(...vals);
-  const range = max - min || 1;
-  const pts = vals.map((v, i) => ({
-    x: P + (i / (vals.length - 1)) * (W - P*2),
-    y: H - P - ((v - min) / range) * (H - P*2 - 10),
-  }));
-  const path = pts.map((p, i) => i===0 ? `M${p.x},${p.y}` : `L${p.x},${p.y}`).join(" ");
-  const area = `${path} L${pts[pts.length-1].x},${H-P} L${pts[0].x},${H-P} Z`;
-  const len  = pts.reduce((s, p, i) => i===0 ? 0 : s + Math.hypot(p.x - pts[i-1].x, p.y - pts[i-1].y), 0);
-  const gid  = `g${color.replace(/[^a-z0-9]/gi, "")}`;
-  return (
-    <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={height} style={{overflow:"visible"}}>
-      <defs>
-        <linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity=".28"/>
-          <stop offset="100%" stopColor={color} stopOpacity=".01"/>
-        </linearGradient>
-      </defs>
-      {[0,.25,.5,.75,1].map(t=>(
-        <line key={t} x1={P} y1={P+(1-t)*(H-P*2-10)} x2={W-P} y2={P+(1-t)*(H-P*2-10)} stroke={ink(0.06)} strokeWidth="1"/>
-      ))}
-      <path d={area} fill={`url(#${gid})`}/>
-      <path className="line-anim" d={path} fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-        style={{"--len":len, strokeDasharray:len}}/>
-      {pts.map((p, i) => (
-        <circle key={i} cx={p.x} cy={p.y} r="3.5" fill={color} style={{filter:`drop-shadow(0 0 4px ${color}88)`}}/>
-      ))}
-      {data.map((d, i) => (
-        <text key={i} x={pts[i].x} y={H} textAnchor="middle" fill={FAINT} fontSize="9" fontWeight="700">{d.label}</text>
-      ))}
-    </svg>
-  );
-}
-
-// ─── SVG BAR CHART ───────────────────────────────────────────────
-function BarChart({ data, valueKey, color, height=120 }) {
-  const { FAINT } = useContext(ThemeContext);
-  const { ink } = useFX();
-  const W=320, H=height, P=12;
-  const vals = data.map(d => d[valueKey]);
-  const max  = Math.max(...vals) || 1;
-  const gap  = (W - P*2) / data.length;
-  const bW   = gap * .6;
-  return (
-    <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={height} style={{overflow:"visible"}}>
-      <defs>
-        {data.map((_, i) => (
-          <linearGradient key={i} id={`bg${i}`} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={color} stopOpacity=".85"/>
-            <stop offset="100%" stopColor={color} stopOpacity=".35"/>
-          </linearGradient>
-        ))}
-      </defs>
-      {[0,.5,1].map(t=>(
-        <line key={t} x1={P} y1={P+(1-t)*(H-P*2-10)} x2={W-P} y2={P+(1-t)*(H-P*2-10)} stroke={ink(0.06)} strokeWidth="1"/>
-      ))}
-      {data.map((d, i) => {
-        const bH = ((d[valueKey]||0) / max) * (H - P*2 - 10);
-        const x  = P + i*gap + gap*.2;
-        const y  = H - P - 10 - bH;
-        return (
-          <g key={i}>
-            <rect x={x} y={y} width={bW} height={bH} rx="4" fill={`url(#bg${i})`}
-              style={{filter:`drop-shadow(0 2px 5px ${color}44)`}}/>
-            <text x={x+bW/2} y={H} textAnchor="middle" fill={FAINT} fontSize="9" fontWeight="700">{d.label}</text>
-          </g>
-        );
-      })}
-    </svg>
-  );
-}
-
-// ─── DONUT ───────────────────────────────────────────────────────
-function Donut({ school, total, size=76 }) {
-  const { SURF_LO, GREEN, GOLD, TEXT } = useContext(ThemeContext);
-  const pct = total ? school/total : 0;
-  const r=26, cx=size/2, cy=size/2, c=2*Math.PI*r;
-  return (
-    <svg width={size} height={size}>
-      <circle cx={cx} cy={cy} r={r} fill="none" stroke={SURF_LO} strokeWidth="9"/>
-      <circle cx={cx} cy={cy} r={r} fill="none" stroke={GREEN} strokeWidth="9"
-        strokeDasharray={`${pct*c} ${c}`} strokeDashoffset={c*.75} strokeLinecap="round"
-        style={{filter:`drop-shadow(0 0 5px ${GREEN}66)`}}/>
-      <circle cx={cx} cy={cy} r={r} fill="none" stroke={GOLD} strokeWidth="9"
-        strokeDasharray={`${(1-pct)*c} ${c}`} strokeDashoffset={c*(.75+pct)} strokeLinecap="round"
-        style={{filter:`drop-shadow(0 0 5px ${GOLD}66)`}}/>
-      <text x={cx} y={cy} textAnchor="middle" dominantBaseline="middle" fill={TEXT} fontSize="12" fontWeight="800">{Math.round(pct*100)}%</text>
-    </svg>
-  );
 }
 
 // ─── CHIP ────────────────────────────────────────────────────────
@@ -335,7 +205,7 @@ const Chip = ({label, active, onClick, color}) => {
   const { ACC_HI, ACCENT, SURF_HI, SURFACE, DIM, SO } = useContext(ThemeContext);
   return (
     <button onClick={onClick} style={{
-      padding:"6px 12px", borderRadius:9, border:"none", cursor:"pointer", fontSize:11, fontWeight:700, flexShrink:0, fontFamily:"inherit",
+      flex:1, padding:"7px 4px", borderRadius:9, border:"none", cursor:"pointer", fontSize:11, fontWeight:700, fontFamily:"inherit", textAlign:"center",
       background: active ? `linear-gradient(145deg,${color||ACC_HI},${color?color+"bb":ACCENT})` : `linear-gradient(145deg,${SURF_HI},${SURFACE})`,
       color: active ? "#fff" : DIM, boxShadow: active ? "none" : SO,
     }}>{label}</button>
@@ -343,20 +213,22 @@ const Chip = ({label, active, onClick, color}) => {
 };
 
 // ─── MAIN ────────────────────────────────────────────────────────
-export default function StatsView({ settings } = {}) {
+export default function StatsView() {
   const { BG_DEEP, SURFACE, SURF_HI, BORDER, TEXT, DIM, FAINT, ACCENT, ACC_HI, GREEN, BLUE, PURPLE, GOLD, RED, SO, SI } = useContext(ThemeContext);
-  const workStart = settings?.workStart ?? 8;
-  const workEnd   = settings?.workEnd   ?? 18;
   const lang = useContext(LangContext);
   const t = createT(lang);
   const [period,     setPeriod]    = useState("month");
-  const [chartType,  setChartType] = useState("line");
-  const [metric,     setMetric]    = useState("income");
   const [bookings,   setBookings]  = useState([]);
   const [services,   setServices]  = useState([]);
   const [topBy,      setTopBy]     = useState("paid");
-  const [customFrom, setCustomFrom] = useState('');
-  const [customTo,   setCustomTo]   = useState('');
+  const [selectedDays, setSelectedDays] = useState(() => new Set());
+  const today0 = new Date();
+  const [calViewY, setCalViewY] = useState(today0.getFullYear());
+  const [calViewM, setCalViewM] = useState(today0.getMonth());
+  const [calDragPreview, setCalDragPreview] = useState(null); // { start, end } — дні поточного місяця під час протяжки
+  const calGridRef = useRef(null);
+  const calPressRef = useRef(null); // { day, startX, startY, longPressed, swiping }
+  const calHoldTimerRef = useRef(null);
   const [incomeGoal,  setIncomeGoal]  = useState(0);
   const [editingGoal, setEditingGoal] = useState(false);
   const [goalInput,   setGoalInput]   = useState("");
@@ -370,7 +242,7 @@ export default function StatsView({ settings } = {}) {
 `;
 
   useEffect(() => {
-    return onValue(iRef("bookings"), snap => {
+    return onValue(ref(db, "bookings"), snap => {
       const d = snap.val();
       if (!d) { setBookings([]); return; }
       const all = [];
@@ -388,27 +260,27 @@ export default function StatsView({ settings } = {}) {
   }, []);
 
   useEffect(() => {
-    return onValue(iRef("admin_data/services"), snap => {
+    return onValue(ref(db, "admin_settings/services"), snap => {
       const d = snap.val();
       setServices(Array.isArray(d) ? d : []);
     }, () => {});
   }, []);
 
   useEffect(() => {
-    get(iRef("admin_settings/incomeGoal")).then(s => { if (s.exists()) setIncomeGoal(s.val() || 0); }).catch(() => {});
+    get(ref(db, "admin_settings/incomeGoal")).then(s => { if (s.exists()) setIncomeGoal(s.val() || 0); }).catch(() => {});
   }, []);
 
   const data     = period === "week"   ? computeWeekData(bookings, 0, services)
                  : period === "year"   ? computeYearData(bookings, 0, services)
-                 : period === "day"    ? computeDayData(bookings, 0, services, workStart, workEnd)
-                 : period === "custom" ? computeCustomData(bookings, customFrom, customTo, services)
+                 : period === "day"    ? computeDayData(bookings, 0, services)
+                 : period === "custom" ? computeSelectedDaysData(bookings, selectedDays, services)
                  :                       computeMonthData(bookings, 0, services);
 
   const prevData = period === "custom" ? data
                  : period === "week"   ? computeWeekData(bookings, -1, services)
                  : period === "year"   ? computeYearData(bookings, -1, services)
-                 : period === "day"    ? computeDayData(bookings, -1, services, workStart, workEnd)
-                 :                       computeMonthData(bookings, -5, services);
+                 : period === "day"    ? computeDayData(bookings, -1, services)
+                 :                       computeMonthData(bookings, -1, services);
 
   const cur  = periodSum(data);
   const prev = periodSum(prevData);
@@ -417,55 +289,145 @@ export default function StatsView({ settings } = {}) {
   const totalLessons = cur.lessons;
   const totalSchool  = data.reduce((s, d) => s + d.school,  0);
   const totalPrivate = data.reduce((s, d) => s + d.private, 0);
-  const totalNoshow  = cur.noshow;
-  const totalCancel  = data.reduce((s, d) => s + (d.cancel||0), 0);
-  const avgCheck     = totalLessons ? Math.round(totalIncome / totalLessons) : 0;
-  const noshowPct    = totalLessons ? Math.round((totalNoshow / totalLessons) * 100) : 0;
-  const prevAvgCheck = prev.lessons ? Math.round(prev.income / prev.lessons) : 0;
+  const totalHours   = Math.round(data.reduce((s, d) => s + (d.hours||0), 0) * 10) / 10;
+  const prevHours    = Math.round(prevData.reduce((s, d) => s + (d.hours||0), 0) * 10) / 10;
 
-  const curMonthStr = new Date().toISOString().slice(0,7);
-  const curMonthIncome = bookings
+  const todayStr = getDateStr(new Date());
+  const curMonthStr = todayStr.slice(0,7);
+  // Поточний — дохід за вже минулі/сьогоднішні дні місяця (реально відбулось).
+  // Прогнозований — + вже заброньовані майбутні записи цього місяця (не
+  // статистична екстраполяція, а реальні записи, що йдуть наперед).
+  const curMonthCurrent = bookings
+    .filter(b => (b.status === "confirmed" || b.status === "pending") && (b.date||"").startsWith(curMonthStr) && (b.date||"") <= todayStr)
+    .reduce((s, b) => s + bkIncome(b, services), 0);
+  const curMonthForecast = bookings
     .filter(b => (b.status === "confirmed" || b.status === "pending") && (b.date||"").startsWith(curMonthStr))
     .reduce((s, b) => s + bkIncome(b, services), 0);
 
-  const customDiffDays = customFrom && customTo ? Math.round((new Date(customTo) - new Date(customFrom)) / 86400000) + 1 : 0;
-  const periodBookings = filterByPeriod(bookings, data, period, customFrom, customTo);
-  const totalPaid = periodBookings.filter(b => b.isPaid && (b.status === 'confirmed' || b.status === 'pending')).reduce((s, b) => s + bkIncome(b, services), 0);
+  const periodBookings = filterByPeriod(bookings, data, period);
   const topStudents  = computeTopStudents(periodBookings, topBy, services);
   const popularSlots = computePopularSlots(periodBookings, services);
-  const forecast     = period === "year" ? computeYearForecast(bookings, services) : period === "custom" ? null : computeMonthForecast(bookings, services);
-  const todayStr     = getDateStr(new Date());
-  const todayLessons = period === "day"
-    ? bookings.filter(b => b.date === todayStr && b.status !== "cancelled" && b.type !== "block" && b.type !== "personal" && b.type !== "vip-slot").sort((a, b) => (a.time||"").localeCompare(b.time||""))
-    : [];
-  // Заповненість: для "день" рахуємо по годинних бакетах (як і раніше, лише
-  // діапазон тепер бере робочі години з налаштувань замість жорстко 8–17).
-  // Для тижня/місяця/року/свого періоду бакети (data) не завжди дорівнюють
-  // кількості днів (у місяці/році — це місяці), тому знаменник рахуємо від
-  // реальної кількості календарних днів періоду, а не кількості бакетів.
-  const dayBucketCount = Math.max(1, workEnd - workStart);
-  const occupancyDays  = period === "week"   ? data.length
-                        : period === "custom" ? (customDiffDays || data.length)
-                        : period === "month" || period === "year"
-                          ? data.reduce((sum, d) => {
-                              const [y, m] = (d.key || "").split("-").map(Number);
-                              return sum + (y && m ? new Date(y, m, 0).getDate() : 30);
-                            }, 0)
-                          : data.length;
-  const occupancy    = period === "day"
-    ? (data.length ? Math.min(100, Math.round((cur.lessons / (data.length * dayBucketCount)) * 100)) : 0)
-    : (occupancyDays ? Math.min(100, Math.round((cur.lessons / (occupancyDays * 8)) * 100)) : 0);
-  const occupancySub = period === "day" ? "сьогодні" : period === "week" ? "цей тиждень" : period === "month" ? "5 місяців" : period === "custom" ? "свій інтервал" : "рік";
-  const forecastSub  = period === "year" ? "рік (прогноз)" : period === "custom" ? "—" : "місяць (прогноз)";
-  const byPeriodLabel= period === "day" ? "По годинах" : period === "week" ? "По днях" : period === "custom" && customDiffDays <= 62 ? "По днях" : "По місяцях";
+  const byPeriodLabel= period === "day" ? "По годинах" : period === "year" ? "По місяцях" : "По днях";
 
-  const METRICS = [
-    {id:"income",  label:t('income')+' ₴', color:GOLD},
-    {id:"lessons", label:t('lessons'),      color:BLUE},
-    {id:"school",  label:t('school'),       color:GREEN},
-    {id:"private", label:t('private'),      color:PURPLE},
-  ];
-  const curMetric = METRICS.find(m => m.id === metric);
+  // Календар завжди на екрані (замість модалки/полів дат) — швидкий вибір
+  // місяця (тап на назву місяця), тижня чи конкретного дня (тап на день).
+  const calMonthData = computeCalendarMonthData(bookings, calViewY, calViewM, services);
+  const calFirstDow  = (new Date(calViewY, calViewM, 1).getDay() + 6) % 7;
+  const calDaysInMonth = new Date(calViewY, calViewM + 1, 0).getDate();
+  const calMonthLabel = new Date(calViewY, calViewM, 1).toLocaleDateString("uk-UA", { month: "long", year: "numeric" }).replace(/\s*р\.?$/i, "");
+  const calGoMonth = (delta) => {
+    let m = calViewM + delta, y = calViewY;
+    if (m < 0) { m = 11; y--; } else if (m > 11) { m = 0; y++; }
+    setCalViewM(m); setCalViewY(y);
+  };
+  const calTierColor = (n) => n <= 3 ? RED : n <= 6 ? GOLD : GREEN;
+
+  // Швидкий тап на день — перемикає ЛИШЕ цей день (додає/прибирає з вибору),
+  // інші раніше обрані дні залишаються — скинути все можна кнопкою "✕ Скинути".
+  const calPickDay = (dateStr) => {
+    setSelectedDays(prev => {
+      const next = new Set(prev);
+      if (next.has(dateStr)) next.delete(dateStr); else next.add(dateStr);
+      return next;
+    });
+    setPeriod("custom");
+  };
+  // Тап на назву місяця — додає весь видимий місяць до вибору; повторний
+  // тап (коли місяць вже повністю обрано) прибирає ці дні назад.
+  const calPickMonth = () => {
+    const monthDates = Array.from({length: calDaysInMonth}, (_, i) => getDateStr(new Date(calViewY, calViewM, i + 1)));
+    const allSelected = monthDates.every(d => selectedDays.has(d));
+    setSelectedDays(prev => {
+      const next = new Set(prev);
+      monthDates.forEach(d => allSelected ? next.delete(d) : next.add(d));
+      return next;
+    });
+    setPeriod("custom");
+  };
+  // Довгий тап + протяжка додає ЦІЛУ смугу днів до вже обраних (не замінює —
+  // так можна зібрати кілька окремих смуг за кілька жестів поспіль).
+  const calCommitDragRange = (startDay, endDay) => {
+    const lo = Math.min(startDay, endDay), hi = Math.max(startDay, endDay);
+    setSelectedDays(prev => {
+      const next = new Set(prev);
+      for (let d = lo; d <= hi; d++) next.add(getDateStr(new Date(calViewY, calViewM, d)));
+      return next;
+    });
+    setPeriod("custom");
+  };
+  const calClearSelection = () => setSelectedDays(new Set());
+
+  const CAL_HOLD_MS = 380, CAL_MOVE_TOL = 10, CAL_SWIPE_MIN = 44;
+  const calDayFromPoint = (x, y) => {
+    const el = document.elementFromPoint(x, y)?.closest('[data-cal-day]');
+    return el ? parseInt(el.getAttribute('data-cal-day'), 10) : null;
+  };
+  const calOnPointerDown = (e) => {
+    const el = e.target.closest('[data-cal-day]');
+    if (!el) return;
+    const day = parseInt(el.getAttribute('data-cal-day'), 10);
+    calPressRef.current = { day, startX: e.clientX, startY: e.clientY, longPressed: false, swiping: false };
+    calHoldTimerRef.current = setTimeout(() => {
+      const p = calPressRef.current;
+      if (!p || p.swiping) return;
+      p.longPressed = true;
+      setCalDragPreview({ start: p.day, end: p.day });
+    }, CAL_HOLD_MS);
+  };
+  const calOnPointerMove = (e) => {
+    const p = calPressRef.current;
+    if (!p) return;
+    const dx = e.clientX - p.startX, dy = e.clientY - p.startY;
+    if (p.longPressed) {
+      const day = calDayFromPoint(e.clientX, e.clientY);
+      if (day != null) setCalDragPreview(prev => prev ? { ...prev, end: day } : { start: p.day, end: day });
+      return;
+    }
+    if (!p.swiping && (Math.abs(dx) > CAL_MOVE_TOL || Math.abs(dy) > CAL_MOVE_TOL)) {
+      if (Math.abs(dx) > Math.abs(dy) * 1.4) { p.swiping = true; clearTimeout(calHoldTimerRef.current); }
+      else { calPressRef.current = null; clearTimeout(calHoldTimerRef.current); }
+    }
+  };
+  const calEndGesture = (e) => {
+    clearTimeout(calHoldTimerRef.current);
+    const p = calPressRef.current;
+    calPressRef.current = null;
+    if (!p) { setCalDragPreview(null); return; }
+    if (p.longPressed) {
+      const preview = calDragPreview;
+      setCalDragPreview(null);
+      if (preview) calCommitDragRange(preview.start, preview.end);
+      return;
+    }
+    if (p.swiping) {
+      const dx = (e.clientX ?? p.startX) - p.startX;
+      if (dx <= -CAL_SWIPE_MIN) calGoMonth(1);
+      else if (dx >= CAL_SWIPE_MIN) calGoMonth(-1);
+      return;
+    }
+    const day = calDayFromPoint(e.clientX ?? p.startX, e.clientY ?? p.startY) ?? p.day;
+    calPickDay(getDateStr(new Date(calViewY, calViewM, day)));
+  };
+  const calOnPointerCancel = () => {
+    clearTimeout(calHoldTimerRef.current);
+    calPressRef.current = null;
+    setCalDragPreview(null);
+  };
+
+  const selectedStrips = (() => {
+    if (!selectedDays.size) return [];
+    const sorted = [...selectedDays].sort();
+    const strips = [];
+    let curStart = sorted[0], curEnd = sorted[0];
+    for (let i = 1; i < sorted.length; i++) {
+      const diff = Math.round((new Date(sorted[i]+"T00:00:00") - new Date(curEnd+"T00:00:00")) / 86400000);
+      if (diff === 1) { curEnd = sorted[i]; }
+      else { strips.push([curStart, curEnd]); curStart = sorted[i]; curEnd = sorted[i]; }
+    }
+    strips.push([curStart, curEnd]);
+    return strips;
+  })();
+  const fmtDM = (dateStr) => { const d = new Date(dateStr+"T00:00:00"); return `${d.getDate()}.${String(d.getMonth()+1).padStart(2,'0')}`; };
 
   return (
     <>
@@ -474,48 +436,112 @@ export default function StatsView({ settings } = {}) {
       <div style={{display:"flex",flexDirection:"column",gap:8,fontFamily:"ui-sans-serif,-apple-system,system-ui,sans-serif",color:TEXT}}>
 
         {/* ── PERIOD ── */}
-        <div style={{display:"flex",gap:6,overflowX:"auto",paddingBottom:2}}>
-          {[["day","День"],["week",t('st2.week')],["month",t('st2.month')],["year",t('st2.year')],["custom","Свій"]].map(([k,l])=>(
+        <div style={{display:"flex",gap:6}}>
+          {[["day","День"],["week",t('st2.week')],["month",t('st2.month')],["year",t('st2.year')],["custom","Період"]].map(([k,l])=>(
             <Chip key={k} label={l} active={period===k} onClick={()=>setPeriod(k)}/>
           ))}
         </div>
-        {period === "custom" && (
-          <div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
-            <input type="date" value={customFrom} onChange={e=>setCustomFrom(e.target.value)}
-              style={{background:SURF_HI,border:`1px solid ${BORDER}`,borderRadius:9,padding:"7px 10px",color:TEXT,fontSize:12,fontFamily:"inherit",boxShadow:SI,flex:1,minWidth:130,colorScheme:"dark"}}/>
-            <span style={{color:FAINT,fontSize:14,fontWeight:700}}>—</span>
-            <input type="date" value={customTo} onChange={e=>setCustomTo(e.target.value)}
-              style={{background:SURF_HI,border:`1px solid ${BORDER}`,borderRadius:9,padding:"7px 10px",color:TEXT,fontSize:12,fontFamily:"inherit",boxShadow:SI,flex:1,minWidth:130,colorScheme:"dark"}}/>
-          </div>
-        )}
 
-        {/* ── KPI 2×3 ── */}
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7}}>
+        {/* ── CALENDAR (завжди відкритий — швидкий вибір місяця/тижня/дня) ── */}
+        <Card className="fu" style={{padding:"12px"}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:9}}>
+            <button onClick={()=>calGoMonth(-1)} style={{
+              width:34,height:34,borderRadius:9,border:"none",cursor:"pointer",fontFamily:"inherit",
+              background:SURF_HI,color:DIM,fontSize:18,fontWeight:700,lineHeight:1,
+            }}>‹</button>
+            <button onClick={calPickMonth} title="Обрати весь місяць" style={{
+              border:"none",cursor:"pointer",fontFamily:"inherit",background:"transparent",
+              fontSize:13,fontWeight:800,color:TEXT,textTransform:"capitalize",padding:"4px 10px",borderRadius:8,
+            }}>{calMonthLabel}</button>
+            <button onClick={()=>calGoMonth(1)} style={{
+              width:34,height:34,borderRadius:9,border:"none",cursor:"pointer",fontFamily:"inherit",
+              background:SURF_HI,color:DIM,fontSize:18,fontWeight:700,lineHeight:1,
+            }}>›</button>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3,marginBottom:4}}>
+            {["Пн","Вт","Ср","Чт","Пт","Сб","Нд"].map(d=>(
+              <div key={d} style={{textAlign:"center",fontSize:8,color:FAINT,fontWeight:700,textTransform:"uppercase"}}>{d}</div>
+            ))}
+          </div>
+          <div
+            ref={calGridRef}
+            onPointerDown={calOnPointerDown}
+            onPointerMove={calOnPointerMove}
+            onPointerUp={calEndGesture}
+            onPointerCancel={calOnPointerCancel}
+            onPointerLeave={(e)=>{ if (calPressRef.current && !calPressRef.current.longPressed && !calPressRef.current.swiping) calOnPointerCancel(); }}
+            style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3,touchAction:"pan-y",userSelect:"none"}}
+          >
+            {Array.from({length:calFirstDow}, (_,i)=><div key={`b${i}`}/>)}
+            {Array.from({length:calDaysInMonth}, (_,i)=>{
+              const day = i+1;
+              const dateStr = getDateStr(new Date(calViewY, calViewM, day));
+              const bucket = calMonthData[i];
+              const n = bucket ? bucket.lessons : 0;
+              const isToday = dateStr === todayStr;
+              const isSel = period === "custom" && selectedDays.has(dateStr);
+              const inPreview = calDragPreview && day >= Math.min(calDragPreview.start,calDragPreview.end) && day <= Math.max(calDragPreview.start,calDragPreview.end);
+              let bg = SURF_HI, color = DIM;
+              if (n > 0) { const tier = calTierColor(n); bg = `${tier}22`; color = tier; }
+              if (inPreview) { bg = `${ACCENT}45`; color = ACCENT; }
+              return (
+                <button key={day} data-cal-day={day} style={{
+                  height:26, borderRadius:6, cursor:"pointer", fontFamily:"inherit",
+                  border: isToday ? `1.5px solid ${ACCENT}` : inPreview ? `1px solid ${ACCENT}` : "none",
+                  background: isSel ? ACCENT : bg,
+                  color: isSel ? "#04231f" : color,
+                  fontSize:10, fontWeight:700,
+                }}>{day}</button>
+              );
+            })}
+          </div>
+          <div style={{display:"flex",gap:10,justifyContent:"center",marginTop:8}}>
+            {[[RED,"мало"],[GOLD,"середньо"],[GREEN,"багато"]].map(([c,l])=>(
+              <span key={l} style={{fontSize:8,color:FAINT,fontWeight:700,display:"flex",alignItems:"center",gap:3}}>
+                <i style={{width:6,height:6,borderRadius:2,background:c,display:"inline-block"}}/>{l}
+              </span>
+            ))}
+          </div>
+          {period === "custom" && selectedStrips.length > 0 && (
+            <div style={{marginTop:9,display:"flex",alignItems:"center",gap:6}}>
+              <div style={{flex:1,textAlign:"center",fontSize:10.5,fontWeight:700,color:ACCENT,background:`${ACCENT}1a`,borderRadius:8,padding:"6px 8px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                {selectedStrips.map(([s,e])=> s===e ? fmtDM(s) : `${fmtDM(s)}–${fmtDM(e)}`).join(", ")}
+              </div>
+              <button onClick={calClearSelection} title="Скинути вибір" style={{
+                flexShrink:0, padding:"6px 9px", borderRadius:8, border:"none", cursor:"pointer", fontFamily:"inherit",
+                background:SURF_HI, color:FAINT, fontSize:10.5, fontWeight:700,
+              }}>✕</button>
+            </div>
+          )}
+        </Card>
+
+        {/* ── KPI 3 ── */}
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:7}}>
           {[
-            {label:"Дохід",        value:fmtK(totalIncome),               sub:totalPaid ? `✓ ${fmtK(totalPaid)} отримано` : "за період",   color:GOLD,  trend:trendPct(cur.income,  prev.income)},
-            {label:"Уроків",       value:totalLessons,                    sub:`${totalSchool}а · ${totalPrivate}п`, color:BLUE,                                       trend:trendPct(cur.lessons, prev.lessons)},
-            {label:"Серед. чек",   value:fmtK(avgCheck),                  sub:"дохід / урок",                      color:GREEN,                                      trend:trendPct(avgCheck, prevAvgCheck)},
-            {label:"No-show",      value:`${noshowPct}%`,                 sub:`скасувань: ${totalCancel}`,          color:noshowPct>5?RED:DIM,                        trend:trendPct(cur.noshow, prev.noshow) * -1},
-            {label:"Заповненість", value:`${occupancy}%`,               sub:occupancySub,                        color:occupancy<50?RED:occupancy<80?GOLD:GREEN, trend:0},
-            {label:"Прогноз",      value:forecast!=null?fmtK(forecast):"—", sub:forecastSub,                      color:PURPLE,                                   trend:0},
+            {label:"Дохід",        value:fmtK(totalIncome),               color:GOLD,  trend:trendPct(cur.income,  prev.income)},
+            {label:"Уроків",       value:totalLessons,                    color:BLUE,  trend:trendPct(cur.lessons, prev.lessons)},
+            {label:"Години",       value:totalHours,                      color:GREEN, trend:trendPct(totalHours, prevHours)},
           ].map((k, i) => (
             <Card key={i} className="fu" style={{
-              padding:"12px 13px",
+              padding:"10px 9px",
               background:`linear-gradient(155deg,color-mix(in srgb,${k.color} 20%,${BG_DEEP}),color-mix(in srgb,${k.color} 6%,${BG_DEEP}))`,
               border:`1px solid color-mix(in srgb,${k.color} 30%,transparent)`,
+              textAlign:"center",
             }}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:6}}>
-                <div style={{fontSize:9,color:"rgba(255,255,255,0.6)",letterSpacing:1,textTransform:"uppercase",fontWeight:700}}>{k.label}</div>
-                {k.trend !== 0 && (
-                  <span style={{
-                    fontSize:9, fontWeight:800, padding:"2px 6px", borderRadius:6,
-                    color:k.trend>=0?GREEN:RED,
-                    background:k.trend>=0?`${GREEN}1f`:`${RED}1f`,
-                  }}>{k.trend>=0?"+":""}{k.trend}%</span>
-                )}
-              </div>
-              <div style={{fontSize:22,fontWeight:900,color:"#fff",letterSpacing:-0.5,marginBottom:2}}>{k.value}</div>
-              <div style={{fontSize:10,color:"rgba(255,255,255,0.5)"}}>{k.sub}</div>
+              <div style={{fontSize:8,color:"rgba(255,255,255,0.6)",letterSpacing:0.6,textTransform:"uppercase",fontWeight:700,marginBottom:6}}>{k.label}</div>
+              <div style={{fontSize:18,fontWeight:900,color:"#fff",letterSpacing:-0.3,lineHeight:1.05}}>{k.value}</div>
+              {(k.extra || (k.trend != null && k.trend !== 0)) && (
+                <div style={{display:"flex",justifyContent:"center",alignItems:"center",gap:5,marginTop:5,flexWrap:"wrap"}}>
+                  {k.extra && <span style={{fontSize:9,color:"rgba(255,255,255,0.55)",fontWeight:700}}>{k.extra}</span>}
+                  {k.trend != null && k.trend !== 0 && (
+                    <span style={{
+                      fontSize:8, fontWeight:800, padding:"1px 5px", borderRadius:5,
+                      color:k.trend>=0?GREEN:RED,
+                      background:k.trend>=0?`${GREEN}1f`:`${RED}1f`,
+                    }}>{k.trend>=0?"+":""}{k.trend}%</span>
+                  )}
+                </div>
+              )}
             </Card>
           ))}
         </div>
@@ -538,7 +564,7 @@ export default function StatsView({ settings } = {}) {
               <button onClick={()=>{
                 const val=Math.max(0,parseInt(goalInput,10)||0);
                 setIncomeGoal(val);
-                update(iRef("admin_settings"),{incomeGoal:val}).catch(()=>{});
+                update(ref(db, "admin_settings"),{incomeGoal:val}).catch(()=>{});
                 setEditingGoal(false);
               }} style={{
                 padding:"8px 14px",borderRadius:9,border:"none",cursor:"pointer",fontFamily:"inherit",fontSize:13,fontWeight:700,
@@ -551,25 +577,43 @@ export default function StatsView({ settings } = {}) {
             </div>
           ) : incomeGoal > 0 ? (
             <>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:7}}>
-                <span style={{fontSize:20,fontWeight:900,color:curMonthIncome>=incomeGoal?GREEN:GOLD}}>{fmtK(curMonthIncome)}</span>
-                <span style={{fontSize:11,color:FAINT}}>/ {fmtK(incomeGoal)}</span>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",marginBottom:curMonthForecast>curMonthCurrent?7:11}}>
+                <div>
+                  <div style={{fontSize:24,fontWeight:900,color:GOLD,lineHeight:1}}>{fmtK(incomeGoal)}</div>
+                  <div style={{fontSize:8,color:FAINT,marginTop:3}}>ціль місяця</div>
+                </div>
+                <div style={{textAlign:"right"}}>
+                  <div style={{fontSize:16,fontWeight:800,color:curMonthCurrent>=incomeGoal?GREEN:TEXT,lineHeight:1}}>{fmtK(curMonthCurrent)}</div>
+                  <div style={{fontSize:8,color:FAINT,marginTop:3}}>вже зароблено</div>
+                </div>
               </div>
-              <div style={{height:8,background:BG_DEEP,borderRadius:5,boxShadow:SI,overflow:"hidden",marginBottom:6}}>
+              {curMonthForecast > curMonthCurrent && (
+                <div style={{fontSize:9,color:ACCENT,fontWeight:700,marginBottom:7}}>
+                  прогноз із записами наперед: {fmtK(curMonthForecast)}
+                </div>
+              )}
+              <div style={{height:8,background:BG_DEEP,borderRadius:5,boxShadow:SI,overflow:"hidden",marginBottom:6,position:"relative"}}>
+                {curMonthForecast > curMonthCurrent && (
+                  <div style={{
+                    position:"absolute", inset:0, borderRadius:5,
+                    width:`${Math.min(100,Math.round((curMonthForecast/incomeGoal)*100))}%`,
+                    background:`${ACCENT}40`,
+                  }}/>
+                )}
                 <div style={{
-                  height:"100%",
-                  width:`${Math.min(100,Math.round((curMonthIncome/incomeGoal)*100))}%`,
+                  position:"relative", height:"100%",
+                  width:`${Math.min(100,Math.round((curMonthCurrent/incomeGoal)*100))}%`,
                   borderRadius:5,
-                  background:curMonthIncome>=incomeGoal?`linear-gradient(90deg,${GREEN},#22c55e)`:`linear-gradient(90deg,${GOLD},${GREEN})`,
+                  background:curMonthCurrent>=incomeGoal?`linear-gradient(90deg,${GREEN},#22c55e)`:`linear-gradient(90deg,${GOLD},${GREEN})`,
                   transition:"width .6s ease",
                 }}/>
               </div>
               <div style={{display:"flex",justifyContent:"space-between"}}>
-                <span style={{fontSize:10,fontWeight:800,color:curMonthIncome>=incomeGoal?GREEN:FAINT}}>
-                  {Math.min(100,Math.round((curMonthIncome/incomeGoal)*100))}%
+                <span style={{fontSize:10,fontWeight:800,color:curMonthCurrent>=incomeGoal?GREEN:FAINT}}>
+                  {Math.min(100,Math.round((curMonthCurrent/incomeGoal)*100))}%
                 </span>
-                {curMonthIncome<incomeGoal
-                  ? <span style={{fontSize:10,color:FAINT}}>залишилось {fmtK(incomeGoal-curMonthIncome)}</span>
+                {curMonthCurrent<incomeGoal
+                  ? <span style={{fontSize:10,color:FAINT}}>залишилось {fmtK(incomeGoal-curMonthCurrent)}</span>
                   : <span style={{fontSize:10,color:GREEN,fontWeight:700}}>🎉 Ціль досягнута!</span>
                 }
               </div>
@@ -579,82 +623,6 @@ export default function StatsView({ settings } = {}) {
           )}
         </Card>
 
-        {/* ── CHART ── */}
-        <Card className="fu" style={{
-          padding:"14px",
-          background:`linear-gradient(155deg,color-mix(in srgb,${curMetric.color} 14%,${BG_DEEP}),color-mix(in srgb,${curMetric.color} 3%,${BG_DEEP}))`,
-          border:`1px solid color-mix(in srgb,${curMetric.color} 24%,transparent)`,
-        }}>
-          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10,flexWrap:"wrap",gap:6}}>
-            <span style={{fontSize:13,fontWeight:800,color:"#fff"}}>Динаміка</span>
-            <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
-              {METRICS.map(m=>(
-                <button key={m.id} onClick={()=>setMetric(m.id)} style={{
-                  padding:"4px 8px", borderRadius:7, border:"none", cursor:"pointer", fontSize:10, fontWeight:700, fontFamily:"inherit",
-                  background:metric===m.id?m.color:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,
-                  color:metric===m.id?"#fff":FAINT, boxShadow:SO,
-                }}>{m.label}</button>
-              ))}
-              <button onClick={()=>setChartType(t=>t==="line"?"bar":"line")} style={{
-                padding:"4px 10px", borderRadius:7, border:"none", cursor:"pointer", fontSize:11, fontFamily:"inherit",
-                background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`, color:DIM, boxShadow:SO,
-              }}>{chartType==="line"?"📊":"📈"}</button>
-            </div>
-          </div>
-          <Inset style={{padding:"10px 8px 4px"}}>
-            {chartType==="line"
-              ? <LineChart data={data} valueKey={metric} color={curMetric.color} height={120}/>
-              : <BarChart  data={data} valueKey={metric} color={curMetric.color} height={120}/>
-            }
-          </Inset>
-          <div style={{display:"flex",gap:14,marginTop:9,justifyContent:"center",flexWrap:"wrap"}}>
-            {METRICS.map(m=>(
-              <div key={m.id} onClick={()=>setMetric(m.id)} style={{display:"flex",alignItems:"center",gap:5,cursor:"pointer"}}>
-                <div style={{
-                  width:7, height:7, borderRadius:4, background:m.color,
-                  boxShadow:`0 0 5px ${m.color}88`,
-                  transform:metric===m.id?"scale(1.5)":"scale(1)", transition:"transform .15s",
-                }}/>
-                <span style={{fontSize:10,color:metric===m.id?m.color:FAINT,fontWeight:700}}>{m.label}</span>
-              </div>
-            ))}
-          </div>
-        </Card>
-
-        {/* ── РОЗКЛАД СЬОГОДНІ ── */}
-        {period === "day" && todayLessons.length > 0 && (
-          <Card className="fu" style={{padding:"12px 13px"}}>
-            <div style={{fontSize:9,color:FAINT,letterSpacing:1,textTransform:"uppercase",fontWeight:700,marginBottom:10}}>Розклад на сьогодні · {todayLessons.length} {todayLessons.length === 1 ? "урок" : todayLessons.length < 5 ? "уроки" : "уроків"}</div>
-            <div style={{display:"flex",flexDirection:"column",gap:5}}>
-              {todayLessons.map(b => {
-                const now = new Date();
-                const [bh, bm] = (b.time||"0:0").split(":").map(Number);
-                const bMin = bh * 60 + bm;
-                const nowMin = now.getHours() * 60 + now.getMinutes();
-                const durMin = b.durMin || (b.durationHours ? b.durationHours * 60 : 60);
-                const isPast = nowMin > bMin + durMin;
-                const isCurrent = nowMin >= bMin && nowMin <= bMin + durMin;
-                const stColor = b.status === "noshow" ? RED : isCurrent ? GREEN : isPast ? FAINT : ACCENT;
-                const statusLabel = b.status === "noshow" ? "✕" : isCurrent ? "▶" : isPast ? "✓" : "○";
-                return (
-                  <div key={b._key} style={{display:"flex",alignItems:"center",gap:8,background:isCurrent?`${GREEN}12`:`linear-gradient(135deg,${SURF_HI},${SURFACE})`,borderRadius:9,padding:"7px 10px",boxShadow:SO,border:isCurrent?`1px solid ${GREEN}33`:"none"}}>
-                    <span style={{fontSize:13,fontWeight:900,color:isCurrent?GREEN:isPast?FAINT:TEXT,minWidth:36,flexShrink:0}}>{b.time||"—"}</span>
-                    <span style={{flex:1,fontSize:12,fontWeight:700,color:isPast?FAINT:TEXT,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{b.name}</span>
-                    <span style={{fontSize:10,color:DIM,flexShrink:0}}>{b.durMin ? `${b.durMin}хв` : b.durationHours ? `${b.durationHours}г` : ""}</span>
-                    {b.price > 0 && <span style={{fontSize:10,fontWeight:800,color:b.isPaid?GREEN:GOLD,flexShrink:0}}>{b.price}₴{b.isPaid?" ✓":""}</span>}
-                    <span style={{fontSize:11,fontWeight:800,color:stColor,flexShrink:0,minWidth:12,textAlign:"center"}}>{statusLabel}</span>
-                  </div>
-                );
-              })}
-            </div>
-          </Card>
-        )}
-        {period === "day" && todayLessons.length === 0 && (
-          <Card className="fu" style={{padding:"14px 13px",textAlign:"center"}}>
-            <div style={{fontSize:11,color:FAINT,fontWeight:600}}>Записів на сьогодні немає</div>
-          </Card>
-        )}
-
         {/* ── РОЗПОДІЛ + ПО ДНЯХ ── */}
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7}}>
           <Card className="fu" style={{
@@ -662,19 +630,27 @@ export default function StatsView({ settings } = {}) {
             background:`linear-gradient(155deg,color-mix(in srgb,${GREEN} 14%,${BG_DEEP}),color-mix(in srgb,${GREEN} 3%,${BG_DEEP}))`,
             border:`1px solid color-mix(in srgb,${GREEN} 24%,transparent)`,
           }}>
-            <div style={{fontSize:9,color:"rgba(255,255,255,0.6)",letterSpacing:1,textTransform:"uppercase",fontWeight:700,marginBottom:9}}>Розподіл</div>
-            <div style={{display:"flex",alignItems:"center",gap:8}}>
-              <Donut school={totalSchool} total={totalSchool+totalPrivate}/>
-              <div style={{flex:1}}>
-                {[[GREEN,"Автошкола",totalSchool],[GOLD,"Приватний",totalPrivate]].map(([c,l,v])=>(
-                  <div key={l} style={{display:"flex",alignItems:"center",gap:5,marginBottom:6}}>
-                    <div style={{width:7,height:7,borderRadius:4,background:c,flexShrink:0}}/>
-                    <span style={{fontSize:10,color:"rgba(255,255,255,0.65)",flex:1}}>{l}</span>
-                    <span style={{fontSize:12,fontWeight:800,color:"#fff"}}>{v}</span>
+            <div style={{fontSize:9,color:"rgba(255,255,255,0.6)",letterSpacing:1,textTransform:"uppercase",fontWeight:700,marginBottom:7}}>Розподіл</div>
+            {(() => {
+              const totalRatio = totalSchool + totalPrivate;
+              const schoolPct = totalRatio ? Math.round((totalSchool/totalRatio)*100) : 0;
+              return (
+                <div style={{display:"flex",flexDirection:"column",gap:5}}>
+                  {[[GREEN,"Автошкола",totalSchool,schoolPct],[GOLD,"Приватний",totalPrivate,100-schoolPct]].map(([c,l,v,pct])=>(
+                    <div key={l} style={{display:"flex",alignItems:"center",gap:5}}>
+                      <i style={{width:7,height:7,borderRadius:2,background:c,flexShrink:0}}/>
+                      <span style={{flex:1,fontSize:9.5,color:"rgba(255,255,255,0.7)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{l}</span>
+                      <span style={{fontSize:12,fontWeight:900,color:c}}>{v}</span>
+                      <span style={{fontSize:8.5,color:"rgba(255,255,255,0.5)",width:26,textAlign:"right",flexShrink:0}}>{pct}%</span>
+                    </div>
+                  ))}
+                  <div style={{display:"flex",height:6,borderRadius:4,overflow:"hidden",boxShadow:SI,marginTop:1}}>
+                    <div style={{width:`${totalRatio?schoolPct:50}%`,background:GREEN,transition:"width .5s ease"}}/>
+                    <div style={{width:`${totalRatio?100-schoolPct:50}%`,background:GOLD,transition:"width .5s ease"}}/>
                   </div>
-                ))}
-              </div>
-            </div>
+                </div>
+              );
+            })()}
           </Card>
 
           <Card className="fu" style={{
@@ -682,20 +658,22 @@ export default function StatsView({ settings } = {}) {
             background:`linear-gradient(155deg,color-mix(in srgb,${GOLD} 14%,${BG_DEEP}),color-mix(in srgb,${GOLD} 3%,${BG_DEEP}))`,
             border:`1px solid color-mix(in srgb,${GOLD} 24%,transparent)`,
           }}>
-            <div style={{fontSize:9,color:"rgba(255,255,255,0.6)",letterSpacing:1,textTransform:"uppercase",fontWeight:700,marginBottom:9}}>{byPeriodLabel}</div>
-            {data.map((d, i) => {
-              const maxI = Math.max(...data.map(x => x.income), 1);
-              const pct  = d.income / maxI;
-              return (
-                <div key={i} style={{display:"flex",alignItems:"center",gap:6,marginBottom:6}}>
-                  <span style={{fontSize:9,color:"rgba(255,255,255,0.55)",fontWeight:700,width:16,textAlign:"right",flexShrink:0}}>{d.label}</span>
-                  <div style={{flex:1,height:5,background:BG_DEEP,borderRadius:3,boxShadow:SI,overflow:"hidden"}}>
-                    <div style={{height:"100%",width:`${pct*100}%`,borderRadius:3,background:`linear-gradient(90deg,${GOLD},${GREEN})`,transition:"width .5s ease"}}/>
+            <div style={{fontSize:9,color:"rgba(255,255,255,0.6)",letterSpacing:1,textTransform:"uppercase",fontWeight:700,marginBottom:7}}>{byPeriodLabel}</div>
+            <div style={{display:"flex",flexDirection:"column",gap:4,maxHeight:140,overflowY:"auto",paddingRight:2}}>
+              {data.map((d, i) => {
+                const maxI = Math.max(...data.map(x => x.income), 1);
+                const pct  = d.income / maxI;
+                return (
+                  <div key={i} style={{display:"flex",alignItems:"center",gap:6}}>
+                    <span style={{fontSize:8.5,color:"rgba(255,255,255,0.55)",fontWeight:700,width:16,textAlign:"right",flexShrink:0}}>{d.label}</span>
+                    <div style={{flex:1,height:4,background:BG_DEEP,borderRadius:3,boxShadow:SI,overflow:"hidden"}}>
+                      <div style={{height:"100%",width:`${pct*100}%`,borderRadius:3,background:`linear-gradient(90deg,${GOLD},${GREEN})`,transition:"width .5s ease"}}/>
+                    </div>
+                    <span style={{fontSize:8.5,color:GOLD,fontWeight:800,width:32,textAlign:"right",flexShrink:0}}>{d.income ? fmtK(d.income) : <span style={{color:FAINT}}>—</span>}</span>
                   </div>
-                  <span style={{fontSize:9,color:GOLD,fontWeight:800,width:34,textAlign:"right",flexShrink:0}}>{d.income ? fmtK(d.income) : <span style={{color:FAINT}}>—</span>}</span>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </Card>
         </div>
 
@@ -787,32 +765,6 @@ export default function StatsView({ settings } = {}) {
             })}
           </Card>
         )}
-
-        {/* ── ЕКСПОРТ ── */}
-        <Card className="fu" style={{padding:"12px"}}>
-          <div style={{fontSize:9,color:FAINT,letterSpacing:1,textTransform:"uppercase",fontWeight:700,marginBottom:10}}>Експорт</div>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:7}}>
-            {[
-              {label:"Excel", emoji:"📊", color:GREEN, sub:"Статистика",     onClick:()=>exportCSV(bookings, services)},
-              {label:"PDF",   emoji:"📄", color:RED,   sub:"Для податкової", onClick:()=>window.print()},
-            ].map(e=>(
-              <button key={e.label} onClick={e.onClick} style={{
-                padding:"11px 6px", borderRadius:11, border:"none", cursor:"pointer", fontFamily:"inherit",
-                background:`linear-gradient(155deg,color-mix(in srgb,${e.color} 22%,${BG_DEEP}),color-mix(in srgb,${e.color} 6%,${BG_DEEP}))`,
-                display:"flex", flexDirection:"column", alignItems:"center", gap:5, boxShadow:SO,
-              }}>
-                <div style={{
-                  width:34, height:34, borderRadius:10,
-                  background:`linear-gradient(145deg,${e.color}55,${e.color}22)`,
-                  display:"flex", alignItems:"center", justifyContent:"center", fontSize:18,
-                  boxShadow:`0 2px 8px ${e.color}33`,
-                }}>{e.emoji}</div>
-                <span style={{fontSize:11,fontWeight:800,color:"#fff"}}>{e.label}</span>
-                <span style={{fontSize:9,color:"rgba(255,255,255,0.55)"}}>{e.sub}</span>
-              </button>
-            ))}
-          </div>
-        </Card>
 
         <div style={{height:8}}/>
       </div>
