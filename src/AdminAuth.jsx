@@ -203,12 +203,12 @@ export function InstructorSetupScreen({ onDone }) {
         <div style={{ marginBottom:14 }}>
           <div style={LBL}>Адреса в посиланні * (мін. 3 символи)</div>
           <div style={{ display:'flex', alignItems:'center', background:BG_DEEP, border:`1px solid ${slugError?ACCENT:BORDER}`, borderRadius:10, overflow:'hidden' }}>
-            <span style={{ padding:'10px 8px 10px 14px', color:DIM, fontSize:12, flexShrink:0, userSelect:'none' }}>book/</span>
+            <span style={{ padding:'10px 8px 10px 14px', color:DIM, fontSize:12, flexShrink:0, userSelect:'none' }}>i/</span>
             <input value={slug} onChange={e=>handleSlugChange(e.target.value)} placeholder="ivan-marchenko"
               style={{ ...INP, border:'none', borderRadius:0, padding:'10px 14px 10px 0', flex:1, minWidth:0 }}/>
           </div>
           {slugError && <div style={{ fontSize:11, color:ACCENT, marginTop:4 }}>{slugError}</div>}
-          {!slugError && slug.length >= 3 && <div style={{ fontSize:11, color:DIM, marginTop:4 }}>Посилання: /book/{slug}</div>}
+          {!slugError && slug.length >= 3 && <div style={{ fontSize:11, color:DIM, marginTop:4 }}>Посилання: /i/{slug}</div>}
         </div>
         <div style={{ marginBottom:14 }}>
           <div style={LBL}>Місто / Адреса</div>

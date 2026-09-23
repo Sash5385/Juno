@@ -242,6 +242,21 @@ select{color-scheme:${isKava?"light":"dark"}}
   const license = useLicense(auth.currentUser?.uid);
   const [payingWith, setPayingWith] = useState(null); // "liqpay" | "monobank" | null
 
+  // slug для посилання-запису учнів (задається один раз при онбордингу,
+  // AdminAuth.jsx → InstructorSetupScreen) — тут лише читаємо для показу
+  const [bookingSlug, setBookingSlug] = useState(null);
+  const [slugCopied,  setSlugCopied]  = useState(false);
+  useEffect(() => {
+    get(iRef("admin_settings/profile/slug")).then(snap => setBookingSlug(snap.val() || "")).catch(() => {});
+  }, []);
+  const bookingLink = bookingSlug ? `https://drivepad-client.web.app/i/${bookingSlug}` : "";
+  const copyBookingLink = () => {
+    if (!bookingLink) return;
+    navigator.clipboard?.writeText(bookingLink).catch(() => {});
+    setSlugCopied(true);
+    setTimeout(() => setSlugCopied(false), 1500);
+  };
+
   const payWithLiqPay = async () => {
     setPayingWith("liqpay");
     try {
@@ -932,6 +947,20 @@ select{color-scheme:${isKava?"light":"dark"}}
           </div>
         );
       })()}
+      {bookingSlug && (
+        <div style={{
+          margin:"12px 14px 0", padding:"12px 14px", borderRadius:14,
+          background:SURF_HI, border:`1px solid ${BORDER}`, boxShadow:SI,
+        }}>
+          <div style={{fontSize:11, fontWeight:800, color:DIM, textTransform:"uppercase", letterSpacing:0.5, marginBottom:8}}>Посилання для запису учнів</div>
+          <div style={{background:BG_DEEP, border:`1px solid ${BORDER}`, borderRadius:10, padding:"9px 12px", fontSize:12, color:TEXT, wordBreak:"break-all"}}>{bookingLink}</div>
+          <button onClick={copyBookingLink} style={{
+            marginTop:8, width:"100%", padding:"10px", borderRadius:10, border:"none", cursor:"pointer",
+            background: slugCopied ? "linear-gradient(135deg,#4ade80,#34d399)" : `linear-gradient(135deg,${ACC_HI},${ACCENT})`,
+            color: slugCopied ? "#0a2e1a" : "#fff", fontSize:13, fontWeight:800,
+          }}>{slugCopied ? "✓ Скопійовано" : "Копіювати"}</button>
+        </div>
+      )}
       <div style={{
         margin:"10px 14px 0", padding:"12px 14px", borderRadius:14,
         background:SURF_HI, border:`1px solid ${BORDER}`, boxShadow:SI,
