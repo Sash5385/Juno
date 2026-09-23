@@ -1171,7 +1171,7 @@ select{color-scheme:${isKava?"light":"dark"}}
           </div>
         );
       })()}
-      {bookingSlug && (
+      {active === "profile" && bookingSlug && (
         <div style={{
           margin:"12px 14px 0", padding:"12px 14px", borderRadius:14,
           background:SURF_HI, border:`1px solid ${BORDER}`, boxShadow:SI,
