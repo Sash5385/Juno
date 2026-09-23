@@ -2,6 +2,7 @@ import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getDatabase, ref, set } from "firebase/database";
 import { getMessaging, getToken, onMessage } from "firebase/messaging";
+import { getStorage, ref as storageRef } from "firebase/storage";
 
 // Multi-tenant: iid — це uid інструктора, що зараз залогінений. Кожен
 // інструктор бачить і пише тільки у свій instructors/{iid}/... (rules).
@@ -26,6 +27,10 @@ const VAPID_KEY = "BFT1t7hXhEcSsHdotLlG5xoIFNrdS11vU_jsHiD1UUMsskVINBW2het8ogOKi
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getDatabase(app);
+export const storage = getStorage(app);
+// Фото інструктора: instructors/{iid}/profile.jpg (одне фото на інструктора,
+// перезаписується при новому завантаженні — без сміття зі старих версій).
+export const iStorageRef = () => storageRef(storage, `instructors/${getCurrentIid()}/profile.jpg`);
 
 // Стабільний id цього браузера/пристрою — щоб токени з різних пристроїв
 // (ПК і телефон адміна) не перезаписували один одного в БД.

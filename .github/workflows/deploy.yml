@@ -24,3 +24,10 @@ jobs:
 
       - name: Deploy to Firebase Hosting and Database Rules
         run: npx firebase-tools deploy --only hosting:admin,database --token "${{ secrets.FIREBASE_TOKEN }}"
+
+      - name: Deploy Storage Rules
+        # окремим кроком і continue-on-error: якщо на проєкті ще не увімкнено
+        # Firebase Storage (Console → Build → Storage → Get Started), ця
+        # команда впаде — і НЕ повинна валити критичний деплой hosting/database.
+        continue-on-error: true
+        run: npx firebase-tools deploy --only storage --token "${{ secrets.FIREBASE_TOKEN }}"

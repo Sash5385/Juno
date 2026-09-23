@@ -1,13 +1,16 @@
 import { useState, useContext, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { get, update, onValue, off } from "firebase/database";
-import { iRef, auth } from "../firebase";
+import { uploadBytes, getDownloadURL } from "firebase/storage";
+import { iRef, iStorageRef, auth } from "../firebase";
 import { LangContext } from "../App";
 import { APP_VERSION } from "../version.js";
 import { ThemeContext } from "../theme.js";
 import { UICss, useFX } from "../ui";
 import { createT } from "../lang";
 import { useLicense } from "../hooks/useLicense";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 
 const DAY_NAMES = ["Пн","Вт","Ср","Чт","Пт","Сб","Нд"];
 
@@ -25,6 +28,7 @@ const SEC_ICON_SVG = {
   surcharges: <><circle cx="12" cy="12" r="9"/><path d="M12 7.5v9M15 9.7c0-1.1-1.2-2-3-2s-3 .9-3 1.9 1.3 1.5 3 1.8c1.7.3 3 .8 3 1.9s-1.2 1.9-3 1.9-3-.9-3-2"/></>,
   push:       <><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></>,
   reviews:    <><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></>,
+  profile:    <><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></>,
 };
 function SecIcon({ id, color, active, isKava, size=34 }) {
   const gr = active ? color : (isKava ? SEC_INACTIVE_GR.kava : SEC_INACTIVE_GR.dark);
@@ -187,6 +191,57 @@ function TimeInput({ value, onChange, min=0, max=24, compact=false }) {
   );
 }
 
+// Стискаємо фото до maxSize по довшій стороні перед завантаженням у Storage —
+// прямий телефонний JPG може важити 5-10 МБ, а на публічному лендингу таке
+// вантажити марно.
+function resizeImage(file, maxSize = 800) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("read failed"));
+    reader.onload = (e) => { img.src = e.target.result; };
+    img.onerror = () => reject(new Error("decode failed"));
+    img.onload = () => {
+      const scale = Math.min(1, maxSize / Math.max(img.width, img.height));
+      const w = Math.round(img.width * scale), h = Math.round(img.height * scale);
+      const canvas = document.createElement("canvas");
+      canvas.width = w; canvas.height = h;
+      canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+      canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("toBlob failed")), "image/jpeg", 0.85);
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+// Leaflet — імперативно, без react-leaflet: карта створюється один раз у
+// useEffect на порожньому div, маркер перетягується/ставиться кліком.
+function LocationMap({ lat, lng, onPick }) {
+  const { ACCENT } = useContext(ThemeContext);
+  const mapEl = useRef(null);
+  const mapRef = useRef(null);
+  const markerRef = useRef(null);
+
+  useEffect(() => {
+    if (!mapEl.current || mapRef.current) return;
+    const start = [lat || 50.4501, lng || 30.5234];
+    const map = L.map(mapEl.current, { attributionControl: false }).setView(start, (lat && lng) ? 15 : 11);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19 }).addTo(map);
+    const icon = L.divIcon({
+      className: "",
+      html: `<div style="width:26px;height:26px;border-radius:50% 50% 50% 0;background:${ACCENT};transform:rotate(-45deg);border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.5)"></div>`,
+      iconSize: [26, 26], iconAnchor: [13, 26],
+    });
+    const marker = L.marker(start, { draggable: true, icon }).addTo(map);
+    marker.on("dragend", () => { const p = marker.getLatLng(); onPick(p.lat, p.lng); });
+    map.on("click", (e) => { marker.setLatLng(e.latlng); onPick(e.latlng.lat, e.latlng.lng); });
+    mapRef.current = map; markerRef.current = marker;
+    return () => { map.remove(); mapRef.current = null; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- карта створюється один раз; зміни lat/lng ззовні (після drag/click) ігноруємо навмисно
+  }, []);
+
+  return <div ref={mapEl} style={{ width: "100%", height: 220, borderRadius: 14, overflow: "hidden" }} />;
+}
+
 // ─── MAIN ────────────────────────────────────────────────────────
 export default function SettingsView({ settings, setSettings }) {
   const { BG_DEEP, SURF_HI, SURFACE, SURF_LO, BORDER, TEXT, DIM, FAINT, ACCENT, ACC_HI, GREEN, BLUE, PURPLE, GOLD, RED, TEAL, SO, SI } = useContext(ThemeContext);
@@ -321,6 +376,46 @@ select{color-scheme:${isKava?"light":"dark"}}
   }, []);
   const toggleReviewHidden = (review) => {
     update(iRef( `reviews/${review.uid}/${review.id}`), { status: review.status === "hidden" ? "approved" : "hidden" }).catch(() => {});
+  };
+
+  // ── профіль інструктора (фото, умови, telegram, точка зустрічі) ──
+  // На відміну від `settings` (автозберігається дебаунсом вище), тут окрема
+  // локальна копія admin_settings/profile — вантажимо раз, зберігаємо кнопкою.
+  const [profile, setProfile] = useState(null);
+  useEffect(() => {
+    get(iRef("admin_settings/profile")).then(snap => setProfile(snap.val() || {})).catch(() => setProfile({}));
+  }, []);
+  const updProfile = (k, v) => setProfile(p => ({ ...(p || {}), [k]: v }));
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileSaved, setProfileSaved] = useState(false);
+  const saveProfile = async () => {
+    if (profileSaving) return;
+    setProfileSaving(true);
+    await update(iRef("admin_settings/profile"), profile || {}).catch(() => {});
+    setProfileSaving(false); setProfileSaved(true);
+    setTimeout(() => setProfileSaved(false), 1500);
+  };
+
+  const [photoUploading, setPhotoUploading] = useState(false);
+  const [photoError, setPhotoError] = useState(null);
+  const photoInputRef = useRef(null);
+  const handlePhotoChange = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setPhotoUploading(true); setPhotoError(null);
+    try {
+      const resized = await resizeImage(file, 800);
+      await uploadBytes(iStorageRef(), resized, { contentType: "image/jpeg" });
+      const url = await getDownloadURL(iStorageRef());
+      const withBuster = `${url}${url.includes("?") ? "&" : "?"}v=${Date.now()}`;
+      updProfile("photoUrl", withBuster);
+      await update(iRef("admin_settings/profile"), { photoUrl: withBuster }).catch(() => {});
+    } catch {
+      setPhotoError("Не вдалося завантажити фото. Перевірте з'єднання і спробуйте ще раз.");
+    } finally {
+      setPhotoUploading(false);
+    }
   };
 
   const [installPrompt, setInstallPrompt] = useState(null);
@@ -480,6 +575,7 @@ select{color-scheme:${isKava?"light":"dark"}}
     { id:"surcharges", icon:"💰", color:GOLD,   title:"Надбавки",              label:uk?"Збори":"Fees"   },
     { id:"push",       icon:"🔔", color:GREEN,  title:"Сповіщення",            label:"Сповіщення"        },
     { id:"reviews",    icon:"⭐", color:GOLD,   title:"Відгуки учнів",         label:"Відгуки"           },
+    { id:"profile",    icon:"👤", color:BLUE,   title:"Профіль інструктора",   label:"Профіль"           },
   ];
 
   function renderSection(id) {
@@ -805,6 +901,61 @@ select{color-scheme:${isKava?"light":"dark"}}
               </div>
             </div>
           ))}
+        </div>
+      );
+
+      case "profile": return (
+        <div>
+          {showHint && <Info color={BLUE} title="Профіль інструктора" text="Фото, умови відвідування, Telegram і точка зустрічі на карті — все це бачать учні на сторінці запису."/>}
+
+          {/* PHOTO */}
+          <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:18}}>
+            <div style={{width:64,height:64,borderRadius:"50%",overflow:"hidden",background:SURF_HI,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:SO}}>
+              {profile?.photoUrl
+                ? <img src={profile.photoUrl} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+                : <span style={{fontSize:26}}>🧑‍🏫</span>}
+            </div>
+            <div style={{flex:1,minWidth:0}}>
+              <button onClick={()=>photoInputRef.current?.click()} disabled={photoUploading} style={{
+                padding:"9px 14px",borderRadius:10,border:"none",cursor:photoUploading?"default":"pointer",fontSize:12,fontWeight:700,
+                background:`linear-gradient(145deg,${ACC_HI},${ACCENT})`,color:"#fff",boxShadow:SO,opacity:photoUploading?0.6:1,
+              }}>{photoUploading?"Завантаження…":"Завантажити фото"}</button>
+              <input ref={photoInputRef} type="file" accept="image/*" onChange={handlePhotoChange} style={{display:"none"}}/>
+              <div style={{fontSize:10,color:FAINT,marginTop:6}}>JPG/PNG, до 5 МБ — покажеться учням на сторінці запису</div>
+              {photoError && <div style={{fontSize:11,color:RED,marginTop:4}}>{photoError}</div>}
+            </div>
+          </div>
+
+          {/* TERMS */}
+          <div style={{fontSize:11,fontWeight:800,color:DIM,letterSpacing:0.5,marginBottom:6}}>УМОВИ ВІДВІДУВАННЯ УРОКІВ</div>
+          <textarea
+            value={profile?.terms ?? ""}
+            onChange={e=>updProfile("terms", e.target.value)}
+            rows={8}
+            placeholder="Наприклад: скасування пізніше ніж за 24 год оплачується повністю; запізнення не продовжує заняття; при собі мати документ, що посвідчує особу…"
+            style={{width:"100%",boxSizing:"border-box",background:BG_DEEP,border:"none",outline:"none",color:TEXT,fontSize:12,padding:"10px 12px",borderRadius:10,boxShadow:SI,resize:"vertical",fontFamily:"inherit",lineHeight:1.5,marginBottom:6}}
+          />
+          <div style={{fontSize:10,color:FAINT,marginBottom:18}}>Порожнє поле — блок «Умови відвідування» просто не покажеться на сайті.</div>
+
+          {/* TELEGRAM */}
+          <div style={{fontSize:11,fontWeight:800,color:DIM,letterSpacing:0.5,marginBottom:6}}>TELEGRAM (НІК, БЕЗ @)</div>
+          <input
+            value={profile?.telegramUsername ?? ""}
+            onChange={e=>updProfile("telegramUsername", e.target.value.replace(/^@/,"").trim())}
+            placeholder="ivan_marchenko"
+            style={{width:"100%",boxSizing:"border-box",background:BG_DEEP,border:"none",outline:"none",color:TEXT,fontSize:13,padding:"10px 12px",borderRadius:10,boxShadow:SI,fontFamily:"inherit",marginBottom:6}}
+          />
+          <div style={{fontSize:10,color:FAINT,marginBottom:18}}>Без ніка кнопка Telegram на сайті працюватиме через номер телефону.</div>
+
+          {/* MEETING POINT MAP */}
+          <div style={{fontSize:11,fontWeight:800,color:DIM,letterSpacing:0.5,marginBottom:6}}>МІСЦЕ ЗУСТРІЧІ НА КАРТІ</div>
+          <LocationMap lat={profile?.meetLat} lng={profile?.meetLng} onPick={(lat,lng)=>{ updProfile("meetLat", lat); updProfile("meetLng", lng); }}/>
+          <div style={{fontSize:10,color:FAINT,margin:"6px 0 18px"}}>Клікніть на карту або перетягніть мітку — учні побачать саме цю точку на сторінці запису.</div>
+
+          <button onClick={saveProfile} disabled={profileSaving} style={{
+            width:"100%",padding:"12px",borderRadius:12,border:"none",cursor:profileSaving?"default":"pointer",fontSize:14,fontWeight:800,
+            background:profileSaved?`linear-gradient(145deg,${GREEN},${GREEN})`:`linear-gradient(145deg,${ACC_HI},${ACCENT})`,color:"#fff",boxShadow:SO,
+          }}>{profileSaved?"✓ Збережено":profileSaving?"Зберігаємо…":"Зберегти профіль"}</button>
         </div>
       );
 
