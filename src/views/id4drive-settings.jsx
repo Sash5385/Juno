@@ -1086,7 +1086,7 @@ select{color-scheme:${isKava?"light":"dark"}}
           padding:"10px 24px", borderRadius:14, fontSize:13, fontWeight:700,
         }}>📲 Встановити додаток</button>
       )}
-      {license && (() => {
+      {active === "profile" && license && (() => {
         // eslint-disable-next-line react-hooks/purity -- лише для відображення "днів залишилось", не впливає на логіку
         const now = Date.now();
         const untilTs = license.status === "trial" ? license.trialEndsAt : license.expiresAt;
@@ -1124,6 +1124,7 @@ select{color-scheme:${isKava?"light":"dark"}}
           }}>{slugCopied ? "✓ Скопійовано" : "Копіювати"}</button>
         </div>
       )}
+      {active === "profile" && (
       <div style={{
         margin:"10px 14px 0", padding:"12px 14px", borderRadius:14,
         background:SURF_HI, border:`1px solid ${BORDER}`, boxShadow:SI,
@@ -1147,6 +1148,7 @@ select{color-scheme:${isKava?"light":"dark"}}
         </div>
         <div style={{fontSize:11, color:FAINT, marginTop:8, lineHeight:1.4}}>Обидва варіанти підтримують Apple Pay / Google Pay / картку.</div>
       </div>
+      )}
       <div onClick={forceUpdate} style={{textAlign:"center",padding:"8px 0 2px",color:FAINT,fontSize:13,fontWeight:600,letterSpacing:0.5,cursor:"pointer"}}>
         {APP_VERSION}
       </div>
