@@ -6,6 +6,7 @@ import { useAppUpdate } from "./hooks/useAppUpdate"
 import { useLicense, isLicenseBlocked } from "./hooks/useLicense"
 import { setGlobalLang, createT } from "./lang";
 import { ThemeContext, getTheme } from "./theme.js";
+import { useMosaicSwitch, MosaicOverlay } from "./mosaic";
 import { APP_VERSION } from "./version.js";
 
 export const LangContext = createContext('uk');
@@ -482,6 +483,7 @@ export default function App() {
     return { uid, openHistory: false, ts: Date.now() };
   });
   const [tab,        setTab]      = useState(() => (jumpTarget ? "schedule" : studentJump ? "students" : (localStorage.getItem("admin_tab") || "schedule")));
+  const [displayedTab, mosaicPhase] = useMosaicSwitch(tab);
   useEffect(() => {
     if (jumpTarget || studentJump) window.history.replaceState(null, "", window.location.pathname);
   }, []);
@@ -1090,17 +1092,19 @@ const pendingDeletesRef = React.useRef(new Set());
         position:"relative", zIndex:1,
       }}>
         <TopBar tab={tab} onChange={switchTab} settings={settings} setSettings={setSettings}/>
-        <div className="tab-anim" key={`${tab}-${tabVisits[tab]||0}`} style={{
+        <div className="tab-anim" key={`${displayedTab}-${tabVisits[displayedTab]||0}`} style={{
+          position:"relative",
           flex:1, minHeight:0,
-          overflowY: tab==="schedule" ? "hidden" : "auto",
-          padding: tab==="schedule" ? "0 3px 11px" : "14px 14px 14px",
-          display: tab==="schedule" ? "flex" : "block",
+          overflowY: displayedTab==="schedule" ? "hidden" : "auto",
+          padding: displayedTab==="schedule" ? "0 3px 11px" : "14px 14px 14px",
+          display: displayedTab==="schedule" ? "flex" : "block",
           flexDirection:"column",
           background: theme.BG_IMAGE ? "#d4ba96" : "transparent",
         }}>
           <Suspense fallback={<Loader/>}>
-            <ViewRenderer tab={tab} settings={settings} setSettings={setSettings} bookings={bookings} setBookings={handleSetBookings} onSlotClick={setSelectedBooking} onEmptySlotClick={setNewBookingData} openInfos={openInfos} toggleInfo={toggleInfo} activeDragIds={activeDragIds} navTo={switchTab} slotExistsRef={slotExistsRef} openSlotsRef={openSlotsRef} jumpTarget={jumpTarget} setJumpTarget={setJumpTarget} onViewStudent={onViewStudent} studentJump={studentJump} onStudentJumpHandled={()=>setStudentJump(null)}/>
+            <ViewRenderer tab={displayedTab} settings={settings} setSettings={setSettings} bookings={bookings} setBookings={handleSetBookings} onSlotClick={setSelectedBooking} onEmptySlotClick={setNewBookingData} openInfos={openInfos} toggleInfo={toggleInfo} activeDragIds={activeDragIds} navTo={switchTab} slotExistsRef={slotExistsRef} openSlotsRef={openSlotsRef} jumpTarget={jumpTarget} setJumpTarget={setJumpTarget} onViewStudent={onViewStudent} studentJump={studentJump} onStudentJumpHandled={()=>setStudentJump(null)}/>
           </Suspense>
+          <MosaicOverlay phase={mosaicPhase} tileColor={theme.BG_IMAGE ? "#d4ba96" : theme.BG}/>
         </div>
         <BottomNav active={tab} onChange={switchTab} settings={settings} chatUnread={chatUnread} journalUnread={journalUnread}/>
       </div>
