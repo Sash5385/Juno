@@ -926,6 +926,18 @@ select{color-scheme:${isKava?"light":"dark"}}
             </div>
           </div>
 
+          {/* PHONE — джерело для кнопок дзвінка/Viber/WhatsApp і фолбека
+              Telegram на лендингу (Landing.jsx: instructorPhone/iPhoneDigits) */}
+          <div style={{fontSize:11,fontWeight:800,color:DIM,letterSpacing:0.5,marginBottom:6}}>ТЕЛЕФОН</div>
+          <input
+            value={profile?.phone ?? ""}
+            onChange={e=>updProfile("phone", e.target.value)}
+            placeholder="+380XXXXXXXXX"
+            type="tel"
+            style={{width:"100%",boxSizing:"border-box",background:BG_DEEP,border:"none",outline:"none",color:TEXT,fontSize:13,padding:"10px 12px",borderRadius:10,boxShadow:SI,fontFamily:"inherit",marginBottom:6}}
+          />
+          <div style={{fontSize:10,color:FAINT,marginBottom:18}}>Дзвінок, Viber, WhatsApp і Telegram (якщо не задано нік нижче) на сторінці запису працюють через цей номер.</div>
+
           {/* TERMS */}
           <div style={{fontSize:11,fontWeight:800,color:DIM,letterSpacing:0.5,marginBottom:6}}>УМОВИ ВІДВІДУВАННЯ УРОКІВ</div>
           <textarea
