@@ -483,7 +483,7 @@ export default function App() {
     return { uid, openHistory: false, ts: Date.now() };
   });
   const [tab,        setTab]      = useState(() => (jumpTarget ? "schedule" : studentJump ? "students" : (localStorage.getItem("admin_tab") || "schedule")));
-  const [displayedTab, mosaicPhase] = useMosaicSwitch(tab);
+  const [displayedTab, mosaicPhase] = useMosaicSwitch(tab, 0.5);
   useEffect(() => {
     if (jumpTarget || studentJump) window.history.replaceState(null, "", window.location.pathname);
   }, []);
@@ -1104,7 +1104,7 @@ const pendingDeletesRef = React.useRef(new Set());
           <Suspense fallback={<Loader/>}>
             <ViewRenderer tab={displayedTab} settings={settings} setSettings={setSettings} bookings={bookings} setBookings={handleSetBookings} onSlotClick={setSelectedBooking} onEmptySlotClick={setNewBookingData} openInfos={openInfos} toggleInfo={toggleInfo} activeDragIds={activeDragIds} navTo={switchTab} slotExistsRef={slotExistsRef} openSlotsRef={openSlotsRef} jumpTarget={jumpTarget} setJumpTarget={setJumpTarget} onViewStudent={onViewStudent} studentJump={studentJump} onStudentJumpHandled={()=>setStudentJump(null)}/>
           </Suspense>
-          <MosaicOverlay phase={mosaicPhase} tileColor={theme.BG_IMAGE ? "#d4ba96" : theme.BG}/>
+          <MosaicOverlay phase={mosaicPhase} tileColor={theme.BG_IMAGE ? "#d4ba96" : theme.BG} speed={0.5}/>
         </div>
         <BottomNav active={tab} onChange={switchTab} settings={settings} chatUnread={chatUnread} journalUnread={journalUnread}/>
       </div>

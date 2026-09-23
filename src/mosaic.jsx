@@ -14,7 +14,8 @@ const MOSAIC_TILES = Array.from({ length: MOSAIC_COLS * MOSAIC_ROWS }, (_, i) =>
 const COVER_MS = 150;
 const REVEAL_MS = 340;
 
-export function useMosaicSwitch(key) {
+// speed — множник тривалості (0.5 = удвічі швидше за стандартну settings-анімацію).
+export function useMosaicSwitch(key, speed = 1) {
   const [displayed, setDisplayed] = useState(key);
   const [phase, setPhase] = useState("idle"); // idle | cover | reveal
   const prevKey = useRef(key);
@@ -25,16 +26,18 @@ export function useMosaicSwitch(key) {
     const t1 = setTimeout(() => {
       setDisplayed(key);
       setPhase("reveal");
-      const t2 = setTimeout(() => setPhase("idle"), REVEAL_MS + 40);
+      const t2 = setTimeout(() => setPhase("idle"), REVEAL_MS * speed + 40);
       return () => clearTimeout(t2);
-    }, COVER_MS);
+    }, COVER_MS * speed);
     return () => clearTimeout(t1);
-  }, [key]);
+  }, [key, speed]);
   return [displayed, phase];
 }
 
-export function MosaicOverlay({ phase, tileColor, zIndex = 30 }) {
+export function MosaicOverlay({ phase, tileColor, zIndex = 30, speed = 1 }) {
   if (phase === "idle") return null;
+  const coverS = (0.15 * speed).toFixed(3);
+  const revealS = (0.34 * speed).toFixed(3);
   return (
     <div aria-hidden="true" style={{
       position:"absolute", inset:0, display:"grid",
@@ -47,8 +50,8 @@ export function MosaicOverlay({ phase, tileColor, zIndex = 30 }) {
           transform: phase === "cover" ? "scale(1)" : "scale(0)",
           opacity: phase === "cover" ? 1 : 0,
           transition: phase === "cover"
-            ? "transform .15s ease, opacity .15s ease"
-            : `transform .34s ease ${t.delay}ms, opacity .34s ease ${t.delay}ms`,
+            ? `transform ${coverS}s ease, opacity ${coverS}s ease`
+            : `transform ${revealS}s ease ${t.delay * speed}ms, opacity ${revealS}s ease ${t.delay * speed}ms`,
         }}/>
       ))}
     </div>
