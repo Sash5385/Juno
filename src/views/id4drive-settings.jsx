@@ -1,8 +1,8 @@
 import { useState, useContext, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { get, update, onValue, off } from "firebase/database";
-import { uploadBytes, getDownloadURL } from "firebase/storage";
-import { iRef, iStorageRef, auth } from "../firebase";
+import { uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
+import { iRef, iStorageRef, iGalleryStorageRef, auth } from "../firebase";
 import { LangContext } from "../App";
 import { APP_VERSION } from "../version.js";
 import { ThemeContext } from "../theme.js";
@@ -416,6 +416,41 @@ select{color-scheme:${isKava?"light":"dark"}}
     } finally {
       setPhotoUploading(false);
     }
+  };
+
+  // Фотоколаж лендингу (до 10 фото) — profile.galleryPhotos: масив URL,
+  // кожне фото свій файл у Storage (instructors/{iid}/gallery/{id}.jpg),
+  // тому додавання/видалення одного не чіпає решту.
+  const GALLERY_MAX = 10;
+  const [galleryUploading, setGalleryUploading] = useState(false);
+  const [galleryError, setGalleryError] = useState(null);
+  const galleryInputRef = useRef(null);
+  const handleGalleryAdd = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    const current = profile?.galleryPhotos || [];
+    if (current.length >= GALLERY_MAX) return;
+    setGalleryUploading(true); setGalleryError(null);
+    try {
+      const resized = await resizeImage(file, 1000);
+      const name = `${Date.now()}.jpg`;
+      await uploadBytes(iGalleryStorageRef(name), resized, { contentType: "image/jpeg" });
+      const url = await getDownloadURL(iGalleryStorageRef(name));
+      const next = [...current, { url, name }];
+      updProfile("galleryPhotos", next);
+      await update(iRef("admin_settings/profile"), { galleryPhotos: next }).catch(() => {});
+    } catch {
+      setGalleryError("Не вдалося завантажити фото. Перевірте з'єднання і спробуйте ще раз.");
+    } finally {
+      setGalleryUploading(false);
+    }
+  };
+  const handleGalleryDelete = async (name) => {
+    const next = (profile?.galleryPhotos || []).filter(p => p.name !== name);
+    updProfile("galleryPhotos", next);
+    await update(iRef("admin_settings/profile"), { galleryPhotos: next }).catch(() => {});
+    try { await deleteObject(iGalleryStorageRef(name)); } catch {}
   };
 
   const [installPrompt, setInstallPrompt] = useState(null);
@@ -925,6 +960,32 @@ select{color-scheme:${isKava?"light":"dark"}}
               {photoError && <div style={{fontSize:11,color:RED,marginTop:4}}>{photoError}</div>}
             </div>
           </div>
+
+          {/* GALLERY — фотоколаж на лендингу (Landing.jsx), до 10 фото */}
+          <div style={{fontSize:11,fontWeight:800,color:DIM,letterSpacing:0.5,marginBottom:6}}>ФОТОКОЛАЖ НА ЛЕНДИНГУ ({(profile?.galleryPhotos||[]).length}/{GALLERY_MAX})</div>
+          <div style={{display:"flex",flexWrap:"wrap",gap:8,marginBottom:6}}>
+            {(profile?.galleryPhotos||[]).map(p => (
+              <div key={p.name} style={{position:"relative",width:72,height:72,borderRadius:10,overflow:"hidden",flexShrink:0,boxShadow:SO}}>
+                <img src={p.url} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+                <button onClick={()=>handleGalleryDelete(p.name)} style={{
+                  position:"absolute",top:3,right:3,width:20,height:20,borderRadius:"50%",border:"none",cursor:"pointer",
+                  background:"rgba(0,0,0,0.6)",color:"#fff",fontSize:12,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1,
+                }}>×</button>
+              </div>
+            ))}
+            {(profile?.galleryPhotos||[]).length < GALLERY_MAX && (
+              <button onClick={()=>galleryInputRef.current?.click()} disabled={galleryUploading} style={{
+                width:72,height:72,borderRadius:10,border:`1px dashed ${BORDER}`,cursor:galleryUploading?"default":"pointer",
+                background:"transparent",color:DIM,fontSize:11,fontWeight:700,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:2,
+              }}>
+                <span style={{fontSize:20,lineHeight:1}}>{galleryUploading?"…":"+"}</span>
+                {!galleryUploading && "Додати"}
+              </button>
+            )}
+            <input ref={galleryInputRef} type="file" accept="image/*" onChange={handleGalleryAdd} style={{display:"none"}}/>
+          </div>
+          <div style={{fontSize:10,color:FAINT,marginBottom:18}}>Фото учнів за кермом, з іспиту, з авто — на лендингу вони показуються анімованим колажем, як у ID4Drive.</div>
+          {galleryError && <div style={{fontSize:11,color:RED,marginBottom:12,marginTop:-10}}>{galleryError}</div>}
 
           {/* PHONE — джерело для кнопок дзвінка/Viber/WhatsApp і фолбека
               Telegram на лендингу (Landing.jsx: instructorPhone/iPhoneDigits) */}

@@ -7,5 +7,11 @@ service firebase.storage {
         && request.resource.size < 5 * 1024 * 1024
         && request.resource.contentType.matches('image/.*');
     }
+    match /instructors/{iid}/gallery/{file} {
+      allow read: if true;
+      allow write, delete: if request.auth != null && request.auth.uid == iid
+        && (request.resource == null || (request.resource.size < 5 * 1024 * 1024
+          && request.resource.contentType.matches('image/.*')));
+    }
   }
 }

@@ -31,6 +31,10 @@ export const storage = getStorage(app);
 // Фото інструктора: instructors/{iid}/profile.jpg (одне фото на інструктора,
 // перезаписується при новому завантаженні — без сміття зі старих версій).
 export const iStorageRef = () => storageRef(storage, `instructors/${getCurrentIid()}/profile.jpg`);
+// Фотоколаж лендингу: до 10 фото, кожне — свій файл (на відміну від
+// profile.jpg, тут не потрібне перезаписування — фото додаються/видаляються
+// незалежно одне від одного).
+export const iGalleryStorageRef = (fileName) => storageRef(storage, `instructors/${getCurrentIid()}/gallery/${fileName}`);
 
 // Стабільний id цього браузера/пристрою — щоб токени з різних пристроїв
 // (ПК і телефон адміна) не перезаписували один одного в БД.
