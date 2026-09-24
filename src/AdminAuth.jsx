@@ -70,6 +70,18 @@ export function LoginScreen() {
     setInstallPrompt(null);
   };
 
+  // Проактивний банер "при першому вході" — той самий localStorage-прапорець
+  // pwa_install_offered, що й у авторизованому App.jsx, тому пропозиція
+  // показується рівно один раз, з якого б із двох екранів людина не почала
+  // (логін тут, або одразу кабінет, якщо сесія вже активна).
+  const IOS_UA_RE = /iphone|ipad|ipod/i;
+  const ios = IOS_UA_RE.test(window.navigator.userAgent);
+  const [bannerDismissed, setBannerDismissed] = useState(() => localStorage.getItem('pwa_install_offered') === '1');
+  const bannerEligible = !installed && !bannerDismissed && (installPrompt || ios);
+  useEffect(() => {
+    if (bannerEligible) localStorage.setItem('pwa_install_offered', '1');
+  }, [bannerEligible]);
+
   const login = async () => {
     setError(""); setLoading(true);
     try {
@@ -115,6 +127,32 @@ export function LoginScreen() {
           </button>
         )}
       </div>
+      {bannerEligible && (
+        <div style={{
+          position:"fixed", left:12, right:12, bottom:"calc(env(safe-area-inset-bottom,0px) + 12px)", zIndex:200,
+          background:`linear-gradient(135deg,${SURF_HI},${SURFACE})`, border:`1px solid ${BORDER}`, borderRadius:16,
+          padding:"12px 14px", boxShadow:SO, display:"flex", alignItems:"center", gap:10,
+        }}>
+          <div style={{fontSize:24, flexShrink:0}}>📲</div>
+          <div style={{flex:1, minWidth:0}}>
+            <div style={{fontSize:13, fontWeight:800, color:TEXT}}>Встановіть застосунок</div>
+            <div style={{fontSize:11, color:DIM, marginTop:2}}>
+              {ios && !installPrompt ? 'Поділитися → «На екран Домівка»' : 'Швидкий доступ з головного екрана, без браузера'}
+            </div>
+          </div>
+          {installPrompt && (
+            <button onClick={handleInstallClick} style={{
+              padding:"8px 14px", borderRadius:10, border:"none", cursor:"pointer",
+              fontSize:12, fontWeight:800, color:"#fff", flexShrink:0,
+              background:"linear-gradient(135deg,#ff7a5c,#ff5a3c)",
+            }}>Встановити</button>
+          )}
+          <button onClick={()=>setBannerDismissed(true)} aria-label="Закрити" style={{
+            width:26, height:26, borderRadius:8, border:"none", cursor:"pointer", flexShrink:0,
+            background:"rgba(255,255,255,0.06)", color:DIM, fontSize:14,
+          }}>✕</button>
+        </div>
+      )}
     </div>
   );
 }
