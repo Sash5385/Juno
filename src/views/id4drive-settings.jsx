@@ -490,6 +490,9 @@ select{color-scheme:${isKava?"light":"dark"}}
   const [addressSearching, setAddressSearching] = useState(false);
   const [addressError, setAddressError] = useState(null);
   const [mapFlyTo, setMapFlyTo] = useState(null);
+  const [addressSuggestions, setAddressSuggestions] = useState([]);
+  const [suggestionsOpen, setSuggestionsOpen] = useState(false);
+  const addressDebounceRef = useRef(null);
   const profileLoadedRef = useRef(false);
   useEffect(() => {
     if (profile && !profileLoadedRef.current) {
@@ -497,21 +500,55 @@ select{color-scheme:${isKava?"light":"dark"}}
       if (profile.address) setAddressQuery(profile.address);
     }
   }, [profile]);
+  useEffect(() => () => clearTimeout(addressDebounceRef.current), []);
+
+  const pickAddressSuggestion = (r) => {
+    const lat = parseFloat(r.lat), lng = parseFloat(r.lon);
+    updProfile("meetLat", lat);
+    updProfile("meetLng", lng);
+    updProfile("address", r.display_name);
+    setAddressQuery(r.display_name);
+    setAddressSuggestions([]);
+    setSuggestionsOpen(false);
+    setMapFlyTo({ lat, lng, ts: Date.now() });
+  };
+
+  // Підказки з'являються поки набирають текст (дебаунс 450мс, від 3 символів) —
+  // клік по варіанту одразу ставить мітку. Enter/кнопка "Знайти" лишились як
+  // запасний варіант, якщо підказки ще не встигли підвантажитись.
+  const fetchAddressSuggestions = async (q) => {
+    setAddressSearching(true);
+    try {
+      const resp = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=5&accept-language=uk&q=${encodeURIComponent(q)}`);
+      const results = await resp.json();
+      setAddressSuggestions(results || []);
+      setSuggestionsOpen((results || []).length > 0);
+    } catch {
+      // мовчки — підказки не критичні, лишається ручний пошук
+    } finally {
+      setAddressSearching(false);
+    }
+  };
+
+  const onAddressInputChange = (val) => {
+    setAddressQuery(val);
+    setAddressError(null);
+    clearTimeout(addressDebounceRef.current);
+    const q = val.trim();
+    if (q.length < 3) { setAddressSuggestions([]); setSuggestionsOpen(false); return; }
+    addressDebounceRef.current = setTimeout(() => fetchAddressSuggestions(q), 450);
+  };
 
   const searchAddress = async () => {
     const q = addressQuery.trim();
     if (!q || addressSearching) return;
+    if (addressSuggestions.length > 0) { pickAddressSuggestion(addressSuggestions[0]); return; }
     setAddressSearching(true); setAddressError(null);
     try {
       const resp = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&accept-language=uk&q=${encodeURIComponent(q)}`);
       const results = await resp.json();
       if (!results?.length) { setAddressError("Адресу не знайдено. Спробуйте уточнити запит."); return; }
-      const { lat, lon, display_name } = results[0];
-      updProfile("meetLat", parseFloat(lat));
-      updProfile("meetLng", parseFloat(lon));
-      updProfile("address", display_name);
-      setAddressQuery(display_name);
-      setMapFlyTo({ lat: parseFloat(lat), lng: parseFloat(lon), ts: Date.now() });
+      pickAddressSuggestion(results[0]);
     } catch {
       setAddressError("Не вдалося виконати пошук. Перевірте з'єднання.");
     } finally {
@@ -1174,18 +1211,33 @@ select{color-scheme:${isKava?"light":"dark"}}
 
           {/* MEETING POINT MAP */}
           <div style={{fontSize:11,fontWeight:800,color:DIM,letterSpacing:0.5,marginBottom:6}}>МІСЦЕ ЗУСТРІЧІ НА КАРТІ</div>
-          <div style={{display:"flex",gap:8,marginBottom:8}}>
-            <input
-              value={addressQuery}
-              onChange={e=>setAddressQuery(e.target.value)}
-              onKeyDown={e=>{ if(e.key==="Enter"){ e.preventDefault(); searchAddress(); } }}
-              placeholder="Пошук адреси…"
-              style={{flex:1,minWidth:0,boxSizing:"border-box",background:BG_DEEP,border:"none",outline:"none",color:TEXT,fontSize:13,padding:"10px 12px",borderRadius:10,boxShadow:SI,fontFamily:"inherit"}}
-            />
-            <button onClick={searchAddress} disabled={addressSearching} style={{
-              padding:"0 16px",borderRadius:10,border:"none",cursor:addressSearching?"default":"pointer",fontSize:13,fontWeight:800,flexShrink:0,
-              background:`linear-gradient(145deg,${ACC_HI},${ACCENT})`,color:"#fff",
-            }}>{addressSearching?"…":"Знайти"}</button>
+          <div style={{position:"relative",marginBottom:8}}>
+            <div style={{display:"flex",gap:8}}>
+              <input
+                value={addressQuery}
+                onChange={e=>onAddressInputChange(e.target.value)}
+                onFocus={()=>{ if(addressSuggestions.length) setSuggestionsOpen(true); }}
+                onBlur={()=>setTimeout(()=>setSuggestionsOpen(false),150)}
+                onKeyDown={e=>{ if(e.key==="Enter"){ e.preventDefault(); searchAddress(); } }}
+                placeholder="Пошук адреси…"
+                style={{flex:1,minWidth:0,boxSizing:"border-box",background:BG_DEEP,border:"none",outline:"none",color:TEXT,fontSize:13,padding:"10px 12px",borderRadius:10,boxShadow:SI,fontFamily:"inherit"}}
+              />
+              <button onClick={searchAddress} disabled={addressSearching} style={{
+                padding:"0 16px",borderRadius:10,border:"none",cursor:addressSearching?"default":"pointer",fontSize:13,fontWeight:800,flexShrink:0,
+                background:`linear-gradient(145deg,${ACC_HI},${ACCENT})`,color:"#fff",
+              }}>{addressSearching?"…":"Знайти"}</button>
+            </div>
+            {suggestionsOpen && addressSuggestions.length > 0 && (
+              <div style={{position:"absolute",top:"calc(100% + 4px)",left:0,right:0,zIndex:20,background:SURFACE,borderRadius:10,boxShadow:SO,overflow:"hidden",maxHeight:240,overflowY:"auto"}}>
+                {addressSuggestions.map((r,idx)=>(
+                  <div
+                    key={r.place_id ?? idx}
+                    onMouseDown={e=>{ e.preventDefault(); pickAddressSuggestion(r); }}
+                    style={{padding:"10px 12px",fontSize:12,color:TEXT,cursor:"pointer",borderBottom:idx<addressSuggestions.length-1?`1px solid ${BORDER}`:"none"}}
+                  >{r.display_name}</div>
+                ))}
+              </div>
+            )}
           </div>
           {addressError && <div style={{fontSize:10,color:RED,marginBottom:8}}>{addressError}</div>}
           <LocationMap
