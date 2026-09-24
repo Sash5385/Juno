@@ -216,7 +216,7 @@ function resizeImage(file, maxSize = 800) {
 
 // Leaflet — імперативно, без react-leaflet: карта створюється один раз у
 // useEffect на порожньому div, маркер перетягується/ставиться кліком.
-function LocationMap({ lat, lng, onPick }) {
+function LocationMap({ lat, lng, onPick, flyTo }) {
   const { ACCENT } = useContext(ThemeContext);
   const mapEl = useRef(null);
   const mapRef = useRef(null);
@@ -239,6 +239,17 @@ function LocationMap({ lat, lng, onPick }) {
     return () => { map.remove(); mapRef.current = null; };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- карта створюється один раз; зміни lat/lng ззовні (після drag/click) ігноруємо навмисно
   }, []);
+
+  // Пошук адреси (окремий блок нижче) не чіпає lat/lng-пропси напряму (вони
+  // навмисно ігноруються вище) — тому переліт мапи на знайдену точку йде
+  // через окремий тригер flyTo {lat,lng,ts}, щоб спрацьовувало навіть коли
+  // координати знайденої адреси збігаються з попередніми (ts завжди новий).
+  useEffect(() => {
+    if (!flyTo || !mapRef.current || !markerRef.current) return;
+    const ll = [flyTo.lat, flyTo.lng];
+    markerRef.current.setLatLng(ll);
+    mapRef.current.setView(ll, 15);
+  }, [flyTo]);
 
   return <div ref={mapEl} style={{ width: "100%", height: 220, borderRadius: 14, overflow: "hidden" }} />;
 }
@@ -472,6 +483,53 @@ select{color-scheme:${isKava?"light":"dark"}}
   }, []);
   const updProfile = (k, v) => setProfile(p => ({ ...(p || {}), [k]: v }));
   const allProfilePhotos = [profile?.photoUrl, ...((profile?.galleryPhotos||[]).map(p=>p.url))].filter(Boolean);
+
+  // ── пошук адреси для мітки на карті (Nominatim/OSM — той самий провайдер,
+  // що й тайли карти вище, ключ не потрібен) ─────────────────────────────
+  const [addressQuery, setAddressQuery] = useState("");
+  const [addressSearching, setAddressSearching] = useState(false);
+  const [addressError, setAddressError] = useState(null);
+  const [mapFlyTo, setMapFlyTo] = useState(null);
+  const profileLoadedRef = useRef(false);
+  useEffect(() => {
+    if (profile && !profileLoadedRef.current) {
+      profileLoadedRef.current = true;
+      if (profile.address) setAddressQuery(profile.address);
+    }
+  }, [profile]);
+
+  const searchAddress = async () => {
+    const q = addressQuery.trim();
+    if (!q || addressSearching) return;
+    setAddressSearching(true); setAddressError(null);
+    try {
+      const resp = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&accept-language=uk&q=${encodeURIComponent(q)}`);
+      const results = await resp.json();
+      if (!results?.length) { setAddressError("Адресу не знайдено. Спробуйте уточнити запит."); return; }
+      const { lat, lon, display_name } = results[0];
+      updProfile("meetLat", parseFloat(lat));
+      updProfile("meetLng", parseFloat(lon));
+      updProfile("address", display_name);
+      setAddressQuery(display_name);
+      setMapFlyTo({ lat: parseFloat(lat), lng: parseFloat(lon), ts: Date.now() });
+    } catch {
+      setAddressError("Не вдалося виконати пошук. Перевірте з'єднання.");
+    } finally {
+      setAddressSearching(false);
+    }
+  };
+
+  // Зворотне геокодування — коли мітку ставлять/тягнуть прямо на карті,
+  // адреса під картою на лендингу (Landing.jsx: instructorAddress) теж
+  // повинна оновитись, а не лишатись від попереднього пошуку чи порожньою.
+  const reverseGeocodeAddress = async (lat, lng) => {
+    try {
+      const resp = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&accept-language=uk&lat=${lat}&lon=${lng}`);
+      const data = await resp.json();
+      if (data?.display_name) { updProfile("address", data.display_name); setAddressQuery(data.display_name); }
+    } catch {}
+  };
+
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileSaved, setProfileSaved] = useState(false);
   const saveProfile = async () => {
@@ -1116,8 +1174,27 @@ select{color-scheme:${isKava?"light":"dark"}}
 
           {/* MEETING POINT MAP */}
           <div style={{fontSize:11,fontWeight:800,color:DIM,letterSpacing:0.5,marginBottom:6}}>МІСЦЕ ЗУСТРІЧІ НА КАРТІ</div>
-          <LocationMap lat={profile?.meetLat} lng={profile?.meetLng} onPick={(lat,lng)=>{ updProfile("meetLat", lat); updProfile("meetLng", lng); }}/>
-          <div style={{fontSize:10,color:FAINT,margin:"6px 0 18px"}}>Клікніть на карту або перетягніть мітку — учні побачать саме цю точку на сторінці запису.</div>
+          <div style={{display:"flex",gap:8,marginBottom:8}}>
+            <input
+              value={addressQuery}
+              onChange={e=>setAddressQuery(e.target.value)}
+              onKeyDown={e=>{ if(e.key==="Enter"){ e.preventDefault(); searchAddress(); } }}
+              placeholder="Пошук адреси…"
+              style={{flex:1,minWidth:0,boxSizing:"border-box",background:BG_DEEP,border:"none",outline:"none",color:TEXT,fontSize:13,padding:"10px 12px",borderRadius:10,boxShadow:SI,fontFamily:"inherit"}}
+            />
+            <button onClick={searchAddress} disabled={addressSearching} style={{
+              padding:"0 16px",borderRadius:10,border:"none",cursor:addressSearching?"default":"pointer",fontSize:13,fontWeight:800,flexShrink:0,
+              background:`linear-gradient(145deg,${ACC_HI},${ACCENT})`,color:"#fff",
+            }}>{addressSearching?"…":"Знайти"}</button>
+          </div>
+          {addressError && <div style={{fontSize:10,color:RED,marginBottom:8}}>{addressError}</div>}
+          <LocationMap
+            lat={profile?.meetLat}
+            lng={profile?.meetLng}
+            flyTo={mapFlyTo}
+            onPick={(lat,lng)=>{ updProfile("meetLat", lat); updProfile("meetLng", lng); reverseGeocodeAddress(lat, lng); }}
+          />
+          <div style={{fontSize:10,color:FAINT,margin:"6px 0 18px"}}>Знайдіть адресу вище, клікніть на карту або перетягніть мітку — учні побачать саме цю точку і адресу на сторінці запису.</div>
 
           <button onClick={saveProfile} disabled={profileSaving} style={{
             width:"100%",padding:"12px",borderRadius:12,border:"none",cursor:profileSaving?"default":"pointer",fontSize:14,fontWeight:800,
