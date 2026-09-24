@@ -1233,7 +1233,7 @@ select{color-scheme:${isKava?"light":"dark"}}
                   <div
                     key={r.place_id ?? idx}
                     onMouseDown={e=>{ e.preventDefault(); pickAddressSuggestion(r); }}
-                    style={{padding:"10px 12px",fontSize:12,color:TEXT,cursor:"pointer",borderBottom:idx<addressSuggestions.length-1?`1px solid ${BORDER}`:"none"}}
+                    style={{padding:"12px",fontSize:15,color:"#fff",cursor:"pointer",borderBottom:idx<addressSuggestions.length-1?`1px solid ${BORDER}`:"none"}}
                   >{r.display_name}</div>
                 ))}
               </div>
