@@ -143,6 +143,25 @@ function Row({ label, hint, children, last, color, compact }) {
   );
 }
 
+// Кольорова картка-групувальник для «Профілю» — той самий градієнт-тінт
+// і бордер, що в Row (Сповіщення/Ліміти), тільки як контейнер на кілька полів.
+function ProfileCard({ color, icon, title, children }) {
+  const { BG_DEEP } = useContext(ThemeContext);
+  return (
+    <div style={{
+      borderRadius:14,padding:"12px 14px",marginBottom:12,
+      background:`linear-gradient(135deg,color-mix(in srgb,${color} 42%,${BG_DEEP}) 0%,${BG_DEEP} 100%)`,
+      border:`1px solid color-mix(in srgb,${color} 35%,transparent)`,
+    }}>
+      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
+        <span style={{fontSize:15}}>{icon}</span>
+        <span style={{fontSize:12,fontWeight:800,color:"#fff"}}>{title}</span>
+      </div>
+      {children}
+    </div>
+  );
+}
+
 function Chip({ label, active, onClick }) {
   const { ACC_HI, ACCENT, SURF_HI, SURFACE, DIM, SO } = useContext(ThemeContext);
   return (
@@ -1020,87 +1039,91 @@ select{color-scheme:${isKava?"light":"dark"}}
           <div style={{fontSize:10,color:FAINT,marginBottom:18}}>Фото учнів за кермом, з іспиту, з авто — на лендингу вони показуються анімованим колажем, як у ID4Drive.</div>
           {galleryError && <div style={{fontSize:11,color:RED,marginBottom:12,marginTop:-10}}>{galleryError}</div>}
 
-          {/* PHONE — джерело для кнопок дзвінка/Viber/WhatsApp і фолбека
-              Telegram на лендингу (Landing.jsx: instructorPhone/iPhoneDigits) */}
-          <div style={{fontSize:11,fontWeight:800,color:DIM,letterSpacing:0.5,marginBottom:6}}>ТЕЛЕФОН</div>
-          <input
-            value={profile?.phone ?? ""}
-            onChange={e=>updProfile("phone", e.target.value)}
-            placeholder="+380XXXXXXXXX"
-            type="tel"
-            style={{width:"100%",boxSizing:"border-box",background:BG_DEEP,border:"none",outline:"none",color:TEXT,fontSize:13,padding:"10px 12px",borderRadius:10,boxShadow:SI,fontFamily:"inherit",marginBottom:6}}
-          />
-          <div style={{fontSize:10,color:FAINT,marginBottom:18}}>Дзвінок, Viber, WhatsApp і Telegram (якщо не задано нік нижче) на сторінці запису працюють через цей номер.</div>
+          {/* КОНТАКТИ — телефон (джерело для кнопок дзвінка/Viber/WhatsApp і
+              фолбека Telegram на лендингу) + Telegram-нік */}
+          <ProfileCard color={BLUE} icon="📞" title="КОНТАКТИ">
+            <div style={{fontSize:10,fontWeight:800,color:"rgba(255,255,255,0.7)",letterSpacing:0.5,marginBottom:5}}>ТЕЛЕФОН</div>
+            <input
+              value={profile?.phone ?? ""}
+              onChange={e=>updProfile("phone", e.target.value)}
+              placeholder="+380XXXXXXXXX"
+              type="tel"
+              style={{width:"100%",boxSizing:"border-box",background:BG_DEEP,border:"none",outline:"none",color:TEXT,fontSize:13,padding:"10px 12px",borderRadius:10,boxShadow:SI,fontFamily:"inherit",marginBottom:6}}
+            />
+            <div style={{fontSize:10,color:"rgba(255,255,255,0.55)",marginBottom:12}}>Дзвінок, Viber, WhatsApp і Telegram (якщо не задано нік нижче) на сторінці запису працюють через цей номер.</div>
+            <div style={{fontSize:10,fontWeight:800,color:"rgba(255,255,255,0.7)",letterSpacing:0.5,marginBottom:5}}>TELEGRAM (НІК, БЕЗ @)</div>
+            <input
+              value={profile?.telegramUsername ?? ""}
+              onChange={e=>updProfile("telegramUsername", e.target.value.replace(/^@/,"").trim())}
+              placeholder="ivan_marchenko"
+              style={{width:"100%",boxSizing:"border-box",background:BG_DEEP,border:"none",outline:"none",color:TEXT,fontSize:13,padding:"10px 12px",borderRadius:10,boxShadow:SI,fontFamily:"inherit",marginBottom:6}}
+            />
+            <div style={{fontSize:10,color:"rgba(255,255,255,0.55)"}}>Без ніка кнопка Telegram на сайті працюватиме через номер телефону.</div>
+          </ProfileCard>
 
-          {/* PAYMENT CARD */}
-          <div style={{fontSize:11,fontWeight:800,color:DIM,letterSpacing:0.5,marginBottom:6}}>КАРТКА ДЛЯ ОПЛАТИ</div>
-          <input
-            value={settings.paymentCard || ""}
-            onChange={e=>upd("paymentCard", e.target.value)}
-            placeholder="0000 0000 0000 0000"
-            style={{width:"100%",boxSizing:"border-box",background:BG_DEEP,border:"none",outline:"none",color:TEXT,fontSize:13,padding:"10px 12px",borderRadius:10,boxShadow:SI,fontFamily:"inherit",marginBottom:6}}
-          />
-          <div style={{fontSize:10,color:FAINT,marginBottom:18}}>Показується учням у «Моїх записах» з кнопкою копіювання.</div>
+          {/* ОПЛАТА */}
+          <ProfileCard color={GOLD} icon="💳" title="ОПЛАТА">
+            <div style={{fontSize:10,fontWeight:800,color:"rgba(255,255,255,0.7)",letterSpacing:0.5,marginBottom:5}}>КАРТКА ДЛЯ ОПЛАТИ</div>
+            <input
+              value={settings.paymentCard || ""}
+              onChange={e=>upd("paymentCard", e.target.value)}
+              placeholder="0000 0000 0000 0000"
+              style={{width:"100%",boxSizing:"border-box",background:BG_DEEP,border:"none",outline:"none",color:TEXT,fontSize:13,padding:"10px 12px",borderRadius:10,boxShadow:SI,fontFamily:"inherit",marginBottom:6}}
+            />
+            <div style={{fontSize:10,color:"rgba(255,255,255,0.55)"}}>Показується учням у «Моїх записах» з кнопкою копіювання.</div>
+          </ProfileCard>
 
-          {/* TERMS */}
-          <div style={{fontSize:11,fontWeight:800,color:DIM,letterSpacing:0.5,marginBottom:6}}>УМОВИ ВІДВІДУВАННЯ УРОКІВ</div>
-          <textarea
-            value={profile?.terms ?? ""}
-            onChange={e=>updProfile("terms", e.target.value)}
-            rows={8}
-            placeholder="Наприклад: скасування пізніше ніж за 24 год оплачується повністю; запізнення не продовжує заняття; при собі мати документ, що посвідчує особу…"
-            style={{width:"100%",boxSizing:"border-box",background:BG_DEEP,border:"none",outline:"none",color:TEXT,fontSize:12,padding:"10px 12px",borderRadius:10,boxShadow:SI,resize:"vertical",fontFamily:"inherit",lineHeight:1.5,marginBottom:6}}
-          />
-          <div style={{fontSize:10,color:FAINT,marginBottom:18}}>Порожнє поле — блок «Умови відвідування» просто не покажеться на сайті.</div>
+          {/* УМОВИ */}
+          <ProfileCard color={PURPLE} icon="📄" title="УМОВИ ВІДВІДУВАННЯ">
+            <textarea
+              value={profile?.terms ?? ""}
+              onChange={e=>updProfile("terms", e.target.value)}
+              rows={7}
+              placeholder="Наприклад: скасування пізніше ніж за 24 год оплачується повністю; запізнення не продовжує заняття; при собі мати документ, що посвідчує особу…"
+              style={{width:"100%",boxSizing:"border-box",background:BG_DEEP,border:"none",outline:"none",color:TEXT,fontSize:12,padding:"10px 12px",borderRadius:10,boxShadow:SI,resize:"vertical",fontFamily:"inherit",lineHeight:1.5,marginBottom:6}}
+            />
+            <div style={{fontSize:10,color:"rgba(255,255,255,0.55)"}}>Порожнє поле — блок «Умови відвідування» просто не покажеться на сайті.</div>
+          </ProfileCard>
 
-          {/* TELEGRAM */}
-          <div style={{fontSize:11,fontWeight:800,color:DIM,letterSpacing:0.5,marginBottom:6}}>TELEGRAM (НІК, БЕЗ @)</div>
-          <input
-            value={profile?.telegramUsername ?? ""}
-            onChange={e=>updProfile("telegramUsername", e.target.value.replace(/^@/,"").trim())}
-            placeholder="ivan_marchenko"
-            style={{width:"100%",boxSizing:"border-box",background:BG_DEEP,border:"none",outline:"none",color:TEXT,fontSize:13,padding:"10px 12px",borderRadius:10,boxShadow:SI,fontFamily:"inherit",marginBottom:6}}
-          />
-          <div style={{fontSize:10,color:FAINT,marginBottom:18}}>Без ніка кнопка Telegram на сайті працюватиме через номер телефону.</div>
-
-          {/* MEETING POINT MAP */}
-          <div style={{fontSize:11,fontWeight:800,color:DIM,letterSpacing:0.5,marginBottom:6}}>МІСЦЕ ЗУСТРІЧІ НА КАРТІ</div>
-          <div style={{position:"relative",marginBottom:8}}>
-            <div style={{display:"flex",gap:8}}>
-              <input
-                value={addressQuery}
-                onChange={e=>onAddressInputChange(e.target.value)}
-                onFocus={()=>{ if(addressSuggestions.length) setSuggestionsOpen(true); }}
-                onBlur={()=>setTimeout(()=>setSuggestionsOpen(false),150)}
-                onKeyDown={e=>{ if(e.key==="Enter"){ e.preventDefault(); searchAddress(); } }}
-                placeholder="Пошук адреси…"
-                style={{flex:1,minWidth:0,boxSizing:"border-box",background:BG_DEEP,border:"none",outline:"none",color:TEXT,fontSize:13,padding:"10px 12px",borderRadius:10,boxShadow:SI,fontFamily:"inherit"}}
-              />
-              <button onClick={searchAddress} disabled={addressSearching} style={{
-                padding:"0 16px",borderRadius:10,border:"none",cursor:addressSearching?"default":"pointer",fontSize:13,fontWeight:800,flexShrink:0,
-                background:`linear-gradient(145deg,${ACC_HI},${ACCENT})`,color:"#fff",
-              }}>{addressSearching?"…":"Знайти"}</button>
-            </div>
-            {suggestionsOpen && addressSuggestions.length > 0 && (
-              <div style={{position:"absolute",top:"calc(100% + 4px)",left:0,right:0,zIndex:20,background:SURFACE,borderRadius:10,boxShadow:SO,overflow:"hidden",maxHeight:240,overflowY:"auto"}}>
-                {addressSuggestions.map((r,idx)=>(
-                  <div
-                    key={r.place_id ?? idx}
-                    onMouseDown={e=>{ e.preventDefault(); pickAddressSuggestion(r); }}
-                    style={{padding:"12px",fontSize:15,color:"#fff",cursor:"pointer",borderBottom:idx<addressSuggestions.length-1?`1px solid ${BORDER}`:"none"}}
-                  >{r.display_name}</div>
-                ))}
+          {/* ЛОКАЦІЯ */}
+          <ProfileCard color={TEAL} icon="📍" title="ЛОКАЦІЯ НА КАРТІ">
+            <div style={{position:"relative",marginBottom:8}}>
+              <div style={{display:"flex",gap:8}}>
+                <input
+                  value={addressQuery}
+                  onChange={e=>onAddressInputChange(e.target.value)}
+                  onFocus={()=>{ if(addressSuggestions.length) setSuggestionsOpen(true); }}
+                  onBlur={()=>setTimeout(()=>setSuggestionsOpen(false),150)}
+                  onKeyDown={e=>{ if(e.key==="Enter"){ e.preventDefault(); searchAddress(); } }}
+                  placeholder="Пошук адреси…"
+                  style={{flex:1,minWidth:0,boxSizing:"border-box",background:BG_DEEP,border:"none",outline:"none",color:TEXT,fontSize:13,padding:"10px 12px",borderRadius:10,boxShadow:SI,fontFamily:"inherit"}}
+                />
+                <button onClick={searchAddress} disabled={addressSearching} style={{
+                  padding:"0 16px",borderRadius:10,border:"none",cursor:addressSearching?"default":"pointer",fontSize:13,fontWeight:800,flexShrink:0,
+                  background:`linear-gradient(145deg,${ACC_HI},${ACCENT})`,color:"#fff",
+                }}>{addressSearching?"…":"Знайти"}</button>
               </div>
-            )}
-          </div>
-          {addressError && <div style={{fontSize:10,color:RED,marginBottom:8}}>{addressError}</div>}
-          <LocationMap
-            lat={profile?.meetLat}
-            lng={profile?.meetLng}
-            flyTo={mapFlyTo}
-            onPick={(lat,lng)=>{ updProfile("meetLat", lat); updProfile("meetLng", lng); reverseGeocodeAddress(lat, lng); }}
-          />
-          <div style={{fontSize:10,color:FAINT,margin:"6px 0 18px"}}>Знайдіть адресу вище, клікніть на карту або перетягніть мітку — учні побачать саме цю точку і адресу на сторінці запису.</div>
+              {suggestionsOpen && addressSuggestions.length > 0 && (
+                <div style={{position:"absolute",top:"calc(100% + 4px)",left:0,right:0,zIndex:20,background:SURFACE,borderRadius:10,boxShadow:SO,overflow:"hidden",maxHeight:240,overflowY:"auto"}}>
+                  {addressSuggestions.map((r,idx)=>(
+                    <div
+                      key={r.place_id ?? idx}
+                      onMouseDown={e=>{ e.preventDefault(); pickAddressSuggestion(r); }}
+                      style={{padding:"12px",fontSize:15,color:"#fff",cursor:"pointer",borderBottom:idx<addressSuggestions.length-1?`1px solid ${BORDER}`:"none"}}
+                    >{r.display_name}</div>
+                  ))}
+                </div>
+              )}
+            </div>
+            {addressError && <div style={{fontSize:10,color:RED,marginBottom:8}}>{addressError}</div>}
+            <LocationMap
+              lat={profile?.meetLat}
+              lng={profile?.meetLng}
+              flyTo={mapFlyTo}
+              onPick={(lat,lng)=>{ updProfile("meetLat", lat); updProfile("meetLng", lng); reverseGeocodeAddress(lat, lng); }}
+            />
+            <div style={{fontSize:10,color:"rgba(255,255,255,0.55)",marginTop:6}}>Знайдіть адресу вище, клікніть на карту або перетягніть мітку — учні побачать саме цю точку і адресу на сторінці запису.</div>
+          </ProfileCard>
 
           <button onClick={saveProfile} disabled={profileSaving} style={{
             width:"100%",padding:"12px",borderRadius:12,border:"none",cursor:profileSaving?"default":"pointer",fontSize:14,fontWeight:800,
