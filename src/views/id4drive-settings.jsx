@@ -1087,7 +1087,13 @@ select{color-scheme:${isKava?"light":"dark"}}
 
           {/* ЛОКАЦІЯ */}
           <ProfileCard color={TEAL} icon="📍" title="ЛОКАЦІЯ НА КАРТІ">
-            <div style={{position:"relative",marginBottom:8}}>
+            <LocationMap
+              lat={profile?.meetLat}
+              lng={profile?.meetLng}
+              flyTo={mapFlyTo}
+              onPick={(lat,lng)=>{ updProfile("meetLat", lat); updProfile("meetLng", lng); reverseGeocodeAddress(lat, lng); }}
+            />
+            <div style={{position:"relative",marginTop:8}}>
               <div style={{display:"flex",gap:8}}>
                 <input
                   value={addressQuery}
@@ -1115,14 +1121,8 @@ select{color-scheme:${isKava?"light":"dark"}}
                 </div>
               )}
             </div>
-            {addressError && <div style={{fontSize:10,color:RED,marginBottom:8}}>{addressError}</div>}
-            <LocationMap
-              lat={profile?.meetLat}
-              lng={profile?.meetLng}
-              flyTo={mapFlyTo}
-              onPick={(lat,lng)=>{ updProfile("meetLat", lat); updProfile("meetLng", lng); reverseGeocodeAddress(lat, lng); }}
-            />
-            <div style={{fontSize:10,color:"rgba(255,255,255,0.55)",marginTop:6}}>Знайдіть адресу вище, клікніть на карту або перетягніть мітку — учні побачать саме цю точку і адресу на сторінці запису.</div>
+            {addressError && <div style={{fontSize:10,color:RED,marginTop:8}}>{addressError}</div>}
+            <div style={{fontSize:10,color:"rgba(255,255,255,0.55)",marginTop:8}}>Знайдіть адресу нижче, клікніть на карту або перетягніть мітку — учні побачать саме цю точку і адресу на сторінці запису.</div>
           </ProfileCard>
 
           <button onClick={saveProfile} disabled={profileSaving} style={{
