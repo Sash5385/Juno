@@ -681,7 +681,6 @@ select{color-scheme:${isKava?"light":"dark"}}
     { id:"restr",      icon:"🔒", color:RED,    title:t('set.restr.title'),    label:uk?"Ліміти":"Limits" },
     { id:"queue",      icon:"✅", color:GREEN,  title:t('set.queue.title'),    label:uk?"Черга":"Queue"  },
     { id:"sticky",     icon:"📌", color:PURPLE, title:t('set.sticky.title'),   label:uk?"Слоти":"Slots"  },
-    { id:"auto",       icon:"📨", color:GOLD,   title:t('set.auto.title'),     label:uk?"Авто":"Auto"    },
     { id:"surcharges", icon:"💰", color:GOLD,   title:"Надбавки",              label:uk?"Збори":"Fees"   },
     { id:"push",       icon:"🔔", color:GREEN,  title:"Сповіщення",            label:"Сповіщення"        },
     { id:"reviews",    icon:"⭐", color:GOLD,   title:"Відгуки учнів",         label:"Відгуки"           },
@@ -855,36 +854,6 @@ select{color-scheme:${isKava?"light":"dark"}}
         </div>
       );
 
-      case "auto": return (
-        <div>
-          {showHint && <Info color={GOLD} title={t('set.auto.info_t')} text={t('set.auto.info')}/>}
-          <div style={{paddingTop:10,display:"flex",flexDirection:"column",gap:5}}>
-            <div style={{fontSize:9,color:"#fff",letterSpacing:1,textTransform:"uppercase",marginBottom:2,textAlign:"center"}}>{t('set.auto.reminder')}</div>
-            {reminders.map((r,i)=>(
-              <div key={i} style={{
-                display:"flex",alignItems:"center",gap:8,
-                background:`linear-gradient(135deg,color-mix(in srgb,${svColor(r.enabled)} ${r.enabled?38:22}%,${BG_DEEP}) 0%,${BG_DEEP} 100%)`,
-                border:`1px solid color-mix(in srgb,${svColor(r.enabled)} ${r.enabled?35:25}%,transparent)`,
-                borderRadius:10,padding:"7px 10px",
-              }}>
-                <SmallToggle color={svColor(r.enabled)} on={r.enabled} onChange={v=>updReminder(i,{enabled:v})}/>
-                <span style={{fontSize:12,color:DIM,flex:1}}>
-                  {lang==="en"?"Reminder":"Нагадування"} #{i+1}
-                </span>
-                <NumInput value={r.hoursBefore} onChange={v=>updReminder(i,{hoursBefore:v})} min={1} max={168} suffix={` ${t('hr')}`}/>
-                <span style={{fontSize:11,color:FAINT}}>{t('set.auto.rem_h')}</span>
-              </div>
-            ))}
-          </div>
-          <Row color={svColor(!!settings.autoCancel?.enabled)} label={t('set.auto.cancel')}>
-            <Toggle color={svColor(!!settings.autoCancel?.enabled)} on={!!settings.autoCancel?.enabled} onChange={v=>setSettings(s=>({...s,autoCancel:{...(s.autoCancel||{}),enabled:v}}))}/>
-          </Row>
-          <Row color={svColor(!!settings.autoQueueOffer?.enabled)} label={t('set.auto.queue')} last>
-            <Toggle color={svColor(!!settings.autoQueueOffer?.enabled)} on={!!settings.autoQueueOffer?.enabled} onChange={v=>setSettings(s=>({...s,autoQueueOffer:{...(s.autoQueueOffer||{}),enabled:v}}))}/>
-          </Row>
-        </div>
-      );
-
       case "surcharges": return (
         <div>
           {showHint && <Info color={GOLD}
@@ -926,9 +895,33 @@ select{color-scheme:${isKava?"light":"dark"}}
           {showHint && <Info color={GREEN}
             title={lang==="en"?"Student notifications":"Сповіщення учням"}
             text={lang==="en"
-              ? "When a slot frees up within the next 10 days (a student cancelled or rescheduled), every student with notifications enabled gets one. Turn off the toggle below to stop these broadcasts."
-              : "Коли в найближчі 10 днів звільняється слот (учень скасував або переніс запис), усім учням з увімкненими сповіщеннями надсилається сповіщення. Вимкни тумблер нижче, щоб зупинити ці розсилки."}
+              ? "Automatic reminders before a lesson, a message on cancellation, an offer from the queue when a slot frees up, and the broadcast to every student when a slot within the next 10 days becomes free."
+              : "Автоматичні нагадування перед уроком, повідомлення при скасуванні, пропозиція з черги при звільненні слоту, і розсилка всім учням, коли в найближчі 10 днів звільняється слот."}
           />}
+          <div style={{paddingTop:10,display:"flex",flexDirection:"column",gap:5}}>
+            <div style={{fontSize:9,color:"#fff",letterSpacing:1,textTransform:"uppercase",marginBottom:2,textAlign:"center"}}>{t('set.auto.reminder')}</div>
+            {reminders.map((r,i)=>(
+              <div key={i} style={{
+                display:"flex",alignItems:"center",gap:8,
+                background:`linear-gradient(135deg,color-mix(in srgb,${svColor(r.enabled)} ${r.enabled?38:22}%,${BG_DEEP}) 0%,${BG_DEEP} 100%)`,
+                border:`1px solid color-mix(in srgb,${svColor(r.enabled)} ${r.enabled?35:25}%,transparent)`,
+                borderRadius:10,padding:"7px 10px",
+              }}>
+                <SmallToggle color={svColor(r.enabled)} on={r.enabled} onChange={v=>updReminder(i,{enabled:v})}/>
+                <span style={{fontSize:12,color:DIM,flex:1}}>
+                  {lang==="en"?"Reminder":"Нагадування"} #{i+1}
+                </span>
+                <NumInput value={r.hoursBefore} onChange={v=>updReminder(i,{hoursBefore:v})} min={1} max={168} suffix={` ${t('hr')}`}/>
+                <span style={{fontSize:11,color:FAINT}}>{t('set.auto.rem_h')}</span>
+              </div>
+            ))}
+          </div>
+          <Row color={svColor(!!settings.autoCancel?.enabled)} label={t('set.auto.cancel')}>
+            <Toggle color={svColor(!!settings.autoCancel?.enabled)} on={!!settings.autoCancel?.enabled} onChange={v=>setSettings(s=>({...s,autoCancel:{...(s.autoCancel||{}),enabled:v}}))}/>
+          </Row>
+          <Row color={svColor(!!settings.autoQueueOffer?.enabled)} label={t('set.auto.queue')}>
+            <Toggle color={svColor(!!settings.autoQueueOffer?.enabled)} on={!!settings.autoQueueOffer?.enabled} onChange={v=>setSettings(s=>({...s,autoQueueOffer:{...(s.autoQueueOffer||{}),enabled:v}}))}/>
+          </Row>
           <Row color={svColor(settings.slotFreedPushEnabled !== false)} label={lang==="en"?"Notify on freed slot":"Сповіщення при звільненні слоту"} hint={lang==="en"?"Notify all students when a slot within the next 10 days becomes free":"Сповіщення усім учням, коли в найближчі 10 днів звільняється слот"} last>
             <Toggle color={svColor(settings.slotFreedPushEnabled !== false)} on={settings.slotFreedPushEnabled !== false} onChange={v=>upd("slotFreedPushEnabled",v)}/>
           </Row>
