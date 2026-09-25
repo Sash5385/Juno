@@ -1037,24 +1037,12 @@ select{color-scheme:${isKava?"light":"dark"}}
       case "surcharges": return (
         <div>
           {showHint && <Info color={GOLD}
-            title={lang==="en"?"Surcharges & payment":"Надбавки і оплата"}
+            title={lang==="en"?"Surcharges":"Надбавки"}
             text={lang==="en"
-              ? "Configure extra paid add-ons the instructor can attach to a booking right from the schedule slot menu (e.g. \"driving range\", \"harder route\", etc.) — the student then sees the total price including the surcharge. \"Payment card\" is the card number shown to the student in \"My bookings\" with a copy button, so they can pay by transfer. Each \"Surcharge\" below is a fixed amount in UAH that can be quickly added to a lesson's price — add as many as you need, or remove one with the \"×\" button."
-              : "Тут налаштовуються додаткові платні опції, які інструктор може додати до запису прямо в меню слота розкладу (наприклад, «виїзд на автодром», «складніший маршрут» тощо) — учень одразу бачить підсумкову суму з надбавкою. «Картка для оплати» — реквізити, які показуються учню в розділі «Мої записи» з кнопкою копіювання, щоб він міг оплатити переказом. Кожна «Надбавка» нижче — це фіксована сума в гривнях, яку можна швидко додати до вартості уроку; додай стільки варіантів, скільки потрібно, або видали кнопкою «×»."}
+              ? "Configure extra paid add-ons the instructor can attach to a booking right from the schedule slot menu (e.g. \"driving range\", \"harder route\", etc.) — the student then sees the total price including the surcharge. Each \"Surcharge\" below is a fixed amount in UAH that can be quickly added to a lesson's price — add as many as you need, or remove one with the \"×\" button. The payment card for students is set in the Profile section."
+              : "Тут налаштовуються додаткові платні опції, які інструктор може додати до запису прямо в меню слота розкладу (наприклад, «виїзд на автодром», «складніший маршрут» тощо) — учень одразу бачить підсумкову суму з надбавкою. Кожна «Надбавка» нижче — це фіксована сума в гривнях, яку можна швидко додати до вартості уроку; додай стільки варіантів, скільки потрібно, або видали кнопкою «×». Картка для оплати учнів налаштовується в розділі «Профіль»."}
           />}
-          <Row label="Картка для оплати" hint="Показується учням у «Моїх записах» з кнопкою копіювання">
-            <input
-              value={settings.paymentCard || ""}
-              onChange={e=>upd("paymentCard", e.target.value)}
-              placeholder="0000 0000 0000 0000"
-              style={{
-                background:`linear-gradient(145deg,${BG_DEEP},${SURF_LO})`,
-                border:"none",outline:"none",color:TEXT,fontSize:13,fontWeight:700,
-                padding:"8px 12px",borderRadius:10,boxShadow:SI,width:170,textAlign:"right",
-                fontFamily:"inherit",
-              }}/>
-          </Row>
-          <div style={{fontSize:12,color:FAINT,marginBottom:12,marginTop:12}}>
+          <div style={{fontSize:12,color:FAINT,marginBottom:12}}>
             Суми відображаються в меню слота при виборі надбавки.
           </div>
           {(settings.surcharges || []).map((amt, i) => (
@@ -1087,13 +1075,12 @@ select{color-scheme:${isKava?"light":"dark"}}
           {showHint && <Info color={GREEN}
             title={lang==="en"?"Student notifications":"Сповіщення учням"}
             text={lang==="en"
-              ? "When a slot frees up within the next 10 days (a student cancelled or rescheduled), every student with notifications enabled gets one. Turn off the toggle below to stop these broadcasts. The \"Test notification\" button checks whether this browser can show notifications on this device at all."
-              : "Коли в найближчі 10 днів звільняється слот (учень скасував або переніс запис), усім учням з увімкненими сповіщеннями надсилається сповіщення. Вимкни тумблер нижче, щоб зупинити ці розсилки. Кнопка «Тест повідомлення» перевіряє, чи браузер взагалі показує сповіщення на цьому пристрої."}
+              ? "When a slot frees up within the next 10 days (a student cancelled or rescheduled), every student with notifications enabled gets one. Turn off the toggle below to stop these broadcasts."
+              : "Коли в найближчі 10 днів звільняється слот (учень скасував або переніс запис), усім учням з увімкненими сповіщеннями надсилається сповіщення. Вимкни тумблер нижче, щоб зупинити ці розсилки."}
           />}
           <Row color={svColor(settings.slotFreedPushEnabled !== false)} label={lang==="en"?"Notify on freed slot":"Сповіщення при звільненні слоту"} hint={lang==="en"?"Notify all students when a slot within the next 10 days becomes free":"Сповіщення усім учням, коли в найближчі 10 днів звільняється слот"} last>
             <Toggle color={svColor(settings.slotFreedPushEnabled !== false)} on={settings.slotFreedPushEnabled !== false} onChange={v=>upd("slotFreedPushEnabled",v)}/>
           </Row>
-          <PushDiag />
         </div>
       );
 
@@ -1127,7 +1114,7 @@ select{color-scheme:${isKava?"light":"dark"}}
 
       case "profile": return (
         <div>
-          {showHint && <Info color={BLUE} title="Профіль інструктора" text="Фото, умови відвідування, Telegram і точка зустрічі на карті — все це бачать учні на сторінці запису."/>}
+          {showHint && <Info color={BLUE} title="Профіль інструктора" text="Фото, телефон, картка для оплати, умови відвідування, Telegram і точка зустрічі на карті — все це бачать учні на сторінці запису."/>}
 
           {/* PHOTO */}
           <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:18}}>
@@ -1187,6 +1174,16 @@ select{color-scheme:${isKava?"light":"dark"}}
             style={{width:"100%",boxSizing:"border-box",background:BG_DEEP,border:"none",outline:"none",color:TEXT,fontSize:13,padding:"10px 12px",borderRadius:10,boxShadow:SI,fontFamily:"inherit",marginBottom:6}}
           />
           <div style={{fontSize:10,color:FAINT,marginBottom:18}}>Дзвінок, Viber, WhatsApp і Telegram (якщо не задано нік нижче) на сторінці запису працюють через цей номер.</div>
+
+          {/* PAYMENT CARD */}
+          <div style={{fontSize:11,fontWeight:800,color:DIM,letterSpacing:0.5,marginBottom:6}}>КАРТКА ДЛЯ ОПЛАТИ</div>
+          <input
+            value={settings.paymentCard || ""}
+            onChange={e=>upd("paymentCard", e.target.value)}
+            placeholder="0000 0000 0000 0000"
+            style={{width:"100%",boxSizing:"border-box",background:BG_DEEP,border:"none",outline:"none",color:TEXT,fontSize:13,padding:"10px 12px",borderRadius:10,boxShadow:SI,fontFamily:"inherit",marginBottom:6}}
+          />
+          <div style={{fontSize:10,color:FAINT,marginBottom:18}}>Показується учням у «Моїх записах» з кнопкою копіювання.</div>
 
           {/* TERMS */}
           <div style={{fontSize:11,fontWeight:800,color:DIM,letterSpacing:0.5,marginBottom:6}}>УМОВИ ВІДВІДУВАННЯ УРОКІВ</div>
@@ -1449,53 +1446,3 @@ select{color-scheme:${isKava?"light":"dark"}}
   );
 }
 
-function PushDiag() {
-  const { BG_DEEP, SURF_HI, SURFACE, BORDER, TEXT, DIM, FAINT, GREEN, RED, GOLD, BLUE, SO, SI } = useContext(ThemeContext);
-  const [status, setStatus] = useState(null);
-
-  async function testLocal() {
-    try {
-      if (!("Notification" in window)) { setStatus({ ok: false, msg: "Браузер не підтримує нотифікації" }); return; }
-      let perm = Notification.permission;
-      if (perm === "default") {
-        perm = await Notification.requestPermission();
-      }
-      if (perm !== "granted") {
-        setStatus({ ok: false, msg: `Дозвіл: "${perm}" — дозволь нотифікації в налаштуваннях браузера` });
-        return;
-      }
-      const reg = await navigator.serviceWorker.ready;
-      await reg.showNotification("🔔 ID4Drive тест", { body: "Сповіщення працюють!", icon: "/favicon.svg" });
-      setStatus({ ok: true, msg: "Нотифікація відправлена — перевір системний трей" });
-    } catch (e) {
-      setStatus({ ok: false, msg: `Помилка: ${e.message}` });
-    }
-  }
-
-  const perm = typeof Notification !== "undefined" ? Notification.permission : "unknown";
-  const permColor = perm === "granted" ? GREEN : perm === "denied" ? RED : GOLD;
-  const permLabel = perm === "granted" ? "✅ Дозволено" : perm === "denied" ? "❌ Заблоковано" : "⚠️ Не вирішено";
-
-  return (
-    <div style={{display:"flex",flexDirection:"column",gap:8,padding:"4px 0"}}>
-      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 12px",background:BG_DEEP,borderRadius:9,boxShadow:SI}}>
-        <span style={{fontSize:12,color:DIM}}>Дозвіл браузера</span>
-        <span style={{fontSize:12,fontWeight:800,color:permColor}}>{permLabel}</span>
-      </div>
-      <div style={{display:"flex",gap:7}}>
-        <button onClick={testLocal} style={{
-          flex:1,padding:"10px 8px",borderRadius:10,border:"none",cursor:"pointer",
-          background:`linear-gradient(145deg,rgba(126,217,87,0.18),rgba(126,217,87,0.06))`,
-          color:GREEN,fontSize:12,fontWeight:700,boxShadow:SO,
-        }}>🔔 Тест повідомлення</button>
-      </div>
-      {status && (
-        <div style={{
-          padding:"9px 12px",borderRadius:9,fontSize:12,fontWeight:600,
-          background:status.ok?"rgba(126,217,87,0.12)":"rgba(239,68,68,0.12)",
-          color:status.ok?GREEN:RED,border:`1px solid ${status.ok?"rgba(126,217,87,0.3)":"rgba(239,68,68,0.3)"}`,
-        }}>{status.msg}</div>
-      )}
-    </div>
-  );
-}
