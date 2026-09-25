@@ -806,7 +806,6 @@ export default function App() {
         stickyTimeEnabled:    settings.stickyTimeEnabled    ?? true,
         minBookingIntervalDays: settings.minBookingIntervalDays ?? 0,
         slotFreedPushEnabled: settings.slotFreedPushEnabled ?? true,
-        paymentCard:     settings.paymentCard      ?? "",
         lockPastBookings: settings.lockPastBookings ?? false,
       }).catch(() => {});
     }, 800);

@@ -891,8 +891,8 @@ select{color-scheme:${isKava?"light":"dark"}}
           {showHint && <Info color={GOLD}
             title={lang==="en"?"Surcharges":"Надбавки"}
             text={lang==="en"
-              ? "Configure extra paid add-ons the instructor can attach to a booking right from the schedule slot menu (e.g. \"driving range\", \"harder route\", etc.) — the student then sees the total price including the surcharge. Each \"Surcharge\" below is a fixed amount in UAH that can be quickly added to a lesson's price — add as many as you need, or remove one with the \"×\" button. The payment card for students is set in the Profile section."
-              : "Тут налаштовуються додаткові платні опції, які інструктор може додати до запису прямо в меню слота розкладу (наприклад, «виїзд на автодром», «складніший маршрут» тощо) — учень одразу бачить підсумкову суму з надбавкою. Кожна «Надбавка» нижче — це фіксована сума в гривнях, яку можна швидко додати до вартості уроку; додай стільки варіантів, скільки потрібно, або видали кнопкою «×». Картка для оплати учнів налаштовується в розділі «Профіль»."}
+              ? "Configure extra paid add-ons the instructor can attach to a booking right from the schedule slot menu (e.g. \"driving range\", \"harder route\", etc.) — the student then sees the total price including the surcharge. Each \"Surcharge\" below is a fixed amount in UAH that can be quickly added to a lesson's price — add as many as you need, or remove one with the \"×\" button."
+              : "Тут налаштовуються додаткові платні опції, які інструктор може додати до запису прямо в меню слота розкладу (наприклад, «виїзд на автодром», «складніший маршрут» тощо) — учень одразу бачить підсумкову суму з надбавкою. Кожна «Надбавка» нижче — це фіксована сума в гривнях, яку можна швидко додати до вартості уроку; додай стільки варіантів, скільки потрібно, або видали кнопкою «×»."}
           />}
           <div style={{fontSize:12,color:FAINT,marginBottom:12}}>
             Суми відображаються в меню слота при виборі надбавки.
@@ -1041,8 +1041,7 @@ select{color-scheme:${isKava?"light":"dark"}}
             {galleryError && <div style={{fontSize:11,color:RED,marginTop:6}}>{galleryError}</div>}
           </ProfileCard>
 
-          {/* КОНТАКТИ — телефон (джерело для кнопок дзвінка/Viber/WhatsApp і
-              фолбека Telegram на лендингу) + Telegram-нік */}
+          {/* КОНТАКТИ — телефон, джерело для кнопок дзвінка/Viber/WhatsApp/Telegram на лендингу */}
           <ProfileCard color={BLUE} icon="📞" title="КОНТАКТИ">
             <div style={{fontSize:10,fontWeight:800,color:"rgba(255,255,255,0.7)",letterSpacing:0.5,marginBottom:5}}>ТЕЛЕФОН</div>
             <input
@@ -1052,27 +1051,7 @@ select{color-scheme:${isKava?"light":"dark"}}
               type="tel"
               style={{width:"100%",boxSizing:"border-box",background:BG_DEEP,border:"none",outline:"none",color:TEXT,fontSize:13,padding:"10px 12px",borderRadius:10,boxShadow:SI,fontFamily:"inherit",marginBottom:6}}
             />
-            <div style={{fontSize:10,color:"rgba(255,255,255,0.55)",marginBottom:12}}>Дзвінок, Viber, WhatsApp і Telegram (якщо не задано нік нижче) на сторінці запису працюють через цей номер.</div>
-            <div style={{fontSize:10,fontWeight:800,color:"rgba(255,255,255,0.7)",letterSpacing:0.5,marginBottom:5}}>TELEGRAM (НІК, БЕЗ @)</div>
-            <input
-              value={profile?.telegramUsername ?? ""}
-              onChange={e=>updProfile("telegramUsername", e.target.value.replace(/^@/,"").trim())}
-              placeholder="ivan_marchenko"
-              style={{width:"100%",boxSizing:"border-box",background:BG_DEEP,border:"none",outline:"none",color:TEXT,fontSize:13,padding:"10px 12px",borderRadius:10,boxShadow:SI,fontFamily:"inherit",marginBottom:6}}
-            />
-            <div style={{fontSize:10,color:"rgba(255,255,255,0.55)"}}>Без ніка кнопка Telegram на сайті працюватиме через номер телефону.</div>
-          </ProfileCard>
-
-          {/* ОПЛАТА */}
-          <ProfileCard color={GOLD} icon="💳" title="ОПЛАТА">
-            <div style={{fontSize:10,fontWeight:800,color:"rgba(255,255,255,0.7)",letterSpacing:0.5,marginBottom:5}}>КАРТКА ДЛЯ ОПЛАТИ</div>
-            <input
-              value={settings.paymentCard || ""}
-              onChange={e=>upd("paymentCard", e.target.value)}
-              placeholder="0000 0000 0000 0000"
-              style={{width:"100%",boxSizing:"border-box",background:BG_DEEP,border:"none",outline:"none",color:TEXT,fontSize:13,padding:"10px 12px",borderRadius:10,boxShadow:SI,fontFamily:"inherit",marginBottom:6}}
-            />
-            <div style={{fontSize:10,color:"rgba(255,255,255,0.55)"}}>Показується учням у «Моїх записах» з кнопкою копіювання.</div>
+            <div style={{fontSize:10,color:"rgba(255,255,255,0.55)"}}>Дзвінок, Viber, WhatsApp і Telegram на сторінці запису працюють через цей номер.</div>
           </ProfileCard>
 
           {/* УМОВИ */}
@@ -1259,34 +1238,6 @@ select{color-scheme:${isKava?"light":"dark"}}
           padding:"10px 24px", borderRadius:14, fontSize:13, fontWeight:700,
         }}>📲 Встановити додаток</button>
       )}
-      {active === "profile" && license && (() => {
-        // eslint-disable-next-line react-hooks/purity -- лише для відображення "днів залишилось", не впливає на логіку
-        const now = Date.now();
-        const untilTs = license.status === "trial" ? license.trialEndsAt : license.expiresAt;
-        const daysLeft = untilTs ? Math.ceil((untilTs - now) / 86400000) : null;
-        const blocked = license.status === "suspended" || (daysLeft != null && daysLeft < 0);
-        const statusColor = blocked ? RED : (daysLeft != null && daysLeft <= 3 ? GOLD : GREEN);
-        const statusLabel = blocked ? "Призупинено" : license.status === "trial" ? "Пробний період" : "Активна";
-        return (
-          <div style={{
-            margin:"12px 14px 0", padding:"12px 14px", borderRadius:14,
-            background:`linear-gradient(135deg,color-mix(in srgb,${GREEN} 42%,${BG_DEEP}) 0%,${BG_DEEP} 100%)`,
-            border:`1px solid color-mix(in srgb,${GREEN} 35%,transparent)`,
-          }}>
-            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
-              <span style={{fontSize:15}}>🔔</span>
-              <span style={{fontSize:12, fontWeight:800, color:"#fff"}}>ПІДПИСКА</span>
-            </div>
-            <div style={{fontSize:14, fontWeight:700, color:statusColor}}>{statusLabel}</div>
-            {daysLeft != null && !blocked && (
-              <div style={{fontSize:12, color:"rgba(255,255,255,0.6)", marginTop:2}}>Залишилось днів: {daysLeft}</div>
-            )}
-            {blocked && (
-              <div style={{fontSize:12, color:"rgba(255,255,255,0.6)", marginTop:2}}>Оплатіть підписку нижче, щоб відновити доступ.</div>
-            )}
-          </div>
-        );
-      })()}
       {active === "profile" && bookingSlug && (
         <div style={{
           margin:"12px 14px 0", padding:"12px 14px", borderRadius:14,
@@ -1334,6 +1285,34 @@ select{color-scheme:${isKava?"light":"dark"}}
         <div style={{fontSize:11, color:"rgba(255,255,255,0.55)", marginTop:8, lineHeight:1.4}}>Обидва варіанти підтримують Apple Pay / Google Pay / картку.</div>
       </div>
       )}
+      {active === "profile" && license && (() => {
+        // eslint-disable-next-line react-hooks/purity -- лише для відображення "днів залишилось", не впливає на логіку
+        const now = Date.now();
+        const untilTs = license.status === "trial" ? license.trialEndsAt : license.expiresAt;
+        const daysLeft = untilTs ? Math.ceil((untilTs - now) / 86400000) : null;
+        const blocked = license.status === "suspended" || (daysLeft != null && daysLeft < 0);
+        const statusColor = blocked ? RED : (daysLeft != null && daysLeft <= 3 ? GOLD : GREEN);
+        const statusLabel = blocked ? "Призупинено" : license.status === "trial" ? "Пробний період" : "Активна";
+        return (
+          <div style={{
+            margin:"10px 14px 0", padding:"12px 14px", borderRadius:14,
+            background:`linear-gradient(135deg,color-mix(in srgb,${GREEN} 42%,${BG_DEEP}) 0%,${BG_DEEP} 100%)`,
+            border:`1px solid color-mix(in srgb,${GREEN} 35%,transparent)`,
+          }}>
+            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
+              <span style={{fontSize:15}}>🔔</span>
+              <span style={{fontSize:12, fontWeight:800, color:"#fff"}}>ПІДПИСКА</span>
+            </div>
+            <div style={{fontSize:14, fontWeight:700, color:statusColor}}>{statusLabel}</div>
+            {daysLeft != null && !blocked && (
+              <div style={{fontSize:12, color:"rgba(255,255,255,0.6)", marginTop:2}}>Залишилось днів: {daysLeft}</div>
+            )}
+            {blocked && (
+              <div style={{fontSize:12, color:"rgba(255,255,255,0.6)", marginTop:2}}>Оплатіть підписку нижче, щоб відновити доступ.</div>
+            )}
+          </div>
+        );
+      })()}
       <div style={{height:railH + 16}}/>
     </>
   );
