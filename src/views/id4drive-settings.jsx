@@ -800,11 +800,11 @@ select{color-scheme:${isKava?"light":"dark"}}
             <NumInput compact value={settings.bookCutoffHours} onChange={v=>upd("bookCutoffHours",v)} min={0} max={48} suffix={` ${t('hr')}`}/>
           </Row>
           <Row compact label={t('set.restr.slotGen')} hint={
-            <span style={{display:"inline-flex",alignItems:"center",flexWrap:"wrap",gap:5}}>
-              <span>{t('set.restr.slotGen_h')}</span>
+            <>
+              {t('set.restr.slotGen_h')}{" "}
               <span style={{
-                display:"inline-flex",alignItems:"center",justifyContent:"center",flexShrink:0,
-                width:20,height:14,borderRadius:5,
+                display:"inline-flex",alignItems:"center",justifyContent:"center",
+                width:20,height:14,borderRadius:5,verticalAlign:"middle",
                 background:`linear-gradient(135deg,color-mix(in srgb,${GREEN} 42%,${BG_DEEP}) 0%,${BG_DEEP} 100%)`,
                 border:`1px solid color-mix(in srgb,${GREEN} 35%,transparent)`,
               }}>
@@ -812,7 +812,7 @@ select{color-scheme:${isKava?"light":"dark"}}
                   <rect x="3" y="3" width="7" height="7" rx="1.2"/><rect x="14" y="3" width="7" height="7" rx="1.2"/><rect x="3" y="14" width="7" height="7" rx="1.2"/><rect x="14" y="14" width="7" height="7" rx="1.2"/>
                 </svg>
               </span>
-            </span>
+            </>
           }>
             <NumInput compact value={settings.slotGenDays ?? 30} onChange={v=>upd("slotGenDays",v)} min={1} max={365} suffix={` ${t('days')}`}/>
           </Row>
