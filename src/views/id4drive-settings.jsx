@@ -992,52 +992,54 @@ select{color-scheme:${isKava?"light":"dark"}}
         <div>
           {showHint && <Info color={BLUE} title="Профіль інструктора" text="Фото, телефон, картка для оплати, умови відвідування, Telegram і точка зустрічі на карті — все це бачать учні на сторінці запису."/>}
 
-          {/* PHOTO */}
-          <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:18}}>
-            <div
-              onClick={()=>profile?.photoUrl && openViewer(allProfilePhotos, 0)}
-              style={{width:64,height:64,borderRadius:"50%",overflow:"hidden",background:SURF_HI,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:SO,cursor:profile?.photoUrl?"pointer":"default"}}
-            >
-              {profile?.photoUrl
-                ? <img src={profile.photoUrl} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>
-                : <span style={{fontSize:26}}>🧑‍🏫</span>}
-            </div>
-            <div style={{flex:1,minWidth:0}}>
-              <button onClick={()=>photoInputRef.current?.click()} disabled={photoUploading} style={{
-                padding:"9px 14px",borderRadius:10,border:"none",cursor:photoUploading?"default":"pointer",fontSize:12,fontWeight:700,
-                background:`linear-gradient(145deg,${ACC_HI},${ACCENT})`,color:"#fff",boxShadow:SO,opacity:photoUploading?0.6:1,
-              }}>{photoUploading?"Завантаження…":"Завантажити фото"}</button>
-              <input ref={photoInputRef} type="file" accept="image/*" onChange={handlePhotoChange} style={{display:"none"}}/>
-              <div style={{fontSize:10,color:FAINT,marginTop:6}}>JPG/PNG, до 5 МБ — покажеться учням на сторінці запису</div>
-              {photoError && <div style={{fontSize:11,color:RED,marginTop:4}}>{photoError}</div>}
-            </div>
-          </div>
-
-          {/* GALLERY — фотоколаж на лендингу (Landing.jsx), до 10 фото */}
-          <div style={{fontSize:11,fontWeight:800,color:DIM,letterSpacing:0.5,marginBottom:6}}>ФОТОКОЛАЖ НА ЛЕНДИНГУ ({(profile?.galleryPhotos||[]).length}/{GALLERY_MAX})</div>
-          <div style={{display:"flex",flexWrap:"wrap",gap:8,marginBottom:6}}>
-            {(profile?.galleryPhotos||[]).map((p, idx) => (
-              <div key={p.name} onClick={()=>openViewer(allProfilePhotos, (profile?.photoUrl?1:0)+idx)} style={{position:"relative",width:72,height:72,borderRadius:10,overflow:"hidden",flexShrink:0,boxShadow:SO,cursor:"pointer"}}>
-                <img src={p.url} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>
-                <button onClick={(e)=>{e.stopPropagation();handleGalleryDelete(p.name);}} style={{
-                  position:"absolute",top:3,right:3,width:20,height:20,borderRadius:"50%",border:"none",cursor:"pointer",
-                  background:"rgba(0,0,0,0.6)",color:"#fff",fontSize:12,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1,
-                }}>×</button>
+          <ProfileCard color={ACCENT} icon="🧑‍🏫" title="ФОТО ПРОФІЛЮ">
+            {/* PHOTO */}
+            <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:14}}>
+              <div
+                onClick={()=>profile?.photoUrl && openViewer(allProfilePhotos, 0)}
+                style={{width:64,height:64,borderRadius:"50%",overflow:"hidden",background:BG_DEEP,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:SO,cursor:profile?.photoUrl?"pointer":"default"}}
+              >
+                {profile?.photoUrl
+                  ? <img src={profile.photoUrl} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+                  : <span style={{fontSize:26}}>🧑‍🏫</span>}
               </div>
-            ))}
-            {(profile?.galleryPhotos||[]).length < GALLERY_MAX && (
-              <button onClick={()=>galleryInputRef.current?.click()} disabled={galleryUploading} style={{
-                width:72,height:72,borderRadius:10,border:`1px dashed ${BORDER}`,cursor:galleryUploading?"default":"pointer",
-                background:"transparent",color:DIM,fontSize:11,fontWeight:700,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:2,
-              }}>
-                <span style={{fontSize:20,lineHeight:1}}>{galleryUploading?"…":"+"}</span>
-                {!galleryUploading && "Додати"}
-              </button>
-            )}
-            <input ref={galleryInputRef} type="file" accept="image/*" onChange={handleGalleryAdd} style={{display:"none"}}/>
-          </div>
-          <div style={{fontSize:10,color:FAINT,marginBottom:18}}>Фото учнів за кермом, з іспиту, з авто — на лендингу вони показуються анімованим колажем, як у ID4Drive.</div>
-          {galleryError && <div style={{fontSize:11,color:RED,marginBottom:12,marginTop:-10}}>{galleryError}</div>}
+              <div style={{flex:1,minWidth:0}}>
+                <button onClick={()=>photoInputRef.current?.click()} disabled={photoUploading} style={{
+                  padding:"9px 14px",borderRadius:10,border:"none",cursor:photoUploading?"default":"pointer",fontSize:12,fontWeight:700,
+                  background:`linear-gradient(145deg,${ACC_HI},${ACCENT})`,color:"#fff",boxShadow:SO,opacity:photoUploading?0.6:1,
+                }}>{photoUploading?"Завантаження…":"Завантажити фото"}</button>
+                <input ref={photoInputRef} type="file" accept="image/*" onChange={handlePhotoChange} style={{display:"none"}}/>
+                <div style={{fontSize:10,color:"rgba(255,255,255,0.55)",marginTop:6}}>JPG/PNG, до 5 МБ — покажеться учням на сторінці запису</div>
+                {photoError && <div style={{fontSize:11,color:RED,marginTop:4}}>{photoError}</div>}
+              </div>
+            </div>
+
+            {/* GALLERY — фотоколаж на лендингу (Landing.jsx), до 10 фото */}
+            <div style={{fontSize:10,fontWeight:800,color:"rgba(255,255,255,0.7)",letterSpacing:0.5,marginBottom:6}}>ФОТОКОЛАЖ НА ЛЕНДИНГУ ({(profile?.galleryPhotos||[]).length}/{GALLERY_MAX})</div>
+            <div style={{display:"flex",flexWrap:"wrap",gap:8,marginBottom:6}}>
+              {(profile?.galleryPhotos||[]).map((p, idx) => (
+                <div key={p.name} onClick={()=>openViewer(allProfilePhotos, (profile?.photoUrl?1:0)+idx)} style={{position:"relative",width:72,height:72,borderRadius:10,overflow:"hidden",flexShrink:0,boxShadow:SO,cursor:"pointer"}}>
+                  <img src={p.url} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+                  <button onClick={(e)=>{e.stopPropagation();handleGalleryDelete(p.name);}} style={{
+                    position:"absolute",top:3,right:3,width:20,height:20,borderRadius:"50%",border:"none",cursor:"pointer",
+                    background:"rgba(0,0,0,0.6)",color:"#fff",fontSize:12,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1,
+                  }}>×</button>
+                </div>
+              ))}
+              {(profile?.galleryPhotos||[]).length < GALLERY_MAX && (
+                <button onClick={()=>galleryInputRef.current?.click()} disabled={galleryUploading} style={{
+                  width:72,height:72,borderRadius:10,border:`1px dashed rgba(255,255,255,0.25)`,cursor:galleryUploading?"default":"pointer",
+                  background:"transparent",color:"rgba(255,255,255,0.7)",fontSize:11,fontWeight:700,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:2,
+                }}>
+                  <span style={{fontSize:20,lineHeight:1}}>{galleryUploading?"…":"+"}</span>
+                  {!galleryUploading && "Додати"}
+                </button>
+              )}
+              <input ref={galleryInputRef} type="file" accept="image/*" onChange={handleGalleryAdd} style={{display:"none"}}/>
+            </div>
+            <div style={{fontSize:10,color:"rgba(255,255,255,0.55)"}}>Фото учнів за кермом, з іспиту, з авто — на лендингу вони показуються анімованим колажем, як у ID4Drive.</div>
+            {galleryError && <div style={{fontSize:11,color:RED,marginTop:6}}>{galleryError}</div>}
+          </ProfileCard>
 
           {/* КОНТАКТИ — телефон (джерело для кнопок дзвінка/Viber/WhatsApp і
               фолбека Telegram на лендингу) + Telegram-нік */}
