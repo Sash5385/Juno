@@ -1253,15 +1253,19 @@ select{color-scheme:${isKava?"light":"dark"}}
         return (
           <div style={{
             margin:"12px 14px 0", padding:"12px 14px", borderRadius:14,
-            background:SURF_HI, border:`1px solid ${BORDER}`, boxShadow:SI,
+            background:`linear-gradient(135deg,color-mix(in srgb,${GREEN} 42%,${BG_DEEP}) 0%,${BG_DEEP} 100%)`,
+            border:`1px solid color-mix(in srgb,${GREEN} 35%,transparent)`,
           }}>
-            <div style={{fontSize:11, fontWeight:800, color:DIM, textTransform:"uppercase", letterSpacing:0.5, marginBottom:4}}>Підписка</div>
+            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
+              <span style={{fontSize:15}}>🔔</span>
+              <span style={{fontSize:12, fontWeight:800, color:"#fff"}}>ПІДПИСКА</span>
+            </div>
             <div style={{fontSize:14, fontWeight:700, color:statusColor}}>{statusLabel}</div>
             {daysLeft != null && !blocked && (
-              <div style={{fontSize:12, color:DIM, marginTop:2}}>Залишилось днів: {daysLeft}</div>
+              <div style={{fontSize:12, color:"rgba(255,255,255,0.6)", marginTop:2}}>Залишилось днів: {daysLeft}</div>
             )}
             {blocked && (
-              <div style={{fontSize:12, color:DIM, marginTop:2}}>Оплатіть підписку нижче, щоб відновити доступ.</div>
+              <div style={{fontSize:12, color:"rgba(255,255,255,0.6)", marginTop:2}}>Оплатіть підписку нижче, щоб відновити доступ.</div>
             )}
           </div>
         );
@@ -1269,9 +1273,13 @@ select{color-scheme:${isKava?"light":"dark"}}
       {active === "profile" && bookingSlug && (
         <div style={{
           margin:"12px 14px 0", padding:"12px 14px", borderRadius:14,
-          background:SURF_HI, border:`1px solid ${BORDER}`, boxShadow:SI,
+          background:`linear-gradient(135deg,color-mix(in srgb,${ACCENT} 42%,${BG_DEEP}) 0%,${BG_DEEP} 100%)`,
+          border:`1px solid color-mix(in srgb,${ACCENT} 35%,transparent)`,
         }}>
-          <div style={{fontSize:11, fontWeight:800, color:DIM, textTransform:"uppercase", letterSpacing:0.5, marginBottom:8}}>Посилання для запису учнів</div>
+          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
+            <span style={{fontSize:15}}>🔗</span>
+            <span style={{fontSize:12, fontWeight:800, color:"#fff"}}>ПОСИЛАННЯ ДЛЯ ЗАПИСУ УЧНІВ</span>
+          </div>
           <div style={{background:BG_DEEP, border:`1px solid ${BORDER}`, borderRadius:10, padding:"9px 12px", fontSize:12, color:TEXT, wordBreak:"break-all"}}>{bookingLink}</div>
           <button onClick={copyBookingLink} style={{
             marginTop:8, width:"100%", padding:"10px", borderRadius:10, border:"none", cursor:"pointer",
@@ -1283,9 +1291,13 @@ select{color-scheme:${isKava?"light":"dark"}}
       {active === "profile" && (
       <div style={{
         margin:"10px 14px 0", padding:"12px 14px", borderRadius:14,
-        background:SURF_HI, border:`1px solid ${BORDER}`, boxShadow:SI,
+        background:`linear-gradient(135deg,color-mix(in srgb,${GOLD} 42%,${BG_DEEP}) 0%,${BG_DEEP} 100%)`,
+        border:`1px solid color-mix(in srgb,${GOLD} 35%,transparent)`,
       }}>
-        <div style={{fontSize:11, fontWeight:800, color:DIM, textTransform:"uppercase", letterSpacing:0.5, marginBottom:8}}>Оплата підписки · 299₴/міс</div>
+        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
+          <span style={{fontSize:15}}>💳</span>
+          <span style={{fontSize:12, fontWeight:800, color:"#fff"}}>ОПЛАТА ПІДПИСКИ · 299₴/МІС</span>
+        </div>
         <div style={{display:"flex", gap:8}}>
           <button onClick={payWithLiqPay} disabled={!!payingWith} style={{
             flex:1, padding:"11px", borderRadius:12, border:"none", cursor: payingWith ? "default" : "pointer",
@@ -1302,7 +1314,7 @@ select{color-scheme:${isKava?"light":"dark"}}
             {payingWith === "monobank" ? "..." : "Monobank"}
           </button>
         </div>
-        <div style={{fontSize:11, color:FAINT, marginTop:8, lineHeight:1.4}}>Обидва варіанти підтримують Apple Pay / Google Pay / картку.</div>
+        <div style={{fontSize:11, color:"rgba(255,255,255,0.55)", marginTop:8, lineHeight:1.4}}>Обидва варіанти підтримують Apple Pay / Google Pay / картку.</div>
       </div>
       )}
       <div style={{height:railH + 16}}/>
