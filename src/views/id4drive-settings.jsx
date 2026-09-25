@@ -625,7 +625,7 @@ select{color-scheme:${isKava?"light":"dark"}}
   const [viewerOpen, setViewerOpen] = useState(null); // { photos, index } | null
   const openViewer = (photos, index) => setViewerOpen({ photos, index });
 
-  const GALLERY_MAX = 10;
+  const GALLERY_MAX = 9;
   const [galleryUploading, setGalleryUploading] = useState(false);
   const [galleryError, setGalleryError] = useState(null);
   const galleryInputRef = useRef(null);
@@ -1014,11 +1014,11 @@ select{color-scheme:${isKava?"light":"dark"}}
               </div>
             </div>
 
-            {/* GALLERY — фотоколаж на лендингу (Landing.jsx), до 10 фото */}
-            <div style={{fontSize:10,fontWeight:800,color:"rgba(255,255,255,0.7)",letterSpacing:0.5,marginBottom:6}}>ФОТОКОЛАЖ НА ЛЕНДИНГУ ({(profile?.galleryPhotos||[]).length}/{GALLERY_MAX})</div>
-            <div style={{display:"flex",flexWrap:"wrap",gap:8,marginBottom:6}}>
+            {/* GALLERY — фотоколаж на сторінці запису (Landing.jsx), до 9 фото */}
+            <div style={{fontSize:10,fontWeight:800,color:"rgba(255,255,255,0.7)",letterSpacing:0.5,marginBottom:6}}>ФОТОКОЛАЖ НА СТОРІНЦІ ЗАПИСУ ({(profile?.galleryPhotos||[]).length}/{GALLERY_MAX})</div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(3, 1fr)",gap:8,marginBottom:6}}>
               {(profile?.galleryPhotos||[]).map((p, idx) => (
-                <div key={p.name} onClick={()=>openViewer(allProfilePhotos, (profile?.photoUrl?1:0)+idx)} style={{position:"relative",width:72,height:72,borderRadius:10,overflow:"hidden",flexShrink:0,boxShadow:SO,cursor:"pointer"}}>
+                <div key={p.name} onClick={()=>openViewer(allProfilePhotos, (profile?.photoUrl?1:0)+idx)} style={{position:"relative",width:"100%",aspectRatio:"1",borderRadius:10,overflow:"hidden",boxShadow:SO,cursor:"pointer"}}>
                   <img src={p.url} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>
                   <button onClick={(e)=>{e.stopPropagation();handleGalleryDelete(p.name);}} style={{
                     position:"absolute",top:3,right:3,width:20,height:20,borderRadius:"50%",border:"none",cursor:"pointer",
@@ -1028,7 +1028,7 @@ select{color-scheme:${isKava?"light":"dark"}}
               ))}
               {(profile?.galleryPhotos||[]).length < GALLERY_MAX && (
                 <button onClick={()=>galleryInputRef.current?.click()} disabled={galleryUploading} style={{
-                  width:72,height:72,borderRadius:10,border:`1px dashed rgba(255,255,255,0.25)`,cursor:galleryUploading?"default":"pointer",
+                  width:"100%",aspectRatio:"1",borderRadius:10,border:`1px dashed rgba(255,255,255,0.25)`,cursor:galleryUploading?"default":"pointer",
                   background:"transparent",color:"rgba(255,255,255,0.7)",fontSize:11,fontWeight:700,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:2,
                 }}>
                   <span style={{fontSize:20,lineHeight:1}}>{galleryUploading?"…":"+"}</span>
@@ -1037,7 +1037,7 @@ select{color-scheme:${isKava?"light":"dark"}}
               )}
               <input ref={galleryInputRef} type="file" accept="image/*" onChange={handleGalleryAdd} style={{display:"none"}}/>
             </div>
-            <div style={{fontSize:10,color:"rgba(255,255,255,0.55)"}}>Фото учнів за кермом, з іспиту, з авто — на лендингу вони показуються анімованим колажем, як у ID4Drive.</div>
+            <div style={{fontSize:10,color:"rgba(255,255,255,0.55)"}}>Фото учнів за кермом, з іспиту, з авто — на сторінці запису вони показуються анімованим колажем, як у ID4Drive.</div>
             {galleryError && <div style={{fontSize:11,color:RED,marginTop:6}}>{galleryError}</div>}
           </ProfileCard>
 
