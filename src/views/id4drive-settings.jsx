@@ -4,7 +4,6 @@ import { get, update, onValue, off } from "firebase/database";
 import { uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import { iRef, iStorageRef, iGalleryStorageRef, auth } from "../firebase";
 import { LangContext } from "../App";
-import { APP_VERSION } from "../version.js";
 import { ThemeContext } from "../theme.js";
 import { UICss, useFX } from "../ui";
 import { createT } from "../lang";
@@ -1121,19 +1120,6 @@ select{color-scheme:${isKava?"light":"dark"}}
   const [displayedSection, mosaicPhase] = useMosaicSwitch(active);
   const activeSec = SECTIONS.find(s => s.id === displayedSection);
 
-  const forceUpdate = async () => {
-    try {
-      const regs = await navigator.serviceWorker?.getRegistrations?.() || [];
-      await Promise.all(regs.map(r => r.unregister()));
-      if (window.caches) {
-        const keys = await caches.keys();
-        await Promise.all(keys.map(k => caches.delete(k)));
-      }
-    } finally {
-      window.location.reload();
-    }
-  };
-
   return (
     <>
       <UICss/>
@@ -1296,9 +1282,6 @@ select{color-scheme:${isKava?"light":"dark"}}
         <div style={{fontSize:11, color:FAINT, marginTop:8, lineHeight:1.4}}>Обидва варіанти підтримують Apple Pay / Google Pay / картку.</div>
       </div>
       )}
-      <div onClick={forceUpdate} style={{textAlign:"center",padding:"8px 0 2px",color:FAINT,fontSize:13,fontWeight:600,letterSpacing:0.5,cursor:"pointer"}}>
-        {APP_VERSION}
-      </div>
       <div style={{height:railH + 16}}/>
     </>
   );
