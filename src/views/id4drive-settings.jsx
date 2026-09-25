@@ -1095,15 +1095,30 @@ select{color-scheme:${isKava?"light":"dark"}}
             />
             <div style={{position:"relative",marginTop:8}}>
               <div style={{display:"flex",gap:8}}>
-                <input
-                  value={addressQuery}
-                  onChange={e=>onAddressInputChange(e.target.value)}
-                  onFocus={()=>{ if(addressSuggestions.length) setSuggestionsOpen(true); }}
-                  onBlur={()=>setTimeout(()=>setSuggestionsOpen(false),150)}
-                  onKeyDown={e=>{ if(e.key==="Enter"){ e.preventDefault(); searchAddress(); } }}
-                  placeholder="Пошук адреси…"
-                  style={{flex:1,minWidth:0,boxSizing:"border-box",background:BG_DEEP,border:"none",outline:"none",color:TEXT,fontSize:13,padding:"10px 12px",borderRadius:10,boxShadow:SI,fontFamily:"inherit"}}
-                />
+                <div style={{position:"relative",flex:1,minWidth:0}}>
+                  <input
+                    value={addressQuery}
+                    onChange={e=>onAddressInputChange(e.target.value)}
+                    onFocus={()=>{ if(addressSuggestions.length) setSuggestionsOpen(true); }}
+                    onBlur={()=>setTimeout(()=>setSuggestionsOpen(false),150)}
+                    onKeyDown={e=>{ if(e.key==="Enter"){ e.preventDefault(); searchAddress(); } }}
+                    placeholder="Пошук адреси…"
+                    style={{width:"100%",boxSizing:"border-box",background:BG_DEEP,border:"none",outline:"none",color:TEXT,fontSize:13,padding:"10px 30px 10px 12px",borderRadius:10,boxShadow:SI,fontFamily:"inherit"}}
+                  />
+                  {addressQuery && (
+                    <button
+                      onMouseDown={e=>e.preventDefault()}
+                      onClick={()=>{ setAddressQuery(""); setAddressSuggestions([]); setSuggestionsOpen(false); setAddressError(null); }}
+                      aria-label="Очистити"
+                      style={{
+                        position:"absolute",right:6,top:"50%",transform:"translateY(-50%)",
+                        width:20,height:20,borderRadius:"50%",border:"none",cursor:"pointer",
+                        background:"rgba(255,255,255,0.12)",color:"rgba(255,255,255,0.75)",
+                        fontSize:12,lineHeight:1,display:"flex",alignItems:"center",justifyContent:"center",
+                      }}
+                    >×</button>
+                  )}
+                </div>
                 <button onClick={searchAddress} disabled={addressSearching} style={{
                   padding:"0 16px",borderRadius:10,border:"none",cursor:addressSearching?"default":"pointer",fontSize:13,fontWeight:800,flexShrink:0,
                   background:`linear-gradient(145deg,${ACC_HI},${ACCENT})`,color:"#fff",
