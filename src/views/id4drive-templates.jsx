@@ -49,7 +49,7 @@ const TRIGGERS = [
   { id:"manual",         label:"Ручна відправка" },
 ];
 
-const VARS = ["{ім'я}","{дата}","{час}","{послуга}","{ціна}","{ТСЦ}","{інструктор}"];
+const VARS = ["{ім'я}","{дата}","{час}","{послуга}","{ціна}","{інструктор}"];
 
 const INIT_TEMPLATES = [
   { id:"t1", catId:"reminder", title:"Нагадування за 24 год", channel:"chat", trigger:"auto_reminder", reminderHours:24, active:true,
@@ -138,6 +138,7 @@ function SendModal({ tpl, onClose }) {
   const [preview,   setPreview]   = useState(tpl.body);
   const [sending,   setSending]   = useState(false);
   const [sent,      setSent]      = useState(false);
+  const [instructorName, setInstructorName] = useState("");
   const ch = chOf(tpl.channel);
 
   useEffect(() => {
@@ -149,6 +150,7 @@ function SendModal({ tpl, onClose }) {
       }));
       setStudents(list);
     }).catch(() => {});
+    get(iRef("admin_settings/profile/name")).then(snap => setInstructorName(snap.val() || "")).catch(() => {});
   }, []);
 
   const allIds   = students.map(s => s.uid);
@@ -166,7 +168,7 @@ function SendModal({ tpl, onClose }) {
     const ts   = Date.now();
     await Promise.all(selected.map(async uid => {
       const student = students.find(s=>s.uid===uid);
-      const vars = { "ім'я": student?.name || "Учень", ...(await nextBookingVars(uid)) };
+      const vars = { "ім'я": student?.name || "Учень", "інструктор": instructorName, ...(await nextBookingVars(uid)) };
       const text = renderVars(preview, vars);
       return push(iRef(`chats/${uid}`),{from:"admin",text,time,ts}).catch(()=>{})
         .then(() => update(iRef(`chatMeta/${uid}`),{unreadForStudent:increment(1),lastMsg:text,lastTs:ts}).catch(()=>{}));

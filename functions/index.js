@@ -155,6 +155,12 @@ function renderTemplateBody(body, vars = {}) {
   });
 }
 
+// Хелпер: ім'я інструктора для {інструктор} у шаблонах
+async function getInstructorName(iid) {
+  const snap = await iRef(iid, "admin_settings/profile/name").get().catch(() => null);
+  return snap?.val() || "";
+}
+
 // Хелпер: для auto_reminder — 24г чи 2г "кошик" шаблону за полем reminderHours
 // (без поля — типово вважаємо шаблон "за 24 год", як і було раніше)
 function matchesReminderBucket(tpl, targetHours) {
@@ -179,9 +185,10 @@ async function sendActiveTemplates(iid, uid, triggerId, vars = {}, filterFn = nu
   if (filterFn) matches = matches.filter(filterFn);
   if (!matches.length) return false;
 
+  const fullVars = { ...vars, "інструктор": await getInstructorName(iid) };
   let delivered = false;
   for (const tpl of matches) {
-    const text = renderTemplateBody(tpl.body, vars);
+    const text = renderTemplateBody(tpl.body, fullVars);
     const time = new Date().toLocaleTimeString("uk", { hour: "2-digit", minute: "2-digit" });
     const ts = Date.now();
     const chatSent = await iRef(iid, `chats/${uid}`).push({ from: "admin", text, time, ts })
@@ -686,7 +693,7 @@ exports.flushSlotFreedQueue = onSchedule(
         for (const uid of notifyUids) {
           if (lastNotifData[uid] && now - lastNotifData[uid] < RATE_LIMIT_MS) continue;
           const profileSnap = await iRef(iid, `users/${uid}/profile`).get().catch(() => null);
-          const vars = { "дата": dateFormatted, "час": time, "ім'я": profileSnap?.val()?.name || "Учень" };
+          const vars = { "дата": dateFormatted, "час": time, "ім'я": profileSnap?.val()?.name || "Учень", "інструктор": inst?.admin_settings?.profile?.name || "" };
           const title = renderTemplateBody(rawTitle, vars);
           const body  = renderTemplateBody(rawBody, vars);
           const sent = await pushStudent(iid, uid, title, body, { url, date, time }).catch(() => false);
