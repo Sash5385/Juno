@@ -1026,8 +1026,22 @@ function liqpaySign(privateKey, data) {
 // Продовжує ліцензію конкретного інструктора на місяць від сьогодні, а якщо
 // вона ще активна — від дати закінчення поточного періоду (щоб оплата
 // заздалегідь не "згоряла").
-async function extendLicense(iid, provider, extra = {}) {
+// dedupeKey — унікальний ID саме цієї транзакції (LiqPay payment_id,
+// Monobank invoiceId), а НЕ order_id/reference (той повторюється щомісяця
+// для однієї підписки). Провайдери повторюють вебхук, якщо не отримали 200
+// вчасно, тому без цієї перевірки один і той самий платіж продовжував би
+// ліцензію по кілька разів. Транзакція на вузлі дедуплікації — щоб два
+// майже одночасні повтори вебхука не проскочили обидва.
+async function extendLicense(iid, provider, dedupeKey, extra = {}) {
   const now = Date.now();
+  if (dedupeKey) {
+    const dedupeRef = iRef(iid, `license/processedPayments/${dedupeKey}`);
+    const result = await dedupeRef.transaction(current => current === null ? now : undefined);
+    if (!result.committed) {
+      console.log(`extendLicense: duplicate webhook, skipped (iid=${iid}, provider=${provider}, key=${dedupeKey})`);
+      return;
+    }
+  }
   const snap = await iRef(iid, "license").get();
   const lic = snap.val() || {};
   const base = lic.status === "active" && lic.expiresAt > now ? lic.expiresAt : now;
@@ -1120,7 +1134,8 @@ exports.liqpayCallback = onRequest(
         return;
       }
       if (["subscribed", "success", "sandbox"].includes(payload.status)) {
-        await extendLicense(iid, "liqpay", { liqpayOrderId: payload.order_id });
+        const dedupeKey = payload.payment_id != null ? String(payload.payment_id) : payload.order_id;
+        await extendLicense(iid, "liqpay", dedupeKey, { liqpayOrderId: payload.order_id });
         await pushAdmin(iid, "✅ Оплата отримана (LiqPay)", "Підписку DrivePad продовжено на місяць.", {}).catch(() => {});
       } else {
         console.warn(`liqpayCallback: non-success status "${payload.status}" for order=${payload.order_id}`);
@@ -1219,7 +1234,7 @@ exports.monobankCallback = onRequest(
         return;
       }
       if (payload.status === "success") {
-        await extendLicense(iid, "monobank", { monobankInvoiceId: payload.invoiceId });
+        await extendLicense(iid, "monobank", payload.invoiceId, { monobankInvoiceId: payload.invoiceId });
         await pushAdmin(iid, "✅ Оплата отримана (Monobank)", "Підписку DrivePad продовжено на місяць.", {}).catch(() => {});
       }
       res.status(200).send("ok");
