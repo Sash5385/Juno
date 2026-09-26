@@ -96,9 +96,17 @@ function QueueOfferModal({ cancelledBk, waiting, queueMode, onInvite, onClose, s
   );
 }
 
+// підпис + колір статусу запису
+function statusInfo(status, C) {
+  if (status === "confirmed") return { text: "Підтверджено", color: C.GREEN };
+  if (status === "pending")   return { text: "Очікує",       color: C.GOLD };
+  if (status === "completed") return { text: "Завершено",    color: C.DIM };
+  return { text: status || "—", color: C.DIM };
+}
+
 // ─── MAIN ──────────────────────────────────────────────────────
-export default function BookingsView({ settings }) {
-  const { SURFACE, SURF_HI, BORDER, TEXT, DIM, FAINT, PURPLE, GOLD, GREEN, SO } = useContext(ThemeContext);
+export default function BookingsView({ settings, bookings }) {
+  const { SURFACE, SURF_HI, BORDER, TEXT, DIM, FAINT, PURPLE, GOLD, GREEN, BLUE, SO } = useContext(ThemeContext);
   const css = `
 textarea{color-scheme:dark}
 @keyframes expand-in{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
@@ -111,6 +119,17 @@ textarea{color-scheme:dark}
   const [queueOpen,    setQueueOpen]    = useState(null);
   const [addQueueOpen, setAddQueueOpen] = useState(false);
   const [queueOffer,   setQueueOffer]   = useState(null);
+  const [search,       setSearch]       = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+
+  const filteredBookings = (bookings || [])
+    .filter(b => statusFilter === "all" || (b.status || "pending") === statusFilter)
+    .filter(b => {
+      const q = search.trim().toLowerCase();
+      if (!q) return true;
+      return (b.name || "").toLowerCase().includes(q) || (b.phone || "").includes(q);
+    })
+    .sort((a, b) => `${a.date || ""}${a.time || ""}`.localeCompare(`${b.date || ""}${b.time || ""}`));
 
   useEffect(() => {
     return onValue(iRef("admin_data/services"),snap=>{
@@ -159,6 +178,55 @@ textarea{color-scheme:dark}
       <UICss/>
       <style>{css}</style>
       <div style={{display:"flex",flexDirection:"column",gap:10,fontFamily:"ui-sans-serif,-apple-system,system-ui,sans-serif",color:TEXT}}>
+
+        {/* ── ЗАПИСИ ── */}
+        <div style={{background:`linear-gradient(155deg,${SURF_HI},${SURFACE})`,borderRadius:13,overflow:"hidden",boxShadow:SO,border:`1px solid ${BORDER}`}}>
+          <div style={{display:"flex",alignItems:"center",gap:9,padding:"10px 12px"}}>
+            <div style={{width:4,alignSelf:"stretch",borderRadius:3,background:BLUE,flexShrink:0}}/>
+            <span style={{fontSize:16}}>📋</span>
+            <span style={{flex:1,fontSize:13,fontWeight:800,color:TEXT}}>Записи</span>
+            <span style={{fontSize:11,color:DIM,fontWeight:700}}>{filteredBookings.length}</span>
+          </div>
+          <div style={{padding:"0 12px 10px",display:"flex",flexDirection:"column",gap:8}}>
+            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Пошук за ім'ям або телефоном…"
+              style={{width:"100%",background:"transparent",border:`1px solid ${BORDER}`,borderRadius:10,padding:"9px 12px",color:"inherit",fontSize:13,outline:"none",boxSizing:"border-box",fontFamily:"inherit"}}/>
+            <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+              {[["all","Усі"],["pending","Очікує"],["confirmed","Підтверджено"],["completed","Завершено"]].map(([id,label])=>(
+                <button key={id} onClick={()=>setStatusFilter(id)} style={{
+                  padding:"5px 11px",borderRadius:9,border:"none",cursor:"pointer",fontSize:11,fontWeight:700,fontFamily:"inherit",
+                  background:statusFilter===id?`linear-gradient(145deg,${BLUE}44,${BLUE}22)`:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,
+                  color:statusFilter===id?BLUE:DIM,boxShadow:SO,
+                }}>{label}</button>
+              ))}
+            </div>
+          </div>
+          <div style={{borderTop:`1px solid ${BORDER}`,padding:"4px 12px 4px",maxHeight:420,overflowY:"auto"}}>
+            {filteredBookings.length===0 ? (
+              <div style={{textAlign:"center",padding:"14px 0",color:FAINT,fontSize:12}}>
+                {(bookings||[]).length===0 ? "Немає записів" : "Нічого не знайдено"}
+              </div>
+            ) : filteredBookings.map(b=>{
+              const st = statusInfo(b.status, {GREEN,GOLD,DIM});
+              return (
+                <div key={b.id} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 4px",borderBottom:`1px solid ${BORDER}`}}>
+                  <div style={{width:4,height:32,borderRadius:3,background:st.color,flexShrink:0}}/>
+                  <div style={{width:66,flexShrink:0}}>
+                    <div style={{fontSize:12,fontWeight:800,color:TEXT}}>{b.date||"—"}</div>
+                    <div style={{fontSize:10,color:DIM}}>{b.time||"—"}</div>
+                  </div>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:13,fontWeight:800,color:TEXT,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{b.name}</div>
+                    <div style={{fontSize:10,color:DIM,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{b.phone||""}{b.serviceName?` · ${b.serviceName}`:""}{b.price!=null?` · ${b.price}₴`:""}</div>
+                  </div>
+                  {b.durationHours>1 && (
+                    <div style={{padding:"3px 7px",borderRadius:7,background:`${GOLD}26`,border:`1px solid ${GOLD}4d`,fontSize:11,fontWeight:900,color:GOLD,flexShrink:0,whiteSpace:"nowrap"}}>{b.durationHours} год</div>
+                  )}
+                  <span style={{fontSize:9,color:st.color,fontWeight:700,background:`${st.color}20`,padding:"2px 7px",borderRadius:6,flexShrink:0}}>{st.text}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
 
         {/* ── ЧЕРГА ── */}
         <div style={{background:`linear-gradient(155deg,${SURF_HI},${SURFACE})`,borderRadius:13,overflow:"hidden",boxShadow:SO,border:`1px solid ${BORDER}`}}>

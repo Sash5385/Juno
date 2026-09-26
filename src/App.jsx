@@ -510,7 +510,7 @@ const DEFAULT_SETTINGS = {
 function ViewRenderer({ tab, settings, setSettings, bookings, setBookings, onSlotClick, onEmptySlotClick, openInfos, toggleInfo, activeDragIds, navTo, slotExistsRef, openSlotsRef, jumpTarget, setJumpTarget, onViewStudent, studentJump, onStudentJumpHandled }) {
   if (tab === "schedule")  return <ScheduleView settings={settings} setSettings={setSettings} bookings={bookings} setBookings={setBookings} onSlotClick={onSlotClick} onEmptySlotClick={onEmptySlotClick} activeDragIds={activeDragIds} navTo={navTo} slotExistsRef={slotExistsRef} openSlotsRef={openSlotsRef} jumpTarget={jumpTarget} setJumpTarget={setJumpTarget} onViewStudent={onViewStudent}/>;
   if (tab === "settings")  return <SettingsView settings={settings} setSettings={setSettings}/>;
-  if (tab === "bookings")  return <BookingsView settings={settings}/>;
+  if (tab === "bookings")  return <BookingsView settings={settings} bookings={bookings}/>;
   if (tab === "queue")     return <QueueView settings={settings}/>;
   if (tab === "students")  return <StudentsView studentJump={studentJump} onStudentJumpHandled={onStudentJumpHandled} bookings={bookings} settings={settings}/>;
   if (tab === "services")  return <ServicesView/>;
