@@ -198,15 +198,17 @@ async function sendActiveTemplates(iid, uid, triggerId, vars = {}, filterFn = nu
   return delivered;
 }
 
-// Хелпер: для масових розсилок (auto_queue) — тільки текст першого активного
-// шаблону, БЕЗ запису в чат (уникаємо спаму чату при broadcast на всіх учнів)
-async function getActiveTemplateText(iid, triggerId, vars = {}) {
+// Хелпер: для масових розсилок (auto_queue) — СИРИЙ (без підстановки) текст
+// першого активного шаблону, БЕЗ запису в чат (уникаємо спаму чату при
+// broadcast на всіх учнів). Підстановка робиться окремо для кожного учня —
+// {ім'я} тут не рендериться навмисно, інакше усі отримали б однаковий текст
+// з іменем ПЕРШОГО підставленого учня (або взагалі невідому змінну "як є").
+async function getActiveTemplateRaw(iid, triggerId) {
   const snap = await iRef(iid, "admin_data/templates").get();
   const list = snap.val();
   if (!Array.isArray(list)) return null;
   const tpl = list.find(t => t && t.trigger === triggerId && t.active && (t.body || "").trim());
-  if (!tpl) return null;
-  return { title: tpl.title || "Повідомлення", body: renderTemplateBody(tpl.body, vars) };
+  return tpl ? { title: tpl.title || "Повідомлення", body: tpl.body } : null;
 }
 
 // Хелпер: заблокувати / звільнити timeslots для запису
@@ -673,15 +675,20 @@ exports.flushSlotFreedQueue = onSchedule(
 
         const slotDate = new Date(date + "T00:00:00");
         const dateFormatted = slotDate.toLocaleDateString("uk", { day: "numeric", month: "long", weekday: "short" });
-        // Broadcast на всіх учнів — беремо текст першого активного шаблону
-        // auto_queue (без запису в чат, щоб не заспамити чат усіх учнів)
-        const tpl = await getActiveTemplateText(iid, "auto_queue", { "дата": dateFormatted, "час": time }).catch(() => null);
-        const title = tpl?.title || "🚗 Звільнився слот!";
-        const body  = tpl?.body  || `${dateFormatted} о ${time} — є вільне місце`;
+        // Broadcast на всіх учнів — беремо СИРИЙ текст першого активного
+        // шаблону auto_queue (без запису в чат, щоб не заспамити чат усіх
+        // учнів), а {ім'я} підставляємо нижче окремо для кожного учня.
+        const tpl = await getActiveTemplateRaw(iid, "auto_queue").catch(() => null);
+        const rawTitle = tpl?.title || "🚗 Звільнився слот!";
+        const rawBody  = tpl?.body  || `${dateFormatted} о ${time} — є вільне місце`;
         const url   = `https://drivepad-client.web.app/cabinet?date=${date}`;
 
         for (const uid of notifyUids) {
           if (lastNotifData[uid] && now - lastNotifData[uid] < RATE_LIMIT_MS) continue;
+          const profileSnap = await iRef(iid, `users/${uid}/profile`).get().catch(() => null);
+          const vars = { "дата": dateFormatted, "час": time, "ім'я": profileSnap?.val()?.name || "Учень" };
+          const title = renderTemplateBody(rawTitle, vars);
+          const body  = renderTemplateBody(rawBody, vars);
           const sent = await pushStudent(iid, uid, title, body, { url, date, time }).catch(() => false);
           if (!sent) continue; // токен мертвий/не знайдено — не займаємо rate-limit слот даремно
           await saveNotification(iid, uid, title, body, "slot_freed").catch(() => {});
