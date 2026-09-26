@@ -780,7 +780,11 @@ export default function App() {
         dateOverrides:   settings.dateOverrides   ?? [],
         services:        settings.services        ?? [],
         categories:      settings.categories      ?? [],
-        profile:         settings.profile,
+        // profile НЕ синкаємо звідси: id4drive-settings.jsx веде власну
+        // локальну копію admin_settings/profile і зберігає її напряму. Ця
+        // гілка тримає лише один раз завантажений (застарілий) знімок —
+        // якщо писати його сюди, будь-яка непов'язана зміна налаштувань
+        // (розклад, години тощо) відкочує щойно збережений профіль назад.
         weekends:        settings.weekends        ?? [],
         daysShown:       settings.daysShown       ?? 6,
         hourHeightPx:    settings.hourHeightPx    ?? 60,
