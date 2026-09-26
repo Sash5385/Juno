@@ -3,7 +3,7 @@
     "slugs": {
       ".read": true,
       "$slug": {
-        ".write": "auth != null && (!data.exists() || data.child('iid').val() === auth.uid)"
+        ".write": "auth != null && (data.exists() ? data.child('iid').val() === auth.uid : newData.child('iid').val() === auth.uid)"
       }
     },
     "instructors": {
@@ -34,18 +34,18 @@
         "bookings": {
           ".read": "auth != null && auth.token.email === 'sash5385@gmail.com'",
           "$uid": {
-            ".read": "auth != null && (auth.uid === $uid || auth.uid === $iid) || $uid.matches(/^guest_.+/)",
-            ".write": "(auth != null && (auth.uid === $uid || auth.uid === $iid)) || $uid.matches(/^guest_.+/)"
+            ".read": "auth != null && (auth.uid === $uid || auth.uid === $iid)",
+            ".write": "auth != null && (auth.uid === $uid || auth.uid === $iid)"
           }
         },
         "bookings_by_phone": {
           "$phone": {
-            ".read": "auth != null",
+            ".read": "auth != null && auth.uid === $iid",
             ".write": "auth != null && auth.uid === $iid"
           }
         },
         "queue": {
-          ".read": "auth != null",
+          ".read": "auth != null && (auth.uid === $iid || root.child('instructors/'+$iid+'/users/'+auth.uid).exists())",
           "$slotKey": {
             "entries": {
               "$uid": {
@@ -69,8 +69,8 @@
         },
         "chats": {
           "general": {
-            ".read": "auth != null",
-            ".write": "auth != null"
+            ".read": "auth != null && (auth.uid === $iid || root.child('instructors/'+$iid+'/users/'+auth.uid).exists())",
+            ".write": "auth != null && (auth.uid === $iid || root.child('instructors/'+$iid+'/users/'+auth.uid).exists())"
           },
           "$uid": {
             ".read": "auth != null && (auth.uid === $uid || auth.uid === $iid)",
@@ -79,8 +79,8 @@
         },
         "chatMeta": {
           "general": {
-            ".read": "auth != null",
-            ".write": "auth != null"
+            ".read": "auth != null && (auth.uid === $iid || root.child('instructors/'+$iid+'/users/'+auth.uid).exists())",
+            ".write": "auth != null && (auth.uid === $iid || root.child('instructors/'+$iid+'/users/'+auth.uid).exists())"
           },
           "$uid": {
             ".read": "auth != null && (auth.uid === $uid || auth.uid === $iid)",
@@ -100,7 +100,7 @@
         "push_tasks": { },
         "adminPush": { },
         "recentStudents": {
-          ".write": "auth != null"
+          ".write": "auth != null && auth.uid === $iid"
         },
         "slotBookings": { },
         "pushTemplates": { },
@@ -111,7 +111,7 @@
           }
         },
         "dayNotes": {
-          ".read": "auth != null"
+          ".read": "auth != null && auth.uid === $iid"
         },
         "reviews": {
           ".read": true,
@@ -127,7 +127,22 @@
         },
         "license": {
           ".read": "auth != null && (auth.uid === $iid || auth.token.email === 'sash5385@gmail.com')",
-          ".write": "auth != null && (auth.uid === $iid || auth.token.email === 'sash5385@gmail.com')"
+          ".write": "auth != null && (auth.uid === $iid || auth.token.email === 'sash5385@gmail.com')",
+          "status": {
+            ".validate": "auth.token.email === 'sash5385@gmail.com' || (!data.exists() && newData.val() === 'trial')"
+          },
+          "trialEndsAt": {
+            ".validate": "auth.token.email === 'sash5385@gmail.com' || (!data.exists() && newData.isNumber())"
+          },
+          "expiresAt": {
+            ".validate": "auth.token.email === 'sash5385@gmail.com'"
+          },
+          "provider": {
+            ".validate": "auth.token.email === 'sash5385@gmail.com'"
+          },
+          "lastPaymentAt": {
+            ".validate": "auth.token.email === 'sash5385@gmail.com'"
+          }
         }
       }
     },
