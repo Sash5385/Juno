@@ -345,7 +345,7 @@ function TemplateCard({ tpl, onEdit, onSend, onToggle, onDelete }) {
 
   return (
     <div className="fade-in" onClick={()=>onEdit(tpl)} style={{
-      position:"relative",overflow:"hidden",borderRadius:12,padding:"7px 9px 6px",cursor:"pointer",
+      position:"relative",overflow:"hidden",borderRadius:13,padding:"8px 10px 7px",cursor:"pointer",
       background:`linear-gradient(155deg,color-mix(in srgb,${cat.color} 50%,${BG_DEEP}) 0%,color-mix(in srgb,${cat.color} 18%,${BG_DEEP}) 100%)`,
       border:`1px solid color-mix(in srgb,${cat.color} 45%,transparent)`,
       boxShadow:`-2px 5px 13px ${shade(0.45)},inset 1px 1px 0 ${glow(0.15)}`,
@@ -362,21 +362,23 @@ function TemplateCard({ tpl, onEdit, onSend, onToggle, onDelete }) {
         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
 
-      <div style={{position:"relative",zIndex:2,display:"flex",alignItems:"flex-start",gap:6,paddingRight:20}}>
-        <span style={{fontSize:15,flexShrink:0,lineHeight:1}}>{cat.emoji}</span>
+      <div style={{position:"relative",zIndex:2,display:"flex",alignItems:"flex-start",gap:7,paddingRight:22}}>
+        <span style={{fontSize:16,flexShrink:0,lineHeight:1}}>{cat.emoji}</span>
         <div style={{flex:1,minWidth:0}}>
-          <div style={{fontSize:12.5,fontWeight:800,color:"#fff",textShadow:`0 1px 3px ${shade(0.5)}`,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{tpl.title}</div>
-          <div style={{fontSize:9,color:"rgba(255,255,255,0.78)",fontWeight:700,marginTop:1,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
-            {ch.emoji} {tpl.trigger==="manual"?"✋ Вручну":"⚡ Авто"}
+          <div style={{fontSize:13,fontWeight:800,color:"#fff",textShadow:`0 1px 3px ${shade(0.5)}`,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{tpl.title}</div>
+          <div style={{fontSize:9.5,color:"rgba(255,255,255,0.78)",fontWeight:700,marginTop:1.5,display:"flex",alignItems:"center",gap:5}}>
+            <span>{ch.emoji} {ch.label}</span>
+            <span>·</span>
+            <span>{tpl.trigger==="manual"?"✋ Вручну":"⚡ Авто"}</span>
           </div>
         </div>
       </div>
 
-      <div style={{position:"relative",zIndex:2,display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:6}}>
+      <div style={{position:"relative",zIndex:2,display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:7}}>
         <button onClick={e=>{stop(e);onSend(tpl);}} style={{
-          padding:"5px 8px",border:"none",borderRadius:7,cursor:"pointer",fontFamily:"inherit",
-          background:"rgba(0,0,0,0.22)",color:"#fff",fontSize:9.5,fontWeight:700,
-          display:"flex",alignItems:"center",gap:4,
+          padding:"5px 9px",border:"none",borderRadius:8,cursor:"pointer",fontFamily:"inherit",
+          background:"rgba(0,0,0,0.22)",color:"#fff",fontSize:10,fontWeight:700,
+          display:"flex",alignItems:"center",gap:4.5,
         }}>
           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
           Надіслати
@@ -434,8 +436,8 @@ export default function TemplatesView() {
       <style>{css}</style>
       <div style={{display:"flex",flexDirection:"column",gap:8,fontFamily:"ui-sans-serif,-apple-system,system-ui,sans-serif",color:TEXT}}>
 
-        {/* ── LIST — 2 колонки: картки коротші й вужчі, менше скролу ── */}
-        <div style={{display:"grid",gridTemplateColumns:"repeat(2, 1fr)",gap:7}}>
+        {/* ── LIST — одна колонка смугами, картки нижчі по висоті ── */}
+        <div style={{display:"flex",flexDirection:"column",gap:7}}>
           {list.filter(Boolean).map(tpl=>(
             <TemplateCard
               key={tpl.id} tpl={tpl}
