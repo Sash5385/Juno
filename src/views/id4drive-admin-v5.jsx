@@ -3766,6 +3766,20 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                           <span style={{fontSize:7, fontWeight:800, color:GOLD, lineHeight:1}}>{queueCount}</span>
                         </div>
                       )}
+                      {/* Кутик "є нотатка від учня" — низ-право, єдиний вільний
+                          кут картки (верхній зайнятий часом/лічильником/короною,
+                          нижньо-лівий — бейджем черги) */}
+                      {b.studentNote && !isBlock && !isVipSlot && !isPersonal && height >= 14 && (
+                        <div style={{
+                          position:"absolute", bottom:0, right:0, zIndex:4,
+                          width:0, height:0,
+                          borderStyle:"solid", borderWidth:"0 0 9px 9px",
+                          borderColor:"transparent transparent #f7c948 transparent",
+                          borderBottomRightRadius:8,
+                          filter:`drop-shadow(-1px -1px 2px ${shade(0.35)})`,
+                          pointerEvents:"none",
+                        }}/>
+                      )}
                       {!b._mergedIds && !isLockedPast && <div className="slot-handle bottom" style={{height:handleH}} onPointerDown={e=>onPointerDown(e,b,"bottom")}/>}
 
                     </div>
