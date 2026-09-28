@@ -19,6 +19,7 @@
         },
         "timeslots": {
           ".read": true,
+          ".write": "auth != null",
           "$date": {
             "$slotId": {
               "vipOnly":       { ".validate": "auth.uid === $iid || newData.val() === data.val()" },
