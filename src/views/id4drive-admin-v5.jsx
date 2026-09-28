@@ -5295,69 +5295,77 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
             )}
           </div>
 
-          {/* Кнопка редагування ціни/тривалості */}
-          {!editOpen && !isPastLocked && (
-            <div style={{padding:"10px 16px 0"}}>
+          {/* Ціна/час — синя колірна картка (редагувати + дата/час/ціна разом) */}
+          <div style={{
+            margin:"12px 14px 0",padding:"12px 14px",borderRadius:16,
+            background:`linear-gradient(155deg,color-mix(in srgb,${BLUE} 40%,${BG_DEEP}) 0%,${BG_DEEP} 100%)`,
+            border:`1px solid color-mix(in srgb,${BLUE} 38%,transparent)`,
+          }}>
+            {!editOpen && !isPastLocked && (
               <button onClick={openEdit} style={{
                 width:"100%",padding:"10px",borderRadius:12,border:"none",cursor:"pointer",fontFamily:"inherit",
-                background:`${GREEN}1f`,color:GREEN,fontSize:13,fontWeight:800,
-                display:"flex",alignItems:"center",justifyContent:"center",gap:7,
+                background:"rgba(0,0,0,0.22)",color:"#fff",fontSize:13,fontWeight:800,
+                display:"flex",alignItems:"center",justifyContent:"center",gap:7,marginBottom:12,
               }}>✎ Редагувати ціну і час</button>
-            </div>
-          )}
+            )}
 
-          {/* Edit sheet: ціна/тривалість */}
-          {editOpen && (
-            <div style={{padding:"12px 16px",background:ink(0.03),borderBottom:`1px solid ${ink(0.06)}`}}>
-              <div style={{textAlign:"center",fontSize:10,fontWeight:700,color:GOLD,marginBottom:10}}>
-                Разом за день: {otherDayTotal + (parseInt(draftPrice,10)||0)}₴
-              </div>
-              <div style={{display:"flex",gap:10,marginBottom:8}}>
-                <div style={{flex:1}}>
-                  <div style={{fontSize:9,fontWeight:700,letterSpacing:1,color:TEXT_FAINT,textTransform:"uppercase",marginBottom:5,textAlign:"center"}}>Тривалість, хв</div>
-                  <input type="number" min={15} max={maxDurMin} step={5} value={draftDur}
-                    onChange={e=>onDurChange(e.target.value)}
-                    style={{width:"100%",textAlign:"center",padding:"9px 6px",borderRadius:10,border:`1px solid ${ink(0.1)}`,background:BG_DEEP,color:TEXT,fontSize:14,fontWeight:800,fontFamily:"inherit"}}/>
+            {/* Edit sheet: ціна/тривалість */}
+            {editOpen && (
+              <div style={{marginBottom:12}}>
+                <div style={{textAlign:"center",fontSize:10,fontWeight:700,color:GOLD,marginBottom:10}}>
+                  Разом за день: {otherDayTotal + (parseInt(draftPrice,10)||0)}₴
                 </div>
-                <div style={{flex:1}}>
-                  <div style={{fontSize:9,fontWeight:700,letterSpacing:1,color:TEXT_FAINT,textTransform:"uppercase",marginBottom:5,textAlign:"center"}}>Ціна, ₴</div>
-                  <input type="number" min={0} step={50} value={draftPrice}
-                    onChange={e=>setDraftPrice(e.target.value)}
-                    style={{width:"100%",textAlign:"center",padding:"9px 6px",borderRadius:10,border:`1px solid ${ink(0.1)}`,background:BG_DEEP,color:TEXT,fontSize:14,fontWeight:800,fontFamily:"inherit"}}/>
+                <div style={{display:"flex",gap:10,marginBottom:8}}>
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:9,fontWeight:700,letterSpacing:1,color:"rgba(255,255,255,.7)",textTransform:"uppercase",marginBottom:5,textAlign:"center"}}>Тривалість, хв</div>
+                    <input type="number" min={15} max={maxDurMin} step={5} value={draftDur}
+                      onChange={e=>onDurChange(e.target.value)}
+                      style={{width:"100%",textAlign:"center",padding:"9px 6px",borderRadius:10,border:"1px solid rgba(255,255,255,0.18)",background:"rgba(0,0,0,0.22)",color:"#fff",fontSize:14,fontWeight:800,fontFamily:"inherit"}}/>
+                  </div>
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:9,fontWeight:700,letterSpacing:1,color:"rgba(255,255,255,.7)",textTransform:"uppercase",marginBottom:5,textAlign:"center"}}>Ціна, ₴</div>
+                    <input type="number" min={0} step={50} value={draftPrice}
+                      onChange={e=>setDraftPrice(e.target.value)}
+                      style={{width:"100%",textAlign:"center",padding:"9px 6px",borderRadius:10,border:"1px solid rgba(255,255,255,0.18)",background:"rgba(0,0,0,0.22)",color:"#fff",fontSize:14,fontWeight:800,fontFamily:"inherit"}}/>
+                  </div>
+                </div>
+                <div style={{fontSize:9,color:"rgba(255,255,255,.65)",textAlign:"center",marginBottom:10}}>
+                  Макс. тривалість зараз: {maxDurMin}хв · ціна перераховується автоматично при зміні тривалості
+                </div>
+                <div style={{display:"flex",gap:8}}>
+                  <button onClick={()=>setEditOpen(false)} style={{flex:1,padding:"9px",borderRadius:11,border:"none",cursor:"pointer",fontFamily:"inherit",background:"rgba(0,0,0,0.22)",color:"rgba(255,255,255,.75)",fontSize:12.5,fontWeight:700}}>Скасувати</button>
+                  <button onClick={saveEdit} style={{flex:1,padding:"9px",borderRadius:11,border:"none",cursor:"pointer",fontFamily:"inherit",background:GREEN,color:"#0a0d0a",fontSize:12.5,fontWeight:800}}>Зберегти</button>
                 </div>
               </div>
-              <div style={{fontSize:9,color:TEXT_FAINT,textAlign:"center",marginBottom:10}}>
-                Макс. тривалість зараз: {maxDurMin}хв · ціна перераховується автоматично при зміні тривалості
-              </div>
-              <div style={{display:"flex",gap:8}}>
-                <button onClick={()=>setEditOpen(false)} style={{flex:1,padding:"9px",borderRadius:11,border:"none",cursor:"pointer",fontFamily:"inherit",background:ink(0.06),color:TEXT_DIM,fontSize:12.5,fontWeight:700}}>Скасувати</button>
-                <button onClick={saveEdit} style={{flex:1,padding:"9px",borderRadius:11,border:"none",cursor:"pointer",fontFamily:"inherit",background:GREEN,color:"#0a0d0a",fontSize:12.5,fontWeight:800}}>Зберегти</button>
-              </div>
-            </div>
-          )}
+            )}
 
-          {/* Info grid */}
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:1,background:ink(0.04)}}>
-            {[
-              { label:"Дата",  val:`${day.num} ${day.month}`, sub:day.label },
-              { label:"Час",   val:`${fmtTime(booking.startMin)}`, sub:`–${fmtTime(booking.startMin+durMinDisplay)}` },
-              { label:"Ціна",  val:`${price}₴`, sub: mergeInfo ? `${mergeInfo.count} записи, ${durMinDisplay}хв` : booking.surcharge && discountAmtDisplay ? `+${booking.surcharge}₴ / −${discountAmtDisplay}₴` : booking.surcharge ? `+${booking.surcharge}₴` : discountAmtDisplay ? `−${discountAmtDisplay}₴ знижка` : (svc ? `${svc.duration}хв` : "—"), gold: !!booking.surcharge && !mergeInfo },
-            ].map(({ label, val, sub, gold }, i) => (
-              <div key={i} style={{
-                padding:"11px 6px",background:BG_DEEP,
-                display:"flex",flexDirection:"column",alignItems:"center",textAlign:"center",
-                borderRight: i < 2 ? `1px solid ${ink(0.05)}` : "none",
-              }}>
-                <div style={{fontSize:8,fontWeight:700,letterSpacing:1,color:TEXT_FAINT,textTransform:"uppercase",marginBottom:5}}>{label}</div>
-                <div style={{fontSize:14,fontWeight:900,color: gold ? GOLD : TEXT,lineHeight:1}}>{val}</div>
-                <div style={{fontSize:9,color: gold ? `${GOLD}99` : TEXT_FAINT,marginTop:3,fontWeight:600}}>{sub}</div>
-              </div>
-            ))}
+            {/* Info grid */}
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr"}}>
+              {[
+                { label:"Дата",  val:`${day.num} ${day.month}`, sub:day.label },
+                { label:"Час",   val:`${fmtTime(booking.startMin)}`, sub:`–${fmtTime(booking.startMin+durMinDisplay)}` },
+                { label:"Ціна",  val:`${price}₴`, sub: mergeInfo ? `${mergeInfo.count} записи, ${durMinDisplay}хв` : booking.surcharge && discountAmtDisplay ? `+${booking.surcharge}₴ / −${discountAmtDisplay}₴` : booking.surcharge ? `+${booking.surcharge}₴` : discountAmtDisplay ? `−${discountAmtDisplay}₴ знижка` : (svc ? `${svc.duration}хв` : "—"), gold: !!booking.surcharge && !mergeInfo },
+              ].map(({ label, val, sub, gold }, i) => (
+                <div key={i} style={{
+                  padding:"4px 6px",
+                  display:"flex",flexDirection:"column",alignItems:"center",textAlign:"center",
+                  borderRight: i < 2 ? "1px solid rgba(255,255,255,0.18)" : "none",
+                }}>
+                  <div style={{fontSize:8,fontWeight:700,letterSpacing:1,color:"rgba(255,255,255,.7)",textTransform:"uppercase",marginBottom:5}}>{label}</div>
+                  <div style={{fontSize:15,fontWeight:900,color: gold ? GOLD : "#fff",lineHeight:1}}>{val}</div>
+                  <div style={{fontSize:9,color: gold ? `${GOLD}cc` : "rgba(255,255,255,.65)",marginTop:3,fontWeight:600}}>{sub}</div>
+                </div>
+              ))}
+            </div>
           </div>
 
-          {/* Маневри */}
-          <div style={{padding:"10px 14px 0"}}>
-            <div style={{fontSize:9,fontWeight:700,letterSpacing:1,color:TEXT_FAINT,textTransform:"uppercase",marginBottom:6}}>
+          {/* Маневри — фіолетова колірна картка */}
+          <div style={{
+            margin:"10px 14px 0",padding:"12px 14px",borderRadius:16,
+            background:`linear-gradient(155deg,color-mix(in srgb,${PURPLE} 38%,${BG_DEEP}) 0%,${BG_DEEP} 100%)`,
+            border:`1px solid color-mix(in srgb,${PURPLE} 36%,transparent)`,
+          }}>
+            <div style={{fontSize:9,fontWeight:700,letterSpacing:1,color:"rgba(255,255,255,.75)",textTransform:"uppercase",marginBottom:8}}>
               🚗 Маневри
             </div>
             <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8}}>
@@ -5373,13 +5381,13 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
                   <div key={m.key} style={{position:"relative"}}>
                     <button onClick={() => toggleManeuver(m.key)} style={{
                       width:"100%", fontFamily:"inherit",
-                      background: active ? `linear-gradient(155deg,${PURPLE},color-mix(in srgb,${PURPLE} 55%,#000))` : BG_DEEP,
-                      border:`1.5px solid ${active ? PURPLE : ink(0.1)}`,
+                      background: active ? "linear-gradient(155deg,#fff3,rgba(0,0,0,0.15))" : "rgba(0,0,0,0.22)",
+                      border: active ? "1.5px solid rgba(255,255,255,0.55)" : "1.5px solid rgba(255,255,255,0.15)",
                       borderRadius:12, padding:"10px 4px",
                       textAlign:"center", fontSize:10.5, fontWeight:700,
-                      color: active ? "#fff" : TEXT_DIM,
+                      color: "#fff",
                       cursor: active ? "default" : "pointer",
-                      boxShadow: active ? `0 3px 12px ${PURPLE}66` : "none",
+                      boxShadow: active ? "0 3px 12px rgba(0,0,0,0.3)" : "none",
                     }}>
                       {m.label}
                     </button>
@@ -5388,7 +5396,7 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
                       background:GOLD, color:"#1a1200", fontSize:9, fontWeight:900,
                       width:18, height:18, borderRadius:"50%",
                       display:"flex", alignItems:"center", justifyContent:"center",
-                      border:`2px solid ${BG_DEEP}`, pointerEvents:"none",
+                      border:"2px solid rgba(0,0,0,0.4)", pointerEvents:"none",
                     }}>{count}</div>
                     {active && (
                       <div onClick={() => toggleManeuverResult(m.key)} style={{
@@ -5396,7 +5404,7 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
                         background: isSuccess ? GREEN : RED, color:"#fff", fontSize:10, fontWeight:900,
                         width:18, height:18, borderRadius:"50%",
                         display:"flex", alignItems:"center", justifyContent:"center",
-                        border:`2px solid ${BG_DEEP}`, cursor:"pointer",
+                        border:"2px solid rgba(0,0,0,0.4)", cursor:"pointer",
                       }} title={isSuccess ? "Вдало (тап — позначити невдало)" : "Невдало (тап — позначити вдало)"}>
                         {isSuccess ? "✓" : "✕"}
                       </div>
@@ -5407,15 +5415,19 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
             </div>
           </div>
 
-          {/* Медаль за урок — прив'язана до цього booking, видно учню біля завершеного запису */}
-          <div style={{padding:"10px 14px 0"}}>
+          {/* Медаль за урок — золота колірна картка (прив'язана до цього booking, видно учню біля завершеного запису) */}
+          <div style={{
+            margin:"10px 14px 0",padding:"12px 14px",borderRadius:16,
+            background:`linear-gradient(155deg,color-mix(in srgb,${GOLD} 38%,${BG_DEEP}) 0%,${BG_DEEP} 100%)`,
+            border:`1px solid color-mix(in srgb,${GOLD} 36%,transparent)`,
+          }}>
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
-              <div style={{fontSize:9,fontWeight:700,letterSpacing:1,color:TEXT_FAINT,textTransform:"uppercase"}}>
+              <div style={{fontSize:9,fontWeight:700,letterSpacing:1,color:"rgba(255,255,255,.8)",textTransform:"uppercase"}}>
                 🏅 Медаль за урок
               </div>
               <div onClick={() => setBadgePickerOpen(o => !o)} style={{
-                fontSize:11,fontWeight:800,color:GOLD,cursor:"pointer",padding:"2px 8px",
-                borderRadius:8,background:`${GOLD}22`,
+                fontSize:11,fontWeight:800,color:"#fff",cursor:"pointer",padding:"2px 8px",
+                borderRadius:8,background:"rgba(0,0,0,0.25)",
               }}>{badgePickerOpen ? "Закрити" : "+ Додати"}</div>
             </div>
             {Object.entries(allBadges).filter(([,b])=>b.bookingId===booking.id).length > 0 && (
@@ -5423,10 +5435,10 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
                 {Object.entries(allBadges).filter(([,b])=>b.bookingId===booking.id).map(([bid,b])=>(
                   <div key={bid} onClick={()=>removeBookingBadge(bid)} title="Тап — прибрати" style={{
                     display:"flex",alignItems:"center",gap:5,padding:"5px 9px",borderRadius:20,
-                    background:`${GOLD}18`,border:`1px solid ${GOLD}44`,cursor:"pointer",
+                    background:"rgba(0,0,0,0.22)",border:"1px solid rgba(255,255,255,0.25)",cursor:"pointer",
                   }}>
                     <span style={{fontSize:14}}>{b.icon}</span>
-                    <span style={{fontSize:11,fontWeight:700,color:TEXT}}>{b.label}</span>
+                    <span style={{fontSize:11,fontWeight:700,color:"#fff"}}>{b.label}</span>
                   </div>
                 ))}
               </div>
@@ -5436,11 +5448,11 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
                 {BADGE_PRESETS.map((bp,i)=>(
                   <button key={i} onClick={()=>awardBookingBadge(bp.icon,bp.label)} style={{
                     display:"flex",flexDirection:"column",alignItems:"center",gap:4,
-                    padding:"9px 4px",borderRadius:12,border:`1px solid ${ink(0.1)}`,cursor:"pointer",
-                    background:BG_DEEP,fontFamily:"inherit",
+                    padding:"9px 4px",borderRadius:12,border:"1px solid rgba(255,255,255,0.18)",cursor:"pointer",
+                    background:"rgba(0,0,0,0.22)",fontFamily:"inherit",
                   }}>
                     <span style={{fontSize:18}}>{bp.icon}</span>
-                    <span style={{fontSize:9,fontWeight:700,color:TEXT_DIM,textAlign:"center",lineHeight:1.2}}>{bp.label}</span>
+                    <span style={{fontSize:9,fontWeight:700,color:"rgba(255,255,255,.85)",textAlign:"center",lineHeight:1.2}}>{bp.label}</span>
                   </button>
                 ))}
               </div>
@@ -5453,14 +5465,18 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
             const displayTag = booking.tagManual ? (booking.tag || null) : (booking.tag || autoTag || null);
             const isAuto = !booking.tagManual && !booking.tag && !!autoTag;
             return (
-              <div style={{padding:"10px 14px",borderBottom:`1px solid ${ink(0.06)}`}}>
+              <div style={{
+                margin:"10px 14px",padding:"12px 14px",borderRadius:16,
+                background:`linear-gradient(155deg,color-mix(in srgb,${GOLD} 38%,${BG_DEEP}) 0%,${BG_DEEP} 100%)`,
+                border:`1px solid color-mix(in srgb,${GOLD} 36%,transparent)`,
+              }}>
                 <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
-                  <div style={{fontSize:9,fontWeight:700,letterSpacing:1,color:TEXT_FAINT,textTransform:"uppercase"}}>
-                    🏷️ Мітка {isAuto && <span style={{color:TEXT_FAINT,textTransform:"none",letterSpacing:0}}>(авто)</span>}
+                  <div style={{fontSize:9,fontWeight:700,letterSpacing:1,color:"rgba(255,255,255,.8)",textTransform:"uppercase"}}>
+                    🏷️ Мітка {isAuto && <span style={{color:"rgba(255,255,255,.6)",textTransform:"none",letterSpacing:0}}>(авто)</span>}
                   </div>
                   <div onClick={() => setTagPickerOpen(o => !o)} style={{
-                    fontSize:11,fontWeight:800,color:GOLD,cursor:"pointer",padding:"2px 8px",
-                    borderRadius:8,background:`${GOLD}22`,
+                    fontSize:11,fontWeight:800,color:"#fff",cursor:"pointer",padding:"2px 8px",
+                    borderRadius:8,background:"rgba(0,0,0,0.25)",
                   }}>{tagPickerOpen ? "Закрити" : (displayTag ? "Змінити" : "+ Додати")}</div>
                 </div>
                 {displayTag && !tagPickerOpen && (() => {
@@ -5470,10 +5486,10 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
                   return (
                     <div onClick={()=>onAction("setTag",{...booking,tag:null})} title="Тап — прибрати" style={{
                       display:"inline-flex",alignItems:"center",gap:5,padding:"5px 9px",borderRadius:20,
-                      background:`${tp.color}18`,border:`1px solid ${tp.color}44`,cursor:"pointer",
+                      background:"rgba(0,0,0,0.22)",border:"1px solid rgba(255,255,255,0.25)",cursor:"pointer",
                     }}>
                       <span style={{fontSize:14}}>{tp.icon}</span>
-                      <span style={{fontSize:11,fontWeight:700,color:TEXT}}>{label}</span>
+                      <span style={{fontSize:11,fontWeight:700,color:"#fff"}}>{label}</span>
                     </div>
                   );
                 })()}
@@ -5487,13 +5503,13 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
                       onKeyDown={e=>{ if(e.key==="Enter") onAction("setTag",{...booking,tag:"debt",debtAmount:Number(debtInput)||0}); }}
                       style={{
                         flex:1,padding:"7px 10px",borderRadius:10,
-                        border:`1px solid ${ink(0.1)}`,background:BG_DEEP,color:TEXT,
+                        border:"1px solid rgba(255,255,255,0.18)",background:"rgba(0,0,0,0.22)",color:"#fff",
                         fontSize:12,outline:"none",boxSizing:"border-box",
                       }}
                     />
                     <button onClick={()=>onAction("setTag",{...booking,tag:"debt",debtAmount:Number(debtInput)||0})} style={{
                       padding:"7px 12px",borderRadius:10,border:"none",cursor:"pointer",fontFamily:"inherit",
-                      background:`${GOLD}22`,color:GOLD,fontSize:12,fontWeight:800,
+                      background:"rgba(0,0,0,0.25)",color:"#fff",fontSize:12,fontWeight:800,
                     }}>Зберегти</button>
                   </div>
                 )}
@@ -5503,11 +5519,11 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
                       <button key={tp.id} onClick={()=>{ onAction("setTag",{...booking,tag: displayTag===tp.id?null:tp.id}); setTagPickerOpen(false); }} style={{
                         display:"flex",alignItems:"center",justifyContent:"center",gap:6,
                         padding:"9px 4px",borderRadius:12,cursor:"pointer",fontFamily:"inherit",
-                        border: displayTag===tp.id ? `1.5px solid ${tp.color}` : `1px solid ${ink(0.1)}`,
-                        background: displayTag===tp.id ? `${tp.color}22` : BG_DEEP,
+                        border: displayTag===tp.id ? "1.5px solid rgba(255,255,255,0.6)" : "1px solid rgba(255,255,255,0.18)",
+                        background: displayTag===tp.id ? "rgba(0,0,0,0.3)" : "rgba(0,0,0,0.22)",
                       }}>
                         <span style={{fontSize:15}}>{tp.icon}</span>
-                        <span style={{fontSize:11,fontWeight:700,color:TEXT_DIM}}>{tp.label}</span>
+                        <span style={{fontSize:11,fontWeight:700,color:"rgba(255,255,255,.85)"}}>{tp.label}</span>
                       </button>
                     ))}
                   </div>
