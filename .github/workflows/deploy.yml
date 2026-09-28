@@ -32,6 +32,16 @@ jobs:
         continue-on-error: true
         run: npx firebase-tools deploy --only storage --token "${{ secrets.FIREBASE_TOKEN }}"
 
+      - name: Install functions dependencies
+        # Firebase CLI аналізує functions/index.js ЛОКАЛЬНО (щоб знайти
+        # exports) ще до аплоаду в Cloud Build — для цього йому треба
+        # firebase-functions/firebase-admin у functions/node_modules. Корене-
+        # вий "npm ci" вище ставить залежності лише адмінки, не functions/ —
+        # без цього кроку "Deploy Cloud Functions" падав з "Couldn't find
+        # firebase-functions package", і жодна зміна в Cloud Functions
+        # ніколи не виїжджала (continue-on-error нижче це мовчки ховав).
+        run: cd functions && npm ci
+
       - name: Deploy Cloud Functions
         # continue-on-error: поки LIQPAY_PUBLIC_KEY/LIQPAY_PRIVATE_KEY/MONOBANK_TOKEN
         # не задані в Secret Manager проєкту (Google Cloud Console → Security →
