@@ -1293,6 +1293,22 @@ select{color-scheme:${isKava?"light":"dark"}}
         const blocked = license.status === "suspended" || (daysLeft != null && daysLeft < 0);
         const statusColor = blocked ? RED : (daysLeft != null && daysLeft <= 3 ? GOLD : GREEN);
         const statusLabel = blocked ? "Призупинено" : license.status === "trial" ? "Пробний період" : "Активна";
+        const fmtDate = ts => ts ? new Date(ts).toLocaleDateString("uk", { day:"numeric", month:"long", year:"numeric" }) : "—";
+        const providerLabel = { liqpay:"LiqPay", monobank:"Monobank", manual:"вручну (підтримка)" }[license.provider] || null;
+        const rows = [
+          ["Ім'я",  profile?.name || "—"],
+          ["Телефон", profile?.phone || "—"],
+          ["Email входу", auth.currentUser?.email || "—"],
+        ];
+        if (license.status === "trial") {
+          rows.push(["Пробний період до", fmtDate(license.trialEndsAt)]);
+          if (daysLeft != null) rows.push(["Залишилось днів", blocked ? "0 (сплив)" : String(daysLeft)]);
+        } else {
+          rows.push(["Оплачено до", fmtDate(license.expiresAt)]);
+          if (daysLeft != null) rows.push(["Залишилось днів", blocked ? "0 (сплив)" : String(daysLeft)]);
+          if (license.lastPaymentAt) rows.push(["Востаннє оплачено", fmtDate(license.lastPaymentAt)]);
+          if (providerLabel) rows.push(["Спосіб оплати", providerLabel]);
+        }
         return (
           <div style={{
             margin:"10px 14px 0", padding:"12px 14px", borderRadius:14,
@@ -1304,12 +1320,17 @@ select{color-scheme:${isKava?"light":"dark"}}
               <span style={{fontSize:12, fontWeight:800, color:"#fff"}}>ПІДПИСКА</span>
             </div>
             <div style={{fontSize:14, fontWeight:700, color:statusColor}}>{statusLabel}</div>
-            {daysLeft != null && !blocked && (
-              <div style={{fontSize:12, color:"rgba(255,255,255,0.6)", marginTop:2}}>Залишилось днів: {daysLeft}</div>
-            )}
             {blocked && (
               <div style={{fontSize:12, color:"rgba(255,255,255,0.6)", marginTop:2}}>Оплатіть підписку нижче, щоб відновити доступ.</div>
             )}
+            <div style={{marginTop:10, paddingTop:10, borderTop:"1px solid rgba(255,255,255,0.1)", display:"flex", flexDirection:"column", gap:5}}>
+              {rows.map(([label, value]) => (
+                <div key={label} style={{display:"flex", justifyContent:"space-between", gap:10, fontSize:12}}>
+                  <span style={{color:"rgba(255,255,255,0.55)"}}>{label}</span>
+                  <span style={{color:"#fff", fontWeight:700, textAlign:"right"}}>{value}</span>
+                </div>
+              ))}
+            </div>
           </div>
         );
       })()}
