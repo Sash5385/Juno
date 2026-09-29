@@ -2746,6 +2746,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   const [slotClosing, setSlotClosing] = useState(false);
   const [fixedPriceEditing, setFixedPriceEditing] = useState(false);
   const [fixedPriceInput, setFixedPriceInput] = useState("");
+  const [surchargeEditing, setSurchargeEditing] = useState(false);
   const [personalEventData, setPersonalEventData] = useState(null); // { dateStr, time }
   const [longTapMenu, setLongTapMenu] = useState(null); // { dateStr, startMin, clientX, clientY }
   const [ltmClosing, setLtmClosing] = useState(false);
@@ -4443,6 +4444,39 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                     padding:"10px 16px",borderRadius:10,border:"none",cursor:"pointer",fontFamily:"inherit",
                     background:GREEN,color:"#062910",fontSize:13,fontWeight:800,
                   }}>Застосувати</button>
+                </div>
+              )}
+              {/* Надбавка — фіксована сума з налаштувань (Settings → Надбавки) */}
+              <button onClick={()=>setSurchargeEditing(v=>!v)} style={{
+                width:"100%",padding:"13px 14px",border:"none",cursor:"pointer",
+                background:"rgba(245,158,11,0.09)",borderRadius:12,
+                color:GOLD,fontSize:15,fontWeight:700,
+                display:"flex",alignItems:"center",gap:10,
+              }}>
+                <span>⚡</span> Надбавка
+                {_so.slot?.surcharge ? <span style={{marginLeft:"auto",fontSize:11,color:GOLD,opacity:0.8}}>+{_so.slot.surcharge}₴</span> : null}
+              </button>
+              {surchargeEditing && (
+                <div style={{display:"flex",gap:6,padding:"2px 2px 6px"}}>
+                  {(settings.surcharges?.length ? settings.surcharges : [100,200,300]).map(amt=>{
+                    const _isActive = _so.slot?.surcharge === amt;
+                    return (
+                      <button key={amt} onClick={()=>{ applySlotOption(_so.dateStr, fmtTime(_soSelMin), amt); setSurchargeEditing(false); }} style={{
+                        flex:1,padding:"9px 4px",borderRadius:20,cursor:"pointer",fontFamily:"inherit",
+                        background: _isActive ? "rgba(245,158,11,0.22)" : "transparent",
+                        color: _isActive ? "#f59e0b" : GOLD,
+                        fontSize:14,fontWeight:700,
+                        border: _isActive ? `1px solid rgba(245,158,11,0.5)` : `1px solid ${ink(0.1)}`,
+                        textAlign:"center",
+                      }}>+{amt}₴</button>
+                    );
+                  })}
+                  {_so.slot?.surcharge != null && (
+                    <button onClick={()=>{ applySlotOption(_so.dateStr, fmtTime(_soSelMin), "surcharge_remove"); setSurchargeEditing(false); }} style={{
+                      padding:"9px 12px",borderRadius:20,border:"none",cursor:"pointer",fontFamily:"inherit",
+                      background:"rgba(239,68,68,0.12)",color:"#f87171",fontSize:13,fontWeight:700,
+                    }}>×</button>
+                  )}
                 </div>
               )}
               {/* Заблокувати / Розблокувати слот */}
