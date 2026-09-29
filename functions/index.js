@@ -191,12 +191,16 @@ async function sendActiveTemplates(iid, uid, triggerId, vars = {}, filterFn = nu
     const text = renderTemplateBody(tpl.body, fullVars);
     const time = new Date().toLocaleTimeString("uk", { hour: "2-digit", minute: "2-digit" });
     const ts = Date.now();
-    const chatSent = await iRef(iid, `chats/${uid}`).push({ from: "admin", text, time, ts, auto: true })
-      .then(() => true).catch(() => false);
-    if (chatSent) {
-      await iRef(iid, `chatMeta/${uid}`).update({
-        unreadForStudent: admin.database.ServerValue.increment(1), lastMsg: text, lastTs: ts,
-      }).catch(() => {});
+    // channel:"push" — шаблон налаштований як лише сповіщення, без запису в чат.
+    let chatSent = false;
+    if (tpl.channel !== "push") {
+      chatSent = await iRef(iid, `chats/${uid}`).push({ from: "admin", text, time, ts, auto: true })
+        .then(() => true).catch(() => false);
+      if (chatSent) {
+        await iRef(iid, `chatMeta/${uid}`).update({
+          unreadForStudent: admin.database.ServerValue.increment(1), lastMsg: text, lastTs: ts,
+        }).catch(() => {});
+      }
     }
     const pushed = await pushStudent(iid, uid, tpl.title || "Повідомлення", text, {}).catch(() => false);
     if (pushed) await saveNotification(iid, uid, tpl.title || "Повідомлення", text, "template").catch(() => {});
@@ -777,6 +781,22 @@ exports.onInstructorMessage = onValueCreated(
     await pushStudent(iid, uid, `💬 ${name || "Інструктор"}`, text.length > 100 ? text.slice(0, 100) + "…" : text, {
       url: "https://drivepad-client.web.app/cabinet/chat",
     });
+  }
+);
+
+// Ручна відправка шаблону з каналом "push" (вкладка "Шаблони") — учень
+// отримує лише push-сповіщення, без запису повідомлення в чат. Клієнт
+// пише в цей тимчасовий вузол, функція шле push і одразу прибирає запис.
+exports.onTemplatePush = onValueCreated(
+  { ref: "instructors/{iid}/templatePush/{uid}/{pushId}", region: "europe-west1" },
+  async (event) => {
+    const req = event.data.val();
+    const { iid, uid, pushId } = event.params;
+    if (req && req.title) {
+      await pushStudent(iid, uid, req.title, req.body || "", {});
+      await saveNotification(iid, uid, req.title, req.body || "", "template").catch(() => {});
+    }
+    await iRef(iid, `templatePush/${uid}/${pushId}`).remove().catch(() => {});
   }
 );
 

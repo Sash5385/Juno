@@ -37,7 +37,8 @@ const CATEGORIES = [
 ];
 
 const CHANNELS = [
-  { id:"chat",  label:"Чат",  emoji:"💬", color:BLUE   },
+  { id:"chat",  label:"Чат",        emoji:"💬", color:BLUE },
+  { id:"push",  label:"Сповіщення", emoji:"🔔", color:GOLD },
 ];
 
 const TRIGGERS = [
@@ -170,6 +171,11 @@ function SendModal({ tpl, onClose }) {
       const student = students.find(s=>s.uid===uid);
       const vars = { "ім'я": student?.name || "Учень", "інструктор": instructorName, ...(await nextBookingVars(uid)) };
       const text = renderVars(preview, vars);
+      if (tpl.channel === "push") {
+        // Лише push, без запису в чат — onTemplatePush на бекенді відправить
+        // і одразу приберe тимчасовий вузол.
+        return push(iRef(`templatePush/${uid}`),{title:tpl.title||"Повідомлення",body:text,ts}).catch(()=>{});
+      }
       return push(iRef(`chats/${uid}`),{from:"admin",text,time,ts}).catch(()=>{})
         .then(() => update(iRef(`chatMeta/${uid}`),{unreadForStudent:increment(1),lastMsg:text,lastTs:ts}).catch(()=>{}));
     }));
@@ -261,6 +267,19 @@ function EditModal({ tpl, onSave, onClose }) {
           {CATEGORIES.map(c=>(
             <Chip key={c.id} active={form.catId===c.id} color={c.color} onClick={()=>upd("catId",c.id)}>{c.emoji} {c.label}</Chip>
           ))}
+        </div>
+      </div>
+
+      {/* channel */}
+      <div style={{marginBottom:14}}>
+        <div style={{fontSize:10,color:"rgba(255,255,255,0.55)",letterSpacing:1,marginBottom:8}}>КАНАЛ ВІДПРАВКИ</div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:6}}>
+          {CHANNELS.map(c=>(
+            <Chip key={c.id} active={(form.channel||"chat")===c.id} color={c.color} onClick={()=>upd("channel",c.id)}>{c.emoji} {c.label}</Chip>
+          ))}
+        </div>
+        <div style={{fontSize:10,color:"rgba(255,255,255,0.5)",marginTop:6}}>
+          {(form.channel||"chat")==="push" ? "Лише push-сповіщення, без запису в чат" : "Повідомлення в чат (учень також отримає push)"}
         </div>
       </div>
 
