@@ -2563,10 +2563,14 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
           // позицій без свого доку) — прибираємо повністю, а не робимо
           // окремим вільним слотом: інакше розтягнутий слот після скасування
           // розпадається на кілька коротших замість одного, як було раніше.
-          // Позагодинні позиції (:30) прибираємо повністю завжди (як і
-          // buildSlotUpdates на бекенді) — інакше кожна лишається окремим
-          // 30-хв документом і рендериться як окрема плитка замість того,
-          // щоб об'єднатись у часовий слот із сусідньою позицією на :00.
+          // ВАЖЛИВО: раніше тут ще додатково видаляли БУДЬ-яку позицію на :30
+          // (sm % 60 !== 0), щоб адмінка показувала один годинний слот замість
+          // кількох 30-хв плиток — але позиція на :30 не завжди phantom: якщо
+          // адмін генерував слоти з кроком 30 хв, там може бути РЕАЛЬНИЙ,
+          // самостійно бронювальний документ. Видаляючи його, ми назавжди
+          // прибирали слот з Firebase — учень більше не бачив і не міг
+          // забронювати цей час після скасування (timeslots справді не
+          // "обнулялись", а зникали). Тому знову дивимось лише на phantom.
           try {
             const daySnap = await get(iRef( `timeslots/${dateStr}`));
             const day = daySnap.val() || {};
@@ -2576,7 +2580,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
               const hh = String(Math.floor(sm/60)).padStart(2,'0'), mm = String(sm%60).padStart(2,'0');
               const slotId = `slot${hh}${mm}`;
               const path = `timeslots/${dateStr}/${slotId}`;
-              if (day[slotId]?.phantom || sm % 60 !== 0) {
+              if (day[slotId]?.phantom) {
                 upd[path] = null;
               } else {
                 upd[`${path}/available`] = true; upd[`${path}/time`] = `${hh}:${mm}`; upd[`${path}/phantom`] = null;

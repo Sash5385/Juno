@@ -223,7 +223,7 @@ async function getActiveTemplateRaw(iid, triggerId) {
 }
 
 // Хелпер: заблокувати / звільнити timeslots для запису
-function buildSlotUpdates(bookingData, available) {
+async function buildSlotUpdates(iid, bookingData, available) {
   const { date, time, durationHours, durMin, startMin } = bookingData || {};
   if (!date || (!time && startMin == null)) return {};
   const INTERVAL = 30;
@@ -236,21 +236,32 @@ function buildSlotUpdates(bookingData, available) {
   }
   const dur = durMin ?? ((durationHours || 1) * 60);
   const updates = {};
+  // При звільненні (available=true) не можна вважати :30-позицію phantom
+  // лише за парністю — адмін міг вручну відкрити "Вільний слот" саме на :30
+  // (не тільки генерація по годинах). Читаємо реальний стан дня і дивимось
+  // на прапорець phantom, як і клієнтський код скасування — інакше такий
+  // самостійний слот назавжди видаляється з Firebase замість повернення
+  // в доступні, і учень більше не бачить це вільним.
+  let day = {};
+  if (available) {
+    const daySnap = await iRef(iid, `timeslots/${date}`).get().catch(() => null);
+    day = daySnap?.val() || {};
+  }
   for (let cur = start; cur < start + dur; cur += INTERVAL) {
     const hh = String(Math.floor(cur / 60)).padStart(2, "0");
     const mm = String(cur % 60).padStart(2, "0");
+    const slotId = `slot${hh}${mm}`;
     if (available) {
-      // Half-hour slots (9:30, 10:30…) were only created by blockSlots — delete them.
-      // Hour-boundary slots were generated — restore to available.
-      if (cur % 60 !== 0) {
-        updates[`timeslots/${date}/slot${hh}${mm}`] = null;
+      if (day[slotId]?.phantom) {
+        updates[`timeslots/${date}/${slotId}`] = null;
       } else {
-        updates[`timeslots/${date}/slot${hh}${mm}/available`] = true;
-        updates[`timeslots/${date}/slot${hh}${mm}/time`] = `${hh}:${mm}`;
+        updates[`timeslots/${date}/${slotId}/available`] = true;
+        updates[`timeslots/${date}/${slotId}/time`] = `${hh}:${mm}`;
+        updates[`timeslots/${date}/${slotId}/phantom`] = null;
       }
     } else {
-      updates[`timeslots/${date}/slot${hh}${mm}/available`] = false;
-      updates[`timeslots/${date}/slot${hh}${mm}/time`] = `${hh}:${mm}`;
+      updates[`timeslots/${date}/${slotId}/available`] = false;
+      updates[`timeslots/${date}/${slotId}/time`] = `${hh}:${mm}`;
     }
   }
   return updates;
@@ -270,7 +281,7 @@ exports.onBookingChanged = onValueWritten(
 
     // Новий запис (before = null) — блокуємо слоти
     if (before === null && after) {
-      const slotUpd = buildSlotUpdates(after, false);
+      const slotUpd = await buildSlotUpdates(iid, after, false);
       if (Object.keys(slotUpd).length) await iRef(iid).update(slotUpd).catch(() => {});
       await iRef(iid, `activeStudents/${uid}`).set(true).catch(() => {});
       await iRef(iid, `recentStudents/${uid}`).set(Date.now()).catch(() => {});
@@ -296,7 +307,7 @@ exports.onBookingChanged = onValueWritten(
     // Учень скасував — звільняємо слоти
     if (after.cancelledBy === "student" && before.cancelledBy !== "student") {
       console.log(`onBookingChanged: student cancel iid=${iid} uid=${uid}`);
-      const slotUpd = buildSlotUpdates(before, true);
+      const slotUpd = await buildSlotUpdates(iid, before, true);
       if (Object.keys(slotUpd).length) await iRef(iid).update(slotUpd).catch(() => {});
       await pushAdmin(iid, "❌ Урок скасовано", `${name} · ${date} о ${time}`, { url: adminLink() });
       if (date !== "—" && time !== "—") {
@@ -323,7 +334,7 @@ exports.onBookingChanged = onValueWritten(
     // Адмін скасував — звільняємо слоти
     if (after.status === "cancelled" && before.status !== "cancelled" && after.cancelledBy === "admin") {
       console.log(`onBookingChanged: admin cancelled iid=${iid} uid=${uid}`);
-      const slotUpd = buildSlotUpdates(before, true);
+      const slotUpd = await buildSlotUpdates(iid, before, true);
       if (Object.keys(slotUpd).length) await iRef(iid).update(slotUpd).catch(() => {});
       const cancelVars = { "ім'я": name, "дата": date, "час": time };
       const usedCancelTpl = await sendActiveTemplates(iid, uid, "auto_cancel", cancelVars).catch(() => false);
@@ -351,7 +362,7 @@ exports.onBookingChanged = onValueWritten(
     const rescheduled = after.status !== "cancelled" &&
       (after.date !== before.date || after.time !== before.time);
     if (rescheduled) {
-      const blockUpd = buildSlotUpdates(after, false);
+      const blockUpd = await buildSlotUpdates(iid, after, false);
       if (Object.keys(blockUpd).length) await iRef(iid).update(blockUpd).catch(() => {});
       const oldDate = before.date || "—";
       const oldTime = before.time || "—";
