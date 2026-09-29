@@ -2552,43 +2552,18 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   const handleAction = (action, b) => {
     if (action === "confirm") { setBookings(bs=>bs.map(x=>x.id===b.id?{...x,status:"confirmed"}:x)); return; }
     if (action === "cancel") {
-      // Відновити timeslots
+      // Відновлення timeslots (phantom-документи видаляються, реальні
+      // повертаються вільними) виконує ВИКЛЮЧНО Cloud Function onBookingChanged
+      // у відповідь на запис статусу "cancelled" нижче — раніше цей клієнт
+      // РОБИВ ТЕ САМЕ ще й тут, паралельно й незалежно від функції. Два
+      // незалежні читання/записи того самого дня гонилися одне з одним:
+      // функція читала день уже ПІСЛЯ того, як клієнт устигав видалити
+      // phantom-позиції, бачила їх просто відсутніми (не phantom) і
+      // відновлювала їх як "реальні" вільні слоти — це й розбивало злитий
+      // годинний слот на 30-хв фрагменти. Крім того, клієнтський запуск не
+      // гарантовано встигав завершитись, якщо адмін одразу закривав
+      // застосунок — функція ж виконується на сервері завжди до кінця.
       const cancelOne = async (mb) => {
-        if (mb.startMin !== undefined && mb.durMin) {
-          const dateStr = mb.date || absDayToDateStr(mb.day);
-          // Позиції, де вже існував реальний слот-документ до бронювання
-          // (напр. сам розтягнутий на кілька годин слот), відновлюємо вільними
-          // з їхньою власною тривалістю. А phantom-документи — створені лише
-          // під це бронювання (markSlotsUnavailable ставить phantom:true для
-          // позицій без свого доку) — прибираємо повністю, а не робимо
-          // окремим вільним слотом: інакше розтягнутий слот після скасування
-          // розпадається на кілька коротших замість одного, як було раніше.
-          // ВАЖЛИВО: раніше тут ще додатково видаляли БУДЬ-яку позицію на :30
-          // (sm % 60 !== 0), щоб адмінка показувала один годинний слот замість
-          // кількох 30-хв плиток — але позиція на :30 не завжди phantom: якщо
-          // адмін генерував слоти з кроком 30 хв, там може бути РЕАЛЬНИЙ,
-          // самостійно бронювальний документ. Видаляючи його, ми назавжди
-          // прибирали слот з Firebase — учень більше не бачив і не міг
-          // забронювати цей час після скасування (timeslots справді не
-          // "обнулялись", а зникали). Тому знову дивимось лише на phantom.
-          try {
-            const daySnap = await get(iRef( `timeslots/${dateStr}`));
-            const day = daySnap.val() || {};
-            const upd = {};
-            for (let i = 0; i < mb.durMin; i += 30) {
-              const sm = mb.startMin + i;
-              const hh = String(Math.floor(sm/60)).padStart(2,'0'), mm = String(sm%60).padStart(2,'0');
-              const slotId = `slot${hh}${mm}`;
-              const path = `timeslots/${dateStr}/${slotId}`;
-              if (day[slotId]?.phantom) {
-                upd[path] = null;
-              } else {
-                upd[`${path}/available`] = true; upd[`${path}/time`] = `${hh}:${mm}`; upd[`${path}/phantom`] = null;
-              }
-            }
-            await update(iRef('/'), upd);
-          } catch {}
-        }
         // Позначити cancelled у Firebase (обидва можливих ключі)
         if (mb.userId) {
           const ks = [...new Set([mb._fbKey, mb.id].filter(Boolean))];

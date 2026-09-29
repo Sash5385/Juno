@@ -246,17 +246,19 @@ async function buildSlotUpdates(iid, bookingData, available) {
   }
   const dur = durMin ?? ((durationHours || 1) * 60);
   const updates = {};
-  // При звільненні (available=true) не можна вважати :30-позицію phantom
-  // лише за парністю — адмін міг вручну відкрити "Вільний слот" саме на :30
-  // (не тільки генерація по годинах). Читаємо реальний стан дня і дивимось
-  // на прапорець phantom, як і клієнтський код скасування — інакше такий
-  // самостійний слот назавжди видаляється з Firebase замість повернення
-  // в доступні, і учень більше не бачить це вільним.
-  let day = {};
-  if (available) {
-    const daySnap = await iRef(iid, `timeslots/${date}`).get().catch(() => null);
-    day = daySnap?.val() || {};
-  }
+  // Читаємо реальний стан дня і в обох напрямках: при блокуванні (available=
+  // false) — щоб позначити phantom:true позиції, під якими нема свого
+  // документа (напр. букінг на 2 год впритул зачіпає :00/:30, а генерація
+  // була кроком 60 — проміжна позиція створюється лише під цей букінг). При
+  // звільненні (available=true) — щоб не вважати :30-позицію phantom лише за
+  // парністю (адмін міг вручну відкрити "Вільний слот" саме на :30) і
+  // дивитись на цей самий прапорець, як і клієнтський код скасування.
+  // Без phantom на блокуванні звільнення не могло відрізнити такий
+  // проміжний документ від реального — відновлювало його як "справжній"
+  // окремий вільний слот, і злитий годинний слот розпадався на 30-хв
+  // фрагменти замість повернення до вихідного вигляду.
+  const daySnap = await iRef(iid, `timeslots/${date}`).get().catch(() => null);
+  const day = daySnap?.val() || {};
   for (let cur = start; cur < start + dur; cur += INTERVAL) {
     const hh = String(Math.floor(cur / 60)).padStart(2, "0");
     const mm = String(cur % 60).padStart(2, "0");
@@ -270,6 +272,7 @@ async function buildSlotUpdates(iid, bookingData, available) {
         updates[`timeslots/${date}/${slotId}/phantom`] = null;
       }
     } else {
+      if (!day[slotId]) updates[`timeslots/${date}/${slotId}/phantom`] = true;
       updates[`timeslots/${date}/${slotId}/available`] = false;
       updates[`timeslots/${date}/${slotId}/time`] = `${hh}:${mm}`;
     }
@@ -341,7 +344,15 @@ exports.onBookingChanged = onValueWritten(
       return;
     }
 
-    // Адмін скасував — звільняємо слоти
+    // Адмін скасував — звільняємо слоти. ЄДИНЕ місце, що це робить (адмінський
+    // клієнт більше не дублює цю логіку самостійно — див. cancelOne в
+    // id4drive-admin-v5.jsx): раніше і клієнт, і ця функція незалежно читали
+    // снепшот дня й відновлювали ті самі timeslots. Клієнтський запуск не
+    // гарантовано встигав завершитись (адмін міг закрити застосунок одразу
+    // після натискання "Скасувати"), а коли обидва все ж встигали
+    // спрацювати — другий читав день уже ПІСЛЯ першого, бачив phantom-позиції
+    // просто відсутніми (не phantom) і відновлював їх як "реальні" вільні
+    // слоти — це й розбивало злитий годинний слот на 30-хв фрагменти.
     if (after.status === "cancelled" && before.status !== "cancelled" && after.cancelledBy === "admin") {
       console.log(`onBookingChanged: admin cancelled iid=${iid} uid=${uid}`);
       const slotUpd = await buildSlotUpdates(iid, before, true);
