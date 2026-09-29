@@ -191,7 +191,7 @@ async function sendActiveTemplates(iid, uid, triggerId, vars = {}, filterFn = nu
     const text = renderTemplateBody(tpl.body, fullVars);
     const time = new Date().toLocaleTimeString("uk", { hour: "2-digit", minute: "2-digit" });
     const ts = Date.now();
-    const chatSent = await iRef(iid, `chats/${uid}`).push({ from: "admin", text, time, ts })
+    const chatSent = await iRef(iid, `chats/${uid}`).push({ from: "admin", text, time, ts, auto: true })
       .then(() => true).catch(() => false);
     if (chatSent) {
       await iRef(iid, `chatMeta/${uid}`).update({
@@ -753,6 +753,30 @@ exports.onStudentMessage = onValueCreated(
 
     const text = msg.text || "";
     await pushAdmin(iid, `💬 ${name}`, text.length > 100 ? text.slice(0, 100) + "…" : text);
+  }
+);
+
+// Адмін надіслав повідомлення (ручний чат, розсилка, ручна відправка
+// шаблону з вкладки "Шаблони") → пуш учню. Раніше такого тригера не було
+// взагалі — ці повідомлення лише записувались у chats/{uid}, а push
+// студенту ніколи не йшов. auto:true пропускаємо — ті повідомлення вже
+// отримали власний push з sendActiveTemplates (auto_confirm/auto_cancel),
+// інакше учень отримав би два пуші на одне й те саме повідомлення.
+exports.onInstructorMessage = onValueCreated(
+  { ref: "instructors/{iid}/chats/{uid}/{msgId}", region: "europe-west1" },
+  async (event) => {
+    const msg = event.data.val();
+    if (!msg || msg.from !== "admin" || msg.auto) return;
+
+    const { iid, uid } = event.params;
+    if (uid === "general") return;
+
+    const text = msg.text || "";
+    if (!text) return;
+    const name = await getInstructorName(iid);
+    await pushStudent(iid, uid, `💬 ${name || "Інструктор"}`, text.length > 100 ? text.slice(0, 100) + "…" : text, {
+      url: "https://drivepad-client.web.app/cabinet/chat",
+    });
   }
 );
 
