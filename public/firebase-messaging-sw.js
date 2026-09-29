@@ -17,13 +17,20 @@ firebase.initializeApp({
 const messaging = firebase.messaging()
 
 messaging.onBackgroundMessage((payload) => {
-  const title = payload.notification?.title || 'DrivePad'
+  // Data-only push (без top-level/webpush "notification") — payload.notification
+  // тут завжди undefined, тому title/body й досі бралися з нього ніколи не
+  // існуюче поле, і фонове сповіщення завжди показувалось порожнім ("DrivePad"
+  // без тексту) — саме тому пуші виглядали як "нічого не прийшло".
+  const title = payload.data?.title || 'DrivePad'
+  const isAlarm = payload.data?.alarm === '1'
   const options = {
-    body: payload.notification?.body || '',
+    body: payload.data?.body || '',
     icon: '/favicon.svg',
     badge: '/favicon.svg',
     tag: payload.data?.tag || 'admin',
-    data: payload.data || {}
+    data: payload.data || {},
+    requireInteraction: isAlarm,
+    vibrate: isAlarm ? [400, 200, 400, 200, 400, 200, 400] : undefined,
   }
   self.registration.showNotification(title, options)
 })
