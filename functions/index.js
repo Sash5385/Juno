@@ -3,7 +3,7 @@ const { onValueCreated, onValueUpdated, onValueWritten } = require("firebase-fun
 const { onRequest } = require("firebase-functions/v2/https");
 const { defineSecret } = require("firebase-functions/params");
 const admin = require("firebase-admin");
-const { blockRangeUpdates, restoreRangeUpdates, rangeSlotIds } = require("./slotRules");
+const { blockRangeUpdates, restoreRangeUpdates } = require("./slotRules");
 const crypto = require("crypto");
 
 admin.initializeApp();
@@ -282,7 +282,7 @@ async function buildRescheduleSlotUpdates(iid, before, after) {
     const sameDay = newR && newR.date === oldR.date;
     const oldDay = sameDay ? newDay : await readSlotDay(iid, oldR.date);
     Object.assign(updates, restoreRangeUpdates(oldDay, `timeslots/${oldR.date}/`, oldR.start, oldR.dur, {
-      skipIds: sameDay ? rangeSlotIds(newR.start, newR.dur) : null,
+      skipRange: sameDay ? { start: newR.start, end: newR.start + newR.dur } : null,
     }));
   }
   return updates;
