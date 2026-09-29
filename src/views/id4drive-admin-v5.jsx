@@ -4473,35 +4473,15 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                 <span>🗑️</span> Видалити слот
               </button>
             </div>
-            {/* Надбавки — чіпи */}
-            <div style={{padding:"4px 16px 32px"}}>
-              <div style={{fontSize:11,color:TEXT_FAINT,fontWeight:600,marginBottom:8}}>Надбавка</div>
-              <div style={{display:"flex",gap:6}}>
-                {(settings.surcharges?.length ? settings.surcharges : [100,200,300]).map(amt=>{
-                  const _isActive = _so.slot?.surcharge === amt;
-                  return (
-                    <button key={amt} onClick={()=>applySlotOption(_so.dateStr, fmtTime(_soSelMin), amt)} style={{
-                      flex:1,padding:"9px 4px",borderRadius:20,cursor:"pointer",fontFamily:"inherit",
-                      background: _isActive ? "rgba(245,158,11,0.22)" : "transparent",
-                      color: _isActive ? "#f59e0b" : GOLD,
-                      fontSize:14,fontWeight:700,
-                      border: _isActive ? `1px solid rgba(245,158,11,0.5)` : `1px solid ${ink(0.1)}`,
-                      textAlign:"center",
-                      transition:"all 0.15s",
-                    }}>
-                      +{amt}₴
-                    </button>
-                  );
-                })}
-              </div>
-              {/* Скинути — тільки якщо є що скидати */}
-              {(_so.slot?.vipOnly || _so.slot?.privateOnly || _so.slot?.surcharge || _so.slot?.fixedPrice) && (
+            {/* Скинути — тільки якщо є що скидати */}
+            {(_so.slot?.vipOnly || _so.slot?.privateOnly || _so.slot?.surcharge || _so.slot?.fixedPrice) && (
+              <div style={{padding:"4px 16px 32px"}}>
                 <button onClick={()=>applySlotOption(_so.dateStr, fmtTime(_soSelMin), "reset")} style={{
                   width:"100%",padding:"12px 0 0",border:"none",cursor:"pointer",
                   background:"none",color:TEXT_FAINT,fontSize:13,fontWeight:600,
                 }}>Скинути</button>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </div>
       </>
