@@ -27,7 +27,10 @@ messaging.onBackgroundMessage((payload) => {
     body: payload.data?.body || '',
     icon: '/favicon.svg',
     badge: '/favicon.svg',
-    tag: payload.data?.tag || 'admin',
+    // Без унікального tag кожне наступне сповіщення з тим самим tag (напр.
+    // друге повідомлення в чаті поспіль) тихо ЗАМІНЮЄ попереднє на деяких
+    // Android/Chrome без нового звуку/вібрації — виглядає, ніби пуш не прийшов.
+    tag: payload.data?.tag || ('admin-' + Date.now()),
     data: payload.data || {},
     requireInteraction: isAlarm,
     vibrate: isAlarm ? [400, 200, 400, 200, 400, 200, 400] : undefined,
