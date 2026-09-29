@@ -112,6 +112,16 @@ function buildAdminLink(base, { date, time, uid, bookingId } = {}) {
   return qs ? `${base}/?${qs}` : `${base}/`;
 }
 
+// Формат тексту пуша "Новий запис": ім'я · послуга тривалість / дата о час · телефон
+function buildNewBookingBody(after, name, date, time) {
+  const svc = after.serviceName || after.service || "";
+  const durH = after.durationHours || (after.durMin ? after.durMin / 60 : 1);
+  const phone = after.phone || after.studentPhone || "";
+  const line1 = svc ? `${name} · ${svc} ${durH} год` : `${name} · ${durH} год`;
+  const line2 = phone ? `${date} о ${time} · ${phone}` : `${date} о ${time}`;
+  return `${line1}\n${line2}`;
+}
+
 // Хелпер: відправити push адміну (на всі зареєстровані пристрої)
 async function pushAdmin(iid, title, body, data = {}) {
   const snap = await iRef(iid, "fcmTokens").get();
@@ -297,7 +307,7 @@ exports.onBookingChanged = onValueWritten(
         // (особисті події адміна не мають генерувати цей пуш — у них є власне
         // нагадування-будильник через sendPersonalEventReminders)
         console.log(`onBookingChanged: new booking iid=${iid} uid=${uid}`);
-        await pushAdmin(iid, "📋 Новий запис", `${name} · ${date} о ${time}`, { url: adminLink() });
+        await pushAdmin(iid, "📋 Новий запис", buildNewBookingBody(after, name, date, time), { url: adminLink() });
       }
       return;
     }
