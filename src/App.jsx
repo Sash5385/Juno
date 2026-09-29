@@ -494,6 +494,7 @@ const DEFAULT_SETTINGS = {
   ],
   autoWelcome:{enabled:true}, autoConfirm:{enabled:true},
   autoCancel:{enabled:true}, autoQueueOffer:{enabled:true},
+  surcharges:[100,200,300],
   services: [
     { id:"sv1", name:"Автошкола 1 год", type:"school",  duration:60,  price:700,  colorId:"green",  active:true,  description:"" },
     { id:"sv2", name:"Автошкола 2 год", type:"school",  duration:120, price:1400, colorId:"green",  active:true,  description:"" },
