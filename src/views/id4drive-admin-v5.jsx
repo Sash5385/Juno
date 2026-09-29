@@ -2,6 +2,21 @@ import { useState, useRef, useEffect, useLayoutEffect, useMemo, useContext } fro
 import { createPortal } from "react-dom";
 import { update, get, onValue, off, remove, push as fbPush, increment } from "firebase/database";
 import { iRef, auth } from "../firebase";
+import { blockRangeUpdates, restoreRangeUpdates } from "../slotRules";
+
+// Єдині правила timeslots під запис (див. slotRules.js): блокування ставить
+// phantom на позиції без власного документа, звільнення видаляє phantom і
+// повертає справжні слоти такими, якими вони були ДО запису.
+const restoreSlotRange = async (dateStr, startMin, durMin, extra) => {
+  const snap = await get(iRef(`timeslots/${dateStr}`));
+  const upd = restoreRangeUpdates(snap.val() || {}, `timeslots/${dateStr}/`, startMin, durMin, { extra });
+  if (Object.keys(upd).length) await update(iRef("/"), upd);
+};
+const blockSlotRange = async (dateStr, startMin, durMin, opts) => {
+  const snap = await get(iRef(`timeslots/${dateStr}`));
+  const upd = blockRangeUpdates(snap.val() || {}, `timeslots/${dateStr}/`, startMin, durMin, opts);
+  if (Object.keys(upd).length) await update(iRef("/"), upd);
+};
 
 import { ThemeContext, GREEN, BLUE, PURPLE, GOLD, RED, TEAL, ACCENT, ACC_HI, SURFACE, SURF_HI, TEXT } from "../theme.js";
 import { useFX } from "../ui";
@@ -2552,18 +2567,16 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   const handleAction = (action, b) => {
     if (action === "confirm") { setBookings(bs=>bs.map(x=>x.id===b.id?{...x,status:"confirmed"}:x)); return; }
     if (action === "cancel") {
-      // Відновлення timeslots (phantom-документи видаляються, реальні
-      // повертаються вільними) виконує ВИКЛЮЧНО Cloud Function onBookingChanged
-      // у відповідь на запис статусу "cancelled" нижче — раніше цей клієнт
-      // РОБИВ ТЕ САМЕ ще й тут, паралельно й незалежно від функції. Два
-      // незалежні читання/записи того самого дня гонилися одне з одним:
-      // функція читала день уже ПІСЛЯ того, як клієнт устигав видалити
-      // phantom-позиції, бачила їх просто відсутніми (не phantom) і
-      // відновлювала їх як "реальні" вільні слоти — це й розбивало злитий
-      // годинний слот на 30-хв фрагменти. Крім того, клієнтський запуск не
-      // гарантовано встигав завершитись, якщо адмін одразу закривав
-      // застосунок — функція ж виконується на сервері завжди до кінця.
+      // Звільняємо timeslots одразу (миттєвий відгук і запис без акаунта, де
+      // функція не спрацьовує). Cloud Function робить те саме тими ж правилами
+      // (slotRules): phantom видаляється, справжні слоти повертаються, а вже
+      // відсутні не створюються — тому подвійне звільнення нешкідливе.
       const cancelOne = async (mb) => {
+        if (mb.startMin !== undefined && mb.durMin) {
+          try {
+            await restoreSlotRange(mb.date || absDayToDateStr(mb.day), mb.startMin, mb.durMin);
+          } catch {}
+        }
         // Позначити cancelled у Firebase (обидва можливих ключі)
         if (mb.userId) {
           const ks = [...new Set([mb._fbKey, mb.id].filter(Boolean))];
@@ -2647,31 +2660,13 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   // Блокуємо/звільняємо timeslots під особистою подією — так само, як для
   // звичайного бронювання, щоб студент не міг записатись на цей час.
   const blockPersonalSlots = (dateStr, startMin, durMin) => {
-    const upd = {};
-    for (let i = 0; i < durMin; i += 30) {
-      const m = startMin + i;
-      const sh = String(Math.floor(m / 60)).padStart(2, "0"), sm = String(m % 60).padStart(2, "0");
-      upd[`timeslots/${dateStr}/slot${sh}${sm}/available`] = false;
-      upd[`timeslots/${dateStr}/slot${sh}${sm}/time`] = `${sh}:${sm}`;
-      upd[`timeslots/${dateStr}/slot${sh}${sm}/bookingStart`] = i === 0;
-      // Позначаємо, що зайнятість — від особистої події адміна, а не уроку:
-      // клієнтський календар (classifyDay) виключає такі слоти з підрахунку,
-      // щоб особиста подія не "підсвічувала" день як зайнятий учням.
-      upd[`timeslots/${dateStr}/slot${sh}${sm}/personal`] = true;
-    }
-    update(iRef(), upd).catch(() => {});
+    // personal:true — зайнятість від особистої події адміна, а не уроку:
+    // клієнтський календар (classifyDay) виключає такі слоти з підрахунку,
+    // щоб особиста подія не "підсвічувала" день як зайнятий учням.
+    return blockSlotRange(dateStr, startMin, durMin, { bookingStart: true, extra: { personal: true } }).catch(() => {});
   };
   const unblockPersonalSlots = (dateStr, startMin, durMin) => {
-    const upd = {};
-    for (let i = 0; i < durMin; i += 30) {
-      const m = startMin + i;
-      const sh = String(Math.floor(m / 60)).padStart(2, "0"), sm = String(m % 60).padStart(2, "0");
-      upd[`timeslots/${dateStr}/slot${sh}${sm}/available`] = true;
-      upd[`timeslots/${dateStr}/slot${sh}${sm}/time`] = `${sh}:${sm}`;
-      upd[`timeslots/${dateStr}/slot${sh}${sm}/phantom`] = null;
-      upd[`timeslots/${dateStr}/slot${sh}${sm}/personal`] = null;
-    }
-    update(iRef(), upd).catch(() => {});
+    return restoreSlotRange(dateStr, startMin, durMin, { personal: null }).catch(() => {});
   };
 
   const savePersonalEventEdit = () => {
@@ -2681,13 +2676,15 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
     const newStartMin = nh * 60 + nm;
     const oldDate = ev.date || absDayToDateStr(ev.day);
     const timeChanged = peEditDate !== oldDate || newStartMin !== ev.startMin || peEditDur !== ev.durMin;
-    if (timeChanged) {
-      unblockPersonalSlots(oldDate, ev.startMin, ev.durMin);
-    }
+    // Звільнення старого часу має завершитись ДО блокування нового: обидва
+    // читають стан дня, і за перетину позицій друге бачило б ще не звільнені.
+    const unblocked = timeChanged
+      ? unblockPersonalSlots(oldDate, ev.startMin, ev.durMin)
+      : Promise.resolve();
     // Завжди перезаписуємо (навіть без зміни часу) — так відкрити й зберегти
     // подію без правок теж проставляє personal:true на її таймслоти, якщо
     // вона була створена до появи цього прапорця.
-    blockPersonalSlots(peEditDate, newStartMin, peEditDur);
+    unblocked.then(() => blockPersonalSlots(peEditDate, newStartMin, peEditDur));
     const reminderChanged = timeChanged || peEditReminderHours !== (ev.reminderHours || null);
     const patch = {
       date: peEditDate, time: peEditTime, startMin: newStartMin, durMin: peEditDur,
@@ -3776,19 +3773,11 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                           e.stopPropagation();
                           xVisibleRef.current = false;
                           setQuickCancelId(null);
-                          // Відновити слоти одразу як вільні (включно з phantom —
-                          // раніше видалялись, і адмінка "губила" цей час зовсім)
+                          // Звільняємо слоти за єдиними правилами (phantom видаляється,
+                          // справжні повертаються як були) — раніше ВСІ позиції, включно
+                          // з проміжними phantom, ставали окремими 30-хв слотами.
                           if (b.startMin !== undefined && b.durMin) {
-                            const dateStr = b.date || absDayToDateStr(b.day);
-                            const slotUpd = {};
-                            for (let i = 0; i < b.durMin; i += 30) {
-                              const slotMin = b.startMin + i;
-                              const hh = String(Math.floor(slotMin/60)).padStart(2,'0');
-                              const mm = String(slotMin%60).padStart(2,'0');
-                              const path = `timeslots/${dateStr}/slot${hh}${mm}`;
-                              slotUpd[`${path}/available`]=true; slotUpd[`${path}/time`]=`${hh}:${mm}`; slotUpd[`${path}/phantom`]=null; slotUpd[`${path}/bookingStart`]=null;
-                            }
-                            update(iRef('/'), slotUpd).catch(()=>{});
+                            restoreSlotRange(b.date || absDayToDateStr(b.day), b.startMin, b.durMin).catch(()=>{});
                           }
                           // Прямий запис cancelled у Firebase одразу (не покладаємось на 2с-таймер)
                           const idsCancel = b._mergedIds || [b.id];
@@ -4632,20 +4621,11 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
         }
         if (b.date && b.startMin !== undefined && b.durMin) {
           // Миттєво блокуємо слоти в UI, не чекаючи round-trip через onBookingChanged.
-          const slotUpd = {};
-          for (let i = 0; i < b.durMin; i += 30) {
-            const slotMin = b.startMin + i;
-            const sh = String(Math.floor(slotMin / 60)).padStart(2, '0');
-            const sm = String(slotMin % 60).padStart(2, '0');
-            slotUpd[`timeslots/${b.date}/slot${sh}${sm}/available`] = false;
-            slotUpd[`timeslots/${b.date}/slot${sh}${sm}/time`] = `${sh}:${sm}`;
-            // Явний прапорець реального старту бронювання — клієнт показує лише
-            // його, а не кожен 30-хвилинний блок. Без цього при записах впритул
-            // одне до одного неможливо відрізнити "продовження" від "нового старту"
-            // лише за відстанню між позначками.
-            slotUpd[`timeslots/${b.date}/slot${sh}${sm}/bookingStart`] = i === 0;
-          }
-          update(iRef(), slotUpd).catch(() => {});
+          // Позиції без власного документа позначаються phantom (див. slotRules) —
+          // інакше після скасування вони лишались би окремими 30-хв слотами.
+          // bookingStart — явний прапорець реального старту бронювання: клієнт
+          // показує лише його, а не кожен 30-хвилинний блок.
+          blockSlotRange(b.date, b.startMin, b.durMin, { bookingStart: true }).catch(() => {});
         }
         setFormData(null);
       }}
