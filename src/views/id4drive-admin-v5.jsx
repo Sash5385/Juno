@@ -1124,6 +1124,12 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   const [quickCancelId, setQuickCancelId] = useState(null);
   const quickCancelRef = useRef(null);
   const [cancellingSet, setCancellingSet] = useState(new Set());
+  // Записи, що саме скасовуються: фонові ефекти синхронізації timeslots їх
+  // ігнорують — інакше вони бачили б запис ще "живим", заново блокували щойно
+  // звільнені слоти і створювали огризки-документи на місці видалених phantom.
+  const cancellingRef = useRef(cancellingSet);
+  cancellingRef.current = cancellingSet;
+  const rawSlotIdsRef = useRef({}); // { date: Set<slotId> } — усі реально існуючі документи
   const cancelTimers = useRef({});
   // Кумулятивні години учня на момент кожного уроку (для кружечка № уроку в слоті)
   const cumulativeHoursMap = useMemo(() => {
@@ -1275,7 +1281,9 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
       const slots = {};
       const viewing = {};
       const exists = {};
+      const rawIds = {};
       Object.entries(val).forEach(([date, dateSlots]) => {
+        rawIds[date] = new Set(Object.keys(dateSlots || {}));
         const slotMap = {};
         const viewTimes = [];
         const slotSet = new Set();
@@ -1286,7 +1294,9 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
           if (slotTime) {
             // phantom-вузли (створені лише під запис) не належать сітці дня
             if (!slot.phantom) slotSet.add(slotTime);
-            if (slot.available !== false || slot.adminBlocked || slot.vipOnly || slot.privateOnly || slot.surcharge || slot.fixedPrice) {
+            // Огризок без available/time (напр. лише bookingStart) — не слот: не показуємо вільним
+            const isRealSlot = slot.available !== undefined || !!slot.time;
+            if (isRealSlot && (slot.available !== false || slot.adminBlocked || slot.vipOnly || slot.privateOnly || slot.surcharge || slot.fixedPrice)) {
               slotMap[slotTime] = { available: slot.available !== false, adminBlocked: !!slot.adminBlocked, vipOnly: !!slot.vipOnly, privateOnly: !!slot.privateOnly, surcharge: slot.surcharge || null, fixedPrice: slot.fixedPrice || null, durMin: slot.durMin || 60 };
             }
           }
@@ -1297,6 +1307,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
         if (slotSet.size) exists[date] = slotSet;
       });
       if (slotExistsRef) slotExistsRef.current = exists;
+      rawSlotIdsRef.current = rawIds;
       if (openSlotsRef) openSlotsRef.current = slots;
       if (activeDragIds?.current?.size > 0) {
         pendingSlotSnapRef.current = { slots, viewing };
@@ -1340,7 +1351,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
       if (activeDragIds?.current?.size > 0) return;
       const bkByDate = {};
       bookings.forEach(b => {
-        if (b.status === "cancelled") return;
+        if (b.status === "cancelled" || cancellingRef.current.has(b.id)) return;
         if (b.startMin == null || !b.durMin) return;
         const d = Number.isInteger(b.day) ? absDayToDateStr(b.day) : b.date;
         if (!d) return;
@@ -1374,7 +1385,8 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
           for (let cur = b.startMin; cur < b.startMin + b.durMin; cur += 30) {
             const hh = String(Math.floor(cur / 60)).padStart(2, "0");
             const mm = String(cur % 60).padStart(2, "0");
-            upd[`timeslots/${date}/slot${hh}${mm}/bookingStart`] = cur === b.startMin;
+            // Лише для існуючих документів — інакше запис у видалений phantom створював би огризок
+            if (rawSlotIdsRef.current[date]?.has(`slot${hh}${mm}`)) upd[`timeslots/${date}/slot${hh}${mm}/bookingStart`] = cur === b.startMin;
           }
         });
       });
@@ -2572,16 +2584,18 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
       // (slotRules): phantom видаляється, справжні слоти повертаються, а вже
       // відсутні не створюються — тому подвійне звільнення нешкідливе.
       const cancelOne = async (mb) => {
-        if (mb.startMin !== undefined && mb.durMin) {
-          try {
-            await restoreSlotRange(mb.date || absDayToDateStr(mb.day), mb.startMin, mb.durMin);
-          } catch {}
-        }
+        // Спершу статус cancelled (щоб фонові ефекти одразу перестали вважати запис
+        // живим), і лише потім звільнення слотів.
         // Позначити cancelled у Firebase (обидва можливих ключі)
         if (mb.userId) {
           const ks = [...new Set([mb._fbKey, mb.id].filter(Boolean))];
           ks.forEach(k => update(iRef( `bookings/${mb.userId}/${k}`),
             { status:"cancelled", cancelledAt:Date.now(), cancelledBy:"admin" }).catch(()=>{}));
+        }
+        if (mb.startMin !== undefined && mb.durMin) {
+          try {
+            await restoreSlotRange(mb.date || absDayToDateStr(mb.day), mb.startMin, mb.durMin);
+          } catch {}
         }
       };
       const allToCancel = b._mergedIds
@@ -2589,7 +2603,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
         : [b];
       allToCancel.forEach(cancelOne);
       // Затемнення 2с → видалення з локального стану
-      setCancellingSet(s=>new Set([...s, b.id]));
+      setCancellingSet(s=>new Set([...s, b.id, ...(b._mergedIds || [])]));
       cancelTimers.current[b.id] = setTimeout(()=>{
         setCancellingSet(s=>{ const ns=new Set(s); ns.delete(b.id); return ns; });
         const idsC = b._mergedIds || [b.id];
@@ -3773,12 +3787,6 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                           e.stopPropagation();
                           xVisibleRef.current = false;
                           setQuickCancelId(null);
-                          // Звільняємо слоти за єдиними правилами (phantom видаляється,
-                          // справжні повертаються як були) — раніше ВСІ позиції, включно
-                          // з проміжними phantom, ставали окремими 30-хв слотами.
-                          if (b.startMin !== undefined && b.durMin) {
-                            restoreSlotRange(b.date || absDayToDateStr(b.day), b.startMin, b.durMin).catch(()=>{});
-                          }
                           // Прямий запис cancelled у Firebase одразу (не покладаємось на 2с-таймер)
                           const idsCancel = b._mergedIds || [b.id];
                           idsCancel.forEach(id => {
@@ -3788,8 +3796,14 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                             ks.forEach(k => update(iRef( `bookings/${mb.userId}/${k}`),
                               { status:"cancelled", cancelledAt:Date.now(), cancelledBy:"admin" }).catch(()=>{}));
                           });
+                          // Звільняємо слоти за єдиними правилами (phantom видаляється,
+                          // справжні повертаються як були) — раніше ВСІ позиції, включно
+                          // з проміжними phantom, ставали окремими 30-хв слотами.
+                          if (b.startMin !== undefined && b.durMin) {
+                            restoreSlotRange(b.date || absDayToDateStr(b.day), b.startMin, b.durMin).catch(()=>{});
+                          }
                           // Починаємо 2с відлік — затемнення → видалення
-                          setCancellingSet(s=>new Set([...s, b.id]));
+                          setCancellingSet(s=>new Set([...s, b.id, ...(b._mergedIds || [])]));
                           cancelTimers.current[b.id] = setTimeout(()=>{
                             setCancellingSet(s=>{ const ns=new Set(s); ns.delete(b.id); return ns; });
                             const idsX = b._mergedIds || [b.id];
