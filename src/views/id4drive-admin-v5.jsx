@@ -2563,6 +2563,10 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
           // позицій без свого доку) — прибираємо повністю, а не робимо
           // окремим вільним слотом: інакше розтягнутий слот після скасування
           // розпадається на кілька коротших замість одного, як було раніше.
+          // Позагодинні позиції (:30) прибираємо повністю завжди (як і
+          // buildSlotUpdates на бекенді) — інакше кожна лишається окремим
+          // 30-хв документом і рендериться як окрема плитка замість того,
+          // щоб об'єднатись у часовий слот із сусідньою позицією на :00.
           try {
             const daySnap = await get(iRef( `timeslots/${dateStr}`));
             const day = daySnap.val() || {};
@@ -2572,7 +2576,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
               const hh = String(Math.floor(sm/60)).padStart(2,'0'), mm = String(sm%60).padStart(2,'0');
               const slotId = `slot${hh}${mm}`;
               const path = `timeslots/${dateStr}/${slotId}`;
-              if (day[slotId]?.phantom) {
+              if (day[slotId]?.phantom || sm % 60 !== 0) {
                 upd[path] = null;
               } else {
                 upd[`${path}/available`] = true; upd[`${path}/time`] = `${hh}:${mm}`; upd[`${path}/phantom`] = null;
