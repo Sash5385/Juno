@@ -438,14 +438,14 @@ function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock, onRemoveB
                 {/* Колір слота учня (діє, коли автокольори вимкнено в Налаштуваннях → Сітка) */}
                 <div style={{background:glow(0.04),borderRadius:10,padding:"10px 12px",border:`1px solid ${BORDER}`}}>
                   <div style={{fontSize:9,color:FAINT,letterSpacing:1,textTransform:"uppercase",marginBottom:8}}>Колір слота</div>
-                  <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
+                  <div style={{display:"flex",gap:7,flexWrap:"wrap",alignItems:"center"}}>
                     <button onClick={()=>onColorChange(null)} title="Без кольору" style={{
-                      width:28,height:28,borderRadius:"50%",cursor:"pointer",padding:0,fontSize:13,color:DIM,
+                      width:24,height:24,borderRadius:"50%",cursor:"pointer",padding:0,fontSize:13,color:DIM,
                       background:"transparent",border:`2px ${!slotColor?"solid":"dashed"} ${!slotColor?TEXT:BORDER}`,
                     }}>∅</button>
                     {STUDENT_COLOR_CHOICES.map(c=>(
                       <button key={c} onClick={()=>onColorChange(c)} style={{
-                        width:28,height:28,borderRadius:"50%",cursor:"pointer",padding:0,background:c,
+                        width:24,height:24,borderRadius:"50%",cursor:"pointer",padding:0,background:c,
                         border:slotColor===c?`2.5px solid ${TEXT}`:"2px solid transparent",
                         boxShadow:slotColor===c?`0 0 8px ${c}`:"none",
                       }}/>
