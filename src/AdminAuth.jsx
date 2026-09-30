@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { signInWithEmailAndPassword, onAuthStateChanged, signOut } from "firebase/auth";
 import { ref, get, onValue, update, set } from "firebase/database";
 import { auth, iRef, db } from "./firebase";
+import { licenseState } from "./hooks/useLicense";
 
 // Вендор SaaS (ви) — бачить усіх інструкторів замість власного кабінету.
 const VENDOR_EMAIL = "sash5385@gmail.com";
@@ -269,21 +270,24 @@ export function InstructorSetupScreen({ onDone }) {
 }
 
 const LICENSE_PERIOD_MS = 31 * 24 * 3600 * 1000;
+const LICENSE_YEAR_PERIOD_MS = 366 * 24 * 3600 * 1000;
 
-function licenseStatusLabel(license) {
-  if (!license) return { text: "немає ліцензії", color: DIM };
-  const now = Date.now();
-  if (license.status === "suspended") return { text: "призупинено", color: ACCENT };
-  if (license.status === "trial") {
-    const left = Math.ceil(((license.trialEndsAt || 0) - now) / 86400000);
-    return left > 0 ? { text: `trial · ${left} дн.`, color: "#e8c547" } : { text: "trial сплив", color: ACCENT };
-  }
-  if (license.status === "active") {
-    const left = Math.ceil(((license.expiresAt || 0) - now) / 86400000);
-    return left > 0 ? { text: `active · ${left} дн.`, color: "#4caf6b" } : { text: "active сплив", color: ACCENT };
-  }
-  return { text: license.status || "?", color: DIM };
+const fmtD = (ts) => ts ? new Date(ts).toLocaleDateString("uk", { day: "2-digit", month: "2-digit", year: "numeric" }) : "—";
+
+// Рівень для сортування/фільтрів: 0 — немає ліцензії, 1 — режим читання, 2 — пільгова доба,
+// 3 — скоро закінчується (≤3 дн.), 4 — все гаразд.
+function licenseInfo(license) {
+  if (!license) return { key: "none", text: "немає ліцензії", color: DIM, sort: 9e15, until: null, daysLeft: null };
+  const st = licenseState(license);
+  const tag = license.status === "trial" ? "trial" : license.status === "suspended" ? "призупинено" : "active";
+  const d = st.daysLeft;
+  if (st.level === "readonly") return { key: "readonly", text: license.status === "suspended" ? "режим читання (призупинено)" : "режим читання", color: ACCENT, sort: st.until || 0, ...st };
+  if (st.level === "grace")    return { key: "grace",    text: "пільгова доба", color: "#f59e0b", sort: st.until || 0, ...st };
+  if (st.level === "warning")  return { key: "warning",  text: `${tag} · ${d} дн.`, color: "#e8c547", sort: st.until || 0, ...st };
+  return { key: license.status === "trial" ? "trial" : "active", text: st.until ? `${tag} · ${d} дн.` : tag, color: license.status === "trial" ? "#e8c547" : "#4caf6b", sort: st.until || 9e14, ...st };
 }
+
+const planLabel = (lic) => lic?.status === "trial" ? "Пробний" : lic?.plan === "yearly" ? "Рік · 2999₴" : lic?.plan === "monthly" ? "Місяць · 299₴" : "—";
 
 function bookingStatusLabel(b) {
   if (b.cancelledBy) return { text: "скасовано", color: ACCENT };
@@ -319,14 +323,15 @@ export function SuperAdminScreen() {
     return () => unsubs.forEach(u => u());
   }, [index]);
 
-  const extend = async (iid) => {
+  const extend = async (iid, plan = "month") => {
     setBusyIid(iid);
     const now = Date.now();
     const lic = licenses[iid];
     const base = lic?.status === "active" && lic.expiresAt > now ? lic.expiresAt : now;
     await update(ref(db, `instructors/${iid}/license`), {
       status: "active", provider: "manual", lastPaymentAt: now,
-      expiresAt: base + LICENSE_PERIOD_MS,
+      plan: plan === "year" ? "yearly" : "monthly",
+      expiresAt: base + (plan === "year" ? LICENSE_YEAR_PERIOD_MS : LICENSE_PERIOD_MS),
     }).catch(() => {});
     setBusyIid(null);
   };
@@ -364,7 +369,26 @@ export function SuperAdminScreen() {
     }
   };
 
-  const rows = index ? Object.entries(index).sort((a, b) => (b[1]?.createdAt || 0) - (a[1]?.createdAt || 0)) : [];
+  const [filter, setFilter] = useState("all");
+  const allRows = index
+    ? Object.entries(index).map(([iid, info]) => ({ iid, info, li: licenseInfo(licenses[iid]) }))
+        // найтерміновіші зверху: режим читання → пільгова доба → скоро закінчується → решта за терміном
+        .sort((a, b) => a.li.sort - b.li.sort)
+    : [];
+  const counts = allRows.reduce((acc, r) => { acc[r.li.key] = (acc[r.li.key] || 0) + 1; return acc; }, {});
+  const paying = allRows.filter(r => licenses[r.iid]?.status === "active" && r.li.key !== "readonly" && r.li.key !== "grace");
+  const mrr = paying.reduce((sum, r) => sum + (licenses[r.iid]?.plan === "yearly" ? 2999 / 12 : 299), 0);
+  const FILTERS = [
+    ["all", "Усі", allRows.length],
+    ["attention", "Потребують уваги", (counts.warning || 0) + (counts.grace || 0) + (counts.readonly || 0)],
+    ["active", "Активні", counts.active || 0],
+    ["trial", "Trial", counts.trial || 0],
+    ["readonly", "Читання", counts.readonly || 0],
+  ];
+  const rows = allRows.filter(r =>
+    filter === "all" ? true
+    : filter === "attention" ? ["warning", "grace", "readonly"].includes(r.li.key)
+    : r.li.key === filter);
 
   return (
     <div style={{ minHeight:"100vh", background:BG_DEEP, padding:"24px 16px", paddingTop:"calc(24px + env(safe-area-inset-top, 0px))", paddingBottom:"calc(24px + env(safe-area-inset-bottom, 0px))" }}>
@@ -381,9 +405,31 @@ export function SuperAdminScreen() {
           <div style={{ color:DIM, textAlign:"center", padding:40 }}>Ще немає зареєстрованих інструкторів</div>
         )}
 
-        {rows.map(([iid, info]) => {
+        {index !== null && allRows.length > 0 && (
+          <>
+            <div style={{ display:"flex", gap:8, marginBottom:12, flexWrap:"wrap" }}>
+              {[["Інструкторів", allRows.length], ["Платних", paying.length], ["≈ дохід/міс", `${Math.round(mrr)}₴`]].map(([l, v]) => (
+                <div key={l} style={{ flex:"1 1 90px", padding:"10px 12px", borderRadius:12, background:`linear-gradient(135deg,${SURF_HI},${SURFACE})`, border:`1px solid ${BORDER}`, boxShadow:SO }}>
+                  <div style={{ fontSize:11, color:DIM }}>{l}</div>
+                  <div style={{ fontSize:18, fontWeight:800, color:TEXT }}>{v}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ display:"flex", gap:6, marginBottom:14, flexWrap:"wrap" }}>
+              {FILTERS.map(([id, label, n]) => (
+                <button key={id} onClick={() => setFilter(id)} style={{
+                  padding:"6px 11px", borderRadius:16, fontSize:12, fontWeight:700, cursor:"pointer",
+                  border:`1px solid ${filter === id ? ACCENT : BORDER}`,
+                  background: filter === id ? "rgba(255,90,60,0.15)" : "transparent",
+                  color: filter === id ? ACCENT : DIM,
+                }}>{label} · {n}</button>
+              ))}
+            </div>
+          </>
+        )}
+
+        {rows.map(({ iid, info, li: st }) => {
           const lic = licenses[iid];
-          const st = licenseStatusLabel(lic);
           const busy = busyIid === iid;
           return (
             <div key={iid} style={{ background:`linear-gradient(135deg,${SURF_HI},${SURFACE})`, borderRadius:16, padding:"16px 18px", marginBottom:12, border:`1px solid ${BORDER}`, boxShadow:SO }}>
@@ -392,12 +438,23 @@ export function SuperAdminScreen() {
                   <div style={{ fontSize:15, fontWeight:700, color:TEXT }}>{info.name || "—"}</div>
                   <div style={{ fontSize:12, color:DIM, marginTop:2 }}>{info.phone || "—"} · /i/{info.slug || "—"}</div>
                 </div>
-                <div style={{ fontSize:12, fontWeight:700, color:st.color, whiteSpace:"nowrap" }}>{st.text}</div>
+                <div style={{ fontSize:12, fontWeight:700, color:st.color, textAlign:"right" }}>{st.text}</div>
               </div>
-              <div style={{ display:"flex", gap:8, marginTop:12 }}>
-                <button onClick={() => extend(iid)} disabled={busy}
+              {lic && (
+                <div style={{ display:"flex", flexWrap:"wrap", gap:"4px 14px", marginTop:10, fontSize:11, color:DIM }}>
+                  <span>{lic.status === "trial" ? "Trial до" : "Оплачено до"}: <b style={{ color:TEXT }}>{fmtD(st.until)}</b></span>
+                  <span>Тариф: <b style={{ color:TEXT }}>{planLabel(lic)}</b></span>
+                  {lic.lastPaymentAt && <span>Остання оплата: <b style={{ color:TEXT }}>{fmtD(lic.lastPaymentAt)}</b>{lic.provider ? ` (${lic.provider})` : ""}</span>}
+                </div>
+              )}
+              <div style={{ display:"flex", gap:6, marginTop:12 }}>
+                <button onClick={() => extend(iid, "month")} disabled={busy}
                   style={{ flex:1, padding:"8px", borderRadius:8, background:"rgba(76,175,107,0.15)", border:`1px solid rgba(76,175,107,0.3)`, color:"#4caf6b", fontSize:12, fontWeight:700, cursor: busy?"default":"pointer" }}>
-                  + Продовжити на місяць
+                  + Місяць
+                </button>
+                <button onClick={() => extend(iid, "year")} disabled={busy}
+                  style={{ flex:1, padding:"8px", borderRadius:8, background:"rgba(76,175,107,0.15)", border:`1px solid rgba(76,175,107,0.3)`, color:"#4caf6b", fontSize:12, fontWeight:700, cursor: busy?"default":"pointer" }}>
+                  + Рік
                 </button>
                 <button onClick={() => suspend(iid)} disabled={busy || lic?.status === "suspended"}
                   style={{ flex:1, padding:"8px", borderRadius:8, background:"rgba(255,90,60,0.1)", border:`1px solid rgba(255,90,60,0.25)`, color:ACCENT, fontSize:12, fontWeight:700, cursor: (busy||lic?.status==="suspended")?"default":"pointer", opacity: lic?.status==="suspended"?0.5:1 }}>

@@ -3,7 +3,9 @@ import { onValue, update, push, remove, get } from "firebase/database";
 import { iRef, setCurrentIid, registerAdminFCM, onAdminForegroundMessage } from "./firebase";
 import { useAdminAuth, LoginScreen, InstructorSetupScreen, isVendor, SuperAdminScreen } from "./AdminAuth";
 import { useAppUpdate } from "./hooks/useAppUpdate"
-import { useLicense, isLicenseBlocked } from "./hooks/useLicense"
+import { useLicense, useLicenseState } from "./hooks/useLicense"
+import { setLicenseReadOnly } from "./firebaseDbGuard"
+import { LicenseBanner } from "./LicensePay"
 import { setGlobalLang, createT } from "./lang";
 import { ThemeContext, getTheme } from "./theme.js";
 import { useMosaicSwitch, MosaicOverlay } from "./mosaic";
@@ -460,23 +462,6 @@ function TopBar({ tab, onChange, settings, setSettings }) {
   );
 }
 
-function LicenseLockedScreen({ theme }) {
-  return (
-    <div style={{
-      minHeight:"100dvh", background:theme.BG_DEEP, display:"flex",
-      alignItems:"center", justifyContent:"center", padding:20,
-    }}>
-      <div style={{ maxWidth:340, textAlign:"center", color:theme.TEXT }}>
-        <div style={{ fontSize:40, marginBottom:12 }}>🔒</div>
-        <div style={{ fontSize:18, fontWeight:800, marginBottom:8 }}>Доступ призупинено</div>
-        <div style={{ fontSize:14, color:theme.DIM, lineHeight:1.5 }}>
-          Підписку призупинено або закінчився пробний період. Зв'яжіться з адміністратором ID4Drive для продовження доступу.
-        </div>
-      </div>
-    </div>
-  );
-}
-
 const INITIAL_BOOKINGS = [];
 
 const DEFAULT_SETTINGS = {
@@ -542,6 +527,18 @@ export default function App() {
   const adminUser = useAdminAuth();
   const vendor = isVendor(adminUser);
   const license = useLicense(vendor ? null : adminUser?.uid);
+  const licState = useLicenseState(license);
+  // Режим читання: guard у firebaseDbGuard.js відхиляє записи в instructors/{iid}/… (крім license/fcmTokens)
+  useEffect(() => {
+    setLicenseReadOnly(licState.level === "readonly" && !vendor, adminUser?.uid);
+    return () => setLicenseReadOnly(false, null);
+  }, [licState.level, vendor, adminUser?.uid]);
+  // Відхилений guard-ом запис — не помилка для консолі
+  useEffect(() => {
+    const h = (e) => { if (e.reason?.code === "license_readonly") e.preventDefault(); };
+    window.addEventListener("unhandledrejection", h);
+    return () => window.removeEventListener("unhandledrejection", h);
+  }, []);
   const [profileReady, setProfileReady] = useState(null); // null=перевіряємо, false=потрібне налаштування, true=готово
   const { needRefresh, updateServiceWorker, isUpdating } = useAppUpdate()
 
@@ -1163,8 +1160,6 @@ const pendingDeletesRef = React.useRef(new Set());
       setProfileReady(true);
     }}/>;
   }
-  if (isLicenseBlocked(license)) return <LicenseLockedScreen theme={theme}/>;
-
   return (
     <ThemeContext.Provider value={theme}>
     <LangContext.Provider value={lang}>
@@ -1186,6 +1181,7 @@ const pendingDeletesRef = React.useRef(new Set());
         position:"relative", zIndex:1,
       }}>
         <TopBar tab={tab} onChange={switchTab} settings={settings} setSettings={setSettings}/>
+        <LicenseBanner state={licState}/>
         <div className="tab-anim" key={`${displayedTab}-${tabVisits[displayedTab]||0}`} style={{
           position:"relative",
           flex:1, minHeight:0,

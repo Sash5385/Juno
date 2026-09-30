@@ -313,6 +313,22 @@ exports.onBookingChanged = onValueWritten(
 
     // Новий запис (before = null) — блокуємо слоти
     if (before === null && after) {
+      // Режим читання (підписку не оплачено): учні не можуть записуватись. Клієнт
+      // це вже не дозволяє, але застарілий кеш/прямий запит теж відсікаємо тут:
+      // скасовуємо запис і повертаємо слоти. Записи адміна, особисті події та перенесення (старий запис уже скасовано) не чіпаємо.
+      if (after.createdBy !== "admin" && after.status !== "personal" && uid !== "admin" && !after.rescheduledFrom) {
+        const lic = (await iRef(iid, "license").get().catch(() => null))?.val();
+        if (isLicenseReadonly(lic)) {
+          console.warn(`onBookingChanged: booking rejected, license readonly iid=${iid} uid=${uid}`);
+          await iRef(iid, `bookings/${uid}/${bookingId}`).update({ status: "cancelled", cancelledBy: "license" }).catch(() => {});
+          const freeUpd = await buildSlotUpdates(iid, after, true);
+          if (Object.keys(freeUpd).length) await iRef(iid).update(freeUpd).catch(() => {});
+          await pushStudent(iid, uid, "⚠️ Запис недоступний", "Інструктор тимчасово не приймає нові записи.", {
+            url: "https://drivepad-client.web.app/cabinet/bookings",
+          }).catch(() => {});
+          return;
+        }
+      }
       const slotUpd = await buildSlotUpdates(iid, after, false);
       if (Object.keys(slotUpd).length) await iRef(iid).update(slotUpd).catch(() => {});
       await iRef(iid, `activeStudents/${uid}`).set(true).catch(() => {});
@@ -546,6 +562,8 @@ exports.cascadeQueueInvites = onSchedule({ schedule: "every 10 minutes", region:
   const instructors = instructorsSnap.val() || {};
 
   for (const [iid, inst] of Object.entries(instructors)) {
+
+    if (isLicenseReadonly(inst?.license)) continue;
     const data = inst?.timeslots || {};
 
     for (const [date, dateSlots] of Object.entries(data)) {
@@ -623,6 +641,8 @@ exports.unlockVipSlots = onSchedule("every 1 hours", async () => {
   const instructors = instructorsSnap.val() || {};
 
   for (const [iid, inst] of Object.entries(instructors)) {
+
+    if (isLicenseReadonly(inst?.license)) continue;
     const slotsData = inst?.timeslots || {};
     const updates = {};
     let unlocked = false;
@@ -725,6 +745,8 @@ exports.flushSlotFreedQueue = onSchedule(
     const instructors = instructorsSnap.val() || {};
 
     for (const [iid, inst] of Object.entries(instructors)) {
+
+      if (isLicenseReadonly(inst?.license)) continue;
       const queueData = inst?.slotFreedQueue;
       if (!queueData) continue;
 
@@ -786,6 +808,8 @@ exports.flushRescheduleQueue = onSchedule(
     const instructors = instructorsSnap.val() || {};
 
     for (const [iid, inst] of Object.entries(instructors)) {
+
+      if (isLicenseReadonly(inst?.license)) continue;
       const queueData = inst?.rescheduleQueue;
       if (!queueData) continue;
 
@@ -879,6 +903,8 @@ exports.sendLessonReminders = onSchedule(
     const instructors = instructorsSnap.val() || {};
 
     for (const [iid, inst] of Object.entries(instructors)) {
+
+      if (isLicenseReadonly(inst?.license)) continue;
       const allUids = new Set([
         ...Object.keys(inst?.activeStudents || {}),
         ...Object.keys(inst?.studentTokens || {}),
@@ -974,6 +1000,8 @@ exports.sendPersonalEventReminders = onSchedule(
     const instructors = instructorsSnap.val() || {};
 
     for (const [iid, inst] of Object.entries(instructors)) {
+
+      if (isLicenseReadonly(inst?.license)) continue;
       const personal = inst?.bookings?.personal;
       if (!personal) continue;
 
@@ -1072,6 +1100,8 @@ exports.flushDayNoteReminders = onSchedule(
     const instructors = instructorsSnap.val() || {};
 
     for (const [iid, inst] of Object.entries(instructors)) {
+
+      if (isLicenseReadonly(inst?.license)) continue;
       const notes = inst?.dayNotes?.[dateStr]?.notes;
       if (!notes) continue;
 
@@ -1092,30 +1122,60 @@ exports.flushDayNoteReminders = onSchedule(
   }
 );
 
-// Раз на добу: якщо триває пробний період/підписка і термін вийшов —
-// призупиняємо доступ (license/status → suspended) і сповіщаємо вендора.
+// ─── Ліцензія: стани та режим "лише читання" ─────────────────────
+// Після завершення терміну є 1 пільгова доба (все працює, але адмінка просить
+// оплатити), далі — режим читання: інструктор бачить свої дані, але нічого не
+// змінює, а учні не можуть записуватись (свої записи бачать).
+const LICENSE_GRACE_MS = 24 * 3600 * 1000;
+const LICENSE_WARN_MS  = 3 * 24 * 3600 * 1000;
+
+function licenseUntilTs(l) {
+  return l ? (l.status === "trial" ? l.trialEndsAt : l.expiresAt) : null;
+}
+// true — призупинено вручну/системою АБО термін + пільгова доба минули.
+// Немає вузла license — фіча вимкнена для цього інструктора (false).
+function isLicenseReadonly(l) {
+  if (!l) return false;
+  if (l.status === "suspended") return true;
+  const until = licenseUntilTs(l);
+  return !!until && Date.now() > until + LICENSE_GRACE_MS;
+}
+const fmtKyivDate = (ts) => new Date(ts).toLocaleDateString("uk-UA", { timeZone: "Europe/Kyiv", day: "2-digit", month: "2-digit", year: "numeric" });
+
+// Кожні 6 годин: за 3 дні до кінця — попередження (один раз на період),
+// у пільгову добу — нагадування (один раз), після неї — статус suspended.
 // Якщо вузла license нема — нічого не робимо (фіча вимкнена для цього інстансу).
 exports.checkLicenseExpiry = onSchedule(
-  { schedule: "every 24 hours", region: "europe-west1" },
+  { schedule: "every 6 hours", region: "europe-west1" },
   async () => {
     const instructorsSnap = await db.ref("instructors").get();
     const instructors = instructorsSnap.val() || {};
     const now = Date.now();
+    const link = { url: "https://drivepad-admin.web.app" };
 
     for (const [iid, inst] of Object.entries(instructors)) {
       const license = inst?.license;
       if (!license || license.status === "suspended") continue;
+      const untilTs = licenseUntilTs(license);
+      if (!untilTs) continue;
 
-      const untilTs = license.status === "trial" ? license.trialEndsAt : license.expiresAt;
-      if (!untilTs || now <= untilTs) continue;
-
-      await iRef(iid, "license/status").set("suspended");
-      await pushAdmin(
-        iid,
-        "⛔ Підписку призупинено",
-        "Термін дії ліцензії вийшов — доступ для інструктора заблоковано.",
-        { url: "https://drivepad-admin.web.app" }
-      ).catch(() => {});
+      if (now > untilTs + LICENSE_GRACE_MS) {
+        await iRef(iid, "license/status").set("suspended");
+        await pushAdmin(iid, "🔒 Режим читання",
+          "Підписку не оплачено — акаунт переведено в режим читання. Оплатіть у Налаштуваннях, щоб відновити роботу.", link).catch(() => {});
+      } else if (now > untilTs) {
+        if (license.graceNotifiedFor !== untilTs) {
+          await iRef(iid, "license/graceNotifiedFor").set(untilTs);
+          await pushAdmin(iid, "⚠️ Підписку не оплачено",
+            "Сьогодні остання доба — далі акаунт перейде в режим читання. Оплатіть у Налаштуваннях.", link).catch(() => {});
+        }
+      } else if (untilTs - now <= LICENSE_WARN_MS && license.warnedFor !== untilTs) {
+        const days = Math.max(1, Math.ceil((untilTs - now) / 86400000));
+        await iRef(iid, "license/warnedFor").set(untilTs);
+        const what = license.status === "trial" ? "Пробний період" : "Підписка";
+        await pushAdmin(iid, "⏳ Скоро завершення",
+          `${what} закінчується ${fmtKyivDate(untilTs)} (через ${days} дн.). Продовжіть у Налаштуваннях.`, link).catch(() => {});
+      }
     }
   }
 );
@@ -1133,7 +1193,9 @@ const LIQPAY_PRIVATE_KEY = defineSecret("LIQPAY_PRIVATE_KEY");
 const MONOBANK_TOKEN     = defineSecret("MONOBANK_TOKEN");
 
 const MONTHLY_PRICE_UAH = 299;
-const LICENSE_PERIOD_MS = 31 * 24 * 3600 * 1000; // трохи більше місяця — запас на затримку вебхука
+const YEARLY_PRICE_UAH  = 2999;
+const LICENSE_PERIOD_MS      = 31  * 24 * 3600 * 1000; // трохи більше місяця — запас на затримку вебхука
+const LICENSE_YEAR_PERIOD_MS = 366 * 24 * 3600 * 1000;
 
 // LiqPay: signature = base64( sha1_binary(private_key + data + private_key) )
 function liqpaySign(privateKey, data) {
@@ -1149,7 +1211,7 @@ function liqpaySign(privateKey, data) {
 // вчасно, тому без цієї перевірки один і той самий платіж продовжував би
 // ліцензію по кілька разів. Транзакція на вузлі дедуплікації — щоб два
 // майже одночасні повтори вебхука не проскочили обидва.
-async function extendLicense(iid, provider, dedupeKey, extra = {}) {
+async function extendLicense(iid, provider, dedupeKey, extra = {}, plan = "month") {
   const now = Date.now();
   if (dedupeKey) {
     const dedupeRef = iRef(iid, `license/processedPayments/${dedupeKey}`);
@@ -1164,9 +1226,9 @@ async function extendLicense(iid, provider, dedupeKey, extra = {}) {
   const base = lic.status === "active" && lic.expiresAt > now ? lic.expiresAt : now;
   await iRef(iid, "license").update({
     status: "active",
-    plan: "monthly",
+    plan: plan === "year" ? "yearly" : "monthly",
     provider,
-    expiresAt: base + LICENSE_PERIOD_MS,
+    expiresAt: base + (plan === "year" ? LICENSE_YEAR_PERIOD_MS : LICENSE_PERIOD_MS),
     lastPaymentAt: now,
     ...extra,
   });
@@ -1175,12 +1237,13 @@ async function extendLicense(iid, provider, dedupeKey, extra = {}) {
 // order_id/reference провайдера несе iid інструктора, щоб вебхук (без
 // Firebase Auth контексту) знав, кому продовжувати ліцензію. UID Firebase
 // Auth ніколи не містить дефіс, тож розбір безпечний.
-function buildPaymentRef(iid) {
-  return `drivepad-${iid}-${Date.now()}`;
+// Річний тариф кодується як "-y-" (старі посилання без плану = місяць).
+function buildPaymentRef(iid, plan) {
+  return plan === "year" ? `drivepad-${iid}-y-${Date.now()}` : `drivepad-${iid}-${Date.now()}`;
 }
-function parseIidFromPaymentRef(ref) {
-  const m = /^drivepad-([^-]+)-\d+$/.exec(ref || "");
-  return m ? m[1] : null;
+function parsePaymentRef(ref) {
+  const m = /^drivepad-([^-]+)(-y)?-\d+$/.exec(ref || "");
+  return m ? { iid: m[1], plan: m[2] ? "year" : "month" } : null;
 }
 
 // Створення LiqPay-замовлення на підписку. Викликається з фронту (кнопка
@@ -1195,6 +1258,7 @@ exports.createLiqPayOrder = onRequest(
       if (!idToken) { res.status(401).json({ error: "unauthorized" }); return; }
       const decoded = await admin.auth().verifyIdToken(idToken);
       const iid = decoded.uid;
+      const plan = req.body?.plan === "year" ? "year" : "month";
 
       const publicKey  = LIQPAY_PUBLIC_KEY.value();
       const privateKey = LIQPAY_PRIVATE_KEY.value();
@@ -1205,13 +1269,13 @@ exports.createLiqPayOrder = onRequest(
         version: 3,
         public_key: publicKey,
         action: "subscribe",
-        amount: MONTHLY_PRICE_UAH,
+        amount: plan === "year" ? YEARLY_PRICE_UAH : MONTHLY_PRICE_UAH,
         currency: "UAH",
-        description: "DrivePad — місячна підписка",
-        order_id: buildPaymentRef(iid),
+        description: plan === "year" ? "DrivePad — річна підписка" : "DrivePad — місячна підписка",
+        order_id: buildPaymentRef(iid, plan),
         subscribe: 1,
         subscribe_date_start: subscribeDateStart,
-        subscribe_periodicity: "month",
+        subscribe_periodicity: plan === "year" ? "year" : "month",
         server_url: "https://europe-west1-drivepad-86fe1.cloudfunctions.net/liqpayCallback",
         result_url: "https://drivepad-admin.web.app/",
         language: "uk",
@@ -1244,7 +1308,8 @@ exports.liqpayCallback = onRequest(
       }
       const payload = JSON.parse(Buffer.from(data, "base64").toString("utf8"));
       console.log(`liqpayCallback: order=${payload.order_id} status=${payload.status}`);
-      const iid = parseIidFromPaymentRef(payload.order_id);
+      const parsed = parsePaymentRef(payload.order_id);
+      const iid = parsed?.iid;
       if (!iid) {
         console.error(`liqpayCallback: cannot parse iid from order_id=${payload.order_id}`);
         res.status(200).send("ok");
@@ -1252,8 +1317,8 @@ exports.liqpayCallback = onRequest(
       }
       if (["subscribed", "success", "sandbox"].includes(payload.status)) {
         const dedupeKey = payload.payment_id != null ? String(payload.payment_id) : payload.order_id;
-        await extendLicense(iid, "liqpay", dedupeKey, { liqpayOrderId: payload.order_id });
-        await pushAdmin(iid, "✅ Оплата отримана (LiqPay)", "Підписку DrivePad продовжено на місяць.", {}).catch(() => {});
+        await extendLicense(iid, "liqpay", dedupeKey, { liqpayOrderId: payload.order_id }, parsed.plan);
+        await pushAdmin(iid, "✅ Оплата отримана (LiqPay)", `Підписку DrivePad продовжено на ${parsed.plan === "year" ? "рік" : "місяць"}.`, {}).catch(() => {});
       } else {
         console.warn(`liqpayCallback: non-success status "${payload.status}" for order=${payload.order_id}`);
       }
@@ -1287,17 +1352,18 @@ exports.createMonobankInvoice = onRequest(
       if (!idToken) { res.status(401).json({ error: "unauthorized" }); return; }
       const decoded = await admin.auth().verifyIdToken(idToken);
       const iid = decoded.uid;
+      const plan = req.body?.plan === "year" ? "year" : "month";
 
       const token = MONOBANK_TOKEN.value();
       const resp = await fetch(`${MONOBANK_API}/invoice/create`, {
         method: "POST",
         headers: { "X-Token": token, "Content-Type": "application/json" },
         body: JSON.stringify({
-          amount: MONTHLY_PRICE_UAH * 100,
+          amount: (plan === "year" ? YEARLY_PRICE_UAH : MONTHLY_PRICE_UAH) * 100,
           ccy: 980,
           merchantPaymInfo: {
-            reference: buildPaymentRef(iid),
-            destination: "DrivePad — місячна підписка",
+            reference: buildPaymentRef(iid, plan),
+            destination: plan === "year" ? "DrivePad — річна підписка" : "DrivePad — місячна підписка",
           },
           redirectUrl: "https://drivepad-admin.web.app/",
           webHookUrl: "https://europe-west1-drivepad-86fe1.cloudfunctions.net/monobankCallback",
@@ -1344,15 +1410,16 @@ exports.monobankCallback = onRequest(
 
       const payload = req.body || {};
       console.log(`monobankCallback: invoice=${payload.invoiceId} status=${payload.status}`);
-      const iid = parseIidFromPaymentRef(payload.merchantPaymInfo?.reference || payload.reference);
+      const parsed = parsePaymentRef(payload.merchantPaymInfo?.reference || payload.reference);
+      const iid = parsed?.iid;
       if (!iid) {
         console.error(`monobankCallback: cannot parse iid from reference`);
         res.status(200).send("ok");
         return;
       }
       if (payload.status === "success") {
-        await extendLicense(iid, "monobank", payload.invoiceId, { monobankInvoiceId: payload.invoiceId });
-        await pushAdmin(iid, "✅ Оплата отримана (Monobank)", "Підписку DrivePad продовжено на місяць.", {}).catch(() => {});
+        await extendLicense(iid, "monobank", payload.invoiceId, { monobankInvoiceId: payload.invoiceId }, parsed.plan);
+        await pushAdmin(iid, "✅ Оплата отримана (Monobank)", `Підписку DrivePad продовжено на ${parsed.plan === "year" ? "рік" : "місяць"}.`, {}).catch(() => {});
       }
       res.status(200).send("ok");
     } catch (e) {

@@ -7,7 +7,8 @@ import { LangContext } from "../App";
 import { ThemeContext } from "../theme.js";
 import { UICss, useFX } from "../ui";
 import { createT } from "../lang";
-import { useLicense } from "../hooks/useLicense";
+import { useLicense, licenseState } from "../hooks/useLicense";
+import { LicensePayPanel } from "../LicensePay";
 import { useMosaicSwitch, MosaicOverlay } from "../mosaic";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -409,7 +410,6 @@ select{color-scheme:${isKava?"light":"dark"}}
   const [showHint, setShowHint] = useState(false);
   const switchSection = (id) => { setActive(id); setShowHint(false); };
   const license = useLicense(auth.currentUser?.uid);
-  const [payingWith, setPayingWith] = useState(null); // "liqpay" | "monobank" | null
 
   // slug для посилання-запису учнів (задається один раз при онбордингу,
   // AdminAuth.jsx → InstructorSetupScreen) — тут лише читаємо для показу
@@ -426,52 +426,6 @@ select{color-scheme:${isKava?"light":"dark"}}
     setTimeout(() => setSlugCopied(false), 1500);
   };
 
-  const payWithLiqPay = async () => {
-    setPayingWith("liqpay");
-    try {
-      const idToken = await auth.currentUser.getIdToken();
-      const resp = await fetch("/api/liqpay-order", {
-        method: "POST",
-        headers: { "Authorization": `Bearer ${idToken}` },
-      });
-      if (!resp.ok) throw new Error("server error");
-      const { data, signature, action } = await resp.json();
-      const form = document.createElement("form");
-      form.method = "POST";
-      form.action = action;
-      form.target = "_blank";
-      [["data", data], ["signature", signature]].forEach(([n, v]) => {
-        const inp = document.createElement("input");
-        inp.type = "hidden"; inp.name = n; inp.value = v;
-        form.appendChild(inp);
-      });
-      document.body.appendChild(form);
-      form.submit();
-      document.body.removeChild(form);
-    } catch {
-      alert("Не вдалося відкрити оплату LiqPay. Спробуйте пізніше.");
-    } finally {
-      setPayingWith(null);
-    }
-  };
-
-  const payWithMonobank = async () => {
-    setPayingWith("monobank");
-    try {
-      const idToken = await auth.currentUser.getIdToken();
-      const resp = await fetch("/api/monobank-invoice", {
-        method: "POST",
-        headers: { "Authorization": `Bearer ${idToken}` },
-      });
-      if (!resp.ok) throw new Error("server error");
-      const { pageUrl } = await resp.json();
-      window.open(pageUrl, "_blank");
-    } catch {
-      alert("Не вдалося відкрити оплату Monobank. Спробуйте пізніше.");
-    } finally {
-      setPayingWith(null);
-    }
-  };
 
   // ── відгуки учнів ────────────────────────────────────────────
   const [reviews, setReviews] = useState([]);
@@ -1277,25 +1231,9 @@ select{color-scheme:${isKava?"light":"dark"}}
       }}>
         <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
           <span style={{fontSize:15}}>💳</span>
-          <span style={{fontSize:12, fontWeight:800, color:"#fff"}}>ОПЛАТА ПІДПИСКИ · 299₴/МІС</span>
+          <span style={{fontSize:12, fontWeight:800, color:"#fff"}}>ОПЛАТА ПІДПИСКИ</span>
         </div>
-        <div style={{display:"flex", gap:8}}>
-          <button onClick={payWithLiqPay} disabled={!!payingWith} style={{
-            flex:1, padding:"11px", borderRadius:12, border:"none", cursor: payingWith ? "default" : "pointer",
-            background: payingWith === "liqpay" ? "rgba(52,211,153,0.3)" : "linear-gradient(135deg,#4ade80,#34d399)",
-            color:"#0a2e1a", fontSize:13, fontWeight:800,
-          }}>
-            {payingWith === "liqpay" ? "..." : "LiqPay"}
-          </button>
-          <button onClick={payWithMonobank} disabled={!!payingWith} style={{
-            flex:1, padding:"11px", borderRadius:12, border:"none", cursor: payingWith ? "default" : "pointer",
-            background: payingWith === "monobank" ? "rgba(0,0,0,0.2)" : "linear-gradient(135deg,#3a3a3a,#1a1a1a)",
-            color:"#fff", fontSize:13, fontWeight:800,
-          }}>
-            {payingWith === "monobank" ? "..." : "Monobank"}
-          </button>
-        </div>
-        <div style={{fontSize:11, color:"rgba(255,255,255,0.55)", marginTop:8, lineHeight:1.4}}>Обидва варіанти підтримують Apple Pay / Google Pay / картку.</div>
+        <LicensePayPanel/>
       </div>
       )}
       {active === "profile" && license && (() => {
@@ -1303,9 +1241,10 @@ select{color-scheme:${isKava?"light":"dark"}}
         const now = Date.now();
         const untilTs = license.status === "trial" ? license.trialEndsAt : license.expiresAt;
         const daysLeft = untilTs ? Math.ceil((untilTs - now) / 86400000) : null;
-        const blocked = license.status === "suspended" || (daysLeft != null && daysLeft < 0);
-        const statusColor = blocked ? RED : (daysLeft != null && daysLeft <= 3 ? GOLD : GREEN);
-        const statusLabel = blocked ? "Призупинено" : license.status === "trial" ? "Пробний період" : "Активна";
+        const lvl = licenseState(license).level;
+        const blocked = lvl === "readonly";
+        const statusColor = blocked ? RED : (lvl === "grace" || lvl === "warning" ? GOLD : GREEN);
+        const statusLabel = blocked ? "Режим читання" : lvl === "grace" ? "Пільгова доба — оплатіть" : license.status === "trial" ? "Пробний період" : "Активна";
         const fmtDate = ts => ts ? new Date(ts).toLocaleDateString("uk", { day:"numeric", month:"long", year:"numeric" }) : "—";
         const providerLabel = { liqpay:"LiqPay", monobank:"Monobank", manual:"вручну (підтримка)" }[license.provider] || null;
         const rows = [
@@ -1321,6 +1260,7 @@ select{color-scheme:${isKava?"light":"dark"}}
           if (daysLeft != null) rows.push(["Залишилось днів", blocked ? "0 (сплив)" : String(daysLeft)]);
           if (license.lastPaymentAt) rows.push(["Востаннє оплачено", fmtDate(license.lastPaymentAt)]);
           if (providerLabel) rows.push(["Спосіб оплати", providerLabel]);
+          rows.push(["Тариф", license.plan === "yearly" ? "Рік · 2999₴" : "Місяць · 299₴"]);
         }
         return (
           <div style={{
@@ -1334,7 +1274,7 @@ select{color-scheme:${isKava?"light":"dark"}}
             </div>
             <div style={{fontSize:14, fontWeight:700, color:statusColor}}>{statusLabel}</div>
             {blocked && (
-              <div style={{fontSize:12, color:"rgba(255,255,255,0.6)", marginTop:2}}>Оплатіть підписку нижче, щоб відновити доступ.</div>
+              <div style={{fontSize:12, color:"rgba(255,255,255,0.6)", marginTop:2}}>Акаунт у режимі читання. Оплатіть підписку нижче, щоб відновити роботу.</div>
             )}
             <div style={{marginTop:10, paddingTop:10, borderTop:"1px solid rgba(255,255,255,0.1)", display:"flex", flexDirection:"column", gap:5}}>
               {rows.map(([label, value]) => (

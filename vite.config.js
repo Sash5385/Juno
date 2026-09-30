@@ -82,6 +82,10 @@ function versionGuard() {
 }
 
 export default defineConfig({
+  resolve: {
+    // Режим лише читання при простроченій підписці — див. src/firebaseDbGuard.js
+    alias: [{ find: /^firebase\/database$/, replacement: resolve(__dirname, 'src/firebaseDbGuard.js') }],
+  },
   plugins: [
     react(),
     versionGuard(),
