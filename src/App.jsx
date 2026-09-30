@@ -1076,7 +1076,10 @@ const pendingDeletesRef = React.useRef(new Set());
               const sm = String(slotMin % 60).padStart(2, "0");
               newSurcharge += newSlotsForDate[`${sh}:${sm}`]?.surcharge || 0;
             }
-            const discountFactor = 1 - (b.discountPct || 0) / 100;
+            // Знижка учня — фіксована сума ₴/год (b.discount, з картки учня), а не відсотки;
+            // індивідуальна ціна (b.customPrice, ₴/год) замінює тарифну і знижку.
+            const hasCustomPrice = b.customPrice > 0;
+            const discountRub = hasCustomPrice ? 0 : (b.discount || 0) * (b.durMin / 60);
             // Базова ціна за послугою (як у розкладі/деталях запису) — а не
             // дельта від старої b.price, якої може не бути (записи, створені
             // вручну через NewBookingModal, price/surcharge не зберігають).
@@ -1111,7 +1114,9 @@ const pendingDeletesRef = React.useRef(new Set());
             // Завжди перераховуємо ціну під нову позицію (навіть якщо price
             // раніше не зберігався) і надбавку саме нового слоту (0, якщо
             // новий слот без надбавки, — стара надбавка не має «прилипати»).
-            const newPrice = Math.round((basePrice + newSurcharge) * discountFactor);
+            const newPrice = hasCustomPrice
+              ? Math.round(Number(b.customPrice) * (b.durMin / 60)) + newSurcharge
+              : Math.max(0, Math.round(basePrice + newSurcharge - discountRub));
             upd[`${bp}/price`] = newPrice;
             upd[`${bp}/surcharge`] = newSurcharge || null;
             update(iRef(), upd).then(() => {
