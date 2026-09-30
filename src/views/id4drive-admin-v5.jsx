@@ -1134,6 +1134,17 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   const slotTapRef = useRef({ key: null, t: 0 });
   // Був рух пальця (свайп) після торкання слота — подальший "click" від браузера тапом не вважаємо
   const slotMovedRef = useRef(false);
+  // Позиція і прокрутка розкладу на момент торкання слота: при різкому свайпі події руху на
+  // слот можуть не прийти взагалі, тож рух визначаємо ще й по зміщенню пальця та скролу.
+  const slotDownRef = useRef({ x: 0, y: 0, sl: 0, st: 0 });
+  const slotGestureMoved = (e) => {
+    if (slotMovedRef.current) return true;
+    const d = slotDownRef.current;
+    if (e && typeof e.clientX === "number" && Math.hypot(e.clientX - d.x, e.clientY - d.y) > 8) return true;
+    const g = gridRef.current;
+    if (g && (Math.abs(g.scrollLeft - d.sl) > 3 || Math.abs(g.scrollTop - d.st) > 3)) return true;
+    return false;
+  };
   const isDoubleTapOnSlot = (key) => {
     const now = Date.now();
     const last = slotTapRef.current;
@@ -3217,6 +3228,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                       // повного відкриття всього дня.
                       if (isPastDay) return;
                       slotMovedRef.current = false;
+                      slotDownRef.current = { x: e.clientX, y: e.clientY, sl: gridRef.current?.scrollLeft || 0, st: gridRef.current?.scrollTop || 0 };
                       // Заявляємо дотик БЕЗ stopPropagation — він, судячи з усього,
                       // заважає нативному touch-action панорамуванню на реальних
                       // мобільних браузерах (так само, як і в кейсі з заблокованим
@@ -3286,7 +3298,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                         if (swipeRef.current) swipeRef.current.manualScroll = true;
                       }
                     }}
-                    onPointerUp={()=>{
+                    onPointerUp={(e)=>{
                       const sp = slotPressRef.current;
                       // Короткий тап по звичайному вільному слоту — одразу позначає
                       // його приватним (жовтий) — лише по двох тапах підряд, без проміжної модалки: відкриття
@@ -3294,7 +3306,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                       // змонтований оверлей (React встигав вставити його в DOM ще до
                       // приходу відкладеного click від того ж дотику), який миттєво
                       // її закривав.
-                      const wasQuickTap = sp && !sp.locked && !slotHoldFiredRef.current;
+                      const wasQuickTap = sp && !sp.locked && !slotHoldFiredRef.current && !slotGestureMoved(e);
                       clearTimeout(slotHoldTimerRef.current);
                       slotPressRef.current = null;
                       if (wasQuickTap && isPlainFree) {
@@ -3311,7 +3323,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                       e.stopPropagation();
                       if (isPastDay || slotHoldFiredRef.current || isPlainFree) return;
                       // Свайп, що почався на слоті, теж породжує click — це не тап
-                      if (slotMovedRef.current) { slotMovedRef.current = false; return; }
+                      if (slotGestureMoved(e)) { slotMovedRef.current = false; return; }
                       if (!isDoubleTapOnSlot(`${dateStrCol}_${time}`)) return;
                       toggleSlotFree(dateStrCol, time, slot);
                     }}
