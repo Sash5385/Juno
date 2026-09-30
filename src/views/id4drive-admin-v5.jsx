@@ -3367,7 +3367,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                     {(isVip || slot.vipOnly) && <span style={{position:"absolute", top:3, right:4, fontSize:10, lineHeight:1}}>👑</span>}
                     {isPrivateOnly && <span style={{position:"absolute", top:3, right:4, fontSize:10, lineHeight:1}}>🚗</span>}
 
-                    {slot.available && !isVip && !isBlocked && !isPrivateOnly && !hasSurcharge && (() => {
+                    {((slot.available && !isVip && !hasSurcharge) || isBlocked || isPrivateOnly) && (() => {
                       // Час початку/кінця вільного слота — великий, білий і напівпрозорий
                       // фон-підпис (не заважає іншим елементам: pointerEvents:none, під ними).
                       const hhmm = (mm) => `${String(Math.floor(mm/60)).padStart(2,"0")}:${String(mm%60).padStart(2,"0")}`;
@@ -3392,15 +3392,6 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                         <span style={{fontSize:7, fontWeight:800, color:GOLD, lineHeight:1}}>{qc}</span>
                       </div>
                     ) : null; })()}
-                    {(isPlainFree || isPrivateOnly || isBlocked) && (displayHeightMin !== 60 || isBeingResized) && (
-                      <span style={{
-                        position:"absolute", top:3, left:"50%", transform:"translateX(-50%)",
-                        fontSize:8, fontWeight:800, color, background:"rgba(0,0,0,0.25)",
-                        padding:"1px 5px", borderRadius:5, lineHeight:1.3, whiteSpace:"nowrap", pointerEvents:"none",
-                      }}>
-                        {displayHeightMin % 60 === 0 ? `${displayHeightMin/60} год` : displayHeightMin < 60 ? `${displayHeightMin} хв` : `${Math.floor(displayHeightMin/60)}г ${displayHeightMin%60}хв`}
-                      </span>
-                    )}
                     {isPlainFree && !isPastDay && (
                       <div
                         onPointerDown={e=>{
