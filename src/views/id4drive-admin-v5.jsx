@@ -1129,6 +1129,16 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   // звільнені слоти і створювали огризки-документи на місці видалених phantom.
   const cancellingRef = useRef(cancellingSet);
   cancellingRef.current = cancellingSet;
+  // Зміни слота (приватний / закрити-відкрити) — лише по ДВОМУ тапу підряд по тому самому слоту
+  // (до 350 мс), щоб випадковий дотик під час скролу нічого не міняв.
+  const slotTapRef = useRef({ key: null, t: 0 });
+  const isDoubleTapOnSlot = (key) => {
+    const now = Date.now();
+    const last = slotTapRef.current;
+    const dbl = last.key === key && now - last.t < 350;
+    slotTapRef.current = dbl ? { key: null, t: 0 } : { key, t: now };
+    return dbl;
+  };
   const rawSlotIdsRef = useRef({}); // { date: Set<slotId> } — усі реально існуючі документи
   const cancelTimers = useRef({});
   // Кумулятивні години учня на момент кожного уроку (для кружечка № уроку в слоті)
@@ -3274,7 +3284,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                     onPointerUp={()=>{
                       const sp = slotPressRef.current;
                       // Короткий тап по звичайному вільному слоту — одразу позначає
-                      // його приватним (жовтий), без проміжної модалки: відкриття
+                      // його приватним (жовтий) — лише по двох тапах підряд, без проміжної модалки: відкриття
                       // модалки саме тут провокувало "привида-клік" на щойно
                       // змонтований оверлей (React встигав вставити його в DOM ще до
                       // приходу відкладеного click від того ж дотику), який миттєво
@@ -3283,14 +3293,19 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                       clearTimeout(slotHoldTimerRef.current);
                       slotPressRef.current = null;
                       if (wasQuickTap && isPlainFree) {
-                        navigator.vibrate?.(15);
-                        applySlotOption(dateStrCol, time, "private");
+                        if (isDoubleTapOnSlot(`${dateStrCol}_${time}`)) {
+                          navigator.vibrate?.(15);
+                          applySlotOption(dateStrCol, time, "private");
+                        } else {
+                          navigator.vibrate?.(5);
+                        }
                       }
                     }}
                     onPointerCancel={()=>{ clearTimeout(slotHoldTimerRef.current); slotPressRef.current = null; }}
                     onClick={e=>{
                       e.stopPropagation();
                       if (isPastDay || slotHoldFiredRef.current || isPlainFree) return;
+                      if (!isDoubleTapOnSlot(`${dateStrCol}_${time}`)) return;
                       toggleSlotFree(dateStrCol, time, slot);
                     }}
                     style={{
