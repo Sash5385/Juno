@@ -419,6 +419,15 @@ exports.onBookingChanged = onValueWritten(
       }).catch(() => {});
       return;
     }
+
+    // Учень додав/змінив нотатку до уроку (вкладка "Записи") — сповіщаємо адміна.
+    // Очищення нотатки пуш не шле; перенесення вже оброблено вище.
+    const noteBefore = String(before.studentNote || "").trim();
+    const noteAfter = String(after.studentNote || "").trim();
+    if (noteAfter && noteAfter !== noteBefore && after.status !== "cancelled" && after.createdBy !== "admin") {
+      console.log(`onBookingChanged: student note changed iid=${iid} uid=${uid}`);
+      await pushAdmin(iid, "💬 Коментар до уроку", `${name} · ${date} о ${time}\n${noteAfter}`, { url: adminLink() });
+    }
   }
 );
 
