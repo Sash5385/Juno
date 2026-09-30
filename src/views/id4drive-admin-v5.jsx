@@ -3367,7 +3367,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                     {(isVip || slot.vipOnly) && <span style={{position:"absolute", top:3, right:4, fontSize:10, lineHeight:1}}>👑</span>}
                     {isPrivateOnly && <span style={{position:"absolute", top:3, right:4, fontSize:10, lineHeight:1}}>🚗</span>}
 
-                    {((slot.available && !isVip && !hasSurcharge) || isBlocked || isPrivateOnly) && (() => {
+                    {(slot.available || isVip || isBlocked || isPrivateOnly) && (() => {
                       // Час початку/кінця вільного слота — великий, білий і напівпрозорий
                       // фон-підпис (не заважає іншим елементам: pointerEvents:none, під ними).
                       const hhmm = (mm) => `${String(Math.floor(mm/60)).padStart(2,"0")}:${String(mm%60).padStart(2,"0")}`;
