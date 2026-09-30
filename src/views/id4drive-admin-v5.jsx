@@ -3377,7 +3377,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                         <div style={{
                           position:"absolute", inset:0, display:"flex", flexDirection:"column",
                           alignItems:"center", justifyContent:"center", pointerEvents:"none",
-                          color:"#fff", opacity:0.28, fontSize:fs, fontWeight:800, lineHeight:1.05,
+                          color:"#fff", opacity:0.8, fontSize:fs, fontWeight:800, lineHeight:1.05,
                           letterSpacing:-0.3, fontVariantNumeric:"tabular-nums",
                         }}>
                           <span>{hhmm(displayStartMin)}</span>
