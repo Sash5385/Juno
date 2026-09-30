@@ -208,6 +208,7 @@ function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock, onRemoveB
   const { BG_DEEP, SURF_HI, SURFACE, BORDER, TEXT, DIM, FAINT, ACCENT, ACC_HI, GREEN, BLUE, GOLD, RED, SO, SI } = useContext(ThemeContext);
   const { shade, glow, ink } = useFX();
   const [closing,      setClosing]     = useState(false);
+  const [colorOpen, setColorOpen] = useState(false);
   const [editMode,     setEditMode]    = useState(false);
   const [confirmDel,   setConfirmDel]  = useState(false);
   const [pendingDelete,setPendingDelete] = useState(false);
@@ -437,19 +438,18 @@ function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock, onRemoveB
 
                 {/* Колір слота учня (діє, коли автокольори вимкнено в Налаштуваннях → Сітка) */}
                 <div style={{background:glow(0.04),borderRadius:10,padding:"10px 12px",border:`1px solid ${BORDER}`}}>
-                  <div style={{fontSize:9,color:FAINT,letterSpacing:1,textTransform:"uppercase",marginBottom:8}}>Колір слота</div>
-                  <div style={{display:"flex",gap:7,flexWrap:"wrap",alignItems:"center"}}>
-                    <button onClick={()=>onColorChange(null)} title="Без кольору" style={{
-                      width:24,height:24,borderRadius:"50%",cursor:"pointer",padding:0,fontSize:13,color:DIM,
-                      background:"transparent",border:`2px ${!slotColor?"solid":"dashed"} ${!slotColor?TEXT:BORDER}`,
-                    }}>∅</button>
-                    {STUDENT_COLOR_CHOICES.map(c=>(
-                      <button key={c} onClick={()=>onColorChange(c)} style={{
-                        width:24,height:24,borderRadius:"50%",cursor:"pointer",padding:0,background:c,
-                        border:slotColor===c?`2.5px solid ${TEXT}`:"2px solid transparent",
-                        boxShadow:slotColor===c?`0 0 8px ${c}`:"none",
-                      }}/>
-                    ))}
+                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10}}>
+                    <div style={{fontSize:9,color:FAINT,letterSpacing:1,textTransform:"uppercase"}}>Колір слота</div>
+                    <button onClick={()=>setColorOpen(true)} style={{
+                      display:"flex",alignItems:"center",gap:8,padding:"5px 10px 5px 6px",borderRadius:20,cursor:"pointer",
+                      background:glow(0.06),border:`1px solid ${BORDER}`,color:TEXT,fontSize:12,fontWeight:700,fontFamily:"inherit",
+                    }}>
+                      <span style={{
+                        width:20,height:20,borderRadius:"50%",display:"inline-flex",alignItems:"center",justifyContent:"center",
+                        background:slotColor||"transparent",border:slotColor?"none":`1.5px dashed ${DIM}`,color:DIM,fontSize:11,
+                      }}>{slotColor?"":"∅"}</span>
+                      {slotColor?"Змінити":"Обрати"}
+                    </button>
                   </div>
                   {autoColors && (
                     <div style={{fontSize:10,color:FAINT,marginTop:8,lineHeight:1.4}}>
@@ -457,6 +457,36 @@ function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock, onRemoveB
                     </div>
                   )}
                 </div>
+                {colorOpen && createPortal(
+                  <div onClick={()=>setColorOpen(false)} style={{
+                    position:"fixed",inset:0,zIndex:400,background:"rgba(0,0,0,0.6)",
+                    display:"flex",alignItems:"center",justifyContent:"center",padding:16,
+                  }}>
+                    <div onClick={e=>e.stopPropagation()} style={{
+                      width:"100%",maxWidth:340,padding:14,borderRadius:16,
+                      background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,border:`1px solid ${BORDER}`,boxShadow:SO,
+                    }}>
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+                        <div style={{fontSize:14,fontWeight:800,color:TEXT}}>Колір слота</div>
+                        <button onClick={()=>setColorOpen(false)} style={{background:"none",border:"none",color:DIM,fontSize:22,lineHeight:1,cursor:"pointer"}}>×</button>
+                      </div>
+                      <div style={{display:"grid",gridTemplateColumns:"repeat(10,1fr)",gap:6}}>
+                        {STUDENT_COLOR_CHOICES.map(c=>(
+                          <button key={c} onClick={()=>{onColorChange(c);setColorOpen(false);}} style={{
+                            aspectRatio:"1",borderRadius:"50%",cursor:"pointer",padding:0,background:c,
+                            border:slotColor===c?`2.5px solid ${TEXT}`:"2px solid transparent",
+                            boxShadow:slotColor===c?`0 0 8px ${c}`:"none",
+                          }}/>
+                        ))}
+                      </div>
+                      <button onClick={()=>{onColorChange(null);setColorOpen(false);}} style={{
+                        width:"100%",marginTop:12,padding:"9px",borderRadius:10,cursor:"pointer",fontFamily:"inherit",
+                        background:"transparent",border:`1px dashed ${BORDER}`,color:DIM,fontSize:12,fontWeight:700,
+                      }}>∅ Без кольору</button>
+                    </div>
+                  </div>,
+                  document.body
+                )}
 
                 {/* Individual fixed price — показуємо тільки якщо задана */}
                 {s.customPrice > 0 && (
