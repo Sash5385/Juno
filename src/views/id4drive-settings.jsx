@@ -802,6 +802,13 @@ select{color-scheme:${isKava?"light":"dark"}}
               ))}
             </div>
           </div>
+          <div style={{borderRadius:10,padding:"10px",marginTop:5,background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,boxShadow:SO,display:"flex",alignItems:"center",justifyContent:"space-between",gap:10}}>
+            <div style={{minWidth:0}}>
+              <div style={{fontSize:12,color:DIM}}>Час у слоті</div>
+              <div style={{fontSize:10,color:DIM,opacity:0.7,marginTop:2}}>Показувати "з–до" всередині слотів у графіку</div>
+            </div>
+            <Toggle color={svColor(settings.showSlotTimes !== false)} on={settings.showSlotTimes !== false} onChange={v=>upd("showSlotTimes",v)}/>
+          </div>
         </div>
       );
 
