@@ -3389,6 +3389,8 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                           if (scheduleLocked) return;
                           e.stopPropagation(); e.preventDefault();
                           clearTimeout(slotHoldTimerRef.current);
+                          slotMovedRef.current = false;
+                          slotDownRef.current = { x: e.clientX, y: e.clientY, sl: gridRef.current?.scrollLeft || 0, st: gridRef.current?.scrollTop || 0 };
                           resizeHoldPosRef.current = { startX: e.clientX, startY: e.clientY, lastY: e.clientY };
                           resizeHoldTimerRef.current = setTimeout(()=>{
                             const rp = resizeHoldPosRef.current;
@@ -3408,6 +3410,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                           // потрапляє саме сюди. Та сама симетрична перевірка ("яка вісь
                           // більша"), що й на самому слоті, передає керування скролу.
                           if (Math.hypot(dx, dy) > 8) {
+                            slotMovedRef.current = true;
                             clearTimeout(resizeHoldTimerRef.current);
                             resizeHoldPosRef.current = null;
                             if (Math.abs(dx) >= Math.abs(dy) && swipeRef.current) {
@@ -3415,7 +3418,9 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                             }
                           }
                         }}
-                        onPointerUp={()=>{
+                        onPointerUp={(e)=>{
+                          // rp === null, якщо палець уже зрушив (свайп) або дотик не був заявлений
+                          const rp = resizeHoldPosRef.current;
                           clearTimeout(resizeHoldTimerRef.current);
                           resizeHoldPosRef.current = null;
                           // Не покладаємось лише на window-рівневий pointerup (нижче) — на
@@ -3429,8 +3434,13 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                           } else if (!fr) {
                             // Короткий тап без утримання (ручка resize стоїть поверх слота
                             // й перехоплює дотик з onClick.stopPropagation нижче) — той самий
-                            // ефект, що й тап деінде на вільному слоті.
-                            toggleSlotFree(dateStrCol, time, slot);
+                            // ефект, що й тап деінде на вільному слоті. РАНІШЕ закривало слот
+                            // (червоний) від БУДЬ-ЯКОГО відпускання пальця — навіть після свайпу,
+                            // що почався на цій ручці (а вона займає майже всю ширину слота).
+                            // Тепер: лише чистий тап (без руху/скролу) і лише подвійний.
+                            if (rp && !slotGestureMoved(e) && isDoubleTapOnSlot(`${dateStrCol}_${time}`)) {
+                              toggleSlotFree(dateStrCol, time, slot);
+                            }
                           }
                         }}
                         onPointerCancel={()=>{ clearTimeout(resizeHoldTimerRef.current); resizeHoldPosRef.current = null; }}
