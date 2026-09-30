@@ -915,10 +915,16 @@ select{color-scheme:${isKava?"light":"dark"}}
               }}>×</button>
             </div>
           ))}
-          <button onClick={()=>upd("surcharges", [...(settings.surcharges||[]), 100])} style={{
-            width:"100%",padding:"11px",borderRadius:12,border:`1px dashed ${GREEN}88`,cursor:"pointer",
-            background:"transparent",color:GREEN,fontSize:13,fontWeight:700,marginTop:2,
-          }}>+ Додати надбавку</button>
+          {(settings.surcharges||[]).length < 5 ? (
+            <button onClick={()=>upd("surcharges", [...(settings.surcharges||[]), 100])} style={{
+              width:"100%",padding:"11px",borderRadius:12,border:`1px dashed ${GREEN}88`,cursor:"pointer",
+              background:"transparent",color:GREEN,fontSize:13,fontWeight:700,marginTop:2,
+            }}>+ Додати надбавку</button>
+          ) : (
+            <div style={{textAlign:"center",fontSize:12,color:"rgba(255,255,255,0.4)",padding:"6px 0"}}>
+              Максимум 5 надбавок
+            </div>
+          )}
         </div>
       );
 
