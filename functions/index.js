@@ -1246,6 +1246,16 @@ function parsePaymentRef(ref) {
   return m ? { iid: m[1], plan: m[2] ? "year" : "month" } : null;
 }
 
+// Тестова оплата 1₴: сума береться на СЕРВЕРІ, якщо в БД є payment_test/{iid} = true.
+// Вузол payment_test закритий правилами (за замовчуванням — заборона для клієнтів),
+// тож вмикається лише вручну в Firebase Console (Realtime Database) для тестового
+// інструктора — інструктор сам собі знижку виставити не може. Тариф/термін не
+// змінюються: тестова оплата "рік" все одно продовжує ліцензію на рік.
+async function isTestPayment(iid) {
+  try { return (await db.ref(`payment_test/${iid}`).get()).val() === true; }
+  catch { return false; }
+}
+
 // Створення LiqPay-замовлення на підписку. Викликається з фронту (кнопка
 // оплати в Налаштуваннях), авторизований запит — Bearer ID-токен адміна.
 exports.createLiqPayOrder = onRequest(
@@ -1259,6 +1269,7 @@ exports.createLiqPayOrder = onRequest(
       const decoded = await admin.auth().verifyIdToken(idToken);
       const iid = decoded.uid;
       const plan = req.body?.plan === "year" ? "year" : "month";
+      const testPay = await isTestPayment(iid);
 
       const publicKey  = LIQPAY_PUBLIC_KEY.value();
       const privateKey = LIQPAY_PRIVATE_KEY.value();
@@ -1269,9 +1280,9 @@ exports.createLiqPayOrder = onRequest(
         version: 3,
         public_key: publicKey,
         action: "subscribe",
-        amount: plan === "year" ? YEARLY_PRICE_UAH : MONTHLY_PRICE_UAH,
+        amount: testPay ? 1 : (plan === "year" ? YEARLY_PRICE_UAH : MONTHLY_PRICE_UAH),
         currency: "UAH",
-        description: plan === "year" ? "DrivePad — річна підписка" : "DrivePad — місячна підписка",
+        description: (plan === "year" ? "DrivePad — річна підписка" : "DrivePad — місячна підписка") + (testPay ? " (ТЕСТ 1₴)" : ""),
         order_id: buildPaymentRef(iid, plan),
         subscribe: 1,
         subscribe_date_start: subscribeDateStart,
@@ -1353,17 +1364,18 @@ exports.createMonobankInvoice = onRequest(
       const decoded = await admin.auth().verifyIdToken(idToken);
       const iid = decoded.uid;
       const plan = req.body?.plan === "year" ? "year" : "month";
+      const testPay = await isTestPayment(iid);
 
       const token = MONOBANK_TOKEN.value();
       const resp = await fetch(`${MONOBANK_API}/invoice/create`, {
         method: "POST",
         headers: { "X-Token": token, "Content-Type": "application/json" },
         body: JSON.stringify({
-          amount: (plan === "year" ? YEARLY_PRICE_UAH : MONTHLY_PRICE_UAH) * 100,
+          amount: (testPay ? 1 : (plan === "year" ? YEARLY_PRICE_UAH : MONTHLY_PRICE_UAH)) * 100,
           ccy: 980,
           merchantPaymInfo: {
             reference: buildPaymentRef(iid, plan),
-            destination: plan === "year" ? "DrivePad — річна підписка" : "DrivePad — місячна підписка",
+            destination: (plan === "year" ? "DrivePad — річна підписка" : "DrivePad — місячна підписка") + (testPay ? " (ТЕСТ 1₴)" : ""),
           },
           redirectUrl: "https://drivepad-admin.web.app/",
           webHookUrl: "https://europe-west1-drivepad-86fe1.cloudfunctions.net/monobankCallback",
