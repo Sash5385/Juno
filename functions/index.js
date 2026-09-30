@@ -113,6 +113,16 @@ function buildAdminLink(base, { date, time, uid, bookingId } = {}) {
   return qs ? `${base}/?${qs}` : `${base}/`;
 }
 
+// Формат тексту пуша "Урок перенесено": ім'я · послуга тривалість / з дати на дату
+function buildRescheduleBody(after, name, date, time) {
+  const svc = after.serviceName || after.service || "";
+  const durH = after.durationHours || (after.durMin ? after.durMin / 60 : 1);
+  const [od, ot] = String(after.rescheduledFrom || "").split(" ");
+  const fmtD = (d) => { const m = /^\d{4}-(\d{2})-(\d{2})$/.exec(d || ""); return m ? `${m[2]}.${m[1]}` : (d || "—"); };
+  const line1 = svc ? `${name} · ${svc} ${durH} год` : `${name} · ${durH} год`;
+  return `${line1}\nз ${fmtD(od)} о ${ot || "—"} на ${fmtD(date)} о ${time}`;
+}
+
 // Формат тексту пуша "Новий запис": ім'я · послуга тривалість / дата о час · телефон
 function buildNewBookingBody(after, name, date, time) {
   const svc = after.serviceName || after.service || "";
@@ -318,7 +328,13 @@ exports.onBookingChanged = onValueWritten(
         // (особисті події адміна не мають генерувати цей пуш — у них є власне
         // нагадування-будильник через sendPersonalEventReminders)
         console.log(`onBookingChanged: new booking iid=${iid} uid=${uid}`);
-        await pushAdmin(iid, "📋 Новий запис", buildNewBookingBody(after, name, date, time), { url: adminLink() });
+        if (after.rescheduledFrom) {
+          // Учень переніс урок (старий запис скасовано з cancelledBy="reschedule", новий створено
+          // з rescheduledFrom) — це не новий запис, а перенесення: кажемо з якого дня на який.
+          await pushAdmin(iid, "🔁 Урок перенесено", buildRescheduleBody(after, name, date, time), { url: adminLink() });
+        } else {
+          await pushAdmin(iid, "📋 Новий запис", buildNewBookingBody(after, name, date, time), { url: adminLink() });
+        }
       }
       return;
     }

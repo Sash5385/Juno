@@ -25,8 +25,9 @@ messaging.onBackgroundMessage((payload) => {
   const isAlarm = payload.data?.alarm === '1'
   const options = {
     body: payload.data?.body || '',
-    icon: '/favicon.svg',
-    badge: '/favicon.svg',
+    // favicon.svg — це фіолетова блискавка: Android малював її значком праворуч у сповіщенні.
+    // Іконка — логотип DrivePad (PNG), власного badge не задаємо.
+    icon: '/icon-192.png',
     // Без унікального tag кожне наступне сповіщення з тим самим tag (напр.
     // друге повідомлення в чаті поспіль) тихо ЗАМІНЮЄ попереднє на деяких
     // Android/Chrome без нового звуку/вібрації — виглядає, ніби пуш не прийшов.
