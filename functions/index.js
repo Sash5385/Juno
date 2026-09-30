@@ -130,7 +130,8 @@ function buildNewBookingBody(after, name, date, time) {
   const phone = after.phone || after.studentPhone || "";
   const line1 = svc ? `${name} · ${svc} ${durH} год` : `${name} · ${durH} год`;
   const line2 = phone ? `${date} о ${time} · ${phone}` : `${date} о ${time}`;
-  return `${line1}\n${line2}`;
+  const note = String(after.studentNote || "").trim();
+  return note ? `${line1}\n${line2}\n💬 ${note}` : `${line1}\n${line2}`;
 }
 
 // Хелпер: відправити push адміну (на всі зареєстровані пристрої)

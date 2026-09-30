@@ -5331,6 +5331,15 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
           </div>
 
           {/* Ціна/час — синя колірна картка (редагувати + дата/час/ціна разом) */}
+          {booking.studentNote && (
+            <div style={{
+              margin:"12px 14px 0",padding:"10px 14px",borderRadius:14,
+              background:`${GOLD}14`,border:`1px solid ${GOLD}4d`,
+            }}>
+              <div style={{fontSize:10,fontWeight:700,letterSpacing:.5,color:GOLD,marginBottom:3}}>💬 Коментар учня</div>
+              <div style={{fontSize:13,color:TEXT,lineHeight:1.4,whiteSpace:"pre-wrap",wordBreak:"break-word"}}>{booking.studentNote}</div>
+            </div>
+          )}
           <div style={{
             margin:"12px 14px 0",padding:"12px 14px",borderRadius:16,
             background:`linear-gradient(155deg,color-mix(in srgb,${BLUE} 40%,${BG_DEEP}) 0%,${BG_DEEP} 100%)`,

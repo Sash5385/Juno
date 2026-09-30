@@ -218,7 +218,7 @@ textarea{color-scheme:dark}
                     <div style={{fontSize:13,fontWeight:800,color:TEXT,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{b.name}</div>
                     <div style={{fontSize:10,color:DIM,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{b.phone||""}{b.serviceName?` · ${b.serviceName}`:""}{b.price!=null?` · ${b.price}₴`:""}</div>
                     {b.studentNote && (
-                      <div style={{fontSize:11,color:GOLD,marginTop:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>💬 {b.studentNote}</div>
+                      <div style={{fontSize:11,color:GOLD,marginTop:2,whiteSpace:"pre-wrap",wordBreak:"break-word"}}>💬 {b.studentNote}</div>
                     )}
                   </div>
                   {b.durationHours>1 && (
