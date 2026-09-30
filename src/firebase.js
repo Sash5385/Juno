@@ -22,7 +22,10 @@ const firebaseConfig = {
   measurementId: "G-Y1ZTLEDMVK"
 };
 
-const VAPID_KEY = "BFT1t7hXhEcSsHdotLlG5xoIFNrdS11vU_jsHiD1UUMsskVINBW2het8ogOKioGTPK8X_-u1ivEQM0n0Dh6Zvqk";
+// VAPID-ключ навмисно НЕ задаємо: раніше тут стояв ключ проєкту ID4 (id4drive-booking-44182),
+// а DrivePad працює на іншому проєкті (drivepad-86fe1) — Firebase відхиляв getToken, токен
+// ніколи не зберігався ("no tokens"), пуші не приходили. Без vapidKey SDK бере ключ за
+// замовчуванням, який працює для будь-якого проєкту.
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
@@ -92,7 +95,7 @@ export async function registerAdminFCM() {
     console.log("FCM SW scope:", swReg?.scope);
 
     const messaging = getMessaging(app);
-    const token = await getToken(messaging, { vapidKey: VAPID_KEY, serviceWorkerRegistration: swReg });
+    const token = await getToken(messaging, { serviceWorkerRegistration: swReg });
     console.log("FCM token obtained:", !!token, token?.slice(0, 20));
 
     if (token) {
