@@ -6,6 +6,7 @@ import { iRef } from "../firebase";
 import { ThemeContext } from "../theme.js";
 import { UICss, Field, Btn as UIBtn, useFX, useBackClose } from "../ui";
 import { makePalette } from "./id4drive-services";
+import { STUDENT_COLOR_CHOICES } from "../studentColors";
 
 const M = ["","Січ","Лют","Бер","Кві","Тра","Чер","Лип","Сер","Вер","Жов","Лис","Гру"];
 const fmtS = d => { if(!d) return "—"; const [,m,day]=d.split("-"); return `${parseInt(day)} ${M[parseInt(m)]}`; };
@@ -203,7 +204,7 @@ function StudentCard({ s, onSelect, settings }) {
 // ─── STUDENT DETAIL SHEET ────────────────────────────────────────
 const MANEUVER_LABELS = { rozvorot:"Розворот", parking90:"Паркування 90", parking45:"Паркування 45" };
 
-function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock, onRemoveBadge, autoOpenHistory }) {
+function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock, onRemoveBadge, autoOpenHistory, slotColor, autoColors, onColorChange }) {
   const { BG_DEEP, SURF_HI, SURFACE, BORDER, TEXT, DIM, FAINT, ACCENT, ACC_HI, GREEN, BLUE, GOLD, RED, SO, SI } = useContext(ThemeContext);
   const { shade, glow, ink } = useFX();
   const [closing,      setClosing]     = useState(false);
@@ -432,6 +433,29 @@ function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock, onRemoveB
                     <div style={{fontSize:9,color:FAINT,letterSpacing:1,textTransform:"uppercase",marginBottom:3}}>Знижка/год</div>
                     <div style={{fontSize:18,fontWeight:900,color:s.discount>0?GOLD:DIM}}>{s.discount||0}₴</div>
                   </div>
+                </div>
+
+                {/* Колір слота учня (діє, коли автокольори вимкнено в Налаштуваннях → Сітка) */}
+                <div style={{background:glow(0.04),borderRadius:10,padding:"10px 12px",border:`1px solid ${BORDER}`}}>
+                  <div style={{fontSize:9,color:FAINT,letterSpacing:1,textTransform:"uppercase",marginBottom:8}}>Колір слота</div>
+                  <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center"}}>
+                    <button onClick={()=>onColorChange(null)} title="Без кольору" style={{
+                      width:28,height:28,borderRadius:"50%",cursor:"pointer",padding:0,fontSize:13,color:DIM,
+                      background:"transparent",border:`2px ${!slotColor?"solid":"dashed"} ${!slotColor?TEXT:BORDER}`,
+                    }}>∅</button>
+                    {STUDENT_COLOR_CHOICES.map(c=>(
+                      <button key={c} onClick={()=>onColorChange(c)} style={{
+                        width:28,height:28,borderRadius:"50%",cursor:"pointer",padding:0,background:c,
+                        border:slotColor===c?`2.5px solid ${TEXT}`:"2px solid transparent",
+                        boxShadow:slotColor===c?`0 0 8px ${c}`:"none",
+                      }}/>
+                    ))}
+                  </div>
+                  {autoColors && (
+                    <div style={{fontSize:10,color:FAINT,marginTop:8,lineHeight:1.4}}>
+                      Зараз кольори розподіляються автоматично. Обраний колір діятиме після вимкнення «Автокольори учнів» в Налаштуваннях → Сітка.
+                    </div>
+                  )}
                 </div>
 
                 {/* Individual fixed price — показуємо тільки якщо задана */}
@@ -695,6 +719,9 @@ export default function StudentsView({ studentJump, onStudentJumpHandled, bookin
     onStudentJumpHandled?.();
   }, [studentJump, students]);
 
+  const [studentColors, setStudentColors] = useState({});
+  useEffect(() => onValue(iRef("studentColors"), snap => setStudentColors(snap.val() || {})), []);
+
   useEffect(() => {
     const unsub = onValue(iRef( "users"), snap => {
       const data = snap.val() || {};
@@ -920,6 +947,9 @@ export default function StudentsView({ studentJump, onStudentJumpHandled, bookin
           onBlock={block}
           onRemoveBadge={removeBadge}
           autoOpenHistory={autoOpenHistory}
+          slotColor={studentColors[liveDetail.id] || null}
+          autoColors={settings?.autoStudentColors !== false}
+          onColorChange={c=>update(iRef("studentColors"), { [liveDetail.id]: c || null }).catch(()=>{})}
         />,
         document.body
       )}

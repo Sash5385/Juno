@@ -470,7 +470,7 @@ const DEFAULT_SETTINGS = {
   lunchEnabled:true, lunchStart:12, lunchEnd:13, customBlocks:[], pendingEnabled:false, lockPastBookings:false,
   theme:"dark", language:"uk", queueAutoFifo:true, queueBroadcast:false, queueManual:false,
   studentCanReschedule:true, studentCanCancel:true, bookCutoffHours:2, calendarOpenDays:30, schoolCalendarOpenDays:14, slotGenDays:30,
-  stickyTime:"both", notifLocation:"topbar", showCompleteBtn:true, showSlotTimes:true,
+  stickyTime:"both", notifLocation:"topbar", showCompleteBtn:true, showSlotTimes:true, autoStudentColors:true,
   navTabs:["schedule","journal","bookings","students","services","chats","templates","stats","settings"],
   autoReminders:[
     {enabled:true,  hoursBefore:24},
@@ -806,6 +806,7 @@ export default function App() {
         customBlocks:    settings.customBlocks    ?? [],
         showCompleteBtn:      settings.showCompleteBtn      ?? true,
         showSlotTimes:        settings.showSlotTimes        ?? true,
+        autoStudentColors:    settings.autoStudentColors    ?? true,
         stickyTimeEnabled:    settings.stickyTimeEnabled    ?? true,
         minBookingIntervalDays: settings.minBookingIntervalDays ?? 0,
         slotFreedPushEnabled: settings.slotFreedPushEnabled ?? true,

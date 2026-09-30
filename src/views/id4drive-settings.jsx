@@ -763,6 +763,13 @@ select{color-scheme:${isKava?"light":"dark"}}
             </div>
             <Toggle color={svColor(settings.showSlotTimes !== false)} on={settings.showSlotTimes !== false} onChange={v=>upd("showSlotTimes",v)}/>
           </div>
+          <div style={{borderRadius:10,padding:"10px",marginTop:5,background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,boxShadow:SO,display:"flex",alignItems:"center",justifyContent:"space-between",gap:10}}>
+            <div style={{minWidth:0}}>
+              <div style={{fontSize:12,color:DIM}}>Автокольори учнів</div>
+              <div style={{fontSize:10,color:DIM,opacity:0.7,marginTop:2}}>Увімкнено — кольори слотів розподіляються автоматично. Вимкнено — колір задається вручну в картці учня</div>
+            </div>
+            <Toggle color={svColor(settings.autoStudentColors !== false)} on={settings.autoStudentColors !== false} onChange={v=>upd("autoStudentColors",v)}/>
+          </div>
         </div>
       );
 
