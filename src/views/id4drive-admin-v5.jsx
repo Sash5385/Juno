@@ -3367,6 +3367,24 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                     {(isVip || slot.vipOnly) && <span style={{position:"absolute", top:3, right:4, fontSize:10, lineHeight:1}}>👑</span>}
                     {isPrivateOnly && <span style={{position:"absolute", top:3, right:4, fontSize:10, lineHeight:1}}>🚗</span>}
 
+                    {slot.available && !isVip && !isBlocked && !isPrivateOnly && !hasSurcharge && (() => {
+                      // Час початку/кінця вільного слота — великий, білий і напівпрозорий
+                      // фон-підпис (не заважає іншим елементам: pointerEvents:none, під ними).
+                      const hhmm = (mm) => `${String(Math.floor(mm/60)).padStart(2,"0")}:${String(mm%60).padStart(2,"0")}`;
+                      const fs = Math.min(COL_W * 0.3, 22, (displayHeightMin * PX_PER_MIN) * 0.36);
+                      if (fs < 8) return null;
+                      return (
+                        <div style={{
+                          position:"absolute", inset:0, display:"flex", flexDirection:"column",
+                          alignItems:"center", justifyContent:"center", pointerEvents:"none",
+                          color:"#fff", opacity:0.28, fontSize:fs, fontWeight:800, lineHeight:1.05,
+                          letterSpacing:-0.3, fontVariantNumeric:"tabular-nums",
+                        }}>
+                          <span>{hhmm(displayStartMin)}</span>
+                          <span>{hhmm(displayStartMin + displayHeightMin)}</span>
+                        </div>
+                      );
+                    })()}
                     {hasViewer && <span style={{position:"absolute", bottom:3, right:4, fontSize:8, lineHeight:1, opacity:0.8}}>👁</span>}
                     {isBlocked && (() => { const qc = queueMap[`${dateStrCol}_${time}`]; return qc > 0 ? (
                       <div style={{position:"absolute", bottom:2, right:4, display:"flex", alignItems:"center", gap:1}}>
