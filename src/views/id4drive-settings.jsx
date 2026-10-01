@@ -199,16 +199,152 @@ function TimeInput({ value, onChange, min=0, max=24, compact=false }) {
   const disp = `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}`;
   const dec = () => { const n = Math.round((v - 0.5) * 2) / 2; onChange(Math.max(min, n)); };
   const inc = () => { const n = Math.round((v + 0.5) * 2) / 2; onChange(Math.min(max, n)); };
-  const bW = compact ? 14 : 20;
-  const bH = compact ? 20 : 26;
-  const fS = compact ? 11 : 14;
-  const dW = compact ? 28 : 36;
-  const dS = compact ? 9 : 11;
+  const bW = compact ? 14 : 32;
+  const bH = compact ? 20 : 38;
+  const fS = compact ? 11 : 22;
+  const dW = compact ? 28 : 64;
+  const dS = compact ? 9 : 18;
   return (
     <div style={{display:"flex",alignItems:"center",background:BG_DEEP,borderRadius:7,boxShadow:SI,overflow:"hidden"}}>
       <button onClick={dec} style={{width:bW,height:bH,border:"none",cursor:"pointer",background:"transparent",color:FAINT,fontSize:fS,padding:0,lineHeight:1}}>‹</button>
       <span style={{fontSize:dS,fontWeight:700,color:TEXT,minWidth:dW,textAlign:"center"}}>{disp}</span>
       <button onClick={inc} style={{width:bW,height:bH,border:"none",cursor:"pointer",background:"transparent",color:FAINT,fontSize:fS,padding:0,lineHeight:1}}>›</button>
+    </div>
+  );
+}
+
+// ─── БАРАБАН ЧАСУ — крупний вибір часу прокруткою (scroll-snap) ──────────
+const WHEEL_ITEM = 36;
+const WHEEL_H = Array.from({length:25},(_,i)=>String(i).padStart(2,"0"));
+const WHEEL_M = ["00","30"];
+
+function WheelCol({ items, index, onIndex, rows = 5, width = 56, color }) {
+  const { TEXT, FAINT, GREEN, BG_DEEP } = useContext(ThemeContext);
+  const c = color || GREEN;
+  const ref = useRef(null);
+  const timer = useRef(null);
+  const [live, setLive] = useState(index);
+  const [tick, setTick] = useState(0);
+  const pad = ((rows - 1) / 2) * WHEEL_ITEM;
+  useEffect(() => {
+    const el = ref.current;
+    if (el && Math.abs(el.scrollTop - index * WHEEL_ITEM) > 1) el.scrollTo({ top: index * WHEEL_ITEM });
+    setLive(index);
+  }, [index, tick]);
+  useEffect(() => () => clearTimeout(timer.current), []);
+  const onScroll = () => {
+    const el = ref.current;
+    if (!el) return;
+    const i = Math.max(0, Math.min(items.length - 1, Math.round(el.scrollTop / WHEEL_ITEM)));
+    setLive(i);
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => { if (i !== index) onIndex(i); setTick(t => t + 1); }, 140);
+  };
+  const mask = "linear-gradient(transparent,#000 30%,#000 70%,transparent)";
+  return (
+    <div style={{position:"relative",width,height:rows*WHEEL_ITEM,flexShrink:0}}>
+      <style>{`.wheel-col::-webkit-scrollbar{display:none}`}</style>
+      <div style={{position:"absolute",left:0,right:0,top:pad,height:WHEEL_ITEM,pointerEvents:"none",
+        borderTop:`2px solid ${c}`,borderBottom:`2px solid ${c}`,
+        background:`color-mix(in srgb,${c} 10%,transparent)`}}/>
+      <div ref={ref} className="wheel-col" onScroll={onScroll} style={{
+        height:"100%",overflowY:"scroll",scrollSnapType:"y mandatory",scrollbarWidth:"none",
+        overscrollBehavior:"contain",WebkitOverflowScrolling:"touch",
+        maskImage:mask,WebkitMaskImage:mask,
+      }}>
+        <div style={{height:pad}}/>
+        {items.map((it, i) => {
+          const o = Math.abs(i - live);
+          return (
+            <div key={i} onClick={()=>ref.current?.scrollTo({top:i*WHEEL_ITEM,behavior:"smooth"})} style={{
+              height:WHEEL_ITEM,scrollSnapAlign:"center",display:"flex",alignItems:"center",justifyContent:"center",
+              fontSize:o===0?24:o===1?19:16,fontWeight:800,cursor:"pointer",userSelect:"none",
+              color:o===0?TEXT:FAINT,opacity:o===0?1:o===1?0.55:0.25,
+            }}>{it}</div>
+          );
+        })}
+        <div style={{height:pad}}/>
+      </div>
+    </div>
+  );
+}
+
+function TimeWheel({ label, value, onChange, min = 0, max = 24, rows = 5, color }) {
+  const { DIM, TEXT } = useContext(ThemeContext);
+  const v = Math.min(max, Math.max(min, Number(value) || 0));
+  const h = Math.floor(v);
+  const m = v % 1 >= 0.5 ? 1 : 0;
+  const set = (nh, nm) => onChange(Math.min(max, Math.max(min, nh + nm * 0.5)));
+  return (
+    <div style={{textAlign:"center"}}>
+      <div style={{fontSize:11,fontWeight:800,letterSpacing:1,color:color||DIM,marginBottom:4}}>{label}</div>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:2}}>
+        <WheelCol items={WHEEL_H} index={h} onIndex={i=>set(i,m)} rows={rows} color={color}/>
+        <span style={{fontSize:24,fontWeight:800,color:TEXT}}>:</span>
+        <WheelCol items={WHEEL_M} index={m} onIndex={i=>set(h,i)} rows={rows} color={color}/>
+      </div>
+    </div>
+  );
+}
+
+function WeekScheduleEditor({ weekSchedule, updDay, setWeek }) {
+  const { BG_DEEP, TEXT, DIM, FAINT, GREEN, RED, GOLD, ACCENT, SI } = useContext(ThemeContext);
+  const [sel, setSel] = useState(0);
+  const day = weekSchedule[sel];
+  const lS = day.lunchStart ?? 12, lE = day.lunchEnd ?? 13;
+  const fmt = x => `${String(Math.floor(x)).padStart(2,"0")}:${x % 1 >= 0.5 ? "30" : "00"}`;
+  const hrs = d => d.enabled ? Math.max(0, d.end - d.start - (d.lunchEnabled ? Math.max(0, (d.lunchEnd ?? 13) - (d.lunchStart ?? 12)) : 0)) : 0;
+  const total = weekSchedule.reduce((s, d) => s + hrs(d), 0);
+  const copyAll = () => setWeek(weekSchedule.map(d => d.enabled
+    ? {...d, start: day.start, end: day.end, lunchEnabled: !!day.lunchEnabled, lunchStart: lS, lunchEnd: lE}
+    : d));
+  return (
+    <div style={{paddingTop:8}}>
+      <div style={{fontSize:11,color:"#fff",letterSpacing:1,textTransform:"uppercase",marginBottom:8,textAlign:"center"}}>Тижневий шаблон</div>
+      <div style={{display:"flex",gap:4,marginBottom:8}}>
+        {DAY_NAMES.map((n, i) => {
+          const d = weekSchedule[i];
+          const col = d.enabled ? GREEN : RED;
+          return (
+            <button key={i} onClick={()=>setSel(i)} style={{
+              flex:1,minWidth:0,padding:"11px 0",borderRadius:10,cursor:"pointer",fontSize:13,fontWeight:800,
+              color:d.enabled?"#fff":FAINT,
+              background:`linear-gradient(135deg,color-mix(in srgb,${col} ${d.enabled?38:22}%,${BG_DEEP}) 0%,${BG_DEEP} 100%)`,
+              border:`1px solid color-mix(in srgb,${col} 32%,transparent)`,
+              outline:i===sel?`2px solid ${TEXT}`:"none",outlineOffset:1,
+            }}>{n}</button>
+          );
+        })}
+      </div>
+      <div style={{borderRadius:14,padding:"12px 10px",background:BG_DEEP,boxShadow:SI}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:day.enabled?10:0}}>
+          <span style={{fontSize:15,fontWeight:800,color:TEXT}}>{DAY_NAMES[sel]} · {day.enabled ? `${hrs(day)} год` : "Вихідний"}</span>
+          <Toggle color={day.enabled?GREEN:RED} on={day.enabled} onChange={v=>updDay(sel,{enabled:v})}/>
+        </div>
+        {day.enabled && (<>
+          <div style={{display:"flex",justifyContent:"space-around",flexWrap:"wrap",gap:8}}>
+            <TimeWheel label="З" value={day.start} onChange={v=>updDay(sel,{start:v})} min={0} max={day.end-0.5}/>
+            <TimeWheel label="ДО" value={day.end} onChange={v=>updDay(sel,{end:v})} min={day.start+0.5} max={24}/>
+          </div>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginTop:12,padding:"10px 12px",borderRadius:12,background:`color-mix(in srgb,${GOLD} 12%,transparent)`}}>
+            <span style={{fontSize:15,fontWeight:700,color:TEXT}}>🍽 Перерва{day.lunchEnabled?` · ${fmt(lS)}–${fmt(lE)}`:""}</span>
+            <Toggle color={day.lunchEnabled?GREEN:RED} on={!!day.lunchEnabled} onChange={v=>updDay(sel,{lunchEnabled:v})}/>
+          </div>
+          {day.lunchEnabled && (
+            <div style={{display:"flex",justifyContent:"space-around",flexWrap:"wrap",gap:8,marginTop:8}}>
+              <TimeWheel label="ПЕРЕРВА З" color={GOLD} rows={3} value={lS} onChange={v=>updDay(sel,{lunchStart:v})} min={0} max={lE-0.5}/>
+              <TimeWheel label="ДО" color={GOLD} rows={3} value={lE} onChange={v=>updDay(sel,{lunchEnd:v})} min={lS+0.5} max={24}/>
+            </div>
+          )}
+        </>)}
+      </div>
+      {day.enabled && (
+        <button onClick={copyAll} style={{width:"100%",marginTop:8,padding:"12px",borderRadius:12,cursor:"pointer",fontSize:13,fontWeight:800,
+          background:"transparent",color:ACCENT,border:`1px dashed color-mix(in srgb,${ACCENT} 55%,transparent)`}}>
+          Копіювати {DAY_NAMES[sel]} на всі робочі дні
+        </button>
+      )}
+      <div style={{textAlign:"center",fontSize:12,color:DIM,marginTop:8}}>Усього {total} год на тиждень</div>
     </div>
   );
 }
@@ -694,44 +830,7 @@ select{color-scheme:${isKava?"light":"dark"}}
           <Row compact last color={svColor(settings.lockPastBookings)} label="Блокувати минулі записи" hint="Заборонити редагувати, переносити й скасовувати записи, що вже минули — вони підсвічуються тьмяніше">
             <Toggle color={svColor(settings.lockPastBookings)} on={!!settings.lockPastBookings} onChange={v=>upd("lockPastBookings",v)}/>
           </Row>
-          <div style={{paddingTop:8}}>
-            <div style={{fontSize:9,color:"#fff",letterSpacing:1,textTransform:"uppercase",marginBottom:6,textAlign:"center"}}>Тижневий шаблон</div>
-            <div style={{display:"flex",flexDirection:"column",gap:3}}>
-              {DAY_NAMES.map((dayName, i) => {
-                const day = weekSchedule[i];
-                return (
-                  <div key={i} style={{
-                    borderRadius:8,padding:"5px 8px",
-                    background:day.enabled?`linear-gradient(135deg,color-mix(in srgb,${GREEN} 38%,${BG_DEEP}) 0%,${BG_DEEP} 100%)`:`linear-gradient(135deg,color-mix(in srgb,${RED} 22%,${BG_DEEP}) 0%,${BG_DEEP} 100%)`,
-                    border:day.enabled?`1px solid color-mix(in srgb,${GREEN} 32%,transparent)`:`1px solid color-mix(in srgb,${RED} 25%,transparent)`,
-                  }}>
-                    <div style={{display:"flex",alignItems:"center",gap:6}}>
-                      <span style={{width:20,fontSize:11,fontWeight:800,color:day.enabled?"#fff":FAINT,flexShrink:0}}>{dayName}</span>
-                      <SmallToggle color={svColor(day.enabled)} on={day.enabled} onChange={v=>updDay(i,{enabled:v})}/>
-                      {day.enabled ? (<>
-                        <span style={{flex:1}}/>
-                        <TimeInput compact value={day.start} onChange={v=>updDay(i,{start:Math.min(v,day.end-0.5)})} min={0} max={23}/>
-                        <span style={{fontSize:9,color:FAINT,margin:"0 2px"}}>—</span>
-                        <TimeInput compact value={day.end} onChange={v=>updDay(i,{end:Math.max(v,day.start+0.5)})} min={0.5} max={24}/>
-                        <span style={{fontSize:12,flexShrink:0,marginLeft:4}}>🍽</span>
-                        <SmallToggle color={svColor(!!day.lunchEnabled)} on={!!day.lunchEnabled} onChange={v=>updDay(i,{lunchEnabled:v})}/>
-                      </>) : (
-                        <span style={{fontSize:10,color:FAINT,marginLeft:4}}>Вихідний</span>
-                      )}
-                    </div>
-                    {day.enabled && day.lunchEnabled && (
-                      <div style={{display:"flex",alignItems:"center",gap:6,marginTop:4,paddingLeft:26}}>
-                        <span style={{fontSize:10,color:FAINT,flex:1}}>перерва</span>
-                        <TimeInput compact value={day.lunchStart??12} onChange={v=>updDay(i,{lunchStart:Math.min(v,(day.lunchEnd??13)-0.5)})} min={0} max={23}/>
-                        <span style={{fontSize:9,color:FAINT,margin:"0 2px"}}>—</span>
-                        <TimeInput compact value={day.lunchEnd??13} onChange={v=>updDay(i,{lunchEnd:Math.max(v,(day.lunchStart??12)+0.5)})} min={0.5} max={24}/>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+          <WeekScheduleEditor weekSchedule={weekSchedule} updDay={updDay} setWeek={v=>upd("weekSchedule",v)}/>
         </div>
       );
 
