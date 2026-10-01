@@ -1195,42 +1195,56 @@ const BACKUP_KEYS = [
   "dayNotes", "studentColors", "license", "reviews", "activeStudents",
 ];
 
+// Саме копіювання. Викликається і нічним розкладом (якщо тумблер увімкнено), і кнопкою
+// "Зробити копію зараз" (system/backupRequest) — вона працює незалежно від тумблера.
+async function runBackup(trigger) {
+  const startedAt = Date.now();
+  const date = new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Kyiv" }); // YYYY-MM-DD
+  try {
+    const bucket = admin.storage().bucket(BACKUP_BUCKET);
+    const instructors = (await db.ref("instructors").get()).val() || {};
+    let count = 0, bytes = 0;
+
+    for (const [iid, inst] of Object.entries(instructors)) {
+      const data = {};
+      for (const k of BACKUP_KEYS) if (inst?.[k] !== undefined) data[k] = inst[k];
+      const body = JSON.stringify({ iid, date, savedAt: startedAt, trigger, data });
+      await bucket.file(`backups/${date}/${iid}.json`).save(body, { contentType: "application/json", resumable: false });
+      count++; bytes += Buffer.byteLength(body);
+    }
+
+    // Видаляємо копії старші за BACKUP_KEEP_DAYS днів
+    const cutoff = new Date(startedAt - BACKUP_KEEP_DAYS * 86400000).toLocaleDateString("sv-SE", { timeZone: "Europe/Kyiv" });
+    const [files] = await bucket.getFiles({ prefix: "backups/" });
+    let removed = 0;
+    for (const f of files) {
+      const m = /^backups\/(\d{4}-\d{2}-\d{2})\//.exec(f.name);
+      if (m && m[1] < cutoff) { await f.delete().catch(() => {}); removed++; }
+    }
+
+    await db.ref("system/backupStatus").set({ ok: true, at: Date.now(), date, instructors: count, bytes, removed, trigger });
+    console.log(`backup(${trigger}): ok date=${date} instructors=${count} bytes=${bytes} removed=${removed}`);
+  } catch (e) {
+    console.error("backup error:", e);
+    await db.ref("system/backupStatus").set({ ok: false, at: Date.now(), date, trigger, error: String(e?.message || e).slice(0, 300) }).catch(() => {});
+  }
+}
+
 exports.nightlyBackup = onSchedule(
   { schedule: "every day 03:00", timeZone: "Europe/Kyiv", region: "europe-west1", timeoutSeconds: 540, memory: "512MiB" },
   async () => {
     const enabled = (await db.ref("system/backupEnabled").get()).val() === true;
     if (!enabled) { console.log("nightlyBackup: вимкнено в суперадмінці — пропуск"); return; }
+    await runBackup("schedule");
+  }
+);
 
-    const startedAt = Date.now();
-    const date = new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Kyiv" }); // YYYY-MM-DD
-    try {
-      const bucket = admin.storage().bucket(BACKUP_BUCKET);
-      const instructors = (await db.ref("instructors").get()).val() || {};
-      let count = 0, bytes = 0;
-
-      for (const [iid, inst] of Object.entries(instructors)) {
-        const data = {};
-        for (const k of BACKUP_KEYS) if (inst?.[k] !== undefined) data[k] = inst[k];
-        const body = JSON.stringify({ iid, date, savedAt: startedAt, data });
-        await bucket.file(`backups/${date}/${iid}.json`).save(body, { contentType: "application/json", resumable: false });
-        count++; bytes += Buffer.byteLength(body);
-      }
-
-      // Видаляємо копії старші за BACKUP_KEEP_DAYS днів
-      const cutoff = new Date(startedAt - BACKUP_KEEP_DAYS * 86400000).toLocaleDateString("sv-SE", { timeZone: "Europe/Kyiv" });
-      const [files] = await bucket.getFiles({ prefix: "backups/" });
-      let removed = 0;
-      for (const f of files) {
-        const m = /^backups\/(\d{4}-\d{2}-\d{2})\//.exec(f.name);
-        if (m && m[1] < cutoff) { await f.delete().catch(() => {}); removed++; }
-      }
-
-      await db.ref("system/backupStatus").set({ ok: true, at: Date.now(), date, instructors: count, bytes, removed });
-      console.log(`nightlyBackup: ok date=${date} instructors=${count} bytes=${bytes} removed=${removed}`);
-    } catch (e) {
-      console.error("nightlyBackup error:", e);
-      await db.ref("system/backupStatus").set({ ok: false, at: Date.now(), date, error: String(e?.message || e).slice(0, 300) }).catch(() => {});
-    }
+// Кнопка "Зробити копію зараз" у суперадмінці пише system/backupRequest = Date.now()
+exports.manualBackup = onValueWritten(
+  { ref: "system/backupRequest", region: "europe-west1", timeoutSeconds: 540, memory: "512MiB" },
+  async (event) => {
+    if (!event.data.after.val()) return;
+    await runBackup("manual");
   }
 );
 

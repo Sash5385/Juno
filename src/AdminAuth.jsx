@@ -597,10 +597,15 @@ export function SuperAdminScreen() {
   // Нічна резервна копія (functions: nightlyBackup) — вмикається тут
   const [backupOn, setBackupOn] = useState(null);
   const [backupStatus, setBackupStatus] = useState(null);
+  const [backupRequestedAt, setBackupRequestedAt] = useState(0);
+  // Копія "зараз": чекаємо, поки статус оновиться пізніше за запит (максимум 10 хв)
+  const backupPending = backupRequestedAt > (backupStatus?.at || 0) && Date.now() - backupRequestedAt < 10 * 60000;
+  const backupNow = () => set(ref(db, "system/backupRequest"), Date.now()).catch(() => alert("Не вдалося запустити копію"));
   useEffect(() => {
     const u1 = onValue(ref(db, "system/backupEnabled"), snap => setBackupOn(snap.val() === true));
     const u2 = onValue(ref(db, "system/backupStatus"), snap => setBackupStatus(snap.val()));
-    return () => { u1(); u2(); };
+    const u3 = onValue(ref(db, "system/backupRequest"), snap => setBackupRequestedAt(snap.val() || 0));
+    return () => { u1(); u2(); u3(); };
   }, []);
   const toggleBackup = () => set(ref(db, "system/backupEnabled"), !backupOn).catch(() => alert("Не вдалося змінити налаштування резервної копії"));
   const [expandedIid, setExpandedIid] = useState(null);
@@ -634,7 +639,19 @@ export function SuperAdminScreen() {
     setBusyIid(null);
   };
 
+  // Зменшити термін на місяць (скасувати помилково додану оплату). Для trial — trialEndsAt.
+  const shrink = async (iid) => {
+    const lic = licenses[iid];
+    const field = lic?.status === "trial" ? "trialEndsAt" : "expiresAt";
+    if (!lic || !lic[field]) return;
+    if (!window.confirm("Зменшити термін підписки на місяць?")) return;
+    setBusyIid(iid);
+    await update(ref(db, `instructors/${iid}/license`), { [field]: lic[field] - LICENSE_PERIOD_MS }).catch(() => {});
+    setBusyIid(null);
+  };
+
   const suspend = async (iid) => {
+    if (!window.confirm("Призупинити підписку? Інструктор перейде в режим читання одразу.")) return;
     setBusyIid(iid);
     await update(ref(db, `instructors/${iid}/license`), { status: "suspended" }).catch(() => {});
     setBusyIid(null);
@@ -874,21 +891,25 @@ export function SuperAdminScreen() {
                   {lic.lastPaymentAt && <span>Остання оплата: <b style={{ color:TEXT }}>{fmtD(lic.lastPaymentAt)}</b>{lic.provider ? ` (${lic.provider})` : ""}</span>}
                 </div>
               )}
-              <div style={{ display:"flex", gap:6, marginTop:12 }}>
+              <div style={{ display:"flex", gap:6, marginTop:12, flexWrap:"wrap" }}>
                 <button onClick={() => extend(iid, "month")} disabled={busy}
-                  style={{ flex:1, padding:"8px", borderRadius:8, background:"rgba(76,175,107,0.15)", border:`1px solid rgba(76,175,107,0.3)`, color:"#4caf6b", fontSize:12, fontWeight:700, cursor: busy?"default":"pointer" }}>
+                  style={{ flex:"1 1 70px", padding:"8px", borderRadius:8, background:"rgba(76,175,107,0.15)", border:`1px solid rgba(76,175,107,0.3)`, color:"#4caf6b", fontSize:12, fontWeight:700, cursor: busy?"default":"pointer" }}>
                   + Місяць
                 </button>
                 <button onClick={() => extend(iid, "year")} disabled={busy}
-                  style={{ flex:1, padding:"8px", borderRadius:8, background:"rgba(76,175,107,0.15)", border:`1px solid rgba(76,175,107,0.3)`, color:"#4caf6b", fontSize:12, fontWeight:700, cursor: busy?"default":"pointer" }}>
+                  style={{ flex:"1 1 70px", padding:"8px", borderRadius:8, background:"rgba(76,175,107,0.15)", border:`1px solid rgba(76,175,107,0.3)`, color:"#4caf6b", fontSize:12, fontWeight:700, cursor: busy?"default":"pointer" }}>
                   + Рік
                 </button>
+                <button onClick={() => shrink(iid)} disabled={busy || !lic || !(lic.status === "trial" ? lic.trialEndsAt : lic.expiresAt)}
+                  style={{ flex:"1 1 70px", padding:"8px", borderRadius:8, background:"rgba(247,201,72,0.12)", border:"1px solid rgba(247,201,72,0.35)", color:"#f7c948", fontSize:12, fontWeight:700, cursor: busy?"default":"pointer" }}>
+                  − Місяць
+                </button>
                 <button onClick={() => suspend(iid)} disabled={busy || lic?.status === "suspended"}
-                  style={{ flex:1, padding:"8px", borderRadius:8, background:"rgba(255,90,60,0.1)", border:`1px solid rgba(255,90,60,0.25)`, color:ACCENT, fontSize:12, fontWeight:700, cursor: (busy||lic?.status==="suspended")?"default":"pointer", opacity: lic?.status==="suspended"?0.5:1 }}>
+                  style={{ flex:"1 1 70px", padding:"8px", borderRadius:8, background:"rgba(255,90,60,0.1)", border:`1px solid rgba(255,90,60,0.25)`, color:ACCENT, fontSize:12, fontWeight:700, cursor: (busy||lic?.status==="suspended")?"default":"pointer", opacity: lic?.status==="suspended"?0.5:1 }}>
                   Призупинити
                 </button>
                 <button onClick={() => toggleBookings(iid)}
-                  style={{ flex:1, padding:"8px", borderRadius:8, background:"rgba(91,155,255,0.15)", border:"1px solid rgba(91,155,255,0.35)", color:"#5b9bff", fontSize:12, fontWeight:700, cursor:"pointer" }}>
+                  style={{ flex:"1 1 70px", padding:"8px", borderRadius:8, background:"rgba(91,155,255,0.15)", border:"1px solid rgba(91,155,255,0.35)", color:"#5b9bff", fontSize:12, fontWeight:700, cursor:"pointer" }}>
                   {expandedIid === iid ? "Сховати записи" : "📋 Записи"}
                 </button>
               </div>
@@ -951,6 +972,12 @@ export function SuperAdminScreen() {
                       : `Помилка останньої копії (${new Date(backupStatus.at).toLocaleString("uk")}): ${backupStatus.error || "—"}`)
                   : (backupOn ? "Перша копія буде створена найближчої ночі" : "Вимкнено — копії не створюються")}
               </div>
+              <button onClick={backupNow} disabled={backupPending}
+                style={{ marginTop:12, width:"100%", padding:"11px", borderRadius:12, cursor: backupPending ? "default" : "pointer", fontSize:13, fontWeight:800,
+                  background: backupPending ? "rgba(255,255,255,0.08)" : "rgba(192,132,252,0.18)", border:"1px solid rgba(192,132,252,0.5)", color:"#c084fc" }}>
+                {backupPending ? "⏳ Копія створюється…" : "💾 Зробити копію зараз"}
+              </button>
+              <div style={{ fontSize:10, color:"rgba(255,255,255,0.45)", marginTop:6 }}>Працює незалежно від тумблера. Файли: Storage → backups/дата/</div>
             </>)}
             {panel("#5b9bff", <>
               <div style={{ fontSize:14, fontWeight:800, color:TEXT, marginBottom:6 }}>ℹ️ Акаунт</div>
