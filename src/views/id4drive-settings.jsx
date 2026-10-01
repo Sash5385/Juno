@@ -214,13 +214,14 @@ function TimeInput({ value, onChange, min=0, max=24, compact=false }) {
 }
 
 // ─── БАРАБАН ЧАСУ — крупний вибір часу прокруткою (scroll-snap) ──────────
-const WHEEL_ITEM = 36;
+// Крок хвилин 30: календар (сітка, підписи, лінії) побудований на півгодинних
+// рядках, дробові 15/10/5 хв зламали б вирівнювання сітки.
+const WHEEL_ITEM = 40;
 const WHEEL_H = Array.from({length:25},(_,i)=>String(i).padStart(2,"0"));
 const WHEEL_M = ["00","30"];
 
-function WheelCol({ items, index, onIndex, rows = 5, width = 56, color }) {
-  const { TEXT, FAINT, GREEN, BG_DEEP } = useContext(ThemeContext);
-  const c = color || GREEN;
+function WheelCol({ items, index, onIndex, rows = 5, width = 48 }) {
+  const { TEXT, FAINT } = useContext(ThemeContext);
   const ref = useRef(null);
   const timer = useRef(null);
   const [live, setLive] = useState(index);
@@ -240,13 +241,10 @@ function WheelCol({ items, index, onIndex, rows = 5, width = 56, color }) {
     clearTimeout(timer.current);
     timer.current = setTimeout(() => { if (i !== index) onIndex(i); setTick(t => t + 1); }, 140);
   };
-  const mask = "linear-gradient(transparent,#000 30%,#000 70%,transparent)";
+  const mask = "linear-gradient(transparent,#000 28%,#000 72%,transparent)";
   return (
-    <div style={{position:"relative",width,height:rows*WHEEL_ITEM,flexShrink:0}}>
+    <div style={{position:"relative",zIndex:1,width,height:rows*WHEEL_ITEM,flexShrink:0}}>
       <style>{`.wheel-col::-webkit-scrollbar{display:none}`}</style>
-      <div style={{position:"absolute",left:0,right:0,top:pad,height:WHEEL_ITEM,pointerEvents:"none",
-        borderTop:`2px solid ${c}`,borderBottom:`2px solid ${c}`,
-        background:`color-mix(in srgb,${c} 10%,transparent)`}}/>
       <div ref={ref} className="wheel-col" onScroll={onScroll} style={{
         height:"100%",overflowY:"scroll",scrollSnapType:"y mandatory",scrollbarWidth:"none",
         overscrollBehavior:"contain",WebkitOverflowScrolling:"touch",
@@ -254,12 +252,15 @@ function WheelCol({ items, index, onIndex, rows = 5, width = 56, color }) {
       }}>
         <div style={{height:pad}}/>
         {items.map((it, i) => {
-          const o = Math.abs(i - live);
+          const o = i - live;
+          const a = Math.abs(o);
           return (
             <div key={i} onClick={()=>ref.current?.scrollTo({top:i*WHEEL_ITEM,behavior:"smooth"})} style={{
               height:WHEEL_ITEM,scrollSnapAlign:"center",display:"flex",alignItems:"center",justifyContent:"center",
-              fontSize:o===0?24:o===1?19:16,fontWeight:800,cursor:"pointer",userSelect:"none",
-              color:o===0?TEXT:FAINT,opacity:o===0?1:o===1?0.55:0.25,
+              fontSize:a===0?30:a===1?22:18,fontWeight:800,cursor:"pointer",userSelect:"none",
+              fontVariantNumeric:"tabular-nums",
+              transform:`perspective(240px) rotateX(${Math.max(-70,Math.min(70,-o*28))}deg)`,
+              color:a===0?TEXT:FAINT,opacity:a===0?1:a===1?0.6:0.28,
             }}>{it}</div>
           );
         })}
@@ -270,228 +271,117 @@ function WheelCol({ items, index, onIndex, rows = 5, width = 56, color }) {
 }
 
 function TimeWheel({ label, value, onChange, min = 0, max = 24, rows = 5, color }) {
-  const { DIM, TEXT } = useContext(ThemeContext);
+  const { DIM, TEXT, GREEN, BG_DEEP } = useContext(ThemeContext);
+  const c = color || GREEN;
   const v = Math.min(max, Math.max(min, Number(value) || 0));
   const h = Math.floor(v);
   const m = v % 1 >= 0.5 ? 1 : 0;
   const set = (nh, nm) => onChange(Math.min(max, Math.max(min, nh + nm * 0.5)));
+  const pad = ((rows - 1) / 2) * WHEEL_ITEM;
   return (
     <div style={{textAlign:"center"}}>
-      <div style={{fontSize:11,fontWeight:800,letterSpacing:1,color:color||DIM,marginBottom:4}}>{label}</div>
-      <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:2}}>
-        <WheelCol items={WHEEL_H} index={h} onIndex={i=>set(i,m)} rows={rows} color={color}/>
-        <span style={{fontSize:24,fontWeight:800,color:TEXT}}>:</span>
-        <WheelCol items={WHEEL_M} index={m} onIndex={i=>set(h,i)} rows={rows} color={color}/>
+      <div style={{display:"inline-block",fontSize:11,fontWeight:800,letterSpacing:1.2,color:c,marginBottom:6,
+        padding:"3px 12px",borderRadius:999,background:`color-mix(in srgb,${c} 14%,transparent)`}}>{label}</div>
+      <div style={{position:"relative",display:"flex",alignItems:"center",justifyContent:"center",gap:2,padding:"0 4px"}}>
+        <div style={{position:"absolute",left:0,right:0,top:pad,height:WHEEL_ITEM,pointerEvents:"none",borderRadius:14,
+          background:`linear-gradient(135deg,color-mix(in srgb,${c} 32%,${BG_DEEP}),color-mix(in srgb,${c} 10%,${BG_DEEP}))`,
+          border:`1px solid color-mix(in srgb,${c} 55%,transparent)`,
+          boxShadow:`0 0 18px color-mix(in srgb,${c} 28%,transparent), inset 0 1px 0 rgba(255,255,255,.12)`}}/>
+        <WheelCol items={WHEEL_H} index={h} onIndex={i=>set(i,m)} rows={rows}/>
+        <span style={{position:"relative",zIndex:1,fontSize:28,fontWeight:800,color:TEXT,marginTop:-3}}>:</span>
+        <WheelCol items={WHEEL_M} index={m} onIndex={i=>set(h,i)} rows={rows}/>
       </div>
     </div>
   );
 }
 
 function WeekScheduleEditor({ weekSchedule, updDay, setWeek }) {
-  const { BG_DEEP, TEXT, DIM, FAINT, GREEN, RED, GOLD, ACCENT, SI } = useContext(ThemeContext);
+  const { BG_DEEP, SURF_HI, SURFACE, TEXT, DIM, FAINT, GREEN, RED, GOLD, ACCENT, SI, SO } = useContext(ThemeContext);
   const [sel, setSel] = useState(0);
   const day = weekSchedule[sel];
   const lS = day.lunchStart ?? 12, lE = day.lunchEnd ?? 13;
   const fmt = x => `${String(Math.floor(x)).padStart(2,"0")}:${x % 1 >= 0.5 ? "30" : "00"}`;
   const hrs = d => d.enabled ? Math.max(0, d.end - d.start - (d.lunchEnabled ? Math.max(0, (d.lunchEnd ?? 13) - (d.lunchStart ?? 12)) : 0)) : 0;
   const total = weekSchedule.reduce((s, d) => s + hrs(d), 0);
+  const pct = x => `${(Math.max(0, Math.min(24, x)) / 24) * 100}%`;
   const copyAll = () => setWeek(weekSchedule.map(d => d.enabled
     ? {...d, start: day.start, end: day.end, lunchEnabled: !!day.lunchEnabled, lunchStart: lS, lunchEnd: lE}
     : d));
   return (
-    <div style={{paddingTop:8}}>
-      <div style={{fontSize:11,color:"#fff",letterSpacing:1,textTransform:"uppercase",marginBottom:8,textAlign:"center"}}>Тижневий шаблон</div>
-      <div style={{display:"flex",gap:4,marginBottom:8}}>
+    <div style={{paddingTop:10}}>
+      <div style={{fontSize:11,color:"#fff",letterSpacing:1.2,textTransform:"uppercase",marginBottom:10,textAlign:"center"}}>Тижневий шаблон</div>
+      <div style={{display:"flex",gap:5,marginBottom:10}}>
         {DAY_NAMES.map((n, i) => {
           const d = weekSchedule[i];
           const col = d.enabled ? GREEN : RED;
+          const on = i === sel;
           return (
             <button key={i} onClick={()=>setSel(i)} style={{
-              flex:1,minWidth:0,padding:"11px 0",borderRadius:10,cursor:"pointer",fontSize:13,fontWeight:800,
-              color:d.enabled?"#fff":FAINT,
-              background:`linear-gradient(135deg,color-mix(in srgb,${col} ${d.enabled?38:22}%,${BG_DEEP}) 0%,${BG_DEEP} 100%)`,
-              border:`1px solid color-mix(in srgb,${col} 32%,transparent)`,
-              outline:i===sel?`2px solid ${TEXT}`:"none",outlineOffset:1,
-            }}>{n}</button>
+              flex:1,minWidth:0,padding:"9px 0 8px",borderRadius:14,cursor:"pointer",
+              display:"flex",flexDirection:"column",alignItems:"center",gap:2,
+              background:on
+                ?`linear-gradient(160deg,color-mix(in srgb,${col} 70%,#fff),${col})`
+                :`linear-gradient(160deg,color-mix(in srgb,${col} ${d.enabled?28:16}%,${BG_DEEP}),${BG_DEEP})`,
+              border:`1px solid color-mix(in srgb,${col} ${on?90:30}%,transparent)`,
+              boxShadow:on?`0 4px 14px color-mix(in srgb,${col} 45%,transparent)`:"none",
+              transform:on?"translateY(-2px)":"none",transition:"all .15s",
+            }}>
+              <span style={{fontSize:14,fontWeight:800,color:on?"#0b1a08":d.enabled?"#fff":FAINT}}>{n}</span>
+              <span style={{fontSize:10,fontWeight:700,color:on?"#0b1a08":FAINT}}>{d.enabled ? `${hrs(d)}г` : "—"}</span>
+            </button>
           );
         })}
       </div>
-      <div style={{borderRadius:14,padding:"12px 10px",background:BG_DEEP,boxShadow:SI}}>
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:day.enabled?10:0}}>
-          <span style={{fontSize:15,fontWeight:800,color:TEXT}}>{DAY_NAMES[sel]} · {day.enabled ? `${hrs(day)} год` : "Вихідний"}</span>
+      <div style={{borderRadius:20,padding:"14px 10px 12px",background:`linear-gradient(160deg,${SURF_HI},${SURFACE})`,boxShadow:SO,
+        border:"1px solid rgba(255,255,255,.06)"}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 4px"}}>
+          <div>
+            <div style={{fontSize:day.enabled?28:20,fontWeight:800,color:day.enabled?TEXT:FAINT,letterSpacing:-.5,lineHeight:1.1}}>
+              {day.enabled ? <>{fmt(day.start)} <span style={{color:GREEN}}>→</span> {fmt(day.end)}</> : "Вихідний день"}
+            </div>
+            <div style={{fontSize:12,color:DIM,marginTop:3}}>
+              {DAY_NAMES[sel]}{day.enabled ? ` · ${hrs(day)} год роботи${day.lunchEnabled?` · перерва ${fmt(lS)}–${fmt(lE)}`:""}` : ""}
+            </div>
+          </div>
           <Toggle color={day.enabled?GREEN:RED} on={day.enabled} onChange={v=>updDay(sel,{enabled:v})}/>
         </div>
         {day.enabled && (<>
-          <div style={{display:"flex",justifyContent:"space-around",flexWrap:"wrap",gap:8}}>
-            <TimeWheel label="З" value={day.start} onChange={v=>updDay(sel,{start:v})} min={0} max={day.end-0.5}/>
-            <TimeWheel label="ДО" value={day.end} onChange={v=>updDay(sel,{end:v})} min={day.start+0.5} max={24}/>
+          <div style={{margin:"12px 4px 4px"}}>
+            <div style={{position:"relative",height:12,borderRadius:6,background:BG_DEEP,boxShadow:SI,overflow:"hidden"}}>
+              <div style={{position:"absolute",top:0,bottom:0,left:pct(day.start),width:`calc(${pct(day.end)} - ${pct(day.start)})`,
+                background:`linear-gradient(90deg,${GREEN},color-mix(in srgb,${GREEN} 60%,#34d399))`,borderRadius:6}}/>
+              {day.lunchEnabled && <div style={{position:"absolute",top:0,bottom:0,left:pct(lS),width:`calc(${pct(lE)} - ${pct(lS)})`,background:GOLD}}/>}
+            </div>
+            <div style={{display:"flex",justifyContent:"space-between",fontSize:9,color:FAINT,marginTop:3}}>
+              <span>00</span><span>06</span><span>12</span><span>18</span><span>24</span>
+            </div>
           </div>
-          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginTop:12,padding:"10px 12px",borderRadius:12,background:`color-mix(in srgb,${GOLD} 12%,transparent)`}}>
-            <span style={{fontSize:15,fontWeight:700,color:TEXT}}>🍽 Перерва{day.lunchEnabled?` · ${fmt(lS)}–${fmt(lE)}`:""}</span>
+          <div style={{display:"flex",justifyContent:"space-around",flexWrap:"wrap",gap:6,marginTop:6}}>
+            <TimeWheel label="ПОЧАТОК" value={day.start} onChange={v=>updDay(sel,{start:v})} min={0} max={day.end-0.5}/>
+            <TimeWheel label="КІНЕЦЬ" value={day.end} onChange={v=>updDay(sel,{end:v})} min={day.start+0.5} max={24}/>
+          </div>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginTop:14,padding:"11px 12px",borderRadius:14,
+            background:`linear-gradient(135deg,color-mix(in srgb,${GOLD} 22%,${BG_DEEP}),${BG_DEEP})`,border:`1px solid color-mix(in srgb,${GOLD} 35%,transparent)`}}>
+            <span style={{fontSize:15,fontWeight:800,color:TEXT}}>🍽 Перерва{day.lunchEnabled?` · ${fmt(lS)}–${fmt(lE)}`:""}</span>
             <Toggle color={day.lunchEnabled?GREEN:RED} on={!!day.lunchEnabled} onChange={v=>updDay(sel,{lunchEnabled:v})}/>
           </div>
           {day.lunchEnabled && (
-            <div style={{display:"flex",justifyContent:"space-around",flexWrap:"wrap",gap:8,marginTop:8}}>
+            <div style={{display:"flex",justifyContent:"space-around",flexWrap:"wrap",gap:6,marginTop:10}}>
               <TimeWheel label="ПЕРЕРВА З" color={GOLD} rows={3} value={lS} onChange={v=>updDay(sel,{lunchStart:v})} min={0} max={lE-0.5}/>
-              <TimeWheel label="ДО" color={GOLD} rows={3} value={lE} onChange={v=>updDay(sel,{lunchEnd:v})} min={lS+0.5} max={24}/>
+              <TimeWheel label="ПЕРЕРВА ДО" color={GOLD} rows={3} value={lE} onChange={v=>updDay(sel,{lunchEnd:v})} min={lS+0.5} max={24}/>
             </div>
           )}
         </>)}
       </div>
       {day.enabled && (
-        <button onClick={copyAll} style={{width:"100%",marginTop:8,padding:"12px",borderRadius:12,cursor:"pointer",fontSize:13,fontWeight:800,
-          background:"transparent",color:ACCENT,border:`1px dashed color-mix(in srgb,${ACCENT} 55%,transparent)`}}>
+        <button onClick={copyAll} style={{width:"100%",marginTop:10,padding:"13px",borderRadius:14,cursor:"pointer",fontSize:13,fontWeight:800,
+          color:"#fff",background:`linear-gradient(135deg,color-mix(in srgb,${ACCENT} 80%,#000),${ACCENT})`,border:"none",
+          boxShadow:`0 4px 14px color-mix(in srgb,${ACCENT} 35%,transparent)`}}>
           Копіювати {DAY_NAMES[sel]} на всі робочі дні
         </button>
       )}
-      <div style={{textAlign:"center",fontSize:12,color:DIM,marginTop:8}}>Усього {total} год на тиждень</div>
+      <div style={{textAlign:"center",fontSize:12,color:DIM,marginTop:10}}>Усього <b style={{color:TEXT}}>{total} год</b> на тиждень</div>
     </div>
-  );
-}
-
-// Стискаємо фото до maxSize по довшій стороні перед завантаженням у Storage —
-// прямий телефонний JPG може важити 5-10 МБ, а на публічному лендингу таке
-// вантажити марно.
-function resizeImage(file, maxSize = 800) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    const reader = new FileReader();
-    reader.onerror = () => reject(new Error("read failed"));
-    reader.onload = (e) => { img.src = e.target.result; };
-    img.onerror = () => reject(new Error("decode failed"));
-    img.onload = () => {
-      const scale = Math.min(1, maxSize / Math.max(img.width, img.height));
-      const w = Math.round(img.width * scale), h = Math.round(img.height * scale);
-      const canvas = document.createElement("canvas");
-      canvas.width = w; canvas.height = h;
-      canvas.getContext("2d").drawImage(img, 0, 0, w, h);
-      canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("toBlob failed")), "image/jpeg", 0.85);
-    };
-    reader.readAsDataURL(file);
-  });
-}
-
-// Leaflet — імперативно, без react-leaflet: карта створюється один раз у
-// useEffect на порожньому div, маркер перетягується/ставиться кліком.
-function LocationMap({ lat, lng, onPick, flyTo }) {
-  const { ACCENT } = useContext(ThemeContext);
-  const mapEl = useRef(null);
-  const mapRef = useRef(null);
-  const markerRef = useRef(null);
-
-  useEffect(() => {
-    if (!mapEl.current || mapRef.current) return;
-    const start = [lat || 50.4501, lng || 30.5234];
-    const map = L.map(mapEl.current, { attributionControl: false }).setView(start, (lat && lng) ? 15 : 11);
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19 }).addTo(map);
-    const icon = L.divIcon({
-      className: "",
-      html: `<div style="width:26px;height:26px;border-radius:50% 50% 50% 0;background:${ACCENT};transform:rotate(-45deg);border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.5)"></div>`,
-      iconSize: [26, 26], iconAnchor: [13, 26],
-    });
-    const marker = L.marker(start, { draggable: true, icon }).addTo(map);
-    marker.on("dragend", () => { const p = marker.getLatLng(); onPick(p.lat, p.lng); });
-    map.on("click", (e) => { marker.setLatLng(e.latlng); onPick(e.latlng.lat, e.latlng.lng); });
-    mapRef.current = map; markerRef.current = marker;
-    return () => { map.remove(); mapRef.current = null; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- карта створюється один раз; зміни lat/lng ззовні (після drag/click) ігноруємо навмисно
-  }, []);
-
-  // Пошук адреси (окремий блок нижче) не чіпає lat/lng-пропси напряму (вони
-  // навмисно ігноруються вище) — тому переліт мапи на знайдену точку йде
-  // через окремий тригер flyTo {lat,lng,ts}, щоб спрацьовувало навіть коли
-  // координати знайденої адреси збігаються з попередніми (ts завжди новий).
-  useEffect(() => {
-    if (!flyTo || !mapRef.current || !markerRef.current) return;
-    const ll = [flyTo.lat, flyTo.lng];
-    markerRef.current.setLatLng(ll);
-    mapRef.current.setView(ll, 15);
-  }, [flyTo]);
-
-  return <div ref={mapEl} style={{ width: "100%", height: 220, borderRadius: 14, overflow: "hidden" }} />;
-}
-
-// Повноекранний перегляд фото (портал) — пінч-зум двома пальцями, подвійний
-// тап для швидкого зуму, свайп вліво/вправо для гортання між усіма фото
-// (коли не наближено). Без сторонніх бібліотек, чисті touch-події.
-function PhotoViewer({ photos, index, onClose }) {
-  const [i, setI] = useState(index);
-  const [scale, setScale] = useState(1);
-  const [tx, setTx] = useState(0);
-  const [ty, setTy] = useState(0);
-  const g = useRef({ mode: null, startDist: 0, startScale: 1, startX: 0, startY: 0, startTx: 0, startTy: 0, lastTap: 0 });
-
-  useEffect(() => { setScale(1); setTx(0); setTy(0); }, [i]);
-
-  const dist = (a, b) => Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
-
-  const onTouchStart = (e) => {
-    if (e.touches.length === 2) {
-      g.current.mode = "pinch";
-      g.current.startDist = dist(e.touches[0], e.touches[1]);
-      g.current.startScale = scale;
-    } else if (e.touches.length === 1) {
-      const now = Date.now();
-      if (now - g.current.lastTap < 280) {
-        setScale(s => s > 1 ? 1 : 2.5); setTx(0); setTy(0);
-        g.current.mode = null; g.current.lastTap = 0;
-        return;
-      }
-      g.current.lastTap = now;
-      g.current.mode = scale > 1 ? "pan" : "swipe";
-      g.current.startX = e.touches[0].clientX;
-      g.current.startY = e.touches[0].clientY;
-      g.current.startTx = tx; g.current.startTy = ty;
-    }
-  };
-  const onTouchMove = (e) => {
-    if (g.current.mode === "pinch" && e.touches.length === 2) {
-      const d = dist(e.touches[0], e.touches[1]);
-      setScale(Math.min(4, Math.max(1, g.current.startScale * (d / g.current.startDist))));
-    } else if (g.current.mode === "pan" && e.touches.length === 1) {
-      setTx(g.current.startTx + (e.touches[0].clientX - g.current.startX));
-      setTy(g.current.startTy + (e.touches[0].clientY - g.current.startY));
-    } else if (g.current.mode === "swipe" && e.touches.length === 1) {
-      setTx(e.touches[0].clientX - g.current.startX);
-    }
-  };
-  const onTouchEnd = () => {
-    if (g.current.mode === "swipe") {
-      if (tx > 60 && i > 0) setI(v => v - 1);
-      else if (tx < -60 && i < photos.length - 1) setI(v => v + 1);
-      setTx(0);
-    } else if (scale < 1.05) { setScale(1); setTx(0); setTy(0); }
-    g.current.mode = null;
-  };
-
-  return createPortal(
-    <div
-      style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.94)", touchAction: "none" }}
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
-    >
-      <button onClick={onClose} aria-label="Закрити" style={{
-        position: "absolute", top: "calc(14px + env(safe-area-inset-top,0px))", right: 14, zIndex: 1,
-        width: 36, height: 36, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.14)",
-        color: "#fff", fontSize: 18, cursor: "pointer",
-      }}>×</button>
-      {photos.length > 1 && (
-        <div style={{
-          position: "absolute", top: "calc(18px + env(safe-area-inset-top,0px))", left: 0, right: 0,
-          textAlign: "center", color: "rgba(255,255,255,0.7)", fontSize: 12, fontWeight: 700,
-        }}>{i + 1} / {photos.length}</div>
-      )}
-      <div
-        style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}
-        onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
-      >
-        <img src={photos[i]} alt="" draggable={false} style={{
-          maxWidth: "92%", maxHeight: "85vh", objectFit: "contain", userSelect: "none",
-          transform: `translate(${tx}px, ${ty}px) scale(${scale})`,
-          transition: g.current.mode ? "none" : "transform .2s",
-        }} />
-      </div>
-    </div>,
-    document.body
   );
 }
 
