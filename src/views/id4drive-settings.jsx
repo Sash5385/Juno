@@ -2,6 +2,7 @@ import { useState, useContext, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { get, update, onValue, off } from "firebase/database";
 import { uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
+import { signOut } from "firebase/auth";
 import { iRef, iStorageRef, iGalleryStorageRef, auth } from "../firebase";
 import { LangContext } from "../App";
 import { ThemeContext } from "../theme.js";
@@ -1294,6 +1295,16 @@ select{color-scheme:${isKava?"light":"dark"}}
           </div>
         );
       })()}
+      {active === "profile" && (
+        <div style={{margin:"10px 14px 0"}}>
+          <button onClick={() => { if (window.confirm("Вийти з акаунта?")) signOut(auth).catch(() => {}); }} style={{
+            width:"100%", padding:"12px", borderRadius:12, cursor:"pointer", fontFamily:"inherit",
+            background:"rgba(239,68,68,0.10)", border:"1px solid rgba(239,68,68,0.35)",
+            color:"#f87171", fontSize:13, fontWeight:800,
+          }}>Вийти з акаунта</button>
+          <div style={{fontSize:11, color:"rgba(255,255,255,0.4)", textAlign:"center", marginTop:6}}>{auth.currentUser?.email || ""}</div>
+        </div>
+      )}
       <div style={{height:railH + 16}}/>
     </>
   );
