@@ -3,6 +3,7 @@ import { signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswor
 import { ref, get, onValue, update, set } from "firebase/database";
 import { auth, iRef, db } from "./firebase";
 import { licenseState } from "./hooks/useLicense";
+import { APP_VERSION } from "./version";
 
 // Вендор SaaS (ви) — бачить усіх інструкторів замість власного кабінету.
 const VENDOR_EMAIL = "sash5385@gmail.com";
@@ -727,116 +728,135 @@ export function SuperAdminScreen() {
     : filter === "inactive" ? isInactive(r.iid, r.info)
     : r.li.key === filter);
 
+  const TABS = [
+    ["overview", "🏠", "Огляд", "#5b9bff"],
+    ["instructors", "👥", "Інструктори", "#4caf6b"],
+    ["payments", "💳", "Платежі", "#f7c948"],
+    ["service", "⚙️", "Сервіс", "#c084fc"],
+  ];
+  const [section, setSection] = useState(() => { try { return sessionStorage.getItem("sa_tab") || "overview"; } catch { return "overview"; } });
+  const go = (id, f) => {
+    setSection(id);
+    if (f) setFilter(f);
+    try { sessionStorage.setItem("sa_tab", id); } catch { /* sessionStorage недоступний */ }
+    window.scrollTo?.({ top: 0 });
+  };
+  const tint = (c, pct = 34) => `linear-gradient(135deg,color-mix(in srgb,${c} ${pct}%,${BG_DEEP}) 0%,${BG_DEEP} 100%)`;
+  const tile = (label, value, color, sub, onClick) => (
+    <div key={label} onClick={onClick} style={{
+      flex:"1 1 140px", padding:"12px 14px", borderRadius:14, cursor: onClick ? "pointer" : "default",
+      background: tint(color), border:`1px solid color-mix(in srgb,${color} 45%,transparent)`, boxShadow:SO,
+    }}>
+      <div style={{ fontSize:11, color:"rgba(255,255,255,0.65)" }}>{label}</div>
+      <div style={{ fontSize:22, fontWeight:800, color }}>{value}</div>
+      {sub && <div style={{ fontSize:10, color:"rgba(255,255,255,0.5)", marginTop:2 }}>{sub}</div>}
+    </div>
+  );
+  const panel = (color, children, extra = {}) => (
+    <div style={{ background: tint(color, 18), borderRadius:16, padding:"14px 16px", marginBottom:14, border:`1px solid color-mix(in srgb,${color} 30%,transparent)`, boxShadow:SO, ...extra }}>{children}</div>
+  );
+  const attentionRows = allRows.filter(r => ["warning", "grace", "readonly"].includes(r.li.key));
+  const payTotal = payments.filter(p => !p.reversedAt).reduce((t, p) => t + (p.periodMs > 40 * DAY_MS ? 2999 : 299), 0);
+
   return (
-    <div style={{ minHeight:"100vh", background:BG_DEEP, padding:"24px 16px", paddingTop:"calc(24px + env(safe-area-inset-top, 0px))", paddingBottom:"calc(24px + env(safe-area-inset-bottom, 0px))" }}>
-      <div style={{ maxWidth:640, margin:"0 auto" }}>
-        <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:20 }}>
-          <div style={{ fontSize:20, fontWeight:800, color:TEXT }}>Суперадмінка · Інструктори</div>
-          <button onClick={() => signOut(auth)} style={{ background:"none", border:`1px solid ${BORDER}`, borderRadius:8, color:DIM, padding:"6px 12px", fontSize:12, cursor:"pointer" }}>
-            Вийти
-          </button>
-        </div>
-
-        <div style={{ background:`linear-gradient(135deg,${SURF_HI},${SURFACE})`, borderRadius:16, padding:"14px 16px", marginBottom:14, border:`1px solid ${BORDER}`, boxShadow:SO }}>
-          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12 }}>
-            <div style={{ minWidth:0 }}>
-              <div style={{ fontSize:14, fontWeight:700, color:TEXT }}>💾 Нічна резервна копія</div>
-              <div style={{ fontSize:11, color:DIM, marginTop:2 }}>
-                Щодня о 03:00 — записи, учні, налаштування в Cloud Storage, зберігається 30 днів
-              </div>
-            </div>
-            <button onClick={toggleBackup} disabled={backupOn === null} aria-pressed={!!backupOn}
-              style={{ flexShrink:0, width:46, height:26, borderRadius:13, border:"none", cursor:"pointer", position:"relative",
-                background: backupOn ? "#4caf6b" : "rgba(255,255,255,0.15)", transition:"background .2s" }}>
-              <span style={{ position:"absolute", top:3, left: backupOn ? 23 : 3, width:20, height:20, borderRadius:"50%", background:"#fff", transition:"left .2s" }}/>
-            </button>
+    <div style={{ minHeight:"100vh", background:BG_DEEP, paddingBottom:"calc(24px + env(safe-area-inset-bottom, 0px))" }}>
+      <div style={{ position:"sticky", top:0, zIndex:30, background:BG_DEEP, padding:"calc(12px + env(safe-area-inset-top, 0px)) 16px 10px", borderBottom:`1px solid ${BORDER}` }}>
+        <div style={{ maxWidth:640, margin:"0 auto" }}>
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
+            <div style={{ fontSize:18, fontWeight:800, color:TEXT }}>🛰️ Суперадмінка</div>
+            <button onClick={() => signOut(auth)} style={{ background:"none", border:`1px solid ${BORDER}`, borderRadius:8, color:DIM, padding:"5px 11px", fontSize:12, cursor:"pointer" }}>Вийти</button>
           </div>
-          <div style={{ fontSize:11, marginTop:8, color: backupStatus && backupStatus.ok === false ? ACCENT : DIM }}>
-            {backupStatus
-              ? (backupStatus.ok
-                  ? `Остання копія: ${new Date(backupStatus.at).toLocaleString("uk")} · інструкторів: ${backupStatus.instructors} · ${(backupStatus.bytes/1024).toFixed(0)} КБ`
-                  : `Помилка останньої копії (${new Date(backupStatus.at).toLocaleString("uk")}): ${backupStatus.error || "—"}`)
-              : (backupOn ? "Перша копія буде створена найближчої ночі" : "Вимкнено — копії не створюються")}
+          <div style={{ display:"flex", gap:6, overflowX:"auto", WebkitOverflowScrolling:"touch" }}>
+            {TABS.map(([id, icon, label, color]) => {
+              const on = section === id;
+              const badge = id === "instructors" ? allRows.length : id === "payments" ? payments.length : id === "overview" && attentionRows.length ? attentionRows.length : null;
+              return (
+                <button key={id} onClick={() => go(id)} style={{
+                  flex:"1 0 auto", display:"flex", alignItems:"center", justifyContent:"center", gap:6,
+                  padding:"8px 12px", borderRadius:12, fontSize:13, fontWeight:800, cursor:"pointer", whiteSpace:"nowrap",
+                  border:`1.5px solid ${on ? color : "transparent"}`,
+                  background: on ? `color-mix(in srgb,${color} 22%,${BG_DEEP})` : "rgba(255,255,255,0.04)",
+                  color: on ? color : DIM,
+                }}>
+                  <span>{icon}</span>{label}
+                  {badge != null && <span style={{ fontSize:10, padding:"1px 6px", borderRadius:9, background: on ? color : "rgba(255,255,255,0.12)", color: on ? "#0b0b0d" : TEXT }}>{badge}</span>}
+                </button>
+              );
+            })}
           </div>
         </div>
+      </div>
 
-        <div style={{ background:`linear-gradient(135deg,${SURF_HI},${SURFACE})`, borderRadius:16, padding:"14px 16px", marginBottom:14, border:`1px solid ${BORDER}`, boxShadow:SO }}>
-          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, marginBottom: statsReady ? 10 : 0 }}>
-            <div style={{ fontSize:14, fontWeight:700, color:TEXT }}>📊 Статистика записів</div>
-            {!statsReady && (
-              <button onClick={loadAllStats} disabled={statsLoading || !allRows.length}
-                style={{ padding:"6px 12px", borderRadius:8, background:"rgba(255,255,255,0.06)", border:`1px solid ${BORDER}`, color:TEXT, fontSize:12, fontWeight:700, cursor: statsLoading ? "default" : "pointer" }}>
-                {statsLoading ? "Завантаження…" : "Завантажити"}
-              </button>
-            )}
-          </div>
-          {statsReady && (() => {
-            const lists = allRows.map(r => bookingsCache[r.iid].list);
-            const data = bookingsPerDay(lists, 30);
-            const total30 = data.reduce((t, d) => t + d.value, 0);
-            return (
-              <>
-                <div style={{ fontSize:11, color:DIM, marginBottom:6 }}>Нові записи за 30 днів, усі інструктори: <b style={{ color:TEXT }}>{total30}</b> · неактивних ({INACTIVE_DAYS}+ дн. без записів): <b style={{ color: inactiveCount ? ACCENT : TEXT }}>{inactiveCount}</b></div>
-                <BarChart data={data} />
-              </>
-            );
-          })()}
-          {!statsReady && <div style={{ fontSize:11, color:DIM, marginTop:6 }}>Графік записів і пошук неактивних інструкторів. Завантажує записи всіх інструкторів один раз.</div>}
-        </div>
-
-        <details style={{ background:`linear-gradient(135deg,${SURF_HI},${SURFACE})`, borderRadius:16, padding:"12px 16px", marginBottom:14, border:`1px solid ${BORDER}`, boxShadow:SO }}>
-          <summary style={{ cursor:"pointer", fontSize:14, fontWeight:700, color:TEXT }}>💳 Останні платежі підписок{payments.length ? ` · ${payments.length}` : ""}</summary>
-          <div style={{ marginTop:10 }}>
-            {payments.length === 0 && <div style={{ fontSize:12, color:DIM }}>Поки немає платежів у журналі (він ведеться з оновлення v01.10.8)</div>}
-            {payments.slice(0, 20).map(p => (
-              <div key={`${p.iid}-${p.key}`} style={{ display:"flex", justifyContent:"space-between", gap:8, padding:"7px 0", borderBottom:`1px solid ${BORDER}`, opacity: p.reversedAt ? 0.55 : 1 }}>
-                <div style={{ minWidth:0 }}>
-                  <div style={{ fontSize:13, color:TEXT, fontWeight:600 }}>{p.name}</div>
-                  <div style={{ fontSize:11, color:DIM }}>{new Date(p.at).toLocaleString("uk")} · {p.provider}</div>
-                </div>
-                <div style={{ textAlign:"right", flexShrink:0 }}>
-                  <div style={{ fontSize:13, fontWeight:800, color:TEXT }}>{p.periodMs > 40 * DAY_MS ? "Рік · 2999₴" : "Місяць · 299₴"}</div>
-                  <div style={{ fontSize:11, color: p.reversedAt ? ACCENT : "#4caf6b" }}>{p.reversedAt ? "повернено" : "до " + fmtD(p.newExpiresAt)}</div>
-                </div>
-              </div>
-            ))}
-            <div style={{ fontSize:10, color:DIM, marginTop:8 }}>Сума в журналі — тарифна. Тестові платежі по 1₴ показані за тарифом.</div>
-          </div>
-        </details>
-
+      <div style={{ maxWidth:640, margin:"0 auto", padding:"16px 16px 0" }}>
         {index === null && <div style={{ color:DIM, textAlign:"center", padding:40 }}>Завантаження…</div>}
-        {index !== null && rows.length === 0 && (
-          <div style={{ color:DIM, textAlign:"center", padding:40 }}>Ще немає зареєстрованих інструкторів</div>
-        )}
 
-        {index !== null && allRows.length > 0 && (
+        {section === "overview" && index !== null && (
           <>
-            <div style={{ display:"flex", gap:8, marginBottom:12, flexWrap:"wrap" }}>
-              {[["Інструкторів", allRows.length], ["Платних", paying.length], ["≈ дохід/міс", `${Math.round(mrr)}₴`]].map(([l, v]) => (
-                <div key={l} style={{ flex:"1 1 90px", padding:"10px 12px", borderRadius:12, background:`linear-gradient(135deg,${SURF_HI},${SURFACE})`, border:`1px solid ${BORDER}`, boxShadow:SO }}>
-                  <div style={{ fontSize:11, color:DIM }}>{l}</div>
-                  <div style={{ fontSize:18, fontWeight:800, color:TEXT }}>{v}</div>
+            <div style={{ display:"flex", gap:10, flexWrap:"wrap", marginBottom:14 }}>
+              {tile("Інструкторів", allRows.length, "#5b9bff", `trial: ${counts.trial || 0}`, () => go("instructors", "all"))}
+              {tile("Платних", paying.length, "#4caf6b", "активні підписки", () => go("instructors", "active"))}
+              {tile("≈ Дохід / міс", `${Math.round(mrr)}₴`, "#f7c948", "за тарифами 299 / 2999")}
+              {tile("Потребують уваги", attentionRows.length, attentionRows.length ? "#ff5a3c" : "#4caf6b", "закінчуються / прострочені", () => go("instructors", "attention"))}
+              {tile("Неактивні", inactiveCount == null ? "?" : inactiveCount, "#c084fc", `без записів ${INACTIVE_DAYS}+ дн.`, () => go("instructors", "inactive"))}
+              {tile("Платежів", payments.length, "#2dd4bf", payments.length ? `≈ ${payTotal}₴ за тарифами` : "журнал з v01.10.8", () => go("payments"))}
+            </div>
+
+            {panel("#4caf6b", <>
+              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, marginBottom: statsReady ? 10 : 0 }}>
+                <div style={{ fontSize:14, fontWeight:800, color:TEXT }}>📊 Нові записи за 30 днів</div>
+                {!statsReady && (
+                  <button onClick={loadAllStats} disabled={statsLoading || !allRows.length}
+                    style={{ padding:"6px 12px", borderRadius:8, background:"rgba(76,175,107,0.2)", border:"1px solid rgba(76,175,107,0.45)", color:"#4caf6b", fontSize:12, fontWeight:700, cursor: statsLoading ? "default" : "pointer" }}>
+                    {statsLoading ? "Завантаження…" : "Завантажити"}
+                  </button>
+                )}
+              </div>
+              {statsReady ? (() => {
+                const data = bookingsPerDay(allRows.map(r => bookingsCache[r.iid].list), 30);
+                const total30 = data.reduce((t, d) => t + d.value, 0);
+                return (<>
+                  <div style={{ fontSize:11, color:"rgba(255,255,255,0.6)", marginBottom:6 }}>Усього нових записів: <b style={{ color:TEXT }}>{total30}</b></div>
+                  <BarChart data={data} height={70} />
+                </>);
+              })() : <div style={{ fontSize:11, color:"rgba(255,255,255,0.55)", marginTop:6 }}>Завантажує записи всіх інструкторів один раз — потрібно для графіка та «Неактивні».</div>}
+            </>)}
+
+            {panel(attentionRows.length ? "#ff5a3c" : "#4caf6b", <>
+              <div style={{ fontSize:14, fontWeight:800, color:TEXT, marginBottom:8 }}>{attentionRows.length ? "⚠️ Потребують уваги" : "✅ Усе гаразд — нема прострочених підписок"}</div>
+              {attentionRows.slice(0, 8).map(({ iid, info, li: st }) => (
+                <div key={iid} onClick={() => go("instructors", "attention")} style={{ display:"flex", justifyContent:"space-between", gap:8, padding:"7px 0", borderTop:`1px solid ${BORDER}`, cursor:"pointer" }}>
+                  <div style={{ fontSize:13, fontWeight:600, color:TEXT }}>{info.name || "—"}</div>
+                  <div style={{ fontSize:12, fontWeight:800, color:st.color, textAlign:"right" }}>{st.text}</div>
                 </div>
               ))}
-            </div>
-            <div style={{ display:"flex", gap:6, marginBottom:14, flexWrap:"wrap" }}>
-              {FILTERS.map(([id, label, n]) => (
-                <button key={id} onClick={() => setFilter(id)} style={{
-                  padding:"6px 11px", borderRadius:16, fontSize:12, fontWeight:700, cursor:"pointer",
-                  border:`1px solid ${filter === id ? ACCENT : BORDER}`,
-                  background: filter === id ? "rgba(255,90,60,0.15)" : "transparent",
-                  color: filter === id ? ACCENT : DIM,
-                }}>{label} · {n}</button>
-              ))}
-            </div>
+            </>)}
           </>
         )}
 
+        {section === "instructors" && index !== null && (
+          <>
+            {allRows.length === 0 && <div style={{ color:DIM, textAlign:"center", padding:40 }}>Ще немає зареєстрованих інструкторів</div>}
+            {allRows.length > 0 && (
+              <div style={{ display:"flex", gap:6, marginBottom:14, flexWrap:"wrap" }}>
+                {FILTERS.map(([id, label, n]) => {
+                  const col = { all:"#5b9bff", attention:"#ff5a3c", active:"#4caf6b", trial:"#f7c948", readonly:"#ef4444", inactive:"#c084fc" }[id];
+                  const on = filter === id;
+                  return (
+                    <button key={id} onClick={() => setFilter(id)} style={{
+                      padding:"6px 11px", borderRadius:16, fontSize:12, fontWeight:700, cursor:"pointer",
+                      border:`1px solid ${on ? col : BORDER}`,
+                      background: on ? `color-mix(in srgb,${col} 22%,${BG_DEEP})` : "transparent",
+                      color: on ? col : DIM,
+                    }}>{label} · {n}</button>
+                  );
+                })}
+              </div>
+            )}
         {rows.map(({ iid, info, li: st }) => {
           const lic = licenses[iid];
           const busy = busyIid === iid;
           return (
-            <div key={iid} style={{ background:`linear-gradient(135deg,${SURF_HI},${SURFACE})`, borderRadius:16, padding:"16px 18px", marginBottom:12, border:`1px solid ${BORDER}`, boxShadow:SO }}>
+            <div key={iid} style={{ background:`linear-gradient(135deg,color-mix(in srgb,${st.color} 14%,${SURF_HI}),${SURFACE})`, borderRadius:16, padding:"16px 18px", marginBottom:12, border:`1px solid color-mix(in srgb,${st.color} 28%,transparent)`, borderLeft:`5px solid ${st.color}`, boxShadow:SO }}>
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:12 }}>
                 <div style={{ minWidth:0 }}>
                   <div style={{ fontSize:15, fontWeight:700, color:TEXT }}>{info.name || "—"}</div>
@@ -868,7 +888,7 @@ export function SuperAdminScreen() {
                   Призупинити
                 </button>
                 <button onClick={() => toggleBookings(iid)}
-                  style={{ flex:1, padding:"8px", borderRadius:8, background:"rgba(255,255,255,0.05)", border:`1px solid ${BORDER}`, color:TEXT, fontSize:12, fontWeight:700, cursor:"pointer" }}>
+                  style={{ flex:1, padding:"8px", borderRadius:8, background:"rgba(91,155,255,0.15)", border:"1px solid rgba(91,155,255,0.35)", color:"#5b9bff", fontSize:12, fontWeight:700, cursor:"pointer" }}>
                   {expandedIid === iid ? "Сховати записи" : "📋 Записи"}
                 </button>
               </div>
@@ -879,6 +899,69 @@ export function SuperAdminScreen() {
             </div>
           );
         })}
+          </>
+        )}
+
+        {section === "payments" && (
+          <>
+            <div style={{ display:"flex", gap:10, flexWrap:"wrap", marginBottom:14 }}>
+              {tile("Платежів", payments.length, "#2dd4bf", "у журналі")}
+              {tile("≈ Сума", `${payTotal}₴`, "#f7c948", "за тарифами, без повернених")}
+              {tile("Повернень", payments.filter(p => p.reversedAt).length, "#ff5a3c")}
+            </div>
+            {panel("#f7c948", <>
+              {payments.length === 0 && <div style={{ fontSize:12, color:DIM }}>Поки немає платежів у журналі (він ведеться з оновлення v01.10.8).</div>}
+              {payments.slice(0, 50).map(p => (
+                <div key={`${p.iid}-${p.key}`} style={{ display:"flex", justifyContent:"space-between", gap:8, padding:"8px 0", borderBottom:`1px solid ${BORDER}`, opacity: p.reversedAt ? 0.55 : 1 }}>
+                  <div style={{ minWidth:0 }}>
+                    <div style={{ fontSize:13, color:TEXT, fontWeight:700 }}>{p.name}</div>
+                    <div style={{ fontSize:11, color:DIM }}>{new Date(p.at).toLocaleString("uk")} · {p.provider}</div>
+                  </div>
+                  <div style={{ textAlign:"right", flexShrink:0 }}>
+                    <div style={{ fontSize:13, fontWeight:800, color:TEXT }}>{p.periodMs > 40 * DAY_MS ? "Рік · 2999₴" : "Місяць · 299₴"}</div>
+                    <div style={{ fontSize:11, fontWeight:700, color: p.reversedAt ? ACCENT : "#4caf6b" }}>{p.reversedAt ? "повернено" : "до " + fmtD(p.newExpiresAt)}</div>
+                  </div>
+                </div>
+              ))}
+              <div style={{ fontSize:10, color:DIM, marginTop:8 }}>Сума в журналі — тарифна; тестові платежі по 1₴ показані за тарифом.</div>
+            </>)}
+          </>
+        )}
+
+        {section === "service" && (
+          <>
+            {panel("#c084fc", <>
+              <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12 }}>
+                <div style={{ minWidth:0 }}>
+                  <div style={{ fontSize:14, fontWeight:800, color:TEXT }}>💾 Нічна резервна копія</div>
+                  <div style={{ fontSize:11, color:"rgba(255,255,255,0.6)", marginTop:2 }}>
+                    Щодня о 03:00 — записи, учні, налаштування в Cloud Storage, зберігається 30 днів
+                  </div>
+                </div>
+                <button onClick={toggleBackup} disabled={backupOn === null} aria-pressed={!!backupOn}
+                  style={{ flexShrink:0, width:46, height:26, borderRadius:13, border:"none", cursor:"pointer", position:"relative",
+                    background: backupOn ? "#4caf6b" : "rgba(255,255,255,0.15)", transition:"background .2s" }}>
+                  <span style={{ position:"absolute", top:3, left: backupOn ? 23 : 3, width:20, height:20, borderRadius:"50%", background:"#fff", transition:"left .2s" }}/>
+                </button>
+              </div>
+              <div style={{ fontSize:11, marginTop:8, color: backupStatus && backupStatus.ok === false ? ACCENT : "rgba(255,255,255,0.6)" }}>
+                {backupStatus
+                  ? (backupStatus.ok
+                      ? `Остання копія: ${new Date(backupStatus.at).toLocaleString("uk")} · інструкторів: ${backupStatus.instructors} · ${(backupStatus.bytes/1024).toFixed(0)} КБ`
+                      : `Помилка останньої копії (${new Date(backupStatus.at).toLocaleString("uk")}): ${backupStatus.error || "—"}`)
+                  : (backupOn ? "Перша копія буде створена найближчої ночі" : "Вимкнено — копії не створюються")}
+              </div>
+            </>)}
+            {panel("#5b9bff", <>
+              <div style={{ fontSize:14, fontWeight:800, color:TEXT, marginBottom:6 }}>ℹ️ Акаунт</div>
+              <div style={{ fontSize:12, color:"rgba(255,255,255,0.65)", lineHeight:1.7 }}>
+                Вхід: <b style={{ color:TEXT }}>{auth.currentUser?.email || "—"}</b><br/>
+                Версія застосунку: <b style={{ color:TEXT }}>{APP_VERSION}</b>
+              </div>
+              <button onClick={() => signOut(auth)} style={{ marginTop:12, width:"100%", padding:"11px", borderRadius:12, background:"rgba(239,68,68,0.12)", border:"1px solid rgba(239,68,68,0.4)", color:"#f87171", fontSize:13, fontWeight:800, cursor:"pointer" }}>Вийти з акаунта</button>
+            </>)}
+          </>
+        )}
       </div>
     </div>
   );
