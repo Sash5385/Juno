@@ -1,7 +1,8 @@
 import { useState, useEffect, useContext, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { onValue, update, push, remove, get } from "firebase/database";
-import { iRef } from "../firebase";
+import { iRef, auth } from "../firebase";
+import { deleteAccountRequest } from "../deleteAccountApi";
 
 import { ThemeContext } from "../theme.js";
 import { UICss, Field, Btn as UIBtn, useFX, useBackClose } from "../ui";
@@ -813,9 +814,11 @@ export default function StudentsView({ studentJump, onStudentJumpHandled, bookin
     setStudents(ss=>ss.map(x=>x.id===id?{...x,...patch}:x));
     update(iRef(`users/${id}`),patch).catch(()=>{});
   };
+  // Повне видалення учня на сервері: скасовує майбутні записи (слоти звільняються), прибирає записи, чат, сповіщення, черги
   const deleteStudent = id => {
     setStudents(ss=>ss.filter(x=>x.id!==id));
-    remove(iRef(`users/${id}`)).catch(()=>{});
+    deleteAccountRequest({ type:"student", iid:auth.currentUser.uid, uid:id })
+      .catch(() => remove(iRef(`users/${id}`)).catch(()=>{}));
   };
   const removeBadge = (id, badgeId) => {
     remove(iRef(`users/${id}/badges/${badgeId}`)).catch(()=>{});

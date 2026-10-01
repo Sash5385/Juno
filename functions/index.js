@@ -1217,6 +1217,104 @@ exports.submitContact = onRequest({ region: "europe-west1", cors: true }, async 
   }
 });
 
+// ─── Видалення акаунтів ──────────────────────────────────────────────
+// POST /api/delete-account (Bearer ID-токен). Тіло: {type:"instructor", iid} або {type:"student", iid, uid}.
+//  • інструктор: може сам інструктор (uid === iid) або суперадмін;
+//  • учень: сам учень (uid === токен), його інструктор або суперадмін.
+// Перед видаленням інструктора повний архів його даних кладеться в Storage:
+// backups/deleted/{iid}-{ts}.json (це не чіпає щоденне очищення 30-денних копій).
+const VENDOR_EMAIL = "sash5385@gmail.com";
+const STUDENT_NODES = ["bookings", "chats", "chatMeta", "notifications", "userQueue", "users"];
+
+async function deleteStudentData(iid, uid) {
+  // 1) скасовуємо майбутні записи й звільняємо слоти
+  const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Kyiv" });
+  const bookings = (await iRef(iid, `bookings/${uid}`).get()).val() || {};
+  for (const b of Object.values(bookings)) {
+    if (!b || b.status === "cancelled" || b.cancelledBy || !b.date || b.date < today) continue;
+    const upd = await buildSlotUpdates(iid, b, true).catch(() => ({}));
+    if (Object.keys(upd).length) await iRef(iid).update(upd).catch(() => {});
+  }
+  // 2) видаляємо вузли учня
+  const updates = {};
+  STUDENT_NODES.forEach((n) => { updates[n + "/" + uid] = null; });
+  updates[`activeStudents/${uid}`] = null;
+  updates[`recentStudents/${uid}`] = null;
+  updates[`studentColors/${uid}`] = null;
+  updates[`studentTokens/${uid}`] = null;
+  updates[`templatePush/${uid}`] = null;
+  updates[`rescheduleQueue/${uid}`] = null;
+  updates[`sentReminders/${uid}`] = null;
+  updates[`chats/general/members/${uid}`] = null;
+  await iRef(iid).update(updates);
+  // 3) прибираємо з черг очікування
+  const queue = (await iRef(iid, "queue").get()).val() || {};
+  const qUpd = {};
+  Object.keys(queue).forEach((k) => { if (queue[k]?.entries?.[uid]) qUpd[`queue/${k}/entries/${uid}`] = null; });
+  if (Object.keys(qUpd).length) await iRef(iid).update(qUpd);
+}
+
+exports.deleteAccount = onRequest({ region: "europe-west1", cors: true, timeoutSeconds: 300, memory: "512MiB" }, async (req, res) => {
+  if (req.method !== "POST") { res.status(405).json({ error: "method" }); return; }
+  try {
+    const idToken = (req.get("Authorization") || "").replace(/^Bearer /, "");
+    if (!idToken) { res.status(401).json({ error: "unauthorized" }); return; }
+    const caller = await admin.auth().verifyIdToken(idToken);
+    const isVendor = caller.email === VENDOR_EMAIL;
+    const { type, iid, uid } = req.body || {};
+    if (!iid || typeof iid !== "string" || /[.#$\[\]/]/.test(iid)) { res.status(400).json({ error: "bad iid" }); return; }
+
+    if (type === "instructor") {
+      if (!isVendor && caller.uid !== iid) { res.status(403).json({ error: "forbidden" }); return; }
+      if (iid === caller.uid && isVendor) { res.status(400).json({ error: "vendor account" }); return; }
+      const inst = (await db.ref(`instructors/${iid}`).get()).val();
+      // архів перед видаленням
+      try {
+        const bucket = admin.storage().bucket(BACKUP_BUCKET);
+        await bucket.file(`backups/deleted/${iid}-${Date.now()}.json`).save(
+          JSON.stringify({ iid, deletedAt: Date.now(), deletedBy: caller.uid, data: inst || null }),
+          { contentType: "application/json", resumable: false });
+      } catch (e) { console.error("deleteAccount: archive failed", e); res.status(500).json({ error: "archive" }); return; }
+      const slug = inst?.admin_settings?.profile?.slug || (await db.ref(`instructor_index/${iid}/slug`).get()).val();
+      const upd = { [`instructors/${iid}`]: null, [`instructor_index/${iid}`]: null };
+      if (slug) upd[`slugs/${slug}`] = null;
+      upd[`payment_test/${iid}`] = null;
+      await db.ref().update(upd);
+      // файли Storage інструктора (фото, галерея)
+      try { await admin.storage().bucket(BACKUP_BUCKET).deleteFiles({ prefix: `instructors/${iid}/` }); } catch (e) { console.warn("deleteAccount: storage", e.message); }
+      // сам обліковий запис
+      try { await admin.auth().deleteUser(iid); } catch (e) { console.warn("deleteAccount: auth", e.code); }
+      console.log(`deleteAccount: instructor ${iid} deleted by ${caller.uid}`);
+      res.json({ ok: true }); return;
+    }
+
+    if (type === "student") {
+      const target = typeof uid === "string" ? uid : null;
+      if (!target || /[.#$\[\]/]/.test(target)) { res.status(400).json({ error: "bad uid" }); return; }
+      const self = caller.uid === target;
+      if (!self && !isVendor && caller.uid !== iid) { res.status(403).json({ error: "forbidden" }); return; }
+      if (self) {
+        // самовидалення: прибираємо дані в усіх інструкторів, де є цей учень, і сам обліковий запис
+        const idx = Object.keys((await db.ref("instructor_index").get()).val() || {});
+        for (const id of idx) {
+          if ((await iRef(id, `users/${target}`).get()).exists() || (await iRef(id, `bookings/${target}`).get()).exists()) {
+            await deleteStudentData(id, target);
+          }
+        }
+        try { await admin.auth().deleteUser(target); } catch (e) { console.warn("deleteAccount: auth", e.code); }
+      } else {
+        await deleteStudentData(iid, target);
+      }
+      console.log(`deleteAccount: student ${target} (iid=${iid}) deleted by ${caller.uid}`);
+      res.json({ ok: true }); return;
+    }
+    res.status(400).json({ error: "type" });
+  } catch (e) {
+    console.error("deleteAccount error:", e);
+    res.status(500).json({ error: "server" });
+  }
+});
+
 // ─── Резервна копія записів ──────────────────────────────────────────
 // Щоночі (03:00 за Києвом) складає JSON-копію даних кожного інструктора в Cloud Storage:
 // backups/{YYYY-MM-DD}/{iid}.json. Працює ЛИШЕ коли суперадмін увімкнув тумблер

@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { get, update, onValue, off } from "firebase/database";
 import { uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import { signOut } from "firebase/auth";
+import { deleteAccountRequest } from "../deleteAccountApi";
 import { iRef, iStorageRef, iGalleryStorageRef, auth } from "../firebase";
 import { LangContext } from "../App";
 import { ThemeContext } from "../theme.js";
@@ -415,6 +416,9 @@ select{color-scheme:${isKava?"light":"dark"}}
   // slug для посилання-запису учнів (задається один раз при онбордингу,
   // AdminAuth.jsx → InstructorSetupScreen) — тут лише читаємо для показу
   const [bookingSlug, setBookingSlug] = useState(null);
+  const [delOpen, setDelOpen] = useState(false);
+  const [delText, setDelText] = useState("");
+  const [deleting, setDeleting] = useState(false);
   const [slugCopied,  setSlugCopied]  = useState(false);
   useEffect(() => {
     get(iRef("admin_settings/profile/slug")).then(snap => setBookingSlug(snap.val() || "")).catch(() => {});
@@ -1303,6 +1307,29 @@ select{color-scheme:${isKava?"light":"dark"}}
             color:"#f87171", fontSize:13, fontWeight:800,
           }}>Вийти з акаунта</button>
           <div style={{fontSize:11, color:"rgba(255,255,255,0.4)", textAlign:"center", marginTop:6}}>{auth.currentUser?.email || ""}</div>
+          <div style={{marginTop:14, textAlign:"center"}}>
+            {!delOpen ? (
+              <button onClick={() => setDelOpen(true)} style={{background:"none",border:"none",color:"#f87171",fontSize:12,fontWeight:700,cursor:"pointer",textDecoration:"underline"}}>Видалити акаунт</button>
+            ) : (
+              <div style={{padding:"14px",borderRadius:14,border:"1px solid rgba(239,68,68,0.4)",background:"rgba(239,68,68,0.08)",textAlign:"left"}}>
+                <div style={{fontSize:13,fontWeight:800,color:"#f87171",marginBottom:6}}>Видалити акаунт назавжди?</div>
+                <div style={{fontSize:12,color:"rgba(255,255,255,0.65)",lineHeight:1.5,marginBottom:10}}>
+                  Буде видалено ваш профіль, розклад, усіх учнів, записи, чати та сторінку запису. Оплачена підписка не повертається, а автосписання LiqPay (якщо є) потрібно скасувати окремо. Неможливо скасувати.
+                  Щоб підтвердити, введіть слово <b style={{color:"#fff"}}>ВИДАЛИТИ</b>.
+                </div>
+                <input value={delText} onChange={e=>setDelText(e.target.value)} placeholder="ВИДАЛИТИ"
+                  style={{width:"100%",boxSizing:"border-box",padding:"10px 12px",borderRadius:10,border:"1px solid rgba(255,255,255,0.18)",background:"rgba(0,0,0,0.3)",color:"#fff",fontSize:14,outline:"none",marginBottom:10}}/>
+                <div style={{display:"flex",gap:8}}>
+                  <button disabled={deleting || delText.trim().toUpperCase()!=="ВИДАЛИТИ"} onClick={async()=>{
+                    setDeleting(true);
+                    try { await deleteAccountRequest({ type:"instructor", iid:auth.currentUser.uid }); try{localStorage.clear();}catch{/* ignore */} await signOut(auth).catch(()=>{}); window.location.href="/"; }
+                    catch { setDeleting(false); alert("Не вдалося видалити акаунт. Спробуйте пізніше."); }
+                  }} style={{flex:1,padding:"10px",borderRadius:10,border:"none",cursor:"pointer",background:(deleting||delText.trim().toUpperCase()!=="ВИДАЛИТИ")?"rgba(239,68,68,0.25)":"#ef4444",color:"#fff",fontWeight:800,fontSize:13}}>{deleting?"Видалення…":"Видалити"}</button>
+                  <button disabled={deleting} onClick={()=>{setDelOpen(false);setDelText("");}} style={{padding:"10px 16px",borderRadius:10,border:"1px solid rgba(255,255,255,0.18)",background:"transparent",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer"}}>Скасувати</button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
       <div style={{height:railH + 16}}/>

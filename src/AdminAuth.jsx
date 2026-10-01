@@ -5,6 +5,7 @@ import { auth, iRef, db } from "./firebase";
 import { licenseState } from "./hooks/useLicense";
 import { LOGIN_CSS } from "./loginStyles";
 import { APP_VERSION } from "./version";
+import { deleteAccountRequest } from "./deleteAccountApi";
 
 // Вендор SaaS (ви) — бачить усіх інструкторів замість власного кабінету.
 const VENDOR_EMAIL = "sash5385@gmail.com";
@@ -446,7 +447,9 @@ function BarChart({ data, height = 56 }) {
   );
 }
 
-function InstructorDetail({ loading, data }) {
+function InstructorDetail({ loading, data, iid, onStudentDeleted }) {
+  const [delStudent, setDelStudent] = useState(null);
+  const [delBusy, setDelBusy] = useState(false);
   const [tab, setTab] = useState("bookings");
   const [filter, setFilter] = useState("all");
   const [query, setQuery] = useState("");
@@ -467,7 +470,7 @@ function InstructorDetail({ loading, data }) {
   rows.forEach(r => {
     const key = r.b.uid || r.b.phone || r.b.studentName;
     if (!key) return;
-    const st = studentMap[key] || (studentMap[key] = { key, name: r.b.studentName || "Клієнт", phone: r.b.phone || "", count: 0, cancelled: 0, sum: 0, last: "" });
+    const st = studentMap[key] || (studentMap[key] = { key, uid: r.b.uid && r.b.uid !== "personal" ? r.b.uid : null, name: r.b.studentName || "Клієнт", phone: r.b.phone || "", count: 0, cancelled: 0, sum: 0, last: "" });
     if (r.cancelled) st.cancelled++; else { st.count++; st.sum += r.price.value || 0; }
     if ((r.b.date || "") > st.last) st.last = r.b.date || "";
     if (!st.phone && r.b.phone) st.phone = r.b.phone;
@@ -563,9 +566,31 @@ function InstructorDetail({ loading, data }) {
                 <div style={{ fontSize:13, fontWeight:800, color:TEXT }}>{fmtMoney(st.sum)}</div>
                 <div style={{ fontSize:11, color:DIM }}>{st.count} зап.{st.cancelled ? ` · скас. ${st.cancelled}` : ""}</div>
               </div>
+              {st.uid && (
+                <button title="Видалити учня" onClick={e => { e.stopPropagation(); setDelStudent({ uid: st.uid, name: st.name }); }}
+                  style={{ flexShrink:0, width:32, height:32, borderRadius:8, border:"1px solid rgba(239,68,68,0.4)", background:"rgba(239,68,68,0.1)", color:"#f87171", cursor:"pointer", fontSize:14 }}>🗑</button>
+              )}
             </div>
           ))}
         </>
+      )}
+      {delStudent && (
+        <div onClick={() => !delBusy && setDelStudent(null)} style={{ position:"fixed", inset:0, zIndex:300, background:"rgba(0,0,0,0.65)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+          <div onClick={e => e.stopPropagation()} style={{ width:"100%", maxWidth:360, padding:18, borderRadius:16, background:SURFACE, border:"1px solid rgba(239,68,68,0.4)" }}>
+            <div style={{ fontSize:15, fontWeight:800, color:"#f87171", marginBottom:8 }}>Видалити учня?</div>
+            <div style={{ fontSize:13, color:TEXT, marginBottom:6 }}>{delStudent.name}</div>
+            <div style={{ fontSize:12, color:DIM, lineHeight:1.5, marginBottom:14 }}>Будуть видалені профіль, записи, чат і сповіщення учня в цього інструктора; майбутні заняття скасовуються, слоти звільняються. Неможливо скасувати.</div>
+            <div style={{ display:"flex", gap:8 }}>
+              <button disabled={delBusy} onClick={async () => {
+                setDelBusy(true);
+                try { await deleteAccountRequest({ type:"student", iid, uid: delStudent.uid }); onStudentDeleted?.(iid, delStudent.uid); setDelStudent(null); }
+                catch { alert("Не вдалося видалити учня"); }
+                setDelBusy(false);
+              }} style={{ flex:1, padding:10, borderRadius:10, border:"none", background:"#ef4444", color:"#fff", fontWeight:800, cursor:"pointer" }}>{delBusy ? "Видалення…" : "Видалити"}</button>
+              <button disabled={delBusy} onClick={() => setDelStudent(null)} style={{ padding:"10px 16px", borderRadius:10, border:`1px solid ${BORDER}`, background:"transparent", color:TEXT, fontWeight:700, cursor:"pointer" }}>Скасувати</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -579,6 +604,18 @@ export function SuperAdminScreen() {
   const [index, setIndex] = useState(null);
   const [licenses, setLicenses] = useState({});
   const [busyIid, setBusyIid] = useState(null);
+  const [delInst, setDelInst] = useState(null);
+  const [delInstText, setDelInstText] = useState("");
+  const [delInstBusy, setDelInstBusy] = useState(false);
+  const doDeleteInstructor = async () => {
+    setDelInstBusy(true);
+    try {
+      await deleteAccountRequest({ type: "instructor", iid: delInst.iid });
+      setLicenses(prev => { const n = { ...prev }; delete n[delInst.iid]; return n; });
+      setDelInst(null); setDelInstText("");
+    } catch { alert("Не вдалося видалити інструктора"); }
+    setDelInstBusy(false);
+  };
   // Нічна резервна копія (functions: nightlyBackup) — вмикається тут
   const [backupOn, setBackupOn] = useState(null);
   const [backupStatus, setBackupStatus] = useState(null);
@@ -751,7 +788,7 @@ export function SuperAdminScreen() {
     try { sessionStorage.setItem("sa_tab", id); } catch { /* sessionStorage недоступний */ }
     window.scrollTo?.({ top: 0 });
   };
-  const tint = (c, pct = 34) => `linear-gradient(135deg,color-mix(in srgb,${c} ${pct}%,${BG_DEEP}) 0%,${BG_DEEP} 100%)`;
+  const tint = (c, pct = 34) => `linear-gradient(135deg,color-mix(in srgb,${c} ${Math.round(pct*0.6)}%,rgba(16,17,19,0.55)) 0%,rgba(16,17,19,0.55) 100%)`;
   const tile = (label, value, color, sub, onClick) => (
     <div key={label} onClick={onClick} style={{
       flex:"1 1 140px", padding:"12px 14px", borderRadius:14, cursor: onClick ? "pointer" : "default",
@@ -769,8 +806,10 @@ export function SuperAdminScreen() {
   const payTotal = payments.filter(p => !p.reversedAt).reduce((t, p) => t + (p.periodMs > 40 * DAY_MS ? 2999 : 299), 0);
 
   return (
-    <div style={{ minHeight:"100vh", background:BG_DEEP, paddingBottom:"calc(24px + env(safe-area-inset-bottom, 0px))" }}>
-      <div style={{ position:"sticky", top:0, zIndex:30, background:BG_DEEP, padding:"calc(12px + env(safe-area-inset-top, 0px)) 16px 10px", borderBottom:`1px solid ${BORDER}` }}>
+    <div style={{ minHeight:"100vh", background:"#0a0b0d", position:"relative", isolation:"isolate", paddingBottom:"calc(24px + env(safe-area-inset-bottom, 0px))" }}>
+      <div aria-hidden="true" style={{ position:"fixed", inset:0, zIndex:-1, pointerEvents:"none",
+        background:"radial-gradient(48vmax 48vmax at 4% 2%,rgba(255,90,60,0.7),transparent 68%),radial-gradient(44vmax 44vmax at 98% 84%,rgba(122,77,255,0.7),transparent 68%),radial-gradient(30vmax 30vmax at 40% 104%,rgba(20,184,166,0.65),transparent 68%),#0a0b0d" }}/>
+      <div style={{ position:"sticky", top:0, zIndex:30, background:"rgba(10,11,13,0.55)", backdropFilter:"blur(16px)", WebkitBackdropFilter:"blur(16px)", padding:"calc(12px + env(safe-area-inset-top, 0px)) 16px 10px", borderBottom:`1px solid ${BORDER}` }}>
         <div style={{ maxWidth:640, margin:"0 auto" }}>
           <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
             <div style={{ fontSize:18, fontWeight:800, color:TEXT }}>🛰️ Суперадмінка</div>
@@ -866,7 +905,7 @@ export function SuperAdminScreen() {
           const lic = licenses[iid];
           const busy = busyIid === iid;
           return (
-            <div key={iid} style={{ background:`linear-gradient(135deg,color-mix(in srgb,${st.color} 14%,${SURF_HI}),${SURFACE})`, borderRadius:16, padding:"16px 18px", marginBottom:12, border:`1px solid color-mix(in srgb,${st.color} 28%,transparent)`, borderLeft:`5px solid ${st.color}`, boxShadow:SO }}>
+            <div key={iid} style={{ background:`linear-gradient(135deg,color-mix(in srgb,${st.color} 14%,rgba(38,40,44,0.6)),rgba(30,32,36,0.6))`, backdropFilter:"blur(14px)", WebkitBackdropFilter:"blur(14px)", borderRadius:16, padding:"16px 18px", marginBottom:12, border:`1px solid color-mix(in srgb,${st.color} 28%,transparent)`, borderLeft:`5px solid ${st.color}`, boxShadow:SO }}>
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", gap:12 }}>
                 <div style={{ minWidth:0 }}>
                   <div style={{ fontSize:15, fontWeight:700, color:TEXT }}>{info.name || "—"}</div>
@@ -901,6 +940,10 @@ export function SuperAdminScreen() {
                   style={{ flex:"1 1 70px", padding:"8px", borderRadius:8, background:"rgba(255,90,60,0.1)", border:`1px solid rgba(255,90,60,0.25)`, color:ACCENT, fontSize:12, fontWeight:700, cursor: (busy||lic?.status==="suspended")?"default":"pointer", opacity: lic?.status==="suspended"?0.5:1 }}>
                   Призупинити
                 </button>
+                <button onClick={() => { setDelInst({ iid, name: info.name || "—" }); setDelInstText(""); }}
+                  style={{ flex:"1 1 70px", padding:"8px", borderRadius:8, background:"rgba(239,68,68,0.1)", border:"1px solid rgba(239,68,68,0.4)", color:"#f87171", fontSize:12, fontWeight:700, cursor:"pointer" }}>
+                  🗑 Видалити
+                </button>
                 <button onClick={() => toggleBookings(iid)}
                   style={{ flex:"1 1 70px", padding:"8px", borderRadius:8, background:"rgba(91,155,255,0.15)", border:"1px solid rgba(91,155,255,0.35)", color:"#5b9bff", fontSize:12, fontWeight:700, cursor:"pointer" }}>
                   {expandedIid === iid ? "Сховати записи" : "📋 Записи"}
@@ -908,7 +951,7 @@ export function SuperAdminScreen() {
               </div>
 
               {expandedIid === iid && (
-                <InstructorDetail loading={loadingBookingsIid === iid} data={bookingsCache[iid]} />
+                <InstructorDetail loading={loadingBookingsIid === iid} data={bookingsCache[iid]} iid={iid} onStudentDeleted={(id, uid) => setBookingsCache(prev => prev[id] ? ({ ...prev, [id]: { ...prev[id], list: prev[id].list.filter(b => b.uid !== uid) } }) : prev)} />
               )}
             </div>
           );
@@ -1011,6 +1054,27 @@ export function SuperAdminScreen() {
           </>
         )}
       </div>
+      {delInst && (
+        <div onClick={() => !delInstBusy && setDelInst(null)} style={{ position:"fixed", inset:0, zIndex:300, background:"rgba(0,0,0,0.65)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+          <div onClick={e => e.stopPropagation()} style={{ width:"100%", maxWidth:380, padding:18, borderRadius:16, background:SURFACE, border:"1px solid rgba(239,68,68,0.45)" }}>
+            <div style={{ fontSize:16, fontWeight:800, color:"#f87171", marginBottom:8 }}>Видалити акаунт інструктора?</div>
+            <div style={{ fontSize:14, fontWeight:700, color:TEXT, marginBottom:8 }}>{delInst.name}</div>
+            <div style={{ fontSize:12, color:DIM, lineHeight:1.55, marginBottom:12 }}>
+              Назавжди видаляє інструктора, його учнів, записи, чати, налаштування, адресу сторінки й обліковий запис входу. Перед видаленням повний архів його даних зберігається в Storage (backups/deleted/). Підписка не повертається; автосписання LiqPay (якщо є) скасуйте окремо.
+              Для підтвердження введіть <b style={{ color:TEXT }}>ВИДАЛИТИ</b>.
+            </div>
+            <input value={delInstText} onChange={e => setDelInstText(e.target.value)} placeholder="ВИДАЛИТИ"
+              style={{ width:"100%", boxSizing:"border-box", padding:"10px 12px", borderRadius:10, border:`1px solid ${BORDER}`, background:BG_DEEP, color:TEXT, fontSize:14, outline:"none", marginBottom:12 }}/>
+            <div style={{ display:"flex", gap:8 }}>
+              <button disabled={delInstBusy || delInstText.trim().toUpperCase() !== "ВИДАЛИТИ"} onClick={doDeleteInstructor}
+                style={{ flex:1, padding:10, borderRadius:10, border:"none", fontWeight:800, cursor:"pointer", color:"#fff", background:(delInstBusy || delInstText.trim().toUpperCase() !== "ВИДАЛИТИ") ? "rgba(239,68,68,0.25)" : "#ef4444" }}>
+                {delInstBusy ? "Видалення…" : "Видалити назавжди"}
+              </button>
+              <button disabled={delInstBusy} onClick={() => setDelInst(null)} style={{ padding:"10px 16px", borderRadius:10, border:`1px solid ${BORDER}`, background:"transparent", color:TEXT, fontWeight:700, cursor:"pointer" }}>Скасувати</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
