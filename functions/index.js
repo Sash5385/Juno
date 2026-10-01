@@ -890,9 +890,11 @@ exports.onTemplatePush = onValueCreated(
   }
 );
 
-// Щогодини: нагадування за 24 год і за 2 год до уроку
+// Кожні 5 хв: нагадування за 24 год і за 2 год до уроку. Раніше запуск був раз на годину з
+// вікном ±30 хв — тому "за 2 год" могло прийти за 2г25хв до уроку. Тепер вікна вузькі:
+// надсилаємо, щойно до уроку лишилось ≤24г / ≤2г (і не раніше ніж 23г / 1г45хв).
 exports.sendLessonReminders = onSchedule(
-  { schedule: "every 1 hours", region: "europe-west1" },
+  { schedule: "every 5 minutes", region: "europe-west1" },
   async () => {
     const now = Date.now();
     const kyivHour = parseInt(
@@ -944,9 +946,9 @@ exports.sendLessonReminders = onSchedule(
 
           const reminderVars = { "ім'я": b.studentName || "Учень", "дата": dateFmt, "час": b.time };
 
-          // 24г нагадування (вікно 23–25г, не в тихі години)
+          // 24г нагадування (вікно 23–24г, не в тихі години)
           if (!sent.r24 && !(kyivHour >= 23 || kyivHour < 6)
-              && diffMs >= 23 * 3600000 && diffMs <= 25 * 3600000) {
+              && diffMs >= 23 * 3600000 && diffMs <= 24 * 3600000) {
             // Позначаємо "відправлено" лише якщо push реально дійшов — інакше
             // (немає токена/помилка) прапорець назавжди блокував би повторні
             // спроби на наступних годинних запусках.
@@ -964,8 +966,8 @@ exports.sendLessonReminders = onSchedule(
             }
           }
 
-          // 2г нагадування (вікно 1.5–2.5г, завжди)
-          if (!sent.r2 && diffMs >= 90 * 60000 && diffMs <= 150 * 60000) {
+          // 2г нагадування (вікно 1г45хв–2г, завжди)
+          if (!sent.r2 && diffMs >= 105 * 60000 && diffMs <= 120 * 60000) {
             const usedTpl2 = await sendActiveTemplates(iid, uid, "auto_reminder", reminderVars, t => matchesReminderBucket(t, 2)).catch(() => false);
             if (usedTpl2) {
               updates[`sentReminders/${uid}/${bookingId}/r2`] = true;
