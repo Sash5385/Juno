@@ -3,6 +3,7 @@ import { signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswor
 import { ref, get, onValue, update, set, remove } from "firebase/database";
 import { auth, iRef, db } from "./firebase";
 import { licenseState } from "./hooks/useLicense";
+import { LOGIN_CSS } from "./loginStyles";
 import { APP_VERSION } from "./version";
 
 // Вендор SaaS (ви) — бачить усіх інструкторів замість власного кабінету.
@@ -151,79 +152,66 @@ export function LoginScreen() {
     }
   };
 
+  // Варіант оформлення (для перегляду: ?lv=1…10)
+  const lv = (() => { try { const n = parseInt(new URLSearchParams(window.location.search).get("lv") || "", 10); return n >= 1 && n <= 10 ? n : 1; } catch { return 1; } })();
+
   return (
-    <div style={{ minHeight:"100vh", background:BG_DEEP, display:"flex", alignItems:"center", justifyContent:"center", paddingTop:"env(safe-area-inset-top, 0px)", paddingBottom:"env(safe-area-inset-bottom, 0px)" }}>
-      <div style={{ background:`linear-gradient(135deg,${SURF_HI},${SURFACE})`, borderRadius:20, padding:"32px 28px", width:"100%", maxWidth:360, boxShadow:SO, border:`1px solid ${BORDER}` }}>
-        <div style={{ textAlign:"center", marginBottom:28 }}>
-          <img src="/icon-192.png" alt="DrivePad" style={{width:72,height:72,borderRadius:"50%",marginBottom:8,boxShadow:"-3px 5px 14px rgba(0,0,0,0.45)"}}/>
-          <div style={{ fontSize:20, fontWeight:800, color:TEXT }}>DrivePad</div>
-          <div style={{ fontSize:13, color:DIM, marginTop:4 }}>{registering ? "Реєстрація інструктора · 14 днів безкоштовно" : "Вхід для інструктора"}</div>
+    <div className={`lg-wrap lg-v${lv}`}>
+      <style>{LOGIN_CSS}</style>
+      <div className="lg-bg" aria-hidden="true"><i/><i/><i/></div>
+      <div className="lg-card">
+        <div className="lg-head">
+          <img className="lg-logo" src="/icon-192.png" alt="DrivePad"/>
+          <div className="lg-title">DrivePad</div>
+          <div className="lg-sub">{registering ? "Реєстрація інструктора · 14 днів безкоштовно" : "Вхід для інструктора"}</div>
         </div>
-        <div style={{ marginBottom:14 }}>
-          <div style={{ fontSize:12, color:DIM, marginBottom:6 }}>Email</div>
-          <input type="email" value={email} onChange={e=>setEmail(e.target.value)} onKeyDown={e=>e.key==="Enter"&&login()}
-            style={{ width:"100%", background:BG_DEEP, border:`1px solid ${BORDER}`, borderRadius:10, padding:"10px 14px", color:TEXT, fontSize:14, outline:"none", boxSizing:"border-box" }}/>
-        </div>
-        <div style={{ marginBottom: registering ? 14 : 8 }}>
-          <div style={{ fontSize:12, color:DIM, marginBottom:6 }}>Пароль</div>
-          <input type="password" value={password} onChange={e=>setPassword(e.target.value)} onKeyDown={e=>e.key==="Enter"&&login()}
-            style={{ width:"100%", background:BG_DEEP, border:`1px solid ${BORDER}`, borderRadius:10, padding:"10px 14px", color:TEXT, fontSize:14, outline:"none", boxSizing:"border-box" }}/>
-        </div>
-        {registering && (
-          <div style={{ marginBottom:20 }}>
-            <div style={{ fontSize:12, color:DIM, marginBottom:6 }}>Повторіть пароль</div>
-            <input type="password" value={password2} onChange={e=>setPassword2(e.target.value)} onKeyDown={e=>e.key==="Enter"&&login()}
-              style={{ width:"100%", background:BG_DEEP, border:`1px solid ${BORDER}`, borderRadius:10, padding:"10px 14px", color:TEXT, fontSize:14, outline:"none", boxSizing:"border-box" }}/>
+        <div className="lg-body">
+          <div className="lg-field">
+            <label className="lg-label" htmlFor="lg-email">Email</label>
+            <input id="lg-email" className="lg-input" type="email" value={email} onChange={e=>setEmail(e.target.value)} onKeyDown={e=>e.key==="Enter"&&login()} autoComplete="email"/>
           </div>
-        )}
-        {!registering && (
-          <div style={{ textAlign:"right", marginBottom:16 }}>
-            <button onClick={resetPassword} style={{ background:"none", border:"none", color:DIM, fontSize:12, cursor:"pointer", padding:0, textDecoration:"underline" }}>Забули пароль?</button>
+          <div className="lg-field">
+            <label className="lg-label" htmlFor="lg-pass">Пароль</label>
+            <input id="lg-pass" className="lg-input" type="password" value={password} onChange={e=>setPassword(e.target.value)} onKeyDown={e=>e.key==="Enter"&&login()} autoComplete={registering ? "new-password" : "current-password"}/>
           </div>
-        )}
-        {error && <div style={{ fontSize:12, color:ACCENT, textAlign:"center", marginBottom:14, padding:"8px", borderRadius:8, background:"rgba(255,90,60,0.1)" }}>{error}</div>}
-        {info && <div style={{ fontSize:12, color:"#4caf6b", textAlign:"center", marginBottom:14, padding:"8px", borderRadius:8, background:"rgba(76,175,107,0.12)" }}>{info}</div>}
-        <button onClick={login} disabled={loading||!email||!password||(registering&&!password2)}
-          style={{ width:"100%", padding:"12px", borderRadius:12, background: loading||!email||!password||(registering&&!password2) ? "rgba(255,90,60,0.3)" : "linear-gradient(135deg,#ff7a5c,#ff5a3c)", border:"none", color:"#fff", fontSize:14, fontWeight:700, cursor: loading||!email||!password ? "default":"pointer" }}>
-          {loading ? (registering ? "Реєстрація..." : "Вхід...") : (registering ? "Зареєструватись" : "Увійти")}
-        </button>
-        {IOS_STANDALONE ? (
-          <div style={{ marginTop:12, fontSize:11.5, color:DIM, lineHeight:1.5, textAlign:"center" }}>
-            Вхід через Google недоступний у встановленому застосунку на iPhone (обмеження iOS). Скористайтесь email і паролем.
-          </div>
-        ) : (
-          <>
-            <div style={{ display:"flex", alignItems:"center", gap:10, margin:"14px 0 12px" }}>
-              <div style={{ flex:1, height:1, background:BORDER }}/><span style={{ fontSize:11, color:DIM }}>або</span><div style={{ flex:1, height:1, background:BORDER }}/>
+          {registering && (
+            <div className="lg-field">
+              <label className="lg-label" htmlFor="lg-pass2">Повторіть пароль</label>
+              <input id="lg-pass2" className="lg-input" type="password" value={password2} onChange={e=>setPassword2(e.target.value)} onKeyDown={e=>e.key==="Enter"&&login()} autoComplete="new-password"/>
             </div>
-            <button onClick={googleSignIn} disabled={loading}
-              style={{ width:"100%", padding:"11px", borderRadius:12, background:"rgba(255,255,255,0.06)", border:`1px solid ${BORDER}`, color:TEXT, fontSize:14, fontWeight:700, cursor: loading ? "default" : "pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:10 }}>
-              <svg width="18" height="18" viewBox="0 0 48 48">
+          )}
+          {!registering && <div className="lg-forgot"><button onClick={resetPassword}>Забули пароль?</button></div>}
+          {error && <div className="lg-error">{error}</div>}
+          {info && <div className="lg-info">{info}</div>}
+          <button className="lg-btn" onClick={login} disabled={loading||!email||!password||(registering&&!password2)}>
+            {loading ? (registering ? "Реєстрація..." : "Вхід...") : (registering ? "Зареєструватись" : "Увійти")}
+          </button>
+          {IOS_STANDALONE ? (
+            <div className="lg-note">Вхід через Google недоступний у встановленому застосунку на iPhone (обмеження iOS). Скористайтесь email і паролем.</div>
+          ) : (
+            <>
+              <div className="lg-or">або</div>
+              <button className="lg-google" onClick={googleSignIn} disabled={loading}>
+                <svg width="18" height="18" viewBox="0 0 48 48">
                 <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.2l6.7-6.7C35.7 2.5 30.2 0 24 0 14.7 0 6.7 5.5 2.8 13.5l7.8 6.1C12.5 13.2 17.8 9.5 24 9.5z"/>
                 <path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v8.5h12.7c-.6 3-2.3 5.5-4.8 7.2l7.5 5.8C43.7 37.3 46.5 31.3 46.5 24.5z"/>
                 <path fill="#FBBC05" d="M10.6 28.4A14.9 14.9 0 0 1 9.5 24c0-1.5.3-3 .7-4.4l-7.8-6.1A23.9 23.9 0 0 0 0 24c0 3.9.9 7.5 2.6 10.8l7.8-6.1-.1-.3z"/>
                 <path fill="#34A853" d="M24 48c6.2 0 11.4-2 15.2-5.5l-7.5-5.8c-2 1.4-4.6 2.2-7.7 2.2-6.2 0-11.5-3.7-13.4-9.1l-7.8 6.1C6.7 42.5 14.7 48 24 48z"/>
               </svg>
-              Увійти через Google
+                Увійти через Google
+              </button>
+            </>
+          )}
+          <div className="lg-switch">
+            {registering ? "Уже є акаунт? " : "Ще немає акаунта? "}
+            <button onClick={() => { setMode(registering ? "login" : "register"); setError(""); setInfo(""); setPassword2(""); }}>
+              {registering ? "Увійти" : "Зареєструватись"}
             </button>
-          </>
-        )}
-        <div style={{ textAlign:"center", marginTop:14, fontSize:13, color:DIM }}>
-          {registering ? "Уже є акаунт? " : "Ще немає акаунта? "}
-          <button onClick={() => { setMode(registering ? "login" : "register"); setError(""); setInfo(""); setPassword2(""); }}
-            style={{ background:"none", border:"none", color:ACCENT, fontSize:13, fontWeight:700, cursor:"pointer", padding:0 }}>
-            {registering ? "Увійти" : "Зареєструватись"}
-          </button>
+          </div>
+          {installPrompt && !installed && (
+            <button className="lg-install" onClick={handleInstallClick}>📲 Встановити застосунок</button>
+          )}
         </div>
-        {installPrompt && !installed && (
-          <button onClick={handleInstallClick} style={{
-            width:"100%", marginTop:12, padding:"10px", borderRadius:12,
-            background:"rgba(255,255,255,0.05)", border:`1px solid ${BORDER}`,
-            color:TEXT, fontSize:13, fontWeight:700, cursor:"pointer",
-          }}>
-            📲 Встановити застосунок
-          </button>
-        )}
       </div>
       {bannerEligible && (
         <div style={{
