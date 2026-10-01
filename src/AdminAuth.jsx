@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { signInWithEmailAndPassword, onAuthStateChanged, signOut } from "firebase/auth";
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, onAuthStateChanged, signOut } from "firebase/auth";
 import { ref, get, onValue, update, set } from "firebase/database";
 import { auth, iRef, db } from "./firebase";
 import { licenseState } from "./hooks/useLicense";
@@ -50,6 +50,11 @@ export function LoginScreen() {
   const [password, setPassword] = useState("");
   const [error,    setError]    = useState("");
   const [loading,  setLoading]  = useState(false);
+  // "login" — вхід, "register" — реєстрація нового інструктора (далі — анкета та пробний період)
+  const [mode,      setMode]      = useState("login");
+  const [password2, setPassword2] = useState("");
+  const [info,      setInfo]      = useState("");
+  const registering = mode === "register";
 
   const [installPrompt, setInstallPrompt] = useState(null);
   const [installed, setInstalled] = useState(false);
@@ -84,15 +89,36 @@ export function LoginScreen() {
   }, [bannerEligible]);
 
   const login = async () => {
-    setError(""); setLoading(true);
+    setError(""); setInfo(""); setLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      if (registering) {
+        if (password.length < 6) { setError("Пароль — мінімум 6 символів"); return; }
+        if (password !== password2) { setError("Паролі не збігаються"); return; }
+        await createUserWithEmailAndPassword(auth, email.trim(), password);
+      } else {
+        await signInWithEmailAndPassword(auth, email.trim(), password);
+      }
     } catch (e) {
       if (e.code === 'auth/network-request-failed') setError("Помилка мережі — перевірте з'єднання");
       else if (e.code === 'auth/too-many-requests') setError("Забагато спроб — спробуйте пізніше");
+      else if (e.code === 'auth/email-already-in-use') setError("Цей email уже зареєстрований — натисніть «Увійти»");
+      else if (e.code === 'auth/invalid-email') setError("Некоректний email");
+      else if (e.code === 'auth/weak-password') setError("Занадто простий пароль — мінімум 6 символів");
+      else if (registering) setError("Не вдалося зареєструватись. Спробуйте ще раз");
       else setError("Невірний email або пароль");
     }
     finally { setLoading(false); }
+  };
+
+  const resetPassword = async () => {
+    setError(""); setInfo("");
+    if (!email.trim()) { setError("Введіть email, щоб відновити пароль"); return; }
+    try {
+      await sendPasswordResetEmail(auth, email.trim());
+      setInfo("Лист для відновлення пароля надіслано на вашу пошту");
+    } catch (e) {
+      setError(e.code === 'auth/invalid-email' ? "Некоректний email" : "Не вдалося надіслати лист. Перевірте email");
+    }
   };
 
   return (
@@ -101,23 +127,43 @@ export function LoginScreen() {
         <div style={{ textAlign:"center", marginBottom:28 }}>
           <img src="/icon-192.png" alt="DrivePad" style={{width:72,height:72,borderRadius:"50%",marginBottom:8,boxShadow:"-3px 5px 14px rgba(0,0,0,0.45)"}}/>
           <div style={{ fontSize:20, fontWeight:800, color:TEXT }}>DrivePad</div>
-          <div style={{ fontSize:13, color:DIM, marginTop:4 }}>Вхід для інструктора</div>
+          <div style={{ fontSize:13, color:DIM, marginTop:4 }}>{registering ? "Реєстрація інструктора · 14 днів безкоштовно" : "Вхід для інструктора"}</div>
         </div>
         <div style={{ marginBottom:14 }}>
           <div style={{ fontSize:12, color:DIM, marginBottom:6 }}>Email</div>
           <input type="email" value={email} onChange={e=>setEmail(e.target.value)} onKeyDown={e=>e.key==="Enter"&&login()}
             style={{ width:"100%", background:BG_DEEP, border:`1px solid ${BORDER}`, borderRadius:10, padding:"10px 14px", color:TEXT, fontSize:14, outline:"none", boxSizing:"border-box" }}/>
         </div>
-        <div style={{ marginBottom:20 }}>
+        <div style={{ marginBottom: registering ? 14 : 8 }}>
           <div style={{ fontSize:12, color:DIM, marginBottom:6 }}>Пароль</div>
           <input type="password" value={password} onChange={e=>setPassword(e.target.value)} onKeyDown={e=>e.key==="Enter"&&login()}
             style={{ width:"100%", background:BG_DEEP, border:`1px solid ${BORDER}`, borderRadius:10, padding:"10px 14px", color:TEXT, fontSize:14, outline:"none", boxSizing:"border-box" }}/>
         </div>
+        {registering && (
+          <div style={{ marginBottom:20 }}>
+            <div style={{ fontSize:12, color:DIM, marginBottom:6 }}>Повторіть пароль</div>
+            <input type="password" value={password2} onChange={e=>setPassword2(e.target.value)} onKeyDown={e=>e.key==="Enter"&&login()}
+              style={{ width:"100%", background:BG_DEEP, border:`1px solid ${BORDER}`, borderRadius:10, padding:"10px 14px", color:TEXT, fontSize:14, outline:"none", boxSizing:"border-box" }}/>
+          </div>
+        )}
+        {!registering && (
+          <div style={{ textAlign:"right", marginBottom:16 }}>
+            <button onClick={resetPassword} style={{ background:"none", border:"none", color:DIM, fontSize:12, cursor:"pointer", padding:0, textDecoration:"underline" }}>Забули пароль?</button>
+          </div>
+        )}
         {error && <div style={{ fontSize:12, color:ACCENT, textAlign:"center", marginBottom:14, padding:"8px", borderRadius:8, background:"rgba(255,90,60,0.1)" }}>{error}</div>}
-        <button onClick={login} disabled={loading||!email||!password}
-          style={{ width:"100%", padding:"12px", borderRadius:12, background: loading||!email||!password ? "rgba(255,90,60,0.3)" : "linear-gradient(135deg,#ff7a5c,#ff5a3c)", border:"none", color:"#fff", fontSize:14, fontWeight:700, cursor: loading||!email||!password ? "default":"pointer" }}>
-          {loading ? "Вхід..." : "Увійти"}
+        {info && <div style={{ fontSize:12, color:"#4caf6b", textAlign:"center", marginBottom:14, padding:"8px", borderRadius:8, background:"rgba(76,175,107,0.12)" }}>{info}</div>}
+        <button onClick={login} disabled={loading||!email||!password||(registering&&!password2)}
+          style={{ width:"100%", padding:"12px", borderRadius:12, background: loading||!email||!password||(registering&&!password2) ? "rgba(255,90,60,0.3)" : "linear-gradient(135deg,#ff7a5c,#ff5a3c)", border:"none", color:"#fff", fontSize:14, fontWeight:700, cursor: loading||!email||!password ? "default":"pointer" }}>
+          {loading ? (registering ? "Реєстрація..." : "Вхід...") : (registering ? "Зареєструватись" : "Увійти")}
         </button>
+        <div style={{ textAlign:"center", marginTop:14, fontSize:13, color:DIM }}>
+          {registering ? "Уже є акаунт? " : "Ще немає акаунта? "}
+          <button onClick={() => { setMode(registering ? "login" : "register"); setError(""); setInfo(""); setPassword2(""); }}
+            style={{ background:"none", border:"none", color:ACCENT, fontSize:13, fontWeight:700, cursor:"pointer", padding:0 }}>
+            {registering ? "Увійти" : "Зареєструватись"}
+          </button>
+        </div>
         {installPrompt && !installed && (
           <button onClick={handleInstallClick} style={{
             width:"100%", marginTop:12, padding:"10px", borderRadius:12,
