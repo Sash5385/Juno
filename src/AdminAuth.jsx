@@ -257,6 +257,8 @@ export function LoginScreen() {
 const INP = { width:"100%", background:BG_DEEP, border:`1px solid ${BORDER}`, borderRadius:10, padding:"10px 14px", color:TEXT, fontSize:14, outline:"none", boxSizing:"border-box" };
 const LBL = { fontSize:12, color:DIM, marginBottom:6 };
 const TRIAL_DAYS = 14;
+// Адреси, що збігаються з розділами/службовими шляхами застосунку
+const RESERVED_SLUGS = ["admin","api","i","book","www","drivepad","login","auth","cabinet","schedule","home","about","settings","support","help","test","demo"];
 
 // Перший вхід нового інструктора — заповнює профіль (учні бачать його при
 // записі) і бронює slug для публічної сторінки /book/{slug}. Заводить license
@@ -288,8 +290,24 @@ export function InstructorSetupScreen({ onDone }) {
     setSaving(true);
     setError(""); setSlugError("");
     try {
+      const iid = auth.currentUser.uid;
+      if (RESERVED_SLUGS.includes(slug)) {
+        setSlugError("Ця адреса зарезервована. Оберіть іншу.");
+        setSaving(false); return;
+      }
+      // Адреса має бути унікальною. Спершу швидка перевірка, а потім САМЕ резервування
+      // (правила бази не дають перезаписати чужий slug, тож навіть при одночасній
+      // реєстрації двох людей другий отримає відмову). Резервуємо ДО запису профілю —
+      // щоб профіль із чужою адресою не міг зберегтися. Свій же slug (повторна спроба
+      // після збою) дозволений.
       const slugSnap = await get(ref(db, `slugs/${slug}`));
-      if (slugSnap.exists()) {
+      if (slugSnap.exists() && slugSnap.val()?.iid !== iid) {
+        setSlugError("Цей slug вже зайнятий. Оберіть інший.");
+        setSaving(false); return;
+      }
+      try {
+        await set(ref(db, `slugs/${slug}`), { iid });
+      } catch {
         setSlugError("Цей slug вже зайнятий. Оберіть інший.");
         setSaving(false); return;
       }
@@ -300,13 +318,11 @@ export function InstructorSetupScreen({ onDone }) {
         experience: Number(experience) || 0,
         slug,
       };
-      const iid = auth.currentUser.uid;
       await update(iRef(""), {
         "admin_settings/profile": profile,
         "license/status":      "trial",
         "license/trialEndsAt": Date.now() + TRIAL_DAYS * 24 * 3600 * 1000,
       });
-      await set(ref(db, `slugs/${slug}`), { iid });
       await set(ref(db, `instructor_index/${iid}`), {
         name: profile.name, phone: profile.phone, slug, createdAt: Date.now(),
       });
