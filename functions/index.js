@@ -1182,6 +1182,58 @@ exports.checkLicenseExpiry = onSchedule(
   }
 );
 
+// ─── Резервна копія записів ──────────────────────────────────────────
+// Щоночі (03:00 за Києвом) складає JSON-копію даних кожного інструктора в Cloud Storage:
+// backups/{YYYY-MM-DD}/{iid}.json. Працює ЛИШЕ коли суперадмін увімкнув тумблер
+// (system/backupEnabled = true у суперадмінці). Зберігає 30 днів, старіші видаляє.
+// Не копіюються: чати, timeslots (відновлюються генерацією), сповіщення, push-токени.
+// Статус останнього запуску пишеться в system/backupStatus (видно в суперадмінці).
+const BACKUP_BUCKET = "drivepad-86fe1.firebasestorage.app";
+const BACKUP_KEEP_DAYS = 30;
+const BACKUP_KEYS = [
+  "bookings", "bookings_by_phone", "users", "admin_settings", "admin_data",
+  "dayNotes", "studentColors", "license", "reviews", "activeStudents",
+];
+
+exports.nightlyBackup = onSchedule(
+  { schedule: "every day 03:00", timeZone: "Europe/Kyiv", region: "europe-west1", timeoutSeconds: 540, memory: "512MiB" },
+  async () => {
+    const enabled = (await db.ref("system/backupEnabled").get()).val() === true;
+    if (!enabled) { console.log("nightlyBackup: вимкнено в суперадмінці — пропуск"); return; }
+
+    const startedAt = Date.now();
+    const date = new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Kyiv" }); // YYYY-MM-DD
+    try {
+      const bucket = admin.storage().bucket(BACKUP_BUCKET);
+      const instructors = (await db.ref("instructors").get()).val() || {};
+      let count = 0, bytes = 0;
+
+      for (const [iid, inst] of Object.entries(instructors)) {
+        const data = {};
+        for (const k of BACKUP_KEYS) if (inst?.[k] !== undefined) data[k] = inst[k];
+        const body = JSON.stringify({ iid, date, savedAt: startedAt, data });
+        await bucket.file(`backups/${date}/${iid}.json`).save(body, { contentType: "application/json", resumable: false });
+        count++; bytes += Buffer.byteLength(body);
+      }
+
+      // Видаляємо копії старші за BACKUP_KEEP_DAYS днів
+      const cutoff = new Date(startedAt - BACKUP_KEEP_DAYS * 86400000).toLocaleDateString("sv-SE", { timeZone: "Europe/Kyiv" });
+      const [files] = await bucket.getFiles({ prefix: "backups/" });
+      let removed = 0;
+      for (const f of files) {
+        const m = /^backups\/(\d{4}-\d{2}-\d{2})\//.exec(f.name);
+        if (m && m[1] < cutoff) { await f.delete().catch(() => {}); removed++; }
+      }
+
+      await db.ref("system/backupStatus").set({ ok: true, at: Date.now(), date, instructors: count, bytes, removed });
+      console.log(`nightlyBackup: ok date=${date} instructors=${count} bytes=${bytes} removed=${removed}`);
+    } catch (e) {
+      console.error("nightlyBackup error:", e);
+      await db.ref("system/backupStatus").set({ ok: false, at: Date.now(), date, error: String(e?.message || e).slice(0, 300) }).catch(() => {});
+    }
+  }
+);
+
 // ─── Оплата підписки: LiqPay + Monobank ───────────────────────────
 // Обидва провайдери дають готовий hosted-чекаут з Apple Pay/Google Pay/карткою.
 // LiqPay action:"subscribe" — справжнє автосписання щомісяця (вебхук сам

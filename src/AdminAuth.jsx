@@ -417,6 +417,15 @@ export function SuperAdminScreen() {
   const [index, setIndex] = useState(null);
   const [licenses, setLicenses] = useState({});
   const [busyIid, setBusyIid] = useState(null);
+  // Нічна резервна копія (functions: nightlyBackup) — вмикається тут
+  const [backupOn, setBackupOn] = useState(null);
+  const [backupStatus, setBackupStatus] = useState(null);
+  useEffect(() => {
+    const u1 = onValue(ref(db, "system/backupEnabled"), snap => setBackupOn(snap.val() === true));
+    const u2 = onValue(ref(db, "system/backupStatus"), snap => setBackupStatus(snap.val()));
+    return () => { u1(); u2(); };
+  }, []);
+  const toggleBackup = () => set(ref(db, "system/backupEnabled"), !backupOn).catch(() => alert("Не вдалося змінити налаштування резервної копії"));
   const [expandedIid, setExpandedIid] = useState(null);
   const [bookingsCache, setBookingsCache] = useState({});
   const [loadingBookingsIid, setLoadingBookingsIid] = useState(null);
@@ -510,6 +519,29 @@ export function SuperAdminScreen() {
           <button onClick={() => signOut(auth)} style={{ background:"none", border:`1px solid ${BORDER}`, borderRadius:8, color:DIM, padding:"6px 12px", fontSize:12, cursor:"pointer" }}>
             Вийти
           </button>
+        </div>
+
+        <div style={{ background:`linear-gradient(135deg,${SURF_HI},${SURFACE})`, borderRadius:16, padding:"14px 16px", marginBottom:14, border:`1px solid ${BORDER}`, boxShadow:SO }}>
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12 }}>
+            <div style={{ minWidth:0 }}>
+              <div style={{ fontSize:14, fontWeight:700, color:TEXT }}>💾 Нічна резервна копія</div>
+              <div style={{ fontSize:11, color:DIM, marginTop:2 }}>
+                Щодня о 03:00 — записи, учні, налаштування в Cloud Storage, зберігається 30 днів
+              </div>
+            </div>
+            <button onClick={toggleBackup} disabled={backupOn === null} aria-pressed={!!backupOn}
+              style={{ flexShrink:0, width:46, height:26, borderRadius:13, border:"none", cursor:"pointer", position:"relative",
+                background: backupOn ? "#4caf6b" : "rgba(255,255,255,0.15)", transition:"background .2s" }}>
+              <span style={{ position:"absolute", top:3, left: backupOn ? 23 : 3, width:20, height:20, borderRadius:"50%", background:"#fff", transition:"left .2s" }}/>
+            </button>
+          </div>
+          <div style={{ fontSize:11, marginTop:8, color: backupStatus && backupStatus.ok === false ? ACCENT : DIM }}>
+            {backupStatus
+              ? (backupStatus.ok
+                  ? `Остання копія: ${new Date(backupStatus.at).toLocaleString("uk")} · інструкторів: ${backupStatus.instructors} · ${(backupStatus.bytes/1024).toFixed(0)} КБ`
+                  : `Помилка останньої копії (${new Date(backupStatus.at).toLocaleString("uk")}): ${backupStatus.error || "—"}`)
+              : (backupOn ? "Перша копія буде створена найближчої ночі" : "Вимкнено — копії не створюються")}
+          </div>
         </div>
 
         {index === null && <div style={{ color:DIM, textAlign:"center", padding:40 }}>Завантаження…</div>}
