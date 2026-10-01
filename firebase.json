@@ -8,39 +8,88 @@
   "storage": {
     "rules": "storage.rules"
   },
-  "hosting": {
-    "target": "admin",
-    "public": "dist",
-    "ignore": [
-      "firebase.json",
-      "**/.*",
-      "**/node_modules/**"
-    ],
-    "headers": [
-      {
-        "source": "**",
-        "headers": [{ "key": "Cache-Control", "value": "no-cache" }]
-      },
-      {
-        "source": "/assets/**",
-        "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }]
-      }
-    ],
-    "rewrites": [
-      {
-        "source": "/api/liqpay-order",
-        "function": "createLiqPayOrder",
-        "region": "europe-west1"
-      },
-      {
-        "source": "/api/monobank-invoice",
-        "function": "createMonobankInvoice",
-        "region": "europe-west1"
-      },
-      {
-        "source": "**",
-        "destination": "/index.html"
-      }
-    ]
-  }
+  "hosting": [
+    {
+      "target": "admin",
+      "public": "dist",
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/node_modules/**"
+      ],
+      "headers": [
+        {
+          "source": "**",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "no-cache"
+            }
+          ]
+        },
+        {
+          "source": "/assets/**",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "public, max-age=31536000, immutable"
+            }
+          ]
+        }
+      ],
+      "rewrites": [
+        {
+          "source": "/api/liqpay-order",
+          "function": "createLiqPayOrder",
+          "region": "europe-west1"
+        },
+        {
+          "source": "/api/monobank-invoice",
+          "function": "createMonobankInvoice",
+          "region": "europe-west1"
+        },
+        {
+          "source": "**",
+          "destination": "/index.html"
+        }
+      ]
+    },
+    {
+      "target": "landing",
+      "public": "landing",
+      "cleanUrls": true,
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/node_modules/**"
+      ],
+      "headers": [
+        {
+          "source": "**",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "no-cache"
+            }
+          ]
+        },
+        {
+          "source": "/img/**",
+          "headers": [
+            {
+              "key": "Cache-Control",
+              "value": "public, max-age=86400"
+            }
+          ]
+        }
+      ],
+      "rewrites": [
+        {
+          "source": "/api/contact",
+          "function": "submitContact",
+          "region": "europe-west1"
+        }
+      ]
+    }
+  ]
 }

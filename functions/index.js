@@ -1182,6 +1182,41 @@ exports.checkLicenseExpiry = onSchedule(
   }
 );
 
+// ─── Форма зв'язку лендингу (landing/ → /api/contact) ──────────────
+// Публічний POST без авторизації: honeypot-поле "website", валідація довжин,
+// обмеження частоти за хешем IP (30 с між запитами, до 5 за годину). Повідомлення
+// зберігаються в system/contactMessages (читає лише суперадмін, вкладка "Звернення").
+exports.submitContact = onRequest({ region: "europe-west1", cors: true }, async (req, res) => {
+  if (req.method !== "POST") { res.status(405).json({ ok: false }); return; }
+  try {
+    const b = req.body || {};
+    if (b.website) { res.status(200).json({ ok: true }); return; } // бот заповнив приховане поле
+    const name = String(b.name || "").trim().slice(0, 80);
+    const email = String(b.email || "").trim().slice(0, 120);
+    const phone = String(b.phone || "").trim().slice(0, 30);
+    const message = String(b.message || "").trim().slice(0, 2000);
+    if (!name || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || message.length < 5) {
+      res.status(400).json({ ok: false, error: "invalid" }); return;
+    }
+    const ip = String(req.headers["x-forwarded-for"] || req.ip || "").split(",")[0].trim();
+    const ipHash = crypto.createHash("sha256").update(ip).digest("hex").slice(0, 16);
+    const now = Date.now();
+    const rate = await db.ref(`system/contactRate/${ipHash}`).transaction(cur => {
+      const c = cur || { w: now, n: 0, t: 0 };
+      if (now - c.w > 3600000) { c.w = now; c.n = 0; }
+      if (now - c.t < 30000 || c.n >= 5) return; // перевищено ліміт — скасовуємо транзакцію
+      c.n += 1; c.t = now;
+      return c;
+    });
+    if (!rate.committed) { res.status(429).json({ ok: false, error: "rate" }); return; }
+    await db.ref("system/contactMessages").push({ name, email, phone, message, at: now, ip: ipHash, status: "new" });
+    res.status(200).json({ ok: true });
+  } catch (e) {
+    console.error("submitContact error:", e);
+    res.status(500).json({ ok: false });
+  }
+});
+
 // ─── Резервна копія записів ──────────────────────────────────────────
 // Щоночі (03:00 за Києвом) складає JSON-копію даних кожного інструктора в Cloud Storage:
 // backups/{YYYY-MM-DD}/{iid}.json. Працює ЛИШЕ коли суперадмін увімкнув тумблер

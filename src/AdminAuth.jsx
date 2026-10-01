@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider, onAuthStateChanged, signOut } from "firebase/auth";
-import { ref, get, onValue, update, set } from "firebase/database";
+import { ref, get, onValue, update, set, remove } from "firebase/database";
 import { auth, iRef, db } from "./firebase";
 import { licenseState } from "./hooks/useLicense";
 import { APP_VERSION } from "./version";
@@ -598,6 +598,13 @@ export function SuperAdminScreen() {
   const [backupOn, setBackupOn] = useState(null);
   const [backupStatus, setBackupStatus] = useState(null);
   const [backupRequestedAt, setBackupRequestedAt] = useState(0);
+  // Звернення з форми на лендингу (function submitContact → system/contactMessages)
+  const [messages, setMessages] = useState([]);
+  useEffect(() => onValue(ref(db, "system/contactMessages"), snap => {
+    const v = snap.val() || {};
+    setMessages(Object.entries(v).map(([id, m]) => ({ id, ...m })).sort((a, b) => b.at - a.at));
+  }), []);
+  const newMessages = messages.filter(m => m.status !== "done").length;
   // Копія "зараз": чекаємо, поки статус оновиться пізніше за запит (максимум 10 хв)
   const backupPending = backupRequestedAt > (backupStatus?.at || 0) && Date.now() - backupRequestedAt < 10 * 60000;
   const backupNow = () => set(ref(db, "system/backupRequest"), Date.now()).catch(() => alert("Не вдалося запустити копію"));
@@ -749,6 +756,7 @@ export function SuperAdminScreen() {
     ["overview", "🏠", "Огляд", "#5b9bff"],
     ["instructors", "👥", "Інструктори", "#4caf6b"],
     ["payments", "💳", "Платежі", "#f7c948"],
+    ["messages", "📨", "Звернення", "#2dd4bf"],
     ["service", "⚙️", "Сервіс", "#c084fc"],
   ];
   const [section, setSection] = useState(() => { try { return sessionStorage.getItem("sa_tab") || "overview"; } catch { return "overview"; } });
@@ -786,7 +794,7 @@ export function SuperAdminScreen() {
           <div style={{ display:"flex", gap:6, overflowX:"auto", WebkitOverflowScrolling:"touch" }}>
             {TABS.map(([id, icon, label, color]) => {
               const on = section === id;
-              const badge = id === "instructors" ? allRows.length : id === "payments" ? payments.length : id === "overview" && attentionRows.length ? attentionRows.length : null;
+              const badge = id === "instructors" ? allRows.length : id === "payments" ? payments.length : id === "messages" ? (newMessages || null) : id === "overview" && attentionRows.length ? attentionRows.length : null;
               return (
                 <button key={id} onClick={() => go(id)} style={{
                   flex:"1 0 auto", display:"flex", alignItems:"center", justifyContent:"center", gap:6,
@@ -946,6 +954,34 @@ export function SuperAdminScreen() {
               ))}
               <div style={{ fontSize:10, color:DIM, marginTop:8 }}>Сума в журналі — тарифна; тестові платежі по 1₴ показані за тарифом.</div>
             </>)}
+          </>
+        )}
+
+        {section === "messages" && (
+          <>
+            {messages.length === 0 && panel("#2dd4bf", <div style={{ fontSize:13, color:"rgba(255,255,255,0.65)" }}>Поки немає звернень з форми на лендингу.</div>)}
+            {messages.slice(0, 100).map(m => (
+              <div key={m.id}>{panel(m.status === "done" ? "#5a5c62" : "#2dd4bf", <>
+                <div style={{ display:"flex", justifyContent:"space-between", gap:8, alignItems:"flex-start" }}>
+                  <div style={{ minWidth:0 }}>
+                    <div style={{ fontSize:14, fontWeight:800, color:TEXT }}>{m.name}</div>
+                    <div style={{ fontSize:12, color:"rgba(255,255,255,0.6)", marginTop:2 }}>
+                      <a href={`mailto:${m.email}`} style={{ color:"#2dd4bf" }}>{m.email}</a>{m.phone ? ` · ${m.phone}` : ""} · {new Date(m.at).toLocaleString("uk")}
+                    </div>
+                  </div>
+                  <div style={{ fontSize:11, fontWeight:800, color: m.status === "done" ? DIM : "#2dd4bf", flexShrink:0 }}>{m.status === "done" ? "оброблено" : "нове"}</div>
+                </div>
+                <div style={{ fontSize:13, color:TEXT, marginTop:10, whiteSpace:"pre-wrap", wordBreak:"break-word" }}>{m.message}</div>
+                <div style={{ display:"flex", gap:8, marginTop:12 }}>
+                  <button onClick={() => update(ref(db, `system/contactMessages/${m.id}`), { status: m.status === "done" ? "new" : "done" }).catch(() => {})}
+                    style={{ flex:1, padding:"8px", borderRadius:8, background:"rgba(45,212,191,0.15)", border:"1px solid rgba(45,212,191,0.4)", color:"#2dd4bf", fontSize:12, fontWeight:700, cursor:"pointer" }}>
+                    {m.status === "done" ? "↩ Повернути в нові" : "✓ Оброблено"}
+                  </button>
+                  <button onClick={() => { if (window.confirm("Видалити звернення?")) remove(ref(db, `system/contactMessages/${m.id}`)).catch(() => {}); }}
+                    style={{ padding:"8px 14px", borderRadius:8, background:"rgba(239,68,68,0.12)", border:"1px solid rgba(239,68,68,0.4)", color:"#f87171", fontSize:12, fontWeight:700, cursor:"pointer" }}>Видалити</button>
+                </div>
+              </>, { marginBottom:12 })}</div>
+            ))}
           </>
         )}
 
