@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, onAuthStateChanged, signOut } from "firebase/auth";
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider, onAuthStateChanged, signOut } from "firebase/auth";
 import { ref, get, onValue, update, set } from "firebase/database";
 import { auth, iRef, db } from "./firebase";
 import { licenseState } from "./hooks/useLicense";
@@ -44,6 +44,11 @@ export function useAdminAuth() {
   }, []);
   return user;
 }
+
+// iPhone, застосунок запущено з екрана Домой: вхід через Google тут неможливий (iOS відкриває
+// Google в окремому вікні Safari з власним сховищем — результат не повертається в застосунок).
+const IOS_STANDALONE = /iphone|ipad|ipod/i.test(window.navigator.userAgent)
+  && (window.navigator.standalone === true || window.matchMedia?.('(display-mode: standalone)').matches);
 
 export function LoginScreen() {
   const [email,    setEmail]    = useState("");
@@ -110,6 +115,30 @@ export function LoginScreen() {
     finally { setLoading(false); }
   };
 
+  const googleSignIn = async () => {
+    setError(""); setInfo(""); setLoading(true);
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: "select_account" });
+    try {
+      await signInWithPopup(auth, provider);
+    } catch (e) {
+      if (e.code === 'auth/popup-blocked' || e.code === 'auth/operation-not-supported-in-this-environment') {
+        // Мобільні браузери без popup — повний редірект, результат ловить getRedirectResult нижче
+        try { await signInWithRedirect(auth, provider); return; } catch { /* нижче показуємо помилку */ }
+      }
+      if (e.code === 'auth/popup-closed-by-user' || e.code === 'auth/cancelled-popup-request') { /* користувач закрив вікно */ }
+      else if (e.code === 'auth/network-request-failed') setError("Помилка мережі — перевірте з'єднання");
+      else if (e.code === 'auth/unauthorized-domain') setError("Цей домен не дозволено для входу через Google (Firebase → Authentication → Authorized domains)");
+      else if (e.code === 'auth/operation-not-allowed') setError("Вхід через Google не увімкнено в Firebase (Authentication → Sign-in method)");
+      else setError("Не вдалося увійти через Google" + (e.code ? ` (${e.code})` : ""));
+    } finally { setLoading(false); }
+  };
+
+  // Повернення з signInWithRedirect: успіх підхоплює onAuthStateChanged, тут — лише помилки
+  useEffect(() => {
+    getRedirectResult(auth).catch(e => setError("Не вдалося увійти через Google" + (e?.code ? ` (${e.code})` : "")));
+  }, []);
+
   const resetPassword = async () => {
     setError(""); setInfo("");
     if (!email.trim()) { setError("Введіть email, щоб відновити пароль"); return; }
@@ -157,6 +186,27 @@ export function LoginScreen() {
           style={{ width:"100%", padding:"12px", borderRadius:12, background: loading||!email||!password||(registering&&!password2) ? "rgba(255,90,60,0.3)" : "linear-gradient(135deg,#ff7a5c,#ff5a3c)", border:"none", color:"#fff", fontSize:14, fontWeight:700, cursor: loading||!email||!password ? "default":"pointer" }}>
           {loading ? (registering ? "Реєстрація..." : "Вхід...") : (registering ? "Зареєструватись" : "Увійти")}
         </button>
+        {IOS_STANDALONE ? (
+          <div style={{ marginTop:12, fontSize:11.5, color:DIM, lineHeight:1.5, textAlign:"center" }}>
+            Вхід через Google недоступний у встановленому застосунку на iPhone (обмеження iOS). Скористайтесь email і паролем.
+          </div>
+        ) : (
+          <>
+            <div style={{ display:"flex", alignItems:"center", gap:10, margin:"14px 0 12px" }}>
+              <div style={{ flex:1, height:1, background:BORDER }}/><span style={{ fontSize:11, color:DIM }}>або</span><div style={{ flex:1, height:1, background:BORDER }}/>
+            </div>
+            <button onClick={googleSignIn} disabled={loading}
+              style={{ width:"100%", padding:"11px", borderRadius:12, background:"rgba(255,255,255,0.06)", border:`1px solid ${BORDER}`, color:TEXT, fontSize:14, fontWeight:700, cursor: loading ? "default" : "pointer", display:"flex", alignItems:"center", justifyContent:"center", gap:10 }}>
+              <svg width="18" height="18" viewBox="0 0 48 48">
+                <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.2l6.7-6.7C35.7 2.5 30.2 0 24 0 14.7 0 6.7 5.5 2.8 13.5l7.8 6.1C12.5 13.2 17.8 9.5 24 9.5z"/>
+                <path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v8.5h12.7c-.6 3-2.3 5.5-4.8 7.2l7.5 5.8C43.7 37.3 46.5 31.3 46.5 24.5z"/>
+                <path fill="#FBBC05" d="M10.6 28.4A14.9 14.9 0 0 1 9.5 24c0-1.5.3-3 .7-4.4l-7.8-6.1A23.9 23.9 0 0 0 0 24c0 3.9.9 7.5 2.6 10.8l7.8-6.1-.1-.3z"/>
+                <path fill="#34A853" d="M24 48c6.2 0 11.4-2 15.2-5.5l-7.5-5.8c-2 1.4-4.6 2.2-7.7 2.2-6.2 0-11.5-3.7-13.4-9.1l-7.8 6.1C6.7 42.5 14.7 48 24 48z"/>
+              </svg>
+              Увійти через Google
+            </button>
+          </>
+        )}
         <div style={{ textAlign:"center", marginTop:14, fontSize:13, color:DIM }}>
           {registering ? "Уже є акаунт? " : "Ще немає акаунта? "}
           <button onClick={() => { setMode(registering ? "login" : "register"); setError(""); setInfo(""); setPassword2(""); }}
