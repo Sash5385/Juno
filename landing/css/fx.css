@@ -1,3 +1,4 @@
+/* Фон і анімація прокрутки: «Скло і орби» */
 /* Фони та анімації прокрутки: 10 варіантів (?v=1…10). Клас body.fx.vN ставить js/fx.js */
 body.fx{background:#0a0b0d}
 .fx #bg{position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none}
@@ -13,62 +14,8 @@ body.fx{background:#0a0b0d}
 /* reveal */
 .fx .rv{opacity:0;transition:opacity .8s ease,transform .8s cubic-bezier(.2,.7,.2,1),filter .8s ease;transition-delay:var(--d,0ms);will-change:transform,opacity}
 .fx .rv.in{opacity:1;transform:none!important;filter:none!important}
-.v1 .rv{transform:translateY(34px)}
-.v2 .rv:nth-child(odd){transform:translateX(-56px)}.v2 .rv:nth-child(even){transform:translateX(56px)}
-.v3 .rv{transform:scale(.9) translateY(22px)}
-.v4 .rv{transform:translateY(22px);filter:blur(7px)}
-.v5 .rv{transform:perspective(700px) rotateX(16deg) translateY(34px)}
-.v6 .rv{transform:translateY(16px);filter:blur(10px)}
-.v7 .rv{transform:scale(.84)}
-.v8 .rv{transform:translateY(64px) skewY(2.5deg)}
 .v9 .rv{transform:translateY(42px) rotate(-1.6deg) scale(.95)}
-.v10 .rv{transform:translateY(26px) scale(.97)}
-/* Switcher (лише з ?v=) */
-#fxsw{position:fixed;right:12px;bottom:12px;z-index:120;display:none;gap:5px;flex-wrap:wrap;max-width:260px;justify-content:flex-end;background:rgba(20,21,24,.9);border:1px solid rgba(255,255,255,.15);padding:8px;border-radius:14px;backdrop-filter:blur(8px)}
-#fxsw.on{display:flex}
-#fxsw button{width:32px;height:32px;border-radius:9px;border:1px solid rgba(255,255,255,.18);background:transparent;color:#ddd;font-weight:800;cursor:pointer}
-#fxsw button.cur{background:var(--accent);border-color:var(--accent);color:#fff}
-/* ===== 1 · Aurora ===== */
-.v1 #bg{background:#0a0b0d}
-.v1 .blob{position:absolute;border-radius:50%;filter:blur(90px);opacity:.55;animation:drift 18s ease-in-out infinite alternate}
-.v1 .b1{width:60vw;height:60vw;left:-15vw;top:-10vw;background:#ff5a3c;transform:translateY(calc(var(--syn)*-.12px))}
-.v1 .b2{width:55vw;height:55vw;right:-15vw;top:25vh;background:#7a4dff;animation-delay:-6s;transform:translateY(calc(var(--syn)*-.2px))}
-.v1 .b3{width:50vw;height:50vw;left:20vw;bottom:-25vw;background:#14b8a6;animation-delay:-11s;transform:translateY(calc(var(--syn)*-.08px))}
-@keyframes drift{from{margin-left:0;margin-top:0}to{margin-left:6vw;margin-top:5vh}}
-/* ===== 2 · Grid + spotlight ===== */
-.v2 #bg{background:radial-gradient(circle at 50% calc(var(--p)*100%),rgba(255,90,60,.4),transparent 36%),radial-gradient(circle at 90% calc(100% - var(--p)*100%),rgba(45,212,191,.28),transparent 34%),radial-gradient(circle at 8% calc(30% + var(--p)*40%),rgba(122,77,255,.25),transparent 34%),#0a0b0d}
-.v2 .grid{position:absolute;inset:-60px 0;background-image:linear-gradient(rgba(255,255,255,.12) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.12) 1px,transparent 1px);background-size:56px 56px;background-position:0 calc(var(--syn)*-.45px);-webkit-mask-image:radial-gradient(circle at 50% calc(var(--p)*100%),#000 0,rgba(0,0,0,.35) 45%,transparent 78%);mask-image:radial-gradient(circle at 50% calc(var(--p)*100%),#000 0,rgba(0,0,0,.35) 45%,transparent 78%)}
-/* ===== 3 · Road ===== */
-.v3 #bg{background:linear-gradient(180deg,#0b0c1c 0%,#2a1340 38%,#7a2f52 56%,#d9602f 62%,#0e0f12 62.1%)}
-.v3 .sun{position:absolute;left:50%;top:calc(34vh - var(--p)*6vh);width:36vmin;height:36vmin;margin-left:-18vmin;border-radius:50%;background:linear-gradient(180deg,#ffd37a,#ff5a3c);box-shadow:0 0 90px 30px rgba(255,120,70,.45)}
-.v3 .road{position:absolute;left:0;right:0;bottom:0;height:38vh;background:linear-gradient(180deg,#26272d,#0f1013);clip-path:polygon(44% 0,56% 0,100% 100%,0 100%)}
-.v3 .dash{position:absolute;left:0;right:0;bottom:0;height:38vh;clip-path:polygon(49.2% 0,50.8% 0,56% 100%,44% 100%);background:repeating-linear-gradient(180deg,#f7c948 0 22px,transparent 22px 64px);background-position:0 calc(var(--syn)*1px)}
-.v3 .edge{position:absolute;left:0;right:0;bottom:0;height:38vh;clip-path:polygon(44% 0,44.6% 0,1.5% 100%,0 100%,0 100%,56% 0,55.4% 0,100% 100%,98.5% 100%);background:rgba(255,255,255,.35)}
-/* ===== 4 · Particles ===== */
-.v4 #bg{background:radial-gradient(circle at 15% 12%,rgba(122,77,255,.55),transparent 42%),radial-gradient(circle at 88% 30%,rgba(45,212,191,.35),transparent 40%),radial-gradient(circle at 40% 100%,rgba(255,90,60,.35),transparent 45%),#0a0b0d}
-.v4 canvas{position:absolute;inset:0;width:100%;height:100%}
-/* ===== 5 · Parallax circles ===== */
-.v5 #bg{background:#0a0b0d}
-.v5 .c{position:absolute;border-radius:50%;opacity:.9}
-.v5 .c1{width:420px;height:420px;left:4%;top:6%;background:linear-gradient(135deg,#ff5a3c,#ff9f5c);transform:translateY(calc(var(--syn)*-.35px))}
-.v5 .c2{width:260px;height:260px;right:6%;top:26%;background:linear-gradient(135deg,#7ed957,#14b8a6);transform:translateY(calc(var(--syn)*-.6px))}
-.v5 .c3{width:520px;height:520px;left:52%;top:68%;background:linear-gradient(135deg,#7a4dff,#c084fc);transform:translateY(calc(var(--syn)*-.25px))}
-.v5 .c4{width:180px;height:180px;left:16%;top:58%;background:linear-gradient(135deg,#f7c948,#ff5a3c);transform:translateY(calc(var(--syn)*-.8px))}
-.v5 .c5{width:320px;height:320px;right:26%;top:105%;background:linear-gradient(135deg,#5b9bff,#2dd4bf);transform:translateY(calc(var(--syn)*-.5px))}
-.v5 #bg::after{content:"";position:absolute;inset:0;backdrop-filter:blur(70px);-webkit-backdrop-filter:blur(70px);background:rgba(10,11,13,.12)}
-/* ===== 6 · Колір за прокруткою ===== */
-.v6 #bg{background:radial-gradient(circle at 50% 0,hsl(calc(10 + var(--p)*260) 80% 30% / .55),transparent 60%),linear-gradient(180deg,hsl(calc(250 - var(--p)*180) 45% 9%),hsl(calc(300 - var(--p)*200) 40% 5%))}
-/* ===== 7 · Mesh + hue-rotate ===== */
-.v7 #bg{background:radial-gradient(at 15% 20%,#ff5a3c 0,transparent 45%),radial-gradient(at 85% 15%,#7a4dff 0,transparent 45%),radial-gradient(at 75% 85%,#14b8a6 0,transparent 45%),radial-gradient(at 20% 90%,#f7c948 0,transparent 40%),#0a0b0d;filter:hue-rotate(calc(var(--p)*160deg)) saturate(.9);opacity:.5}
-.v7 .card,.v7 .plan,.v7 details{background:rgba(24,25,29,.82)}
-/* ===== 8 · Фари ===== */
-.v8 #bg{background:linear-gradient(180deg,#05060a,#0c0d12 60%,#1a0f12)}
-.v8 .beam{position:absolute;bottom:-18vh;width:70vw;height:130vh;background:linear-gradient(0deg,rgba(255,240,190,.75),rgba(255,240,190,.12) 70%,transparent);clip-path:polygon(47% 100%,53% 100%,100% 0,0 0);transform-origin:50% 100%;filter:blur(10px)}
-.v8 .bl{left:-14vw;transform:rotate(calc(-22deg + var(--p)*34deg))}
-.v8 .br{right:-14vw;transform:rotate(calc(22deg - var(--p)*34deg))}
-.v8 .lamp{position:absolute;bottom:2vh;width:90px;height:90px;border-radius:50%;background:radial-gradient(circle,#fff,rgba(255,240,190,.5) 40%,transparent 70%);filter:blur(4px)}
-.v8 .lamp.l{left:calc(22vw + var(--p)*14vw)}.v8 .lamp.r{right:calc(22vw + var(--p)*14vw)}
-.v8 .haze{position:absolute;inset:0;background:radial-gradient(circle at 50% 115%,rgba(255,90,60,.4),transparent 55%)}
+
 /* ===== 9 · Скло ===== */
 .v9 #bg{background:#0a0b0d}
 .v9 .orb{position:absolute;border-radius:50%;filter:blur(40px);opacity:.75}
@@ -76,10 +23,5 @@ body.fx{background:#0a0b0d}
 .v9 .o2{width:38vw;height:38vw;right:-6vw;top:46vh;background:#7a4dff;transform:translateY(calc(var(--syn)*-.3px))}
 .v9 .o3{width:34vw;height:34vw;left:30vw;top:96vh;background:#14b8a6;transform:translateY(calc(var(--syn)*-.12px))}
 .v9 .card,.v9 .plan,.v9 details,.v9 .step{background:rgba(255,255,255,.07);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-color:rgba(255,255,255,.16)}
-/* ===== 10 · Світанок ===== */
-.v10 #bg{background:linear-gradient(180deg,#05060d 0%,#0e1030 28%,#2a1448 55%,#6b2a52 78%,#d9602f 100%);background-size:100% 100%;background-position:0 calc(var(--p)*60%);}
-.v10 .stars{position:absolute;inset:0;background-image:radial-gradient(1.5px 1.5px at 20px 30px,#fff,transparent),radial-gradient(1px 1px at 90px 140px,#fff,transparent),radial-gradient(1.5px 1.5px at 160px 70px,#fff,transparent),radial-gradient(1px 1px at 230px 190px,#fff,transparent);background-size:260px 220px;opacity:calc(1 - var(--p)*1.4);animation:twinkle 4s ease-in-out infinite alternate}
-@keyframes twinkle{from{filter:brightness(.7)}to{filter:brightness(1.3)}}
-.v10 .horizon{position:absolute;left:0;right:0;bottom:0;height:40vh;background:radial-gradient(ellipse at 50% 100%,rgba(255,170,80,calc(.15 + var(--p)*.5)),transparent 70%)}
-@media(prefers-reduced-motion:reduce){.fx .rv{opacity:1!important;transform:none!important;filter:none!important;transition:none}.v1 .blob,.v10 .stars,.scrollcue i::after{animation:none}}
+@media(prefers-reduced-motion:reduce){.fx .rv{opacity:1!important;transform:none!important;filter:none!important;transition:none}.scrollcue i::after{animation:none}}
 .fx h1,.fx .sec-title,.fx .lead{text-shadow:0 2px 20px rgba(0,0,0,.5)}
