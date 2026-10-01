@@ -14,7 +14,7 @@ body.fx{background:#0a0b0d}
 /* reveal */
 .fx .rv{opacity:0;transition:opacity .8s ease,transform .8s cubic-bezier(.2,.7,.2,1),filter .8s ease;transition-delay:var(--d,0ms);will-change:transform,opacity}
 .fx .rv.in{opacity:1;transform:none!important;filter:none!important}
-.v9 .rv{transform:translateY(42px) rotate(-1.6deg) scale(.95)}
+
 
 /* ===== 9 · Скло ===== */
 .v9 #bg{background:#0a0b0d}
@@ -25,3 +25,6 @@ body.fx{background:#0a0b0d}
 .v9 .card,.v9 .plan,.v9 details,.v9 .step{background:rgba(255,255,255,.07);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-color:rgba(255,255,255,.16)}
 @media(prefers-reduced-motion:reduce){.fx .rv{opacity:1!important;transform:none!important;filter:none!important;transition:none}.scrollcue i::after{animation:none}}
 .fx h1,.fx .sec-title,.fx .lead{text-shadow:0 2px 20px rgba(0,0,0,.5)}
+/* Анімація як у варіанта 6: поява з розмиття + колір фону плавно змінюється з прокруткою */
+.v9 .rv{transform:translateY(16px);filter:blur(10px)}
+.v9 #bg{filter:hue-rotate(calc(var(--p)*150deg))}
