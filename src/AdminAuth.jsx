@@ -409,6 +409,139 @@ function bookingStatusLabel(b) {
   return { text: b.status || "—", color: DIM };
 }
 
+// ─── Деталі інструктора в суперадмінці: записи, учні, суми ──────────
+const fmtMoney = (n) => `${Math.round(n).toLocaleString("uk")}₴`;
+const isCancelled = (b) => b.status === "cancelled" || !!b.cancelledBy;
+
+// Ціна запису: збережена (price) або оцінка за тарифом послуги (estimated=true)
+function bookingPrice(b, services) {
+  if (b.price != null && b.price !== "") return { value: Number(b.price) || 0, estimated: false };
+  const svc = services.find(x => x.id === b.serviceId);
+  if (!svc || !svc.duration) return { value: null, estimated: false };
+  const durMin = b.durMin || (b.durationHours ? b.durationHours * 60 : svc.duration);
+  return { value: Math.round((svc.price || 0) / svc.duration * durMin) + (b.surcharge || 0), estimated: true };
+}
+
+function InstructorDetail({ loading, data }) {
+  const [tab, setTab] = useState("bookings");
+  const [filter, setFilter] = useState("all");
+  const [query, setQuery] = useState("");
+  const [limit, setLimit] = useState(50);
+  const today = new Date().toLocaleDateString("sv-SE");
+  const month = today.slice(0, 7);
+
+  const list = data?.list || [];
+  const services = data?.services || [];
+
+  const rows = list.map(b => ({ b, price: bookingPrice(b, services), cancelled: isCancelled(b) }));
+  const active = rows.filter(r => !r.cancelled);
+  const sum = (arr) => arr.reduce((t, r) => t + (r.price.value || 0), 0);
+  const monthRows = active.filter(r => (r.b.date || "").startsWith(month));
+
+  // Учні — з записів (ім'я/телефон/uid у записах є завжди)
+  const studentMap = {};
+  rows.forEach(r => {
+    const key = r.b.uid || r.b.phone || r.b.studentName;
+    if (!key) return;
+    const st = studentMap[key] || (studentMap[key] = { key, name: r.b.studentName || "Клієнт", phone: r.b.phone || "", count: 0, cancelled: 0, sum: 0, last: "" });
+    if (r.cancelled) st.cancelled++; else { st.count++; st.sum += r.price.value || 0; }
+    if ((r.b.date || "") > st.last) st.last = r.b.date || "";
+    if (!st.phone && r.b.phone) st.phone = r.b.phone;
+  });
+  const students = Object.values(studentMap).sort((a, b) => b.last.localeCompare(a.last));
+
+  const q = query.trim().toLowerCase();
+  const matchQ = (r) => !q || `${r.b.studentName || ""} ${r.b.phone || ""} ${r.b.serviceName || ""}`.toLowerCase().includes(q);
+  const shown = rows.filter(r =>
+    (filter === "all" ? true
+      : filter === "upcoming" ? !r.cancelled && (r.b.date || "") >= today
+      : filter === "past" ? !r.cancelled && (r.b.date || "") < today
+      : r.cancelled) && matchQ(r));
+
+  const chip = (id, label, cur, set) => (
+    <button key={id} onClick={() => set(id)} style={{
+      padding:"5px 10px", borderRadius:14, fontSize:11, fontWeight:700, cursor:"pointer",
+      border:`1px solid ${cur === id ? ACCENT : BORDER}`,
+      background: cur === id ? "rgba(255,90,60,0.15)" : "transparent", color: cur === id ? ACCENT : DIM,
+    }}>{label}</button>
+  );
+
+  if (loading) return <div style={{ color:DIM, fontSize:12, textAlign:"center", padding:12 }}>Завантаження…</div>;
+
+  return (
+    <div style={{ marginTop:12, paddingTop:12, borderTop:`1px solid ${BORDER}` }}>
+      <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:12 }}>
+        {[["Записів", active.length], ["У цьому місяці", monthRows.length], ["Учнів", students.length],
+          ["Сума за місяць", fmtMoney(sum(monthRows))], ["Сума всього", fmtMoney(sum(active))]].map(([l, v]) => (
+          <div key={l} style={{ flex:"1 1 80px", padding:"8px 10px", borderRadius:10, background:"rgba(255,255,255,0.04)", border:`1px solid ${BORDER}` }}>
+            <div style={{ fontSize:10, color:DIM }}>{l}</div>
+            <div style={{ fontSize:15, fontWeight:800, color:TEXT }}>{v}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ display:"flex", gap:6, marginBottom:10 }}>
+        {chip("bookings", `Записи · ${rows.length}`, tab, setTab)}
+        {chip("students", `Учні · ${students.length}`, tab, setTab)}
+      </div>
+
+      <input value={query} onChange={e => { setQuery(e.target.value); setLimit(50); }} placeholder="Пошук: ім'я, телефон, послуга"
+        style={{ width:"100%", boxSizing:"border-box", background:BG_DEEP, border:`1px solid ${BORDER}`, borderRadius:10, padding:"8px 12px", color:TEXT, fontSize:13, outline:"none", marginBottom:10 }}/>
+
+      {tab === "bookings" && (
+        <>
+          <div style={{ display:"flex", gap:6, flexWrap:"wrap", marginBottom:8 }}>
+            {[["all", "Усі"], ["upcoming", "Майбутні"], ["past", "Минулі"], ["cancelled", "Скасовані"]].map(([id, l]) => chip(id, l, filter, id2 => { setFilter(id2); setLimit(50); }))}
+          </div>
+          {shown.length === 0 && <div style={{ color:DIM, fontSize:12, textAlign:"center", padding:12 }}>Записів нема</div>}
+          {shown.slice(0, limit).map(({ b, price }) => {
+            const bs = bookingStatusLabel(b);
+            return (
+              <div key={`${b.uid}-${b.bookingId}`} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:8, padding:"8px 0", borderBottom:`1px solid ${BORDER}` }}>
+                <div style={{ minWidth:0 }}>
+                  <div style={{ fontSize:13, color:TEXT, fontWeight:600 }}>{b.studentName || "Клієнт"} <span style={{ color:DIM, fontWeight:400 }}>· {b.serviceName || b.serviceType || ""}</span></div>
+                  <div style={{ fontSize:11, color:DIM, marginTop:2 }}>{b.date || "—"} о {b.time || "—"}{b.phone ? ` · ${b.phone}` : ""}</div>
+                  {b.studentNote && <div style={{ fontSize:11, color:"#e8c547", marginTop:2 }}>💬 {b.studentNote}</div>}
+                </div>
+                <div style={{ textAlign:"right", flexShrink:0 }}>
+                  <div style={{ fontSize:13, fontWeight:800, color:TEXT }}>{price.value == null ? "—" : `${price.estimated ? "≈" : ""}${fmtMoney(price.value)}`}</div>
+                  <div style={{ fontSize:11, fontWeight:700, color:bs.color }}>{bs.text}</div>
+                </div>
+              </div>
+            );
+          })}
+          {shown.length > limit && (
+            <button onClick={() => setLimit(l => l + 50)} style={{ width:"100%", marginTop:8, padding:"8px", borderRadius:8, background:"rgba(255,255,255,0.05)", border:`1px solid ${BORDER}`, color:TEXT, fontSize:12, fontWeight:700, cursor:"pointer" }}>
+              Показати ще ({shown.length - limit})
+            </button>
+          )}
+        </>
+      )}
+
+      {tab === "students" && (
+        <>
+          {students.filter(st => !q || `${st.name} ${st.phone}`.toLowerCase().includes(q)).length === 0 && (
+            <div style={{ color:DIM, fontSize:12, textAlign:"center", padding:12 }}>Учнів нема</div>
+          )}
+          {students.filter(st => !q || `${st.name} ${st.phone}`.toLowerCase().includes(q)).map(st => (
+            <div key={st.key} onClick={() => { setTab("bookings"); setFilter("all"); setQuery(st.name); }}
+              style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:8, padding:"8px 0", borderBottom:`1px solid ${BORDER}`, cursor:"pointer" }}>
+              <div style={{ minWidth:0 }}>
+                <div style={{ fontSize:13, color:TEXT, fontWeight:600 }}>{st.name}</div>
+                <div style={{ fontSize:11, color:DIM, marginTop:2 }}>{st.phone || "—"}{st.last ? ` · останній: ${st.last}` : ""}</div>
+              </div>
+              <div style={{ textAlign:"right", flexShrink:0 }}>
+                <div style={{ fontSize:13, fontWeight:800, color:TEXT }}>{fmtMoney(st.sum)}</div>
+                <div style={{ fontSize:11, color:DIM }}>{st.count} зап.{st.cancelled ? ` · скас. ${st.cancelled}` : ""}</div>
+              </div>
+            </div>
+          ))}
+        </>
+      )}
+    </div>
+  );
+}
+
 // Панель вендора SaaS — список усіх зареєстрованих інструкторів (instructor_index)
 // з їх поточним статусом ліцензії, і кнопки ручного продовження/призупинення
 // (для інструкторів, що платять поза автоматичними LiqPay/Monobank вебхуками,
@@ -471,8 +604,12 @@ export function SuperAdminScreen() {
     if (bookingsCache[iid]) return;
     setLoadingBookingsIid(iid);
     try {
-      const snap = await get(ref(db, `instructors/${iid}/bookings`));
+      const [snap, svcSnap] = await Promise.all([
+        get(ref(db, `instructors/${iid}/bookings`)),
+        get(ref(db, `instructors/${iid}/admin_data/services`)).catch(() => null),
+      ]);
       const data = snap.val() || {};
+      const services = Object.values(svcSnap?.val() || {});
       const list = [];
       Object.entries(data).forEach(([uid, userBookings]) => {
         if (uid === "personal" || !userBookings || typeof userBookings !== "object") return;
@@ -482,9 +619,9 @@ export function SuperAdminScreen() {
         });
       });
       list.sort((a, b) => `${b.date || ""}${b.time || ""}`.localeCompare(`${a.date || ""}${a.time || ""}`));
-      setBookingsCache(prev => ({ ...prev, [iid]: list }));
+      setBookingsCache(prev => ({ ...prev, [iid]: { list, services } }));
     } catch {
-      setBookingsCache(prev => ({ ...prev, [iid]: [] }));
+      setBookingsCache(prev => ({ ...prev, [iid]: { list: [], services: [] } }));
     } finally {
       setLoadingBookingsIid(null);
     }
@@ -611,24 +748,7 @@ export function SuperAdminScreen() {
               </div>
 
               {expandedIid === iid && (
-                <div style={{ marginTop:12, paddingTop:12, borderTop:`1px solid ${BORDER}` }}>
-                  {loadingBookingsIid === iid && <div style={{ color:DIM, fontSize:12, textAlign:"center", padding:12 }}>Завантаження…</div>}
-                  {loadingBookingsIid !== iid && (bookingsCache[iid]?.length ?? 0) === 0 && (
-                    <div style={{ color:DIM, fontSize:12, textAlign:"center", padding:12 }}>Записів нема</div>
-                  )}
-                  {loadingBookingsIid !== iid && bookingsCache[iid]?.map(b => {
-                    const bs = bookingStatusLabel(b);
-                    return (
-                      <div key={`${b.uid}-${b.bookingId}`} style={{ display:"flex", justifyContent:"space-between", alignItems:"center", gap:8, padding:"8px 0", borderBottom:`1px solid ${BORDER}` }}>
-                        <div style={{ minWidth:0 }}>
-                          <div style={{ fontSize:13, color:TEXT, fontWeight:600 }}>{b.studentName || "Клієнт"} <span style={{color:DIM, fontWeight:400}}>· {b.serviceName || b.serviceType || ""}</span></div>
-                          <div style={{ fontSize:11, color:DIM, marginTop:2 }}>{b.date || "—"} о {b.time || "—"}{b.phone ? ` · ${b.phone}` : ""}</div>
-                        </div>
-                        <div style={{ fontSize:11, fontWeight:700, color:bs.color, whiteSpace:"nowrap" }}>{bs.text}</div>
-                      </div>
-                    );
-                  })}
-                </div>
+                <InstructorDetail loading={loadingBookingsIid === iid} data={bookingsCache[iid]} />
               )}
             </div>
           );
