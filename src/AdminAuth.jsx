@@ -422,6 +422,44 @@ function bookingPrice(b, services) {
   return { value: Math.round((svc.price || 0) / svc.duration * durMin) + (b.surcharge || 0), estimated: true };
 }
 
+const DAY_MS = 86400000;
+const dayKey = (ts) => new Date(ts).toLocaleDateString("sv-SE");
+// Коли запис створено: createdAt або (запасний варіант) дата уроку
+const bookingCreatedTs = (b) => b.createdAt || (b.date ? new Date(`${b.date}T12:00:00`).getTime() : 0);
+const INACTIVE_DAYS = 14;
+
+// Кількість нових записів по днях за останні `days` днів
+function bookingsPerDay(lists, days = 30) {
+  const buckets = {};
+  const now = Date.now();
+  for (let i = days - 1; i >= 0; i--) buckets[dayKey(now - i * DAY_MS)] = 0;
+  lists.forEach(list => list.forEach(b => {
+    if (b.uid === "personal" || isCancelled(b)) return;
+    const k = dayKey(bookingCreatedTs(b));
+    if (k in buckets) buckets[k]++;
+  }));
+  return Object.entries(buckets).map(([k, v]) => ({ label: k.slice(5).replace("-", "."), value: v }));
+}
+
+function BarChart({ data, height = 56 }) {
+  const max = Math.max(1, ...data.map(d => d.value));
+  return (
+    <div>
+      <div style={{ display:"flex", alignItems:"flex-end", gap:2, height }}>
+        {data.map((d, i) => (
+          <div key={i} title={`${d.label}: ${d.value}`} style={{
+            flex:1, minWidth:2, height: Math.max(2, (d.value / max) * height), borderRadius:2,
+            background: d.value ? "#4caf6b" : "rgba(255,255,255,0.08)",
+          }}/>
+        ))}
+      </div>
+      <div style={{ display:"flex", justifyContent:"space-between", fontSize:9, color:DIM, marginTop:3 }}>
+        <span>{data[0]?.label}</span><span>макс. {max} за день</span><span>{data[data.length - 1]?.label}</span>
+      </div>
+    </div>
+  );
+}
+
 function InstructorDetail({ loading, data }) {
   const [tab, setTab] = useState("bookings");
   const [filter, setFilter] = useState("all");
@@ -478,6 +516,11 @@ function InstructorDetail({ loading, data }) {
             <div style={{ fontSize:15, fontWeight:800, color:TEXT }}>{v}</div>
           </div>
         ))}
+      </div>
+
+      <div style={{ marginBottom:12 }}>
+        <div style={{ fontSize:10, color:DIM, marginBottom:4 }}>Нові записи за 30 днів</div>
+        <BarChart data={bookingsPerDay([list], 30)} />
       </div>
 
       <div style={{ display:"flex", gap:6, marginBottom:10 }}>
@@ -598,11 +641,7 @@ export function SuperAdminScreen() {
 
   // Записи (бронювання) інструктора — вантажимо один раз при розгортанні
   // картки і кешуємо, щоб повторний клік не робив зайвий запит.
-  const toggleBookings = async (iid) => {
-    if (expandedIid === iid) { setExpandedIid(null); return; }
-    setExpandedIid(iid);
-    if (bookingsCache[iid]) return;
-    setLoadingBookingsIid(iid);
+  const fetchInstructorBookings = async (iid) => {
     try {
       const [snap, svcSnap] = await Promise.all([
         get(ref(db, `instructors/${iid}/bookings`)),
@@ -619,12 +658,33 @@ export function SuperAdminScreen() {
         });
       });
       list.sort((a, b) => `${b.date || ""}${b.time || ""}`.localeCompare(`${a.date || ""}${a.time || ""}`));
-      setBookingsCache(prev => ({ ...prev, [iid]: { list, services } }));
+      return { list, services };
     } catch {
-      setBookingsCache(prev => ({ ...prev, [iid]: { list: [], services: [] } }));
-    } finally {
-      setLoadingBookingsIid(null);
+      return { list: [], services: [] };
     }
+  };
+
+  const toggleBookings = async (iid) => {
+    if (expandedIid === iid) { setExpandedIid(null); return; }
+    setExpandedIid(iid);
+    if (bookingsCache[iid]) return;
+    setLoadingBookingsIid(iid);
+    const res = await fetchInstructorBookings(iid);
+    setBookingsCache(prev => ({ ...prev, [iid]: res }));
+    setLoadingBookingsIid(null);
+  };
+
+  // Статистика по всіх інструкторах: вантажимо записи тих, кого ще нема в кеші (по 5 паралельно)
+  const [statsLoading, setStatsLoading] = useState(false);
+  const loadAllStats = async () => {
+    setStatsLoading(true);
+    const missing = Object.keys(index || {}).filter(id => !bookingsCache[id]);
+    for (let i = 0; i < missing.length; i += 5) {
+      const chunk = missing.slice(i, i + 5);
+      const results = await Promise.all(chunk.map(id => fetchInstructorBookings(id)));
+      setBookingsCache(prev => { const n = { ...prev }; chunk.forEach((id, k) => { n[id] = results[k]; }); return n; });
+    }
+    setStatsLoading(false);
   };
 
   const [filter, setFilter] = useState("all");
@@ -636,16 +696,35 @@ export function SuperAdminScreen() {
   const counts = allRows.reduce((acc, r) => { acc[r.li.key] = (acc[r.li.key] || 0) + 1; return acc; }, {});
   const paying = allRows.filter(r => licenses[r.iid]?.status === "active" && r.li.key !== "readonly" && r.li.key !== "grace");
   const mrr = paying.reduce((sum, r) => sum + (licenses[r.iid]?.plan === "yearly" ? 2999 / 12 : 299), 0);
+  const statsReady = allRows.length > 0 && allRows.every(r => bookingsCache[r.iid]);
+  // Неактивний: акаунт старший за INACTIVE_DAYS, а нових записів за цей час не було
+  const isInactive = (iid, info) => {
+    const c = bookingsCache[iid];
+    if (!c) return false;
+    if ((info?.createdAt || 0) > Date.now() - INACTIVE_DAYS * DAY_MS) return false;
+    const last = Math.max(0, ...c.list.filter(b => !isCancelled(b)).map(bookingCreatedTs));
+    return last < Date.now() - INACTIVE_DAYS * DAY_MS;
+  };
+  const inactiveCount = statsReady ? allRows.filter(r => isInactive(r.iid, r.info)).length : null;
+  const payments = [];
+  Object.entries(licenses).forEach(([iid, lic]) => {
+    Object.entries(lic?.paymentLog || {}).forEach(([key, p]) => {
+      payments.push({ key, iid, name: index?.[iid]?.name || "—", ...p });
+    });
+  });
+  payments.sort((a, b) => b.at - a.at);
   const FILTERS = [
     ["all", "Усі", allRows.length],
     ["attention", "Потребують уваги", (counts.warning || 0) + (counts.grace || 0) + (counts.readonly || 0)],
     ["active", "Активні", counts.active || 0],
     ["trial", "Trial", counts.trial || 0],
     ["readonly", "Читання", counts.readonly || 0],
+    ["inactive", "Неактивні", inactiveCount == null ? "?" : inactiveCount],
   ];
   const rows = allRows.filter(r =>
     filter === "all" ? true
     : filter === "attention" ? ["warning", "grace", "readonly"].includes(r.li.key)
+    : filter === "inactive" ? isInactive(r.iid, r.info)
     : r.li.key === filter);
 
   return (
@@ -680,6 +759,50 @@ export function SuperAdminScreen() {
               : (backupOn ? "Перша копія буде створена найближчої ночі" : "Вимкнено — копії не створюються")}
           </div>
         </div>
+
+        <div style={{ background:`linear-gradient(135deg,${SURF_HI},${SURFACE})`, borderRadius:16, padding:"14px 16px", marginBottom:14, border:`1px solid ${BORDER}`, boxShadow:SO }}>
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, marginBottom: statsReady ? 10 : 0 }}>
+            <div style={{ fontSize:14, fontWeight:700, color:TEXT }}>📊 Статистика записів</div>
+            {!statsReady && (
+              <button onClick={loadAllStats} disabled={statsLoading || !allRows.length}
+                style={{ padding:"6px 12px", borderRadius:8, background:"rgba(255,255,255,0.06)", border:`1px solid ${BORDER}`, color:TEXT, fontSize:12, fontWeight:700, cursor: statsLoading ? "default" : "pointer" }}>
+                {statsLoading ? "Завантаження…" : "Завантажити"}
+              </button>
+            )}
+          </div>
+          {statsReady && (() => {
+            const lists = allRows.map(r => bookingsCache[r.iid].list);
+            const data = bookingsPerDay(lists, 30);
+            const total30 = data.reduce((t, d) => t + d.value, 0);
+            return (
+              <>
+                <div style={{ fontSize:11, color:DIM, marginBottom:6 }}>Нові записи за 30 днів, усі інструктори: <b style={{ color:TEXT }}>{total30}</b> · неактивних ({INACTIVE_DAYS}+ дн. без записів): <b style={{ color: inactiveCount ? ACCENT : TEXT }}>{inactiveCount}</b></div>
+                <BarChart data={data} />
+              </>
+            );
+          })()}
+          {!statsReady && <div style={{ fontSize:11, color:DIM, marginTop:6 }}>Графік записів і пошук неактивних інструкторів. Завантажує записи всіх інструкторів один раз.</div>}
+        </div>
+
+        <details style={{ background:`linear-gradient(135deg,${SURF_HI},${SURFACE})`, borderRadius:16, padding:"12px 16px", marginBottom:14, border:`1px solid ${BORDER}`, boxShadow:SO }}>
+          <summary style={{ cursor:"pointer", fontSize:14, fontWeight:700, color:TEXT }}>💳 Останні платежі підписок{payments.length ? ` · ${payments.length}` : ""}</summary>
+          <div style={{ marginTop:10 }}>
+            {payments.length === 0 && <div style={{ fontSize:12, color:DIM }}>Поки немає платежів у журналі (він ведеться з оновлення v01.10.8)</div>}
+            {payments.slice(0, 20).map(p => (
+              <div key={`${p.iid}-${p.key}`} style={{ display:"flex", justifyContent:"space-between", gap:8, padding:"7px 0", borderBottom:`1px solid ${BORDER}`, opacity: p.reversedAt ? 0.55 : 1 }}>
+                <div style={{ minWidth:0 }}>
+                  <div style={{ fontSize:13, color:TEXT, fontWeight:600 }}>{p.name}</div>
+                  <div style={{ fontSize:11, color:DIM }}>{new Date(p.at).toLocaleString("uk")} · {p.provider}</div>
+                </div>
+                <div style={{ textAlign:"right", flexShrink:0 }}>
+                  <div style={{ fontSize:13, fontWeight:800, color:TEXT }}>{p.periodMs > 40 * DAY_MS ? "Рік · 2999₴" : "Місяць · 299₴"}</div>
+                  <div style={{ fontSize:11, color: p.reversedAt ? ACCENT : "#4caf6b" }}>{p.reversedAt ? "повернено" : "до " + fmtD(p.newExpiresAt)}</div>
+                </div>
+              </div>
+            ))}
+            <div style={{ fontSize:10, color:DIM, marginTop:8 }}>Сума в журналі — тарифна. Тестові платежі по 1₴ показані за тарифом.</div>
+          </div>
+        </details>
 
         {index === null && <div style={{ color:DIM, textAlign:"center", padding:40 }}>Завантаження…</div>}
         {index !== null && rows.length === 0 && (
@@ -719,7 +842,10 @@ export function SuperAdminScreen() {
                   <div style={{ fontSize:15, fontWeight:700, color:TEXT }}>{info.name || "—"}</div>
                   <div style={{ fontSize:12, color:DIM, marginTop:2 }}>{info.phone || "—"} · /i/{info.slug || "—"}</div>
                 </div>
-                <div style={{ fontSize:12, fontWeight:700, color:st.color, textAlign:"right" }}>{st.text}</div>
+                <div style={{ textAlign:"right" }}>
+                  <div style={{ fontSize:12, fontWeight:700, color:st.color }}>{st.text}</div>
+                  {isInactive(iid, info) && <div style={{ fontSize:10, color:"#e8c547", marginTop:2 }}>💤 без нових записів {INACTIVE_DAYS}+ дн.</div>}
+                </div>
               </div>
               {lic && (
                 <div style={{ display:"flex", flexWrap:"wrap", gap:"4px 14px", marginTop:10, fontSize:11, color:DIM }}>
