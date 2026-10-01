@@ -279,7 +279,7 @@ function EditModal({ tpl, onSave, onClose }) {
           ))}
         </div>
         <div style={{fontSize:10,color:"rgba(255,255,255,0.5)",marginTop:6}}>
-          {(form.channel||"chat")==="push" ? "Лише push-сповіщення, без запису в чат" : "Повідомлення в чат (учень також отримає push)"}
+          {(form.channel||"chat")==="push" ? "Лише сповіщення, без запису в чат" : "Повідомлення в чат (учень також отримає push)"}
         </div>
       </div>
 

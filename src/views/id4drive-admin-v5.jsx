@@ -998,7 +998,7 @@ function DayNotesModal({ dateStr, dayLabel, dayNum, dayMonth, note, settings, on
             }}>✕</div>
           </div>
           <div style={{fontSize:10.5,color:DIM,marginBottom:12,lineHeight:1.4}}>
-            Тап на час — обрати точний інтервал у межах години. Дзвіночок — увімкнути пуш-нагадування.
+            Тап на час — обрати точний інтервал у межах години. Дзвіночок — увімкнути сповіщення-нагадування.
           </div>
 
           <div style={{display:"flex",flexDirection:"column",gap:7,marginBottom:16}}>
