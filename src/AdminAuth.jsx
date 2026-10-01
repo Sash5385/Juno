@@ -152,11 +152,8 @@ export function LoginScreen() {
     }
   };
 
-  // Варіант оформлення (для перегляду: ?lv=1…10)
-  const lv = (() => { try { const n = parseInt(new URLSearchParams(window.location.search).get("lv") || "", 10); return n >= 1 && n <= 10 ? n : 1; } catch { return 1; } })();
-
   return (
-    <div className={`lg-wrap lg-v${lv}`}>
+    <div className="lg-wrap lg-v1">
       <style>{LOGIN_CSS}</style>
       <div className="lg-bg" aria-hidden="true"><i/><i/><i/></div>
       <div className="lg-card">
