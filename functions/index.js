@@ -1226,14 +1226,59 @@ async function extendLicense(iid, provider, dedupeKey, extra = {}, plan = "month
   const snap = await iRef(iid, "license").get();
   const lic = snap.val() || {};
   const base = lic.status === "active" && lic.expiresAt > now ? lic.expiresAt : now;
-  await iRef(iid, "license").update({
+  const periodMs = plan === "year" ? LICENSE_YEAR_PERIOD_MS : LICENSE_PERIOD_MS;
+  const newExpiresAt = base + periodMs;
+  const patch = {
     status: "active",
     plan: plan === "year" ? "yearly" : "monthly",
     provider,
-    expiresAt: base + (plan === "year" ? LICENSE_YEAR_PERIOD_MS : LICENSE_PERIOD_MS),
+    expiresAt: newExpiresAt,
     lastPaymentAt: now,
     ...extra,
-  });
+  };
+  // Журнал платежу — щоб за поверненням коштів точно відкотити саме цей період
+  if (dedupeKey) {
+    patch[`paymentLog/${dedupeKey}`] = {
+      at: now, provider, periodMs, newExpiresAt,
+      prevStatus: lic.status || null,
+      prevExpiresAt: lic.expiresAt || null,
+      prevPlan: lic.plan || null,
+    };
+  }
+  await iRef(iid, "license").update(patch);
+}
+
+// Повернення коштів (статус "reversed" у вебхуку): знімаємо період, який дав цей платіж.
+// Якщо після нього нових оплат не було — повертаємо ліцензію до стану ДО платежу
+// (trial лишається trial, active — з попередньою датою, а якщо раніше її не було —
+// suspended). Інакше просто віднімаємо тривалість цього платежу. Повторний вебхук
+// ігнорується (прапорець reversedAt).
+async function reverseLicense(iid, provider, dedupeKey) {
+  if (!dedupeKey) return false;
+  const logRef = iRef(iid, `license/paymentLog/${dedupeKey}`);
+  const logSnap = await logRef.get();
+  const log = logSnap.val();
+  if (!log) { console.warn(`reverseLicense: no payment log (iid=${iid}, key=${dedupeKey})`); return false; }
+  const claim = await iRef(iid, `license/paymentLog/${dedupeKey}/reversedAt`)
+    .transaction(cur => cur === null ? Date.now() : undefined);
+  if (!claim.committed) { console.log(`reverseLicense: already reversed (key=${dedupeKey})`); return false; }
+
+  const lic = (await iRef(iid, "license").get()).val() || {};
+  const now = Date.now();
+  let patch;
+  if (lic.expiresAt === log.newExpiresAt) {
+    // нових оплат після цієї не було — повний відкат
+    patch = log.prevStatus === "active" && log.prevExpiresAt
+      ? { status: "active", expiresAt: log.prevExpiresAt, plan: log.prevPlan || "monthly" }
+      : log.prevStatus === "trial"
+        ? { status: "trial", expiresAt: null, plan: null }
+        : { status: "suspended", expiresAt: null, plan: null };
+  } else {
+    // були й пізніші оплати — віднімаємо лише цей період
+    patch = { expiresAt: Math.max(now, (lic.expiresAt || now) - (log.periodMs || 0)) };
+  }
+  await iRef(iid, "license").update({ ...patch, lastRefundAt: now });
+  return true;
 }
 
 // order_id/reference провайдера несе iid інструктора, щоб вебхук (без
@@ -1328,7 +1373,11 @@ exports.liqpayCallback = onRequest(
         res.status(200).send("ok");
         return;
       }
-      if (["subscribed", "success", "sandbox"].includes(payload.status)) {
+      if (payload.status === "reversed") {
+        const key = payload.payment_id != null ? String(payload.payment_id) : payload.order_id;
+        const done = await reverseLicense(iid, "liqpay", key);
+        if (done) await pushAdmin(iid, "↩️ Платіж повернено (LiqPay)", "Кошти повернено — підписку DrivePad знято.", {}).catch(() => {});
+      } else if (["subscribed", "success", "sandbox"].includes(payload.status)) {
         const dedupeKey = payload.payment_id != null ? String(payload.payment_id) : payload.order_id;
         await extendLicense(iid, "liqpay", dedupeKey, { liqpayOrderId: payload.order_id }, parsed.plan);
         await pushAdmin(iid, "✅ Оплата отримана (LiqPay)", `Підписку DrivePad продовжено на ${parsed.plan === "year" ? "рік" : "місяць"}.`, {}).catch(() => {});
@@ -1430,6 +1479,10 @@ exports.monobankCallback = onRequest(
         console.error(`monobankCallback: cannot parse iid from reference`);
         res.status(200).send("ok");
         return;
+      }
+      if (payload.status === "reversed") {
+        const done = await reverseLicense(iid, "monobank", payload.invoiceId);
+        if (done) await pushAdmin(iid, "↩️ Платіж повернено (Monobank)", "Кошти повернено — підписку DrivePad знято.", {}).catch(() => {});
       }
       if (payload.status === "success") {
         await extendLicense(iid, "monobank", payload.invoiceId, { monobankInvoiceId: payload.invoiceId }, parsed.plan);
