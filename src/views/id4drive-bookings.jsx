@@ -3,7 +3,7 @@ import { onValue, update, push, remove } from "firebase/database";
 import { iRef } from "../firebase";
 
 import { ThemeContext } from "../theme.js";
-import { UICss, Modal, Btn, Chip, StatTile, SectionTitle, useFX } from "../ui";
+import { UICss, Modal, Btn, Chip, StatTile, useFX } from "../ui";
 
 const PALETTE = [
   { id:"green",   color:"#7ed957" }, { id:"yellow",  color:"#f7c948" },
@@ -261,11 +261,12 @@ textarea{color-scheme:dark}
 `;
   const [svcsMap,      setSvcsMap]      = useState(SERVICES);
   const [queue,        setQueue]        = useState([]);
-  const [queueOpen,    setQueueOpen]    = useState(null);
+  const [queueOpen,    setQueueOpen]    = useState(true);
   const [addQueueOpen, setAddQueueOpen] = useState(false);
   const [queueOffer,   setQueueOffer]   = useState(null);
   const [search,       setSearch]       = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [bookingsOpen, setBookingsOpen] = useState(false); // спойлер «Записи»
   const [now, setNow] = useState(() => Date.now()); // для «очікує N год» у картках черги
   useEffect(() => { const t = setInterval(() => setNow(Date.now()), 60000); return () => clearInterval(t); }, []);
 
@@ -330,31 +331,40 @@ textarea{color-scheme:dark}
       <style>{css}</style>
       <div style={{display:"flex",flexDirection:"column",gap:10,fontFamily:"ui-sans-serif,-apple-system,system-ui,sans-serif",color:TEXT}}>
 
-        {/* ── ПОШУК ── */}
-        <div style={{background:BG_DEEP,borderRadius:11,boxShadow:SI,padding:"3px 11px",display:"flex",alignItems:"center",gap:7}}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={FAINT} strokeWidth="2.2" strokeLinecap="round" style={{flexShrink:0}}><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Пошук за ім'ям або телефоном…"
-            style={{flex:1,background:"transparent",border:"none",outline:"none",color:TEXT,padding:"9px 0",fontSize:13,minWidth:0,fontFamily:"inherit"}}/>
-          {search && <button onClick={()=>setSearch("")} style={{background:"none",border:"none",cursor:"pointer",color:FAINT,fontSize:16,padding:0,lineHeight:1}}>×</button>}
-        </div>
-
-        {/* ── ФІЛЬТРИ ── */}
-        <div style={{display:"flex",gap:7,flexWrap:"wrap"}}>
-          {[["all","Усі"],["pending","Очікує"],["confirmed","Підтверджено"],["completed","Завершено"]].map(([id,label])=>(
-            <Chip key={id} active={statusFilter===id} color={BLUE} onClick={()=>setStatusFilter(id)}>{label}</Chip>
-          ))}
-        </div>
-
-        {/* ── ЗАПИСИ ── */}
-        <SectionTitle style={{marginBottom:0}} right={<span style={{fontSize:11,color:DIM,fontWeight:700}}>{filteredBookings.length}</span>}>📋 Записи</SectionTitle>
-        <div style={{display:"flex",flexDirection:"column",gap:8,maxHeight:420,overflowY:"auto",padding:"2px 1px 6px"}}>
-          {filteredBookings.length===0 ? (
-            <div style={{textAlign:"center",padding:"18px 0",color:FAINT,fontSize:12}}>
-              {(bookings||[]).length===0 ? "Немає записів" : "Нічого не знайдено"}
+        {/* ── ЗАПИСИ (спойлер, за замовчуванням згорнуто) ── */}
+        <div style={{background:`linear-gradient(155deg,${SURF_HI},${SURFACE})`,borderRadius:14,overflow:"hidden",boxShadow:SO,border:`1px solid ${BORDER}`}}>
+          <div onClick={()=>setBookingsOpen(v=>!v)} style={{display:"flex",alignItems:"center",gap:10,padding:"12px 14px",cursor:"pointer",userSelect:"none"}}>
+            <div style={{width:32,height:32,borderRadius:10,flexShrink:0,background:"linear-gradient(165deg,#5b9bff,#2563eb)",boxShadow:SO,display:"flex",alignItems:"center",justifyContent:"center",fontSize:15}}>📋</div>
+            <span style={{flex:1,fontSize:13,fontWeight:800,color:TEXT}}>Записи</span>
+            <span style={{fontSize:11,color:DIM,fontWeight:700}}>{(bookings||[]).length}</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={FAINT} strokeWidth="2.2" strokeLinecap="round" style={{transform:bookingsOpen?"rotate(180deg)":"none",transition:"transform .2s",flexShrink:0}}>
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+          </div>
+          {bookingsOpen && (
+            <div className="expand-body" style={{borderTop:`1px solid ${BORDER}`,padding:"12px 12px 12px",display:"flex",flexDirection:"column",gap:10}}>
+              <div style={{background:BG_DEEP,borderRadius:11,boxShadow:SI,padding:"3px 11px",display:"flex",alignItems:"center",gap:7}}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={FAINT} strokeWidth="2.2" strokeLinecap="round" style={{flexShrink:0}}><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Пошук за ім'ям або телефоном…"
+                  style={{flex:1,background:"transparent",border:"none",outline:"none",color:TEXT,padding:"9px 0",fontSize:13,minWidth:0,fontFamily:"inherit"}}/>
+                {search && <button onClick={()=>setSearch("")} style={{background:"none",border:"none",cursor:"pointer",color:FAINT,fontSize:16,padding:0,lineHeight:1}}>×</button>}
+              </div>
+              <div style={{display:"flex",gap:7,flexWrap:"wrap"}}>
+                {[["all","Усі"],["pending","Очікує"],["confirmed","Підтверджено"],["completed","Завершено"]].map(([id,label])=>(
+                  <Chip key={id} active={statusFilter===id} color={BLUE} onClick={()=>setStatusFilter(id)}>{label}</Chip>
+                ))}
+              </div>
+              <div style={{display:"flex",flexDirection:"column",gap:8,maxHeight:420,overflowY:"auto",padding:"2px 1px 6px"}}>
+                {filteredBookings.length===0 ? (
+                  <div style={{textAlign:"center",padding:"18px 0",color:FAINT,fontSize:12}}>
+                    {(bookings||[]).length===0 ? "Немає записів" : "Нічого не знайдено"}
+                  </div>
+                ) : filteredBookings.map(b=>(
+                  <BkCard key={b.id} b={b} st={statusInfo(b.status, {GREEN,GOLD,DIM})}/>
+                ))}
+              </div>
             </div>
-          ) : filteredBookings.map(b=>(
-            <BkCard key={b.id} b={b} st={statusInfo(b.status, {GREEN,GOLD,DIM})}/>
-          ))}
+          )}
         </div>
 
         {/* ── ЧЕРГА ── */}
