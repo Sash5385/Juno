@@ -422,6 +422,152 @@ function WeekScheduleEditor({ weekSchedule, updDay, setWeek }) {
   );
 }
 
+// Стискаємо фото до maxSize по довшій стороні перед завантаженням у Storage —
+// прямий телефонний JPG може важити 5-10 МБ, а на публічному лендингу таке
+// вантажити марно.
+function resizeImage(file, maxSize = 800) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("read failed"));
+    reader.onload = (e) => { img.src = e.target.result; };
+    img.onerror = () => reject(new Error("decode failed"));
+    img.onload = () => {
+      const scale = Math.min(1, maxSize / Math.max(img.width, img.height));
+      const w = Math.round(img.width * scale), h = Math.round(img.height * scale);
+      const canvas = document.createElement("canvas");
+      canvas.width = w; canvas.height = h;
+      canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+      canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("toBlob failed")), "image/jpeg", 0.85);
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+// Leaflet — імперативно, без react-leaflet: карта створюється один раз у
+// useEffect на порожньому div, маркер перетягується/ставиться кліком.
+function LocationMap({ lat, lng, onPick, flyTo }) {
+  const { ACCENT } = useContext(ThemeContext);
+  const mapEl = useRef(null);
+  const mapRef = useRef(null);
+  const markerRef = useRef(null);
+
+  useEffect(() => {
+    if (!mapEl.current || mapRef.current) return;
+    const start = [lat || 50.4501, lng || 30.5234];
+    const map = L.map(mapEl.current, { attributionControl: false }).setView(start, (lat && lng) ? 15 : 11);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19 }).addTo(map);
+    const icon = L.divIcon({
+      className: "",
+      html: `<div style="width:26px;height:26px;border-radius:50% 50% 50% 0;background:${ACCENT};transform:rotate(-45deg);border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.5)"></div>`,
+      iconSize: [26, 26], iconAnchor: [13, 26],
+    });
+    const marker = L.marker(start, { draggable: true, icon }).addTo(map);
+    marker.on("dragend", () => { const p = marker.getLatLng(); onPick(p.lat, p.lng); });
+    map.on("click", (e) => { marker.setLatLng(e.latlng); onPick(e.latlng.lat, e.latlng.lng); });
+    mapRef.current = map; markerRef.current = marker;
+    return () => { map.remove(); mapRef.current = null; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- карта створюється один раз; зміни lat/lng ззовні (після drag/click) ігноруємо навмисно
+  }, []);
+
+  // Пошук адреси (окремий блок нижче) не чіпає lat/lng-пропси напряму (вони
+  // навмисно ігноруються вище) — тому переліт мапи на знайдену точку йде
+  // через окремий тригер flyTo {lat,lng,ts}, щоб спрацьовувало навіть коли
+  // координати знайденої адреси збігаються з попередніми (ts завжди новий).
+  useEffect(() => {
+    if (!flyTo || !mapRef.current || !markerRef.current) return;
+    const ll = [flyTo.lat, flyTo.lng];
+    markerRef.current.setLatLng(ll);
+    mapRef.current.setView(ll, 15);
+  }, [flyTo]);
+
+  return <div ref={mapEl} style={{ width: "100%", height: 220, borderRadius: 14, overflow: "hidden" }} />;
+}
+
+// Повноекранний перегляд фото (портал) — пінч-зум двома пальцями, подвійний
+// тап для швидкого зуму, свайп вліво/вправо для гортання між усіма фото
+// (коли не наближено). Без сторонніх бібліотек, чисті touch-події.
+function PhotoViewer({ photos, index, onClose }) {
+  const [i, setI] = useState(index);
+  const [scale, setScale] = useState(1);
+  const [tx, setTx] = useState(0);
+  const [ty, setTy] = useState(0);
+  const g = useRef({ mode: null, startDist: 0, startScale: 1, startX: 0, startY: 0, startTx: 0, startTy: 0, lastTap: 0 });
+
+  useEffect(() => { setScale(1); setTx(0); setTy(0); }, [i]);
+
+  const dist = (a, b) => Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+
+  const onTouchStart = (e) => {
+    if (e.touches.length === 2) {
+      g.current.mode = "pinch";
+      g.current.startDist = dist(e.touches[0], e.touches[1]);
+      g.current.startScale = scale;
+    } else if (e.touches.length === 1) {
+      const now = Date.now();
+      if (now - g.current.lastTap < 280) {
+        setScale(s => s > 1 ? 1 : 2.5); setTx(0); setTy(0);
+        g.current.mode = null; g.current.lastTap = 0;
+        return;
+      }
+      g.current.lastTap = now;
+      g.current.mode = scale > 1 ? "pan" : "swipe";
+      g.current.startX = e.touches[0].clientX;
+      g.current.startY = e.touches[0].clientY;
+      g.current.startTx = tx; g.current.startTy = ty;
+    }
+  };
+  const onTouchMove = (e) => {
+    if (g.current.mode === "pinch" && e.touches.length === 2) {
+      const d = dist(e.touches[0], e.touches[1]);
+      setScale(Math.min(4, Math.max(1, g.current.startScale * (d / g.current.startDist))));
+    } else if (g.current.mode === "pan" && e.touches.length === 1) {
+      setTx(g.current.startTx + (e.touches[0].clientX - g.current.startX));
+      setTy(g.current.startTy + (e.touches[0].clientY - g.current.startY));
+    } else if (g.current.mode === "swipe" && e.touches.length === 1) {
+      setTx(e.touches[0].clientX - g.current.startX);
+    }
+  };
+  const onTouchEnd = () => {
+    if (g.current.mode === "swipe") {
+      if (tx > 60 && i > 0) setI(v => v - 1);
+      else if (tx < -60 && i < photos.length - 1) setI(v => v + 1);
+      setTx(0);
+    } else if (scale < 1.05) { setScale(1); setTx(0); setTy(0); }
+    g.current.mode = null;
+  };
+
+  return createPortal(
+    <div
+      style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.94)", touchAction: "none" }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <button onClick={onClose} aria-label="Закрити" style={{
+        position: "absolute", top: "calc(14px + env(safe-area-inset-top,0px))", right: 14, zIndex: 1,
+        width: 36, height: 36, borderRadius: "50%", border: "none", background: "rgba(255,255,255,0.14)",
+        color: "#fff", fontSize: 18, cursor: "pointer",
+      }}>×</button>
+      {photos.length > 1 && (
+        <div style={{
+          position: "absolute", top: "calc(18px + env(safe-area-inset-top,0px))", left: 0, right: 0,
+          textAlign: "center", color: "rgba(255,255,255,0.7)", fontSize: 12, fontWeight: 700,
+        }}>{i + 1} / {photos.length}</div>
+      )}
+      <div
+        style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}
+        onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}
+      >
+        <img src={photos[i]} alt="" draggable={false} style={{
+          maxWidth: "92%", maxHeight: "85vh", objectFit: "contain", userSelect: "none",
+          transform: `translate(${tx}px, ${ty}px) scale(${scale})`,
+          transition: g.current.mode ? "none" : "transform .2s",
+        }} />
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 // ─── MAIN ────────────────────────────────────────────────────────
 export default function SettingsView({ settings, setSettings }) {
   const { BG_DEEP, SURF_HI, SURFACE, SURF_LO, BORDER, TEXT, DIM, FAINT, ACCENT, ACC_HI, GREEN, BLUE, PURPLE, GOLD, RED, TEAL, SO, SI } = useContext(ThemeContext);
