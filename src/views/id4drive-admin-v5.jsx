@@ -352,6 +352,7 @@ const _DLABELS = ["Пн","Вт","Ср","Чт","Пт","Сб","Нд"];
 const _DLABELS_FULL = ["Понеділок","Вівторок","Середа","Четвер","П'ятниця","Субота","Неділя"];
 const _MLABELS = ["січ","лют","бер","кві","тра","чер","лип","сер","вер","жов","лис","гру"];
 const _MLABELS_FULL = ["січня","лютого","березня","квітня","травня","червня","липня","серпня","вересня","жовтня","листопада","грудня"];
+const EMPTY_LIST = [];
 const getDayInfo = (offsetFromToday) => {
   const d = new Date();
   d.setDate(d.getDate() + offsetFromToday);
@@ -1085,6 +1086,41 @@ function DayNotesModal({ dateStr, dayLabel, dayNum, dayMonth, note, settings, on
   );
 }
 
+// Віртуалізовані колонки розкладу. Діапазон (vRange) живе ТУТ, а не в ScheduleView:
+// зміна діапазону під час скролу перерендерює лише цей компонент, а не весь розклад.
+// Елементи колонок кешуються в межах одного renderCol (його ідентичність змінюється
+// на кожному рендері ScheduleView, тож будь-яка зміна даних/стану скидає кеш) — при
+// скролі створюються лише НОВІ колонки, а вже відрендерені React пропускає цілком.
+function VirtualCols({ vRangeRef, subRef, colW, nDays, renderCol }) {
+  const [range, setRange] = useState(() => vRangeRef.current);
+  useLayoutEffect(() => {
+    subRef.current = setRange;
+    const cur = vRangeRef.current;
+    if (cur.s !== range.s || cur.e !== range.e) setRange({ s: cur.s, e: cur.e });
+    return () => { if (subRef.current === setRange) subRef.current = null; };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  const cacheRef = useRef(null);
+  if (!cacheRef.current || cacheRef.current.fn !== renderCol) cacheRef.current = { fn: renderCol, map: new Map() };
+  const map = cacheRef.current.map;
+  const cols = [];
+  for (let i = range.s; i <= range.e; i++) {
+    let el = map.get(i);
+    if (el === undefined) { el = renderCol(i); map.set(i, el); }
+    cols.push(el);
+  }
+  if (map.size > cols.length + 8) {
+    for (const k of Array.from(map.keys())) if (k < range.s || k > range.e) map.delete(k);
+  }
+  const stride = colW + 4;
+  return (
+    <>
+      {range.s > 0 && <div style={{width:range.s*stride, flexShrink:0}}/>}
+      {cols}
+      {(nDays-1-range.e)>0 && <div style={{width:(nDays-1-range.e)*stride-4, flexShrink:0}}/>}
+    </>
+  );
+}
+
 // ═══════════════════════════════════════════════════════════════
 // SCHEDULE VIEW with drag/resize + pinch-to-zoom + day-count
 // ═══════════════════════════════════════════════════════════════
@@ -1192,6 +1228,24 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
     });
     return map;
   }, [bookings]);
+  // Індекси записів за днем (b.day) і датою (b.date). Раніше КОЖНА колонка розкладу
+  // на КОЖЕН рендер проходила весь масив bookings (кілька filter × ~15 колонок ×
+  // тисячі записів) — саме це "з'їдало" плавність скролу при великій кількості записів.
+  const { bookingsByDay, bookingsByDate } = useMemo(() => {
+    const byDay = new Map(), byDate = new Map();
+    for (const b of bookings) {
+      let l = byDay.get(b.day);
+      if (!l) byDay.set(b.day, l = []);
+      l.push(b);
+      if (b.date) {
+        let m = byDate.get(b.date);
+        if (!m) byDate.set(b.date, m = []);
+        m.push(b);
+      }
+    }
+    byDay.forEach(l => l.sort((a, c) => a.startMin - c.startMin));
+    return { bookingsByDay: byDay, bookingsByDate: byDate };
+  }, [bookings]);
   // Автоматична мітка — лише поки інструктор жодного разу не чіпав мітку цього
   // запису вручну (booking.tagManual); ручний вибір/зняття завжди має пріоритет.
   const getAutoTag = (b) => {
@@ -1246,10 +1300,9 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
     return () => cancelAnimationFrame(raf);
   }, []);
   const vRangeRef   = useRef({ s: Math.max(0, PAST_DAYS - VBUF), e: PAST_DAYS + 30 });
-  const [vRange, setVRange] = useState({ s: Math.max(0, PAST_DAYS - VBUF), e: PAST_DAYS + 30 });
+  const vRangeSubRef = useRef(null); // підписка VirtualCols на зміну діапазону колонок
   // Реально видимий діапазон днів (без буфера VBUF) — для авто-висоти годин.
   const visDayRangeRef = useRef({ s: PAST_DAYS, e: PAST_DAYS + 30 });
-  const [visDayRange, setVisDayRange] = useState(visDayRangeRef.current);
   // Час першого запису, до якого треба проскролити після перерахунку
   // авто-висоти — щоб усі записи були видно одразу, без ручного скролу.
   const autoScrollToMinRef = useRef(null);
@@ -1666,17 +1719,26 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
     const sl = el.scrollLeft;
     const firstVis = Math.floor(sl / stride);
     const lastVis  = Math.ceil((sl + el.clientWidth) / stride);
-    const s = Math.max(0, firstVis - VBUF);
-    const e = Math.min(nd - 1, lastVis + VBUF);
-    if (s !== vRangeRef.current.s || e !== vRangeRef.current.e) {
-      vRangeRef.current = { s, e };
-      setVRange({ s, e });
+    // Рендер-діапазон колонок міняємо лише коли запас з одного з боків скоротився
+    // нижче VBUF, а не на кожній зміні лівого/правого краю окремо (раніше — двічі
+    // за крок скролу).
+    const cur = vRangeRef.current;
+    const leftOk  = cur.s === 0 || firstVis - cur.s >= VBUF;
+    const rightOk = cur.e >= nd - 1 || cur.e - lastVis >= VBUF;
+    if (!leftOk || !rightOk) {
+      const s = Math.max(0, firstVis - VBUF);
+      const e = Math.min(nd - 1, lastVis + VBUF);
+      if (s !== cur.s || e !== cur.e) {
+        vRangeRef.current = { s, e };
+        vRangeSubRef.current?.({ s, e });
+      }
     }
     const vs = Math.max(0, firstVis);
     const ve = Math.min(nd - 1, lastVis);
     if (vs !== visDayRangeRef.current.s || ve !== visDayRangeRef.current.e) {
       visDayRangeRef.current = { s: vs, e: ve };
-      setVisDayRange({ s: vs, e: ve });
+      // Видимий діапазон живить лише авто-висоту годин (без setState — див. runAutoHeightRef).
+      if (calcRef.current.autoHourHeight) runAutoHeightRef.current?.();
     }
   };
 
@@ -1697,6 +1759,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   const [createSlotData, setCreateSlotData] = useState(null); // {day, startMin}
   const [localSelectedBooking, setLocalSelectedBooking] = useState(null);
   const [todayDir, setTodayDir] = useState(null);
+  const todayDirRef = useRef(null);
   const emptyHoldTimerRef = useRef(null);
   const emptyHoldPosRef   = useRef(null);
   const dayLongPressRef   = useRef(null);
@@ -1810,59 +1873,25 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   const autoPxPerMin = availGridH / totalMin;
   const PX_PER_MIN = autoPxPerMin * (settings.hourHeightPx / 60);
   const gridHeight = totalMin * PX_PER_MIN;
-  const days = Array.from({length: N_DAYS}, (_, i) => getDayInfo(dayOffset + i));
 
   // Keep calc values fresh for always-on window listeners (avoids stale closure)
-  calcRef.current = { PX_PER_MIN, snapMin: settings.snapMin, workStart: effectiveWorkStart, workEnd: effectiveWorkEnd, COL_W, dayOffset, daysShown: settings.daysShown, N_DAYS };
+  calcRef.current = { PX_PER_MIN, snapMin: settings.snapMin, workStart: effectiveWorkStart, workEnd: effectiveWorkEnd, COL_W, dayOffset, daysShown: settings.daysShown, N_DAYS, autoHourHeight: !!settings.autoHourHeight };
 
-  // Сигнатура часового діапазону видимих записів/слотів (не самих об'єктів) —
-  // щоб авто-висота перераховувалась, коли з'являється запис ПІЗНІШЕ/РАНІШЕ
-  // за вже порахований діапазон (інакше новий пізній запис "вилазив" за межі
-  // екрана, доки користувач не проскролить дні туди-сюди). Зміна ціни/статусу
-  // тощо на span не впливає — висота під час звичайного редагування не стрибає.
-  const autoSpanKey = useMemo(() => {
-    if (!settings.autoHourHeight) return null;
-    const dayFrom = dayOffset + visDayRange.s;
-    const dayTo   = dayOffset + visDayRange.e;
+  // Часовий діапазон записів/слотів у ВИДИМИХ днях — основа авто-висоти годин.
+  // Рахуємо по індексу bookingsByDay (лише видимі дні), а не проходом по всіх записах.
+  const calcAutoSpan = () => {
+    const dayFrom = dayOffset + visDayRangeRef.current.s;
+    const dayTo   = dayOffset + visDayRangeRef.current.e;
     let minStart = Infinity, maxEnd = -Infinity;
-    bookings.forEach(b => {
-      if (b.status === "cancelled") return;
-      if (b.day < dayFrom || b.day > dayTo) return;
-      minStart = Math.min(minStart, b.startMin);
-      maxEnd   = Math.max(maxEnd, b.startMin + b.durMin);
-    });
-    for (let d = dayFrom; d <= dayTo; d++) {
-      const daySlots = openSlots[absDayToDateStr(d)];
-      if (!daySlots) continue;
-      Object.entries(daySlots).forEach(([time, slot]) => {
-        if (!slot.available) return;
-        const [hh, mm] = time.split(':').map(Number);
-        const sMin = hh * 60 + mm;
-        minStart = Math.min(minStart, sMin);
-        maxEnd   = Math.max(maxEnd, sMin + (slot.durMin || 60));
-      });
+    for (let dd = dayFrom; dd <= dayTo; dd++) {
+      const dayList = bookingsByDay.get(dd);
+      if (!dayList) continue;
+      for (const b of dayList) {
+        if (b.status === "cancelled") continue;
+        minStart = Math.min(minStart, b.startMin);
+        maxEnd   = Math.max(maxEnd, b.startMin + b.durMin);
+      }
     }
-    return minStart === Infinity ? null : `${minStart}-${maxEnd}`;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bookings, openSlots, dayOffset, visDayRange.s, visDayRange.e, settings.autoHourHeight]);
-
-  // Авто-висота годин ("Авто" замість фіксованих 6/8/9/10/12): підлаштовуємо
-  // hourHeightPx під діапазон "перший запис — останній запис" видимих днів
-  // (6..16 годин). Рахуємо при зміні видимого діапазону днів (скрол) АБО
-  // коли змінюється сам часовий діапазон записів (autoSpanKey) — напр. додали
-  // пізній запис. Просте редагування (ціна/статус), що span не міняє, висоту
-  // не перераховує — щоб вона не "стрибала" під час звичайної роботи.
-  useEffect(() => {
-    if (!settings.autoHourHeight) return;
-    const dayFrom = dayOffset + visDayRange.s;
-    const dayTo   = dayOffset + visDayRange.e;
-    let minStart = Infinity, maxEnd = -Infinity;
-    bookings.forEach(b => {
-      if (b.status === "cancelled") return;
-      if (b.day < dayFrom || b.day > dayTo) return;
-      minStart = Math.min(minStart, b.startMin);
-      maxEnd   = Math.max(maxEnd, b.startMin + b.durMin);
-    });
     // Порожні (вільні, ще не заброньовані) слоти теж входять у діапазон —
     // "Авто" має показувати не лише зайняті години, а й доступні для запису.
     for (let d = dayFrom; d <= dayTo; d++) {
@@ -1876,6 +1905,23 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
         maxEnd   = Math.max(maxEnd, sMin + (slot.durMin || 60));
       });
     }
+    return { minStart, maxEnd, key: minStart === Infinity ? null : `${minStart}-${maxEnd}` };
+  };
+
+  // Авто-висота годин ("Авто" замість фіксованих 6/8/9/10/12): підлаштовуємо
+  // hourHeightPx під діапазон "перший запис — останній запис" видимих днів
+  // (6..16 годин). Рахуємо при зміні видимого діапазону днів (скрол — викликає
+  // computeVRange напряму, БЕЗ setState: інакше кожна колонка скролу = повний
+  // рендер розкладу), при вмиканні "Авто" і коли змінюється сам часовий діапазон
+  // записів (напр. додали пізній запис, прийшли слоти). Просте редагування
+  // (ціна/статус), що span не міняє, висоту не перераховує — щоб вона не
+  // "стрибала" під час звичайної роботи.
+  const lastAutoKeyRef = useRef(null);
+  const runAutoHeightRef = useRef(null);
+  runAutoHeightRef.current = () => {
+    if (!settings.autoHourHeight) return;
+    const { minStart, maxEnd, key } = calcAutoSpan();
+    lastAutoKeyRef.current = key;
     if (minStart === Infinity) return; // немає ні записів, ні слотів у видимому діапазоні — висоту не чіпаємо
     const spanHours = Math.ceil((maxEnd - minStart) / 60);
     const n = Math.max(6, Math.min(16, spanHours));
@@ -1906,8 +1952,13 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
       autoScrollToMinRef.current = minStart;
       return { ...s, hourHeightPx: targetHpx };
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visDayRange.s, visDayRange.e, settings.autoHourHeight, autoSpanKey]);
+  };
+  useEffect(() => { runAutoHeightRef.current(); }, [settings.autoHourHeight]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Span видимих днів змінився відносно останнього розрахунку (нові записи/слоти) — перерахувати.
+  useEffect(() => {
+    if (!settings.autoHourHeight) return;
+    if (calcAutoSpan().key !== lastAutoKeyRef.current) runAutoHeightRef.current();
+  });
 
   // Прокрутка до першого запису — спрацьовує тільки після авто-перерахунку
   // висоти (autoScrollToMinRef виставляється лише вище), не після ручного
@@ -2802,7 +2853,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
     const slotMin = h * 60 + m;
     const today = new Date(); today.setHours(0,0,0,0);
     const absDay = Math.round((new Date(dateStr + "T12:00:00") - today) / 86400000);
-    const dayBkgs = bookings.filter(b => b.day === absDay && b.type !== "block" && b.type !== "vip-slot" && b.type !== "personal");
+    const dayBkgs = (bookingsByDay.get(absDay) || EMPTY_LIST).filter(b => b.type !== "block" && b.type !== "vip-slot" && b.type !== "personal");
     const adjBefore = dayBkgs.some(b => b.startMin === slotMin + 60);
     const adjAfter  = dayBkgs.some(b => b.startMin + b.durMin === slotMin);
     if (settings.stickyTime === "before") return adjBefore;
@@ -2979,9 +3030,10 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
             if (cw) {
               const todayX = PAST_DAYS * (cw + 4);
               const sl = el.scrollLeft;
-              if (sl > todayX + cw) setTodayDir("left");
-              else if (sl + el.clientWidth < todayX) setTodayDir("right");
-              else setTodayDir(null);
+              const nextDir = sl > todayX + cw ? "left" : (sl + el.clientWidth < todayX ? "right" : null);
+              // Лише при ЗМІНІ — інакше кожна подія скролу змушувала React виконувати
+              // весь рендер розкладу вдруге.
+              if (todayDirRef.current !== nextDir) { todayDirRef.current = nextDir; setTodayDir(nextDir); }
             }
           }}
           onContextMenu={e=>e.preventDefault()}
@@ -2989,9 +3041,8 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
           style={{flex:1, overflowX:"auto", overflowY:"auto", touchAction:"pan-x pan-y", WebkitOverflowScrolling:"touch", userSelect:"none", WebkitUserSelect:"none", scrollbarWidth:"none", willChange:"scroll-position"}}
         >
           <div ref={gridWrapRef} style={{display:"flex", paddingTop:2}}>
-          {vRange.s > 0 && <div style={{width:vRange.s*(COL_W+4), flexShrink:0}}/>}
-          {days.slice(vRange.s, vRange.e+1).map((day,_i)=>{
-            const colIdx = vRange.s + _i;
+          <VirtualCols vRangeRef={vRangeRef} subRef={vRangeSubRef} colW={COL_W} nDays={N_DAYS} renderCol={(colIdx)=>{
+            const day = getDayInfo(dayOffset + colIdx);
             const absDay = dayOffset + colIdx;
             const dateStrCol = absDayToDateStr(absDay);
             // Записи цього дня — для приховування вільних слотів, які запис накрив
@@ -3001,7 +3052,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
             // і застаріває, якщо застосунок лишається відкритим через опівніч без
             // нових bookings-подій: вільний слот тоді хибно лишався "накритим"
             // записом, що вже фактично посунувся на інший відносний день.
-            const colBookings = bookings.filter(b => b.date === dateStrCol && b.status !== "cancelled");
+            const colBookings = (bookingsByDate.get(dateStrCol) || EMPTY_LIST).filter(b => b.status !== "cancelled");
             const slotCovered = (mn) => colBookings.some(b => b.startMin < mn + 60 && b.startMin + b.durMin > mn);
             const isOpenCol = Object.entries(openSlots[dateStrCol] || {}).some(([t, s]) => {
               if (!s.available) return false;
@@ -3544,7 +3595,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
               })}
 
               {/* Bookings */}
-              {bookings.filter(b=>b.day===absDay).sort((a,b)=>a.startMin-b.startMin).map(origB=>{
+              {(bookingsByDay.get(absDay) || EMPTY_LIST).map(origB=>{
                 if (origB.status === "cancelled") return null;
                 // Сусідній (без розриву) запис того ж учня — "поглинутий" сусідньою карткою, не рендеримо окремо.
                 const mi = mergeInfoMap[origB.id];
@@ -3578,6 +3629,22 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                 const isLockedPast = settings.lockPastBookings && !isBlock && !isVipSlot && !isPersonal && isPast;
                 const isDimmed = !isBlock && !isVipSlot && !isPersonal && (b.status==="noshow" || isCancelling || isLockedPast);
                 const price = b._mergedPrice != null ? b._mergedPrice : computeBookingPrice(b, settings.services);
+                // Геометрія верху картки: бейдж-мітка → час → текст. Час стоїть ПІД бейджем,
+                // а текст починається ПІД часом — раніше на картках з міткою ("1-й урок",
+                // "Борг"...) час перекривав першу строку імені. Висоти рахуємо з тих самих
+                // розмірів, що й у бейджа (tagFs/відступи), тож на широких колонках теж без накладання.
+                const _hasTag = !isBlock && !isVipSlot && !isPersonal && height >= 14 && !!effectiveTag(b);
+                const _tagFs = Math.max(6, Math.min(9, Math.round(COL_W / 11)));
+                const _tagBottom = Math.round(_tagFs * 0.9) + 0.99 * (_tagFs * 1.3 + 2 * (COL_W >= 34 ? Math.max(1, Math.round(_tagFs * 0.25)) : 2));
+                const _timeFs = Math.min(8, Math.max(6, height / 9));
+                const _timeTagTop = Math.max(16, Math.floor(_tagBottom));
+                const _textTopTagged = _timeTagTop + Math.ceil(_timeFs) + 2;
+                // У тісній картці з міткою для імені під часом місця немає — час ховаємо
+                // (він видний за шкалою зліва), а текст лишається як було.
+                const _tagRoomy = _hasTag && height - _textTopTagged - 4 >= 20;
+                const showTime = !_hasTag || _tagRoomy;
+                const timeTop = _hasTag ? _timeTagTop : 2;
+                const textTop = _tagRoomy ? _textTopTagged : 11;
                 return (
                   /* Обгортка — overflow:visible щоб значок не обрізався */
                   <div key={b.id} style={{
@@ -3746,7 +3813,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                         ];
                         // Верхні 9px зарезервовані під час старту уроку (праворуч зверху) —
                         // інакше прізвище/ім'я могли заходити під нього при малому зумі.
-                        const availH = height - 15;
+                        const availH = height - textTop - 4;
                         const availW = COL_W - 8;
                         const maxLinesByH = Math.max(1, Math.floor(availH / 10));
                         const maxLinesByW = COL_W < 44 ? 2 : COL_W < 58 ? 3 : 4;
@@ -3760,7 +3827,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                         const fs = Math.min(11, fsByW, fsByH);
                         return (
                           <div style={{
-                            position:"absolute", top:11, left:2, right:2, bottom:2,
+                            position:"absolute", top:textTop, left:2, right:2, bottom:2,
                             display:"flex", flexDirection:"column", justifyContent:"center",
                             alignItems:"center", gap:1,
                             overflow:"hidden", zIndex:2,
@@ -3793,10 +3860,10 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                       )}
                       {/* Час початку уроку — праворуч зверху. Опущено нижче, якщо на картці
                           є мітка (бейдж-пігулка), щоб час не перекривався нею. */}
-                      {!isBlock && !isVipSlot && !isPersonal && height >= 14 && (
+                      {!isBlock && !isVipSlot && !isPersonal && height >= 14 && showTime && (
                         <div style={{
-                          position:"absolute", top:effectiveTag(b) ? 16 : 2, right:3, zIndex:4,
-                          fontSize:Math.min(8, Math.max(6, height/9)),
+                          position:"absolute", top:timeTop, right:3, zIndex:4,
+                          fontSize:_timeFs,
                           fontWeight:800, lineHeight:1, color:"rgba(0,0,0,0.8)",
                           pointerEvents:"none",
                           textShadow:"0 0 3px rgba(255,255,255,0.9), 0 0 1px rgba(255,255,255,0.9)",
@@ -3905,8 +3972,8 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
 
               {/* Daily income sum — sticky bottom, moves with column natively (no scroll lag) */}
               {(() => {
-                const daySum = bookings
-                  .filter(b=>b.day===absDay && b.type!=="block" && b.type!=="vip-slot" && b.type!=="personal" && b.status!=="cancelled" && b.status!=="noshow")
+                const daySum = (bookingsByDay.get(absDay) || EMPTY_LIST)
+                  .filter(b=>b.type!=="block" && b.type!=="vip-slot" && b.type!=="personal" && b.status!=="cancelled" && b.status!=="noshow")
                   .reduce((s,b)=>s+computeBookingPrice(b, settings.services||[]),0);
                 if (daySum<=0) return null;
                 return (
@@ -3931,8 +3998,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
               })()}
             </div>
             );
-          })}
-          {(N_DAYS-1-vRange.e)>0 && <div style={{width:(N_DAYS-1-vRange.e)*(COL_W+4)-4, flexShrink:0}}/>}
+          }}/>
           </div>
         </div>
 
