@@ -11,11 +11,15 @@ export function useAppUpdate() {
     isUpdatingRef.current = true
     setIsUpdating(true)
 
+    // Повноекранна анімація оновлення (src/updateOverlay.inline.js): перезавантаження
+    // чекає її кінця, але не довше за страховий таймер нижче.
+    const anim = window.__updOverlay ? window.__updOverlay.show() : Promise.resolve()
     let reloaded = false
     const doReload = () => {
       if (reloaded) return
       reloaded = true
-      window.location.reload()
+      const reload = () => window.location.reload()
+      anim.then(reload, reload)
     }
     setTimeout(doReload, 3000)
 

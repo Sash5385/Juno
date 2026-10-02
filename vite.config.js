@@ -23,10 +23,13 @@ function readVersion() {
 // rather than inside the cached JS bundle.
 function versionGuard() {
   let version = ''
+  let overlayJs = ''
   return {
     name: 'drivepad-version-guard',
     buildStart() {
       version = readVersion()
+      // Анімація оновлення — окремий читабельний файл, вставляється в HTML інлайном.
+      try { overlayJs = readFileSync(resolve(__dirname, 'src/updateOverlay.inline.js'), 'utf8') } catch { overlayJs = '' }
     },
     transformIndexHtml(html) {
       // Перевіряємо версію одразу при завантаженні, а потім періодично (кожні 45с),
@@ -46,7 +49,11 @@ function versionGuard() {
         'var k="vreset_"+d.version;var last=+(sessionStorage.getItem(k)||0);' +
         'if(Date.now()-last<10000)return;' +
         'sessionStorage.setItem(k,String(Date.now()));' +
-        'var done_=false;function done(){if(done_)return;done_=true;location.reload()}' +
+        // Повноекранна анімація оновлення (src/updateOverlay.inline.js): крутиться паралельно зі
+        // справжнім скиданням SW/кешів, а перезавантаження — після її кінця (anim).
+        'var ov=window.__updOverlay;var anim=ov?ov.show(d.version):Promise.resolve();' +
+        'function rl(){location.reload()}' +
+        'var done_=false;function done(){if(done_)return;done_=true;anim.then(rl,rl)}' +
         // Якщо unregister/caches.delete зависне (буває у старих WebView-обгортках
         // PWA на телефоні) — все одно перезавантажуємо через 2.5с, а не лишаємось
         // застряглими назавжди на старій версії.
@@ -67,9 +74,14 @@ function versionGuard() {
         'document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible")check()});' +
         // Якщо новий SW перехопив контроль (skipWaiting+clientsClaim) — перезавантажуємо,
         // щоб одразу побачити свіжий контент замість застряглого старого бандла.
-        'if("serviceWorker"in navigator){navigator.serviceWorker.addEventListener("controllerchange",function(){location.reload()})}' +
+        // Анімацію показуємо лише коли сторінку вже контролював SW (справжнє оновлення), а не при
+        // першій установці SW — там, як і раніше, просто перезавантаження.
+        'if("serviceWorker"in navigator){var hadCtl=!!navigator.serviceWorker.controller;' +
+        'navigator.serviceWorker.addEventListener("controllerchange",function(){var o=window.__updOverlay;' +
+        'function rl(){location.reload()}if(hadCtl&&o){o.show().then(rl,rl)}else{rl()}})}' +
         '})();</script>'
-      return html.replace('</head>', guard + '</head>')
+      // Функція-замінник, а не рядок: у коді анімації може бути "$", який replace трактує спеціально.
+      return html.replace('</head>', () => (overlayJs ? '<script>' + overlayJs + '</script>' : '') + guard + '</head>')
     },
     generateBundle() {
       this.emitFile({
