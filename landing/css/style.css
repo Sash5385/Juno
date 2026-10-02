@@ -123,3 +123,12 @@ footer{border-top:1px solid var(--border);padding:34px 0;color:var(--dim);font-s
 .gallery img{display:block;width:100%;height:auto}
 .gallery figcaption{margin-top:12px;text-align:center;font-weight:700}
 .gallery figcaption small{display:block;color:var(--dim);font-weight:400;font-size:13px;margin-top:3px}
+
+/* збільшення скриншота (js/site.js) */
+.phone img{cursor:zoom-in}
+.zoom{position:fixed;inset:0;z-index:9999;background:rgba(6,6,8,0);-webkit-backdrop-filter:blur(0);backdrop-filter:blur(0);transition:background .35s ease,-webkit-backdrop-filter .35s ease,backdrop-filter .35s ease;cursor:zoom-out}
+.zoom.on{background:rgba(6,6,8,.84);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+.zoom img{position:fixed;display:block;max-width:none;transform-origin:0 0;border-radius:22px;box-shadow:0 30px 80px rgba(0,0,0,.6);transition:transform .42s cubic-bezier(.2,.8,.2,1),opacity .3s;will-change:transform}
+.zoom-x{position:fixed;top:max(14px,env(safe-area-inset-top));right:14px;width:44px;height:44px;border-radius:50%;border:1px solid rgba(255,255,255,.22);background:rgba(30,30,34,.7);color:#fff;font-size:26px;line-height:1;cursor:pointer;opacity:0;transition:opacity .3s}
+.zoom.on .zoom-x{opacity:1}
+@media(prefers-reduced-motion:reduce){.zoom,.zoom img,.zoom-x{transition:none}}
