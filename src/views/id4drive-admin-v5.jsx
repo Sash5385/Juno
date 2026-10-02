@@ -1442,8 +1442,17 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
     // без проміжного 18:00 — тільки старти, розведені рівно на годину.
     const step = 60;
     const updates = {};
+    let afterLunch = false;
     for (let min = start * 60; min < end * 60; min += step) {
-      if (lunchEnabled && min >= lunchStart * 60 && min < lunchEnd * 60) continue;
+      // Слот, що перетинає обід (навіть частково), не створюємо; сітка після
+      // обіду стартує рівно з його кінця (обід 12:30–13:00 → ...11:00, 13:00, 14:00).
+      if (lunchEnabled && lunchEnd > lunchStart && min < lunchEnd * 60 && min + step > lunchStart * 60) {
+        min = lunchEnd * 60 - step;
+        afterLunch = true;
+        continue;
+      }
+      // Після обіду слот не повинен виходити за кінець робочого дня.
+      if (afterLunch && min + step > end * 60) break;
       const h = String(Math.floor(min / 60)).padStart(2, "0");
       const m = String(min % 60).padStart(2, "0");
       const id = `slot${h}${m}`;

@@ -295,6 +295,21 @@ function TimeWheel({ label, value, onChange, min = 0, max = 24, rows = 5, color 
   );
 }
 
+// Старти слотів дня — та сама логіка, що й у генерації слотів (id4drive-admin):
+// крок 60 хв, слот, що перетинає обід, пропускається, після обіду сітка йде від його кінця.
+function daySlotStarts(d) {
+  const lS = (d.lunchStart ?? 12) * 60, lE = (d.lunchEnd ?? 13) * 60;
+  const useL = !!d.lunchEnabled && lE > lS;
+  const out = [];
+  let after = false;
+  for (let m = d.start * 60; m < d.end * 60; m += 60) {
+    if (useL && m < lE && m + 60 > lS) { m = lE - 60; after = true; continue; }
+    if (after && m + 60 > d.end * 60) break;
+    out.push(m);
+  }
+  return out;
+}
+
 function WeekScheduleEditor({ weekSchedule, updDay, setWeek }) {
   const { BG_DEEP, SURF_HI, SURFACE, TEXT, DIM, FAINT, GREEN, RED, GOLD, ACCENT, SI, SO } = useContext(ThemeContext);
   const [sel, setSel] = useState(0);
@@ -304,6 +319,16 @@ function WeekScheduleEditor({ weekSchedule, updDay, setWeek }) {
   const hrs = d => d.enabled ? Math.max(0, d.end - d.start - (d.lunchEnabled ? Math.max(0, (d.lunchEnd ?? 13) - (d.lunchStart ?? 12)) : 0)) : 0;
   const total = weekSchedule.reduce((s, d) => s + hrs(d), 0);
   const pct = x => `${(Math.max(0, Math.min(24, x)) / 24) * 100}%`;
+  const slots = day.enabled ? daySlotStarts(day) : [];
+  const gaps = [];
+  slots.forEach((m, i) => {
+    const nx = slots[i + 1];
+    if (nx == null) return;
+    const g0 = m + 60;
+    // сам обід — не «прогалина»: вільним лишається лише відрізок до початку обіду
+    const g1 = day.lunchEnabled && lS * 60 >= g0 && lS * 60 < nx ? lS * 60 : nx;
+    if (g1 - g0 >= 30) gaps.push([g0, g1]);
+  });
   const copyAll = () => setWeek(weekSchedule.map(d => d.enabled
     ? {...d, start: day.start, end: day.end, lunchEnabled: !!day.lunchEnabled, lunchStart: lS, lunchEnd: lE}
     : d));
@@ -371,6 +396,18 @@ function WeekScheduleEditor({ weekSchedule, updDay, setWeek }) {
               <TimeWheel label="ПЕРЕРВА ДО" color={GOLD} rows={3} value={lE} onChange={v=>updDay(sel,{lunchEnd:v})} min={lS+0.5} max={24}/>
             </div>
           )}
+          <div style={{marginTop:14,padding:"0 4px"}}>
+            <div style={{fontSize:11,fontWeight:800,letterSpacing:1.2,color:DIM,marginBottom:6}}>СЛОТИ ДНЯ · {slots.length}</div>
+            <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
+              {slots.map(m => (
+                <span key={m} style={{fontSize:12,fontWeight:800,padding:"4px 8px",borderRadius:8,color:TEXT,
+                  background:`color-mix(in srgb,${GREEN} 18%,${BG_DEEP})`,border:`1px solid color-mix(in srgb,${GREEN} 35%,transparent)`}}>{fmt(m/60)}</span>
+              ))}
+            </div>
+            {gaps.map((g, i) => (
+              <div key={i} style={{fontSize:11,color:GOLD,marginTop:6}}>⚠ {fmt(g[0]/60)}–{fmt(g[1]/60)} без слота (не вміщається урок 1 год)</div>
+            ))}
+          </div>
         </>)}
       </div>
       {day.enabled && (
