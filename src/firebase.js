@@ -1,8 +1,9 @@
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { getDatabase, ref, set } from "firebase/database";
+import { getDatabase, goOffline, ref, set } from "firebase/database";
 import { getMessaging, getToken, onMessage } from "firebase/messaging";
 import { getStorage, ref as storageRef } from "firebase/storage";
+import { DEMO } from "./demo/demoMode.js";
 
 // Multi-tenant: iid — це uid інструктора, що зараз залогінений. Кожен
 // інструктор бачить і пише тільки у свій instructors/{iid}/... (rules).
@@ -30,6 +31,7 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getDatabase(app);
+if (DEMO) goOffline(db); // демо: жодних з'єднань зі справжньою базою
 export const storage = getStorage(app);
 // Фото інструктора: instructors/{iid}/profile.jpg (одне фото на інструктора,
 // перезаписується при новому завантаженні — без сміття зі старих версій).
@@ -56,6 +58,7 @@ function getDeviceId() {
 }
 
 export async function registerAdminFCM() {
+  if (DEMO) return; // демо-режим: без запиту дозволу на сповіщення й без токенів
   if (!("Notification" in window)) { console.warn("FCM: Notification API not supported"); return; }
   try {
     const permission = await Notification.requestPermission();
@@ -111,6 +114,7 @@ export async function registerAdminFCM() {
 }
 
 export function onAdminForegroundMessage(callback) {
+  if (DEMO) return () => {};
   try {
     const messaging = getMessaging(app);
     return onMessage(messaging, callback);

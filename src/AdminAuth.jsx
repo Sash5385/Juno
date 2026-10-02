@@ -5,6 +5,7 @@ import { auth, iRef, db } from "./firebase";
 import { licenseState } from "./hooks/useLicense";
 import { LOGIN_CSS } from "./loginStyles";
 import { APP_VERSION } from "./version";
+import { DEMO, DEMO_USER } from "./demo/demoMode.js";
 import { deleteAccountRequest } from "./deleteAccountApi";
 
 // Вендор SaaS (ви) — бачить усіх інструкторів замість власного кабінету.
@@ -34,8 +35,9 @@ const SO = "6px 6px 16px rgba(0,0,0,0.45),-3px -3px 10px rgba(255,255,255,0.025)
 // iid інструктора = його ж auth.uid. Профіль (є він, чи потрібна анкета
 // InstructorSetupScreen) перевіряється окремо в App.jsx.
 export function useAdminAuth() {
-  const [user, setUser] = useState(undefined);
+  const [user, setUser] = useState(DEMO ? DEMO_USER : undefined);
   useEffect(() => {
+    if (DEMO) return; // демо-режим (?demo=1): без входу й без Firebase Auth
     // Fallback: if Firebase Auth doesn't resolve within 6s (IndexedDB blocked, slow network),
     // treat as logged-out so the login screen appears instead of blank white screen.
     const fallback = setTimeout(() => setUser(prev => prev === undefined ? null : prev), 3000);
