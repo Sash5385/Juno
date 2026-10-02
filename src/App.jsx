@@ -703,6 +703,7 @@ export default function App() {
           reg.showNotification(title, {
             body,
             icon: "/icon-192.png",
+            badge: "/badge-dp.png",
             tag: "admin-" + Date.now(),
             requireInteraction: true,
             vibrate: isAlarm ? [400, 200, 400, 200, 400, 200, 400] : undefined,
