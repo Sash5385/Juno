@@ -37,7 +37,7 @@ header{position:sticky;top:0;z-index:50;background:rgba(16,17,19,.82);backdrop-f
 .badges{display:flex;gap:8px;flex-wrap:wrap;margin-top:22px}
 .badge{font-size:12px;font-weight:700;padding:5px 11px;border-radius:20px;border:1px solid var(--border);background:rgba(255,255,255,.04);color:#c9cbd1}
 /* phone mock */
-.phones{display:flex;justify-content:center;gap:16px;position:relative}
+.phones{display:flex;justify-content:center;align-items:flex-start;gap:16px;position:relative}
 .phone{width:min(230px,46vw);border-radius:30px;background:#0b0b0d;border:7px solid #2a2c31;box-shadow:var(--shadow);overflow:hidden;position:relative}
 .phone.sm{width:min(200px,40vw);margin-top:38px}
 .phone-notch{height:20px;background:#0b0b0d;display:flex;justify-content:center;align-items:center}
