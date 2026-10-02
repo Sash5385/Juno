@@ -115,3 +115,11 @@ footer{border-top:1px solid var(--border);padding:34px 0;color:var(--dim);font-s
 @media(max-width:480px){.phones{gap:10px}.mock{padding:8px;min-height:300px}.tile{padding:9px 4px;font-size:12px}}
 @media(max-width:400px){.nav-links{gap:10px}.brand{font-size:16px}.btn-sm{padding:8px 12px;font-size:13px}}
 .nav-links a.btn{color:#fff}.nav-links a.btn-primary:hover{color:#fff}
+
+/* gallery: знімки екранів */
+.gallery{display:flex;gap:20px;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;padding:8px 4px 22px;scrollbar-width:thin}
+.gallery figure{flex:0 0 min(240px,64vw);margin:0;scroll-snap-align:center}
+.gallery .phone{width:100%}
+.gallery img{display:block;width:100%;height:auto}
+.gallery figcaption{margin-top:12px;text-align:center;font-weight:700}
+.gallery figcaption small{display:block;color:var(--dim);font-weight:400;font-size:13px;margin-top:3px}
