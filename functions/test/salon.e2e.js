@@ -274,6 +274,19 @@ async function del(id) { const before = await val(`bookings/${id}`); await sref(
   await book("b9", NB({ id: "b9", time: "13:00" }));
   check("stale FCM token is removed from owner tokens", (await val("fcmTokens/d1")) === null);
 
+  console.log("── slot step (profile/slotStep)");
+  await seed();
+  await sref("profile/slotStep").set(15);
+  await sref(`timeslots/m1/${D1}`).set(Object.fromEntries(["10:00", "10:15", "10:30", "10:45", "11:00"].map((t) => [`slot${t.replace(":", "")}`, { time: t, available: true }])));
+  await book("k1", NB({ id: "k1", durationMin: 45 }));
+  check("45 min on a 15-min grid blocks 10:00, 10:15, 10:30 only", (await free("m1", "10:00")) === false && (await free("m1", "10:15")) === false && (await free("m1", "10:30")) === false && (await free("m1", "10:45")) === true);
+  await patch("k1", { time: "10:15" });
+  check("move by 15 min: 10:00 freed, 10:15–10:45 blocked", (await free("m1", "10:00")) === true && (await free("m1", "10:15")) === false && (await free("m1", "10:45")) === false && (await free("m1", "11:00")) === true);
+  await patch("k1", { status: "cancelled", cancelledBy: "client" });
+  check("cancel restores the 15-min grid", (await free("m1", "10:15")) === true && (await free("m1", "10:30")) === true && (await free("m1", "10:45")) === true);
+  await sref("profile/slotStep").set(7);
+  check("invalid step falls back to 30", (await lib.salonSlotStep(S)) === 30);
+
   // ═══ Черга очікування ═══
   console.log("── queue (per master)");
   await seed();
@@ -427,6 +440,7 @@ async function del(id) { const before = await val(`bookings/${id}`); await sref(
   pushes.length = 0;
   r = await call(fns.salonClaimMasterInvite, { headers: as("uM2"), body: { code: code2 } });
   check("master claims invite", r.code === 200 && r.out.salonId === S && r.out.masterId === "m2" && (await val("masterAuth/uM2")) === "m2" && (await val("masterSettings/m2/uid")) === "uM2");
+  check("membership index written for the master", (await db.ref("master_memberships/uM2/" + S).get()).val() === "m2");
   check("owner told that master joined", titles("tok-owner").includes("👤 Майстер приєднався") && /Boris/.test(pushOf("tok-owner")[0].body));
   r = await call(fns.salonClaimMasterInvite, { headers: as("uM2"), body: { code: code2 } });
   check("same user again: idempotent OK, no second push", r.code === 200 && pushOf("tok-owner").length === 1);
@@ -442,6 +456,7 @@ async function del(id) { const before = await val(`bookings/${id}`); await sref(
   r = await call(fns.salonCreateMasterInvite, { headers: as(S), body: { masterId: "m1", ttlHours: 24 } });
   const code4 = r.out.code;
   r = await call(fns.salonClaimMasterInvite, { headers: as("uNewM1"), body: { code: code4 } });
+  check("…and the old login loses its membership, the new one gets it", (await db.ref("master_memberships/uM1/" + S).get()).val() == null && (await db.ref("master_memberships/uNewM1/" + S).get()).val() === "m1");
   check("re-invite for bound master replaces the old login", r.code === 200 && (await val("masterAuth/uNewM1")) === "m1" && (await val("masterAuth/uM1")) === null && (await val("masterSettings/m1/uid")) === "uNewM1");
   r = await call(fns.salonClaimMasterInvite, { headers: as("uX"), body: { code: `${S2}.${code4.split(".")[1]}` } });
   check("secret from another salon does not work", r.code === 404);

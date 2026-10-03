@@ -33,6 +33,15 @@ npx firebase-tools emulators:exec --only database --project demo-mon "node funct
 ```
 `reportError` (групування, ліміт 20/хв на IP, обрізання полів), щоденне очищення `cleanupErrorLog`, `createLiqPayOrder` → 503.
 
+### Адмінка салону (`src/salon/`)
+```bash
+npx firebase-tools emulators:exec --only database --project demo-rt "node tests/rules/salonApp.test.mjs"   # записи UI проти справжніх правил
+node tests/unit/salonLogic.test.mjs                                                                       # чиста логіка: сітка слотів, ціни, вільні вікна, статистика
+npm run build && (npx vite preview --port 4173 &) && node tests/smoke/smoke.mjs salon http://localhost:4173 && node tests/smoke/salon-flows.mjs http://localhost:4173
+```
+`salonApp.test.mjs` повторює кожен запис адмінки (онбордінг, записи, слоти, послуги, майстри, чати) від імені власника й майстра — якщо UI почне писати те, що правила забороняють, тест червоний.
+`salon-flows.mjs` проходить сценарії в демо-режимі на екрані 320px (`?app=salon&demo=1`).
+
 ## Cloud Functions салону (`functions/salon/`)
 ```bash
 npx firebase-tools emulators:exec --only database --project demo-salon "node functions/test/salon.e2e.js"

@@ -59,6 +59,14 @@ const reset = () => env.withSecurityRulesDisabled(async (c) => {
   await set(ref(db, A_("timeslots/m1")), { [D]: SLOTS });
 });
 
+console.log("── MEMBERSHIPS");
+await env.withSecurityRulesDisabled(async (c) => { await set(ref(c.database(), "master_memberships/mast1/ownA"), "m1"); });
+await t("master reads own memberships", A, () => get(R(M1, "master_memberships/mast1")));
+await t("master reads another's memberships", X, () => get(R(M1, "master_memberships/mast2")));
+await t("master writes own membership", X, () => set(R(M1, "master_memberships/mast1/ownB"), "m1"));
+await t("owner writes membership", X, () => set(R(OWN_A, "master_memberships/mast1/ownB"), "m1"));
+await t("anonymous reads memberships", X, () => get(R(anon, "master_memberships/mast1")));
+await t("list all memberships", X, () => get(R(M1, "master_memberships")));
 console.log("── SLUGS / INDEX");
 await t("anonymous reads salon_slugs", A, () => get(R(anon, "salon_slugs/salon-a")));
 await t("owner claims own slug", A, () => set(R(OWN_A, "salon_slugs/salon-a"), { salonId: "ownA" }));

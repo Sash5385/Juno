@@ -8,8 +8,9 @@ const base = (process.argv[3] || "http://localhost:4173").replace(/\/$/, "");
 const TABS = {
   admin: ["Записи", "Журнал", "Учні", "Черга", "Послуги", "Чати", "Шаблони", "Статист.", "Налашт."],
   client: ["Записи", "Черга", "Чат", "Сповіщення"],
+  salon: ["Календар", "Записи", "Клієнти", "Послуги", "Майстри", "Чати", "Статист.", "Налашт."],
 };
-if (!TABS[kind]) { console.error("usage: smoke.mjs <admin|client> [BASE_URL]"); process.exit(2); }
+if (!TABS[kind]) { console.error("usage: smoke.mjs <admin|client|salon> [BASE_URL]"); process.exit(2); }
 
 const browser = await chromium.launch({ executablePath: process.env.PW_CHROMIUM || undefined });
 const page = await (await browser.newContext({ viewport: { width: 320, height: 640 }, serviceWorkers: "block" })).newPage();
@@ -25,7 +26,7 @@ const check = (name, ok, info = "") => { if (!ok) fails++; console.log(`${ok ? "
 const noOverflow = () => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
 const textLen = () => page.evaluate(() => document.body.innerText.trim().length);
 
-await page.goto(`${base}/?demo=1`);
+await page.goto(`${base}/?demo=1${kind === "salon" ? "&app=salon" : ""}`);
 await page.waitForTimeout(2500);
 check("home renders", (await textLen()) > 50, `body text ${await textLen()}`);
 check("home fits 320px", await noOverflow());

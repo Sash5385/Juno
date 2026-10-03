@@ -4,7 +4,7 @@
 // активному запису цього майстра в цей день (перенесення "на пів години раніше" чи гонка двох скасувань
 // інакше звільнили б щойно зайнятий час).
 const { blockRangeUpdates, restoreRangeUpdates } = require("../slotRules");
-const { sRef, durationMinOf, isCancelled } = require("./lib");
+const { sRef, durationMinOf, isCancelled, salonSlotStep } = require("./lib");
 
 // Діапазон запису в хвилинах від півночі (null, якщо даних замало)
 function bookingRange(b) {
@@ -56,7 +56,7 @@ async function buildSlotUpdates(salonId, booking, available, { uid = null, exclu
   if (!r || !booking.masterId) return {};
   const day = await readSlotDay(salonId, booking.masterId, r.date);
   const prefix = prefixOf(booking.masterId, r.date);
-  if (!available) return blockRangeUpdates(day, prefix, r.start, r.dur);
+  if (!available) return blockRangeUpdates(day, prefix, r.start, r.dur, { step: await salonSlotStep(salonId) });
   let mine = uid ? Object.fromEntries(Object.entries(day).filter(([, n]) => !n?.bookedBy || n.bookedBy === uid)) : day;
   mine = dayWithoutRanges(mine, await otherActiveRanges(salonId, booking.masterId, r.date, excludeBookingId));
   return restoreRangeUpdates(mine, prefix, r.start, r.dur, { extra: { bookedBy: null } });
@@ -70,7 +70,7 @@ async function buildRescheduleSlotUpdates(salonId, before, after, bookingId) {
   let newDay = null;
   if (newR && after.masterId) {
     newDay = await readSlotDay(salonId, after.masterId, newR.date);
-    Object.assign(updates, blockRangeUpdates(newDay, prefixOf(after.masterId, newR.date), newR.start, newR.dur));
+    Object.assign(updates, blockRangeUpdates(newDay, prefixOf(after.masterId, newR.date), newR.start, newR.dur, { step: await salonSlotStep(salonId) }));
   }
   if (oldR && before.masterId) {
     const sameDay = !!newR && newR.date === oldR.date && after.masterId === before.masterId;

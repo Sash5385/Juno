@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:salon": "vite build --mode salon",
+    "dev:salon": "vite --mode salon",
     "lint": "eslint .",
     "preview": "vite preview"
   },

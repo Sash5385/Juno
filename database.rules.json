@@ -358,6 +358,10 @@
         }
       }
     },
+    // Де працює майстер: master_memberships/{uid}/{salonId} = masterId. Пише лише сервер (salonClaimMasterInvite), читає сам майстер.
+    "master_memberships": {
+      "$uid": { ".read": "auth != null && auth.uid === $uid" }
+    },
     "salon_index": {
       ".read": "auth != null && auth.token.email === 'sash5385@gmail.com'",
       "$salonId": {

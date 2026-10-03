@@ -1,7 +1,7 @@
 # Схема RTDB і Cloud Functions для салону (клон DrivePad)
 
-Статус: **етап 1** (схема, rules, тести, шлях-хелпери) і **етап 2** (Cloud Functions, оплата клієнтом, повернення коштів, запрошення майстрів) готові.
-UI адмінки/клієнта, ребрендинг, тарифи за кількістю майстрів — наступні етапи.
+Статус: **етап 1** (схема, rules), **етап 2** (Cloud Functions, оплата, повернення, запрошення) і **етап 3** (адмінка власника/майстра, `src/salon/`) готові.
+Клієнтський застосунок (етап 4), ребрендинг, тарифи за кількістю майстрів — далі.
 Рішення: гілка без деплою; чиста схема `salons/` (без міграції); еквайринг — Monobank; `instructors/*` і бойові функції DrivePad не змінено.
 
 | Що | Де |
@@ -10,6 +10,7 @@ UI адмінки/клієнта, ребрендинг, тарифи за кіл
 | Шляхи | `src/salonPaths.js` (однаковий файл у DrivePad і DrivePad-Client) |
 | Functions | `functions/salon/*` · тести `functions/test/salon.e2e.js` |
 | Вмикання Functions | змінна `SALON_FUNCTIONS=1` (див. нижче) |
+| Адмінка | `src/salon/*` · спільна логіка `src/salonLogic.js` · тести `tests/rules/salonApp.test.mjs`, `tests/unit/`, `tests/smoke/salon-flows.mjs` |
 
 ## Дерево
 
@@ -17,11 +18,12 @@ UI адмінки/клієнта, ребрендинг, тарифи за кіл
 salon_slugs/{slug}: {salonId}                 публічне читання; пише власник
 salon_index/{salonId}                         реєстр салонів (за ним ходять шедулери); читає лише адмін платформи
 salon_secrets/{salonId}: {monobankToken}      ТІЛЬКИ сервер (правил немає) — токен мерчанта Monobank
+master_memberships/{uid}/{salonId}: masterId  де працює майстер (пише сервер при прийнятті запрошення, читає сам майстер)
 salons/{salonId}/                             salonId = uid власника
-  profile: {name, slug, address, timezone, ..., payment}    публічно
+  profile: {name, slug, phone, address, about, timezone, slotStep, ..., payment}    публічно
     payment: {enabled, depositPercent, allowFull, holdMinutes, cancelFreeHours, autoConfirm, hasToken, tokenLast4}
   license: {status, expiresAt, trialEndsAt, provider, ...}  як в instructors (SaaS-підписка власника)
-  masters/{masterId}/profile: {name, photo, active, specIds:{id:true}, order}   публічно
+  masters/{masterId}/profile: {name, spec, active, order, workHours:[7×{from,to,off}], photo}   публічно
   masterAuth/{uid}: masterId                  логін майстра → masterId; пише власник або Cloud Function
   masterSettings/{masterId}: {uid, commissionPct, ...}      власник + сам майстер (читання); uid — Firebase uid майстра
   masterInvites/{secret}: {masterId, expiresAt, claimedBy}  власник / Cloud Function
@@ -31,7 +33,7 @@ salons/{salonId}/                             salonId = uid власника
   bookings/{bookingId}: {id, masterId, serviceId, serviceName, clientUid, clientName, phone,
                          date, time, durationMin, price, status, createdBy, createdAt,
                          paymentMethod:'online'|'onsite', paymentStatus, paidAmount, paidAt, paymentInvoiceId,
-                         clientConfirmed, rating, clientNote, cancelledAt, cancelledBy, rescheduledFrom, rescheduledFromId, paymentMovedFrom/To}
+                         clientConfirmed, rating, clientNote, staffNote, cancelledAt, cancelledBy, rescheduledFrom, rescheduledFromId, paymentMovedFrom/To}
   bookings_by_phone/{phone}                   лише власник
   queue/{masterId}/{slotKey}/entries/{uid}    черга очікування пер майстер (waiting → offered → booked | expired)
   userQueue/{uid}, users/{uid}                клієнти салону (users/{uid}/queueOffers/{masterId}_{slotKey} — пропозиції з черги)
@@ -113,7 +115,30 @@ salons/{salonId}/                             salonId = uid власника
 Для проєкту салону: `functions/.env.<project>` із `SALON_FUNCTIONS=1`, `SALON_ADMIN_URL`, `SALON_CLIENT_URL` (за замовчуванням адреси DrivePad).
 HTTP-функції викликаються за `https://europe-west1-<project>.cloudfunctions.net/<name>`; rewrites у `firebase.json` не додавались (деплоя немає).
 
+## Адмінка (`src/salon/`)
+Окремий модуль у тому ж Vite-проєкті: `main.jsx` вантажить його lazy-чанком лише в режимі салону — `npm run build:salon` / `npm run dev:salon`
+(`.env.salon` → `VITE_APP_MODE=salon`) або адреса з `?app=salon` (для розробки; `?demo=1` — демо з вигаданими даними в пам'яті, без Firebase).
+Адмінка інструктора DrivePad без цього режиму не змінюється. Змінні збірки: `VITE_FUNCTIONS_BASE` (адреса Cloud Functions, типово за projectId), `VITE_CLIENT_URL` (адреса клієнтського застосунку для посилання `…/s/{slug}`).
+
+| Вкладка | Власник | Майстер |
+|---|---|---|
+| Календар | усі майстри або один; запис, особистий час, вихідний, блок/розблок слота | лише свій календар |
+| Записи | майбутні / очікують / минулі / скасовані, пошук; картка: підтвердити, завершити, скасувати, оплата на місці, перенести, повернення коштів | лише свої записи |
+| Клієнти | список, нотатки, блокування, історія | немає (ім'я й телефон є в записі) |
+| Послуги | категорія, ціна, тривалість, майстри, персональні ціни, видимість | немає |
+| Майстри | профіль, робочі години, запрошення за посиланням `/join/{код}`, «Це я», вимкнення входу | немає |
+| Чати | салон ↔ клієнт і клієнт ↔ майстер (усі) | свої чати з клієнтами |
+| Статистика | виручка/візити/скасування по майстрах, топ послуг | немає |
+| Налаштування | салон, посилання для запису, Monobank, передоплата, політика скасування, сповіщення, тема | профіль, сповіщення, тема |
+
+Вхід: email+пароль або Google. Новий акаунт обирає «Створити салон» (одним мультишляховим записом: профіль, пробні 14 днів, slug, індекс, за бажанням — себе як майстра)
+або «У мене є код» (запрошення майстра → `salonClaimMasterInvite`). Роль визначається при вході: є `salons/{uid}/profile` → власник; інакше `master_memberships/{uid}` + перевірка `masterAuth`.
+Сітка слотів: при вході на 45 днів уперед додаються лише відсутні слоти за робочими годинами й кроком `profile.slotStep` (раз на добу на пристрої);
+після зміни годин майстра сітка перебудовується (`regridWrites`: зайві вільні слоти прибираються, записи/блокування/черга не чіпаються).
+Сповіщення: токен пристрою пишеться в `fcmTokens` (власник) або `masterTokens/{masterId}` (майстер) після дозволу в браузері.
+
 ## Відкриті питання
+0. Адмінка поки лише українською; фото майстрів/логотип (завантаження в Storage) не реалізовані; клієнтський маршрут `/s/{slug}` з'явиться в клієнтському застосунку (етап 4); rewrites `/api/*` для Functions у `firebase.json` не додавались.
 1. **Знижки/VIP/`discountAmt`** — відкладено (рішення пізніше). Ціна запису зараз строго = каталожна/персональна ціна майстра.
 2. Ліміт майстрів за тарифом і підписка власника через Monobank (етап 6): `salonCheckLicenseExpiry` уже ставить `suspended`, оплати підписки для салонів ще немає.
 3. Ще не перенесено з функцій інструкторів: розсилка «звільнився слот» (`onSlotFreed`), розблокування VIP-слотів, `push_tasks`, шаблони повідомлень,

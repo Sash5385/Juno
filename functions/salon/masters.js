@@ -5,7 +5,7 @@
 // Код = "{salonId}.{secret}": salonId у коді — щоб майстру не вводити нічого зайвого; secret — 16 випадкових байт.
 const { onRequest } = require("firebase-functions/v2/https");
 const crypto = require("crypto");
-const { REGION, sRef, isSafeKey, adminUrl, pushOwner, masterName } = require("./lib");
+const { REGION, db, sRef, isSafeKey, adminUrl, pushOwner, masterName } = require("./lib");
 const { authUser, bodyOf } = require("./http");
 
 const HOUR = 3600000;
@@ -68,6 +68,9 @@ const salonClaimMasterInvite = onRequest({ region: REGION, cors: true }, async (
     };
     if (oldUid && oldUid !== uid) upd[`masterAuth/${oldUid}`] = null; // нове запрошення замінює попередній логін майстра
     await sRef(salonId).update(upd);
+    // Індекс "де працює майстер" для входу з іншого пристрою (читає сам майстер, правила — master_memberships)
+    await db().ref(`master_memberships/${uid}/${salonId}`).set(masterId);
+    if (oldUid && oldUid !== uid) await db().ref(`master_memberships/${oldUid}/${salonId}`).remove();
     if (bound !== masterId) {
       await pushOwner(salonId, "👤 Майстер приєднався", `${(await masterName(salonId, masterId)) || "Майстер"} увійшов у свій кабінет`, { url: adminUrl() }).catch(() => {});
     }

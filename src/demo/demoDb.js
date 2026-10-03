@@ -3,8 +3,10 @@
 // runTransaction/off. Дані — з buildDemoTree(); записи міняють лише цю копію в пам'яті,
 // тож інтерфейс у демо "живий" (можна тапати, переносити), а Firebase лишається недоторканим.
 import { buildDemoTree } from "./demoData.js";
+import { SALON_MODE } from "../salon/env.js";
+import { buildSalonDemoTree } from "../salon/demoData.js";
 
-let root = buildDemoTree();
+let root = SALON_MODE ? buildSalonDemoTree() : buildDemoTree();
 const listeners = new Set();
 
 const norm = (p) => String(p || "").replace(/^\/+|\/+$/g, "");

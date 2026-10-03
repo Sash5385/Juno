@@ -108,6 +108,11 @@ async function masterName(salonId, masterId) {
 async function salonName(salonId) {
   return (await sRef(salonId, "profile/name").get().catch(() => null))?.val() || "";
 }
+// Крок сітки слотів (хв) з profile/slotStep: 10/15/20/30/60, типово 30
+async function salonSlotStep(salonId) {
+  const v = Number((await sRef(salonId, "profile/slotStep").get().catch(() => null))?.val());
+  return [10, 15, 20, 30, 60].includes(v) ? v : 30;
+}
 async function salonTimezone(salonId) {
   return (await sRef(salonId, "profile/timezone").get().catch(() => null))?.val() || DEFAULT_TZ;
 }
@@ -179,7 +184,7 @@ module.exports = {
   admin, REGION, DEFAULT_TZ, VENDOR_EMAIL, adminUrl, clientUrl, db, sRef, isSafeKey,
   tzOffsetMs, localToMs, localDate, localHour, isQuietHour,
   collectDeviceTokens, sendToDevices, pushOwner, pushMaster, pushClient, pushStaff,
-  masterUid, masterName, salonName, salonTimezone, saveNotification,
+  masterUid, masterName, salonName, salonTimezone, salonSlotStep, saveNotification,
   durationMinOf, isCancelled, fmtDM, buildAdminLink, clientBookingsLink, buildBookingBody,
   LICENSE_GRACE_MS, LICENSE_WARN_MS, licenseUntilTs, isLicenseReadonly, allSalonIds,
 };
