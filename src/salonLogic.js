@@ -84,6 +84,22 @@ export function freeStartTimes(day, durationMin, step = 30, { minStart = 0 } = {
   });
 }
 
+// ─── Час у поясі салону ─────────────────────────────────────────────────
+// "YYYY-MM-DD" + "HH:MM" у часовому поясі салону → абсолютні мс (два проходи — правильно в добу переходу на літній час).
+// Той самий алгоритм, що в functions/salon/lib.js, — клієнт і сервер рахують початок візиту однаково.
+export const DEFAULT_TZ = "Europe/Kyiv";
+export function tzOffsetMs(ms, tz) {
+  const p = new Intl.DateTimeFormat("en-US", {
+    timeZone: tz, hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit",
+  }).formatToParts(ms).reduce((a, x) => { a[x.type] = x.value; return a; }, {});
+  return Date.UTC(p.year, p.month - 1, p.day, p.hour === "24" ? 0 : p.hour, p.minute, p.second) - Math.floor(ms / 1000) * 1000;
+}
+export function localToMs(dateStr, timeStr, tz = DEFAULT_TZ) {
+  const guess = new Date(`${dateStr}T${timeStr}:00Z`).getTime();
+  const first = guess - tzOffsetMs(guess, tz);
+  return guess - tzOffsetMs(first, tz);
+}
+
 // ─── Безкоштовне скасування ─────────────────────────────────────────────
 // startMs — початок візиту; freeHours — profile.payment.cancelFreeHours (типово 24)
 export const DEFAULT_CANCEL_FREE_HOURS = 24;

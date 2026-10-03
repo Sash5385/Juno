@@ -42,6 +42,14 @@ npm run build && (npx vite preview --port 4173 &) && node tests/smoke/smoke.mjs 
 `salonApp.test.mjs` повторює кожен запис адмінки (онбордінг, записи, слоти, послуги, майстри, чати) від імені власника й майстра — якщо UI почне писати те, що правила забороняють, тест червоний.
 `salon-flows.mjs` проходить сценарії в демо-режимі на екрані 320px (`?app=salon&demo=1`).
 
+### Клієнтський застосунок салону (DrivePad-Client, `src/salon/`)
+```bash
+npx firebase-tools emulators:exec --only database --project demo-rt "node tests/rules/salonClientApp.test.mjs"   # записи клієнта проти справжніх правил
+# у репозиторії DrivePad-Client: смоук 320px і сценарії (запис, скасування за політикою, перенесення, оцінка, чат, профіль)
+npm run build && (npx vite preview --port 4173 &) && node tests/smoke/smoke.mjs salon http://localhost:4173 && node tests/smoke/salon-flows.mjs http://localhost:4173
+```
+`salonClientApp.test.mjs` перевіряє, зокрема, що захоплення діапазону слотів атомарне, ціна запису = каталожна/персональна ціна майстра, клієнт не може виставити оплату/статус.
+
 ## Cloud Functions салону (`functions/salon/`)
 ```bash
 npx firebase-tools emulators:exec --only database --project demo-salon "node functions/test/salon.e2e.js"

@@ -86,6 +86,13 @@ t("free start times: 15-minute grid with 45-minute service", () => {
   const day = L.daySlotDocs({ from: "10:00", to: "11:15" }, 15);
   assert.deepEqual(L.freeStartTimes(day, 45, 15), ["10:00", "10:15", "10:30"]);
 });
+t("localToMs: salon time zone, DST", () => {
+  assert.equal(L.localToMs("2030-01-15", "12:00"), Date.UTC(2030, 0, 15, 10, 0));
+  assert.equal(L.localToMs("2030-07-15", "12:00"), Date.UTC(2030, 6, 15, 9, 0));
+  assert.equal(L.localToMs("2030-03-31", "12:00"), Date.UTC(2030, 2, 31, 9, 0));
+  assert.equal(L.localToMs("2030-03-30", "12:00"), Date.UTC(2030, 2, 30, 10, 0));
+  assert.equal(L.localToMs("2030-07-15", "12:00", "America/New_York"), Date.UTC(2030, 6, 15, 16, 0));
+});
 t("cancel policy", () => {
   const H = 3600000;
   assert.equal(L.cancelPolicy(30 * H, 0, 24).free, true); assert.equal(L.cancelPolicy(24 * H, 0, 24).free, true);

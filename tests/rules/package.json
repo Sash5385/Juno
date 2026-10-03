@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "cd ../.. && firebase emulators:exec --only database --project demo-rt \"node tests/rules/rules.test.mjs && node tests/rules/salons.test.mjs && node tests/rules/salonApp.test.mjs && node tests/rules/salonPaths.test.mjs && node tests/unit/salonLogic.test.mjs\""
+    "test": "cd ../.. && firebase emulators:exec --only database --project demo-rt \"node tests/rules/rules.test.mjs && node tests/rules/salons.test.mjs && node tests/rules/salonApp.test.mjs && node tests/rules/salonClientApp.test.mjs && node tests/rules/salonPaths.test.mjs && node tests/unit/salonLogic.test.mjs\""
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^3.0.4",
