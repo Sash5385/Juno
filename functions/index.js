@@ -268,14 +268,16 @@ async function readSlotDay(iid, date) {
 // документа; звільнення видаляє phantom, справжні повертає вільними, а
 // відсутні НЕ створює — тому повторне/паралельне звільнення безпечне і день
 // повертається рівно до стану ДО запису.
-async function buildSlotUpdates(iid, bookingData, available) {
+async function buildSlotUpdates(iid, bookingData, available, uid = null) {
   const r = bookingRange(bookingData);
   if (!r) return {};
   const day = await readSlotDay(iid, r.date);
   const prefix = `timeslots/${r.date}/`;
-  return available
-    ? restoreRangeUpdates(day, prefix, r.start, r.dur)
-    : blockRangeUpdates(day, prefix, r.start, r.dur);
+  if (!available) return blockRangeUpdates(day, prefix, r.start, r.dur);
+  // Слот, який зайняв (bookedBy) інший учень, не звільняємо: запис-«накладка» на чужий час
+  // не повинен відкривати чужий слот при скасуванні. bookedBy знімаємо зі звільнених.
+  const mine = uid ? Object.fromEntries(Object.entries(day).filter(([, n]) => !n?.bookedBy || n.bookedBy === uid)) : day;
+  return restoreRangeUpdates(mine, prefix, r.start, r.dur, { extra: { bookedBy: null } });
 }
 
 // Перенесення запису: заблокувати нове місце і звільнити старе (крім позицій,
@@ -321,7 +323,7 @@ exports.onBookingChanged = onValueWritten(
         if (isLicenseReadonly(lic)) {
           console.warn(`onBookingChanged: booking rejected, license readonly iid=${iid} uid=${uid}`);
           await iRef(iid, `bookings/${uid}/${bookingId}`).update({ status: "cancelled", cancelledBy: "license" }).catch(() => {});
-          const freeUpd = await buildSlotUpdates(iid, after, true);
+          const freeUpd = await buildSlotUpdates(iid, after, true, uid);
           if (Object.keys(freeUpd).length) await iRef(iid).update(freeUpd).catch(() => {});
           await pushStudent(iid, uid, "⚠️ Запис недоступний", "Інструктор тимчасово не приймає нові записи.", {
             url: "https://drivepad-client.web.app/cabinet/bookings",
@@ -361,7 +363,7 @@ exports.onBookingChanged = onValueWritten(
     // Учень скасував — звільняємо слоти
     if (after.cancelledBy === "student" && before.cancelledBy !== "student") {
       console.log(`onBookingChanged: student cancel iid=${iid} uid=${uid}`);
-      const slotUpd = await buildSlotUpdates(iid, before, true);
+      const slotUpd = await buildSlotUpdates(iid, before, true, uid);
       if (Object.keys(slotUpd).length) await iRef(iid).update(slotUpd).catch(() => {});
       await pushAdmin(iid, "❌ Урок скасовано", `${name} · ${date} о ${time}`, { url: adminLink() });
       if (date !== "—" && time !== "—") {
@@ -396,7 +398,7 @@ exports.onBookingChanged = onValueWritten(
     // слоти — це й розбивало злитий годинний слот на 30-хв фрагменти.
     if (after.status === "cancelled" && before.status !== "cancelled" && after.cancelledBy === "admin") {
       console.log(`onBookingChanged: admin cancelled iid=${iid} uid=${uid}`);
-      const slotUpd = await buildSlotUpdates(iid, before, true);
+      const slotUpd = await buildSlotUpdates(iid, before, true, uid);
       if (Object.keys(slotUpd).length) await iRef(iid).update(slotUpd).catch(() => {});
       const cancelVars = { "ім'я": name, "дата": date, "час": time };
       const usedCancelTpl = await sendActiveTemplates(iid, uid, "auto_cancel", cancelVars).catch(() => false);
@@ -1232,7 +1234,7 @@ async function deleteStudentData(iid, uid) {
   const bookings = (await iRef(iid, `bookings/${uid}`).get()).val() || {};
   for (const b of Object.values(bookings)) {
     if (!b || b.status === "cancelled" || b.cancelledBy || !b.date || b.date < today) continue;
-    const upd = await buildSlotUpdates(iid, b, true).catch(() => ({}));
+    const upd = await buildSlotUpdates(iid, b, true, uid).catch(() => ({}));
     if (Object.keys(upd).length) await iRef(iid).update(upd).catch(() => {});
   }
   // 2) видаляємо вузли учня

@@ -25,10 +25,18 @@
           ".read": true,
           "$date": {
             "$slotId": {
-              // Інструктор — усе. Учень лише свого інструктора (є users/{uid}): адмінські поля незмінні (і не видаляються),
-              // новий слот можна створити тільки як зайнятий (phantom), видалити — тільки phantom.
-              ".write": "auth != null && (auth.uid === $iid || (root.child('instructors/'+$iid+'/users/'+auth.uid).exists() && (data.exists() || newData.child('available').val() === false) && (newData.exists() || data.child('phantom').val() === true) && newData.child('adminBlocked').val() === data.child('adminBlocked').val() && newData.child('vipOnly').val() === data.child('vipOnly').val() && newData.child('privateOnly').val() === data.child('privateOnly').val() && newData.child('surcharge').val() === data.child('surcharge').val() && newData.child('fixedPrice').val() === data.child('fixedPrice').val() && newData.child('lunchOverride').val() === data.child('lunchOverride').val() && newData.child('durMin').val() === data.child('durMin').val() && newData.child('personal').val() === data.child('personal').val()))",
-              "viewing": { "$uid": { ".write": "auth != null && auth.uid === $uid" } },
+              // Інструктор — усе. Учень лише свого інструктора (є users/{uid}):
+              //  • адмінські поля слота (adminBlocked/vipOnly/privateOnly/surcharge/fixedPrice/lunchOverride/durMin/personal) незмінні й не видаляються;
+              //  • новий слот — лише як зайнятий (phantom); видалити можна тільки власний phantom (bookedBy);
+              //  • ЗАЙНЯТИЙ слот чіпає лише той, хто його зайняв (bookedBy === uid): чужий слот не звільнити і не перезаписати;
+              //  • bookedBy можна виставити лише собі; слот, зарезервований для іншого (reservedFor) до reservedUntil, не зайняти.
+              // Звільнення слотів при скасуванні і так робить сервер (onBookingChanged, admin SDK).
+              ".write": "auth != null && (auth.uid === $iid || (root.child('instructors/'+$iid+'/users/'+auth.uid).exists() && (data.exists() || newData.child('available').val() === false) && (newData.exists() || (data.child('phantom').val() === true && data.child('bookedBy').val() === auth.uid)) && (data.child('available').val() !== false || data.child('bookedBy').val() === auth.uid) && (newData.child('bookedBy').val() === data.child('bookedBy').val() || newData.child('bookedBy').val() === auth.uid || newData.child('bookedBy').val() === null) && (!data.child('reservedFor').exists() || data.child('reservedFor').val() === auth.uid || data.child('reservedUntil').val() < now) && newData.child('adminBlocked').val() === data.child('adminBlocked').val() && newData.child('vipOnly').val() === data.child('vipOnly').val() && newData.child('privateOnly').val() === data.child('privateOnly').val() && newData.child('surcharge').val() === data.child('surcharge').val() && newData.child('fixedPrice').val() === data.child('fixedPrice').val() && newData.child('lunchOverride').val() === data.child('lunchOverride').val() && newData.child('durMin').val() === data.child('durMin').val() && newData.child('personal').val() === data.child('personal').val()))",
+              "viewing":   { "$uid": { ".write": "auth != null && auth.uid === $uid" } },
+              // Гілки черги: учень прибирає лише СВОЇ маркери (пропозиція/резерв), коли забирає або відхиляє слот
+              "offeredTo": { "$uid": { ".write": "auth != null && auth.uid === $uid" } },
+              "reservedFor":   { ".write": "auth != null && data.val() === auth.uid" },
+              "reservedUntil": { ".write": "auth != null && root.child('instructors/'+$iid+'/timeslots/'+$date+'/'+$slotId+'/reservedFor').val() === auth.uid" },
               "vipOnly":       { ".validate": "auth.uid === $iid || newData.val() === data.val()" },
               "adminBlocked":  { ".validate": "auth.uid === $iid || newData.val() === data.val()" },
               "privateOnly":   { ".validate": "auth.uid === $iid || newData.val() === data.val()" },
@@ -43,7 +51,16 @@
           ".read": "auth != null && auth.token.email === 'sash5385@gmail.com'",
           "$uid": {
             ".read": "auth != null && (auth.uid === $uid || auth.uid === $iid)",
-            ".write": "auth != null && (auth.uid === $uid || auth.uid === $iid)"
+            ".write": "auth != null && auth.uid === $iid",
+            // Учень: створює запис (лише status "pending", без службових полів) і далі змінює тільки
+            // studentConfirmed/rating/goals/studentNote або скасовує (status "cancelled"). Ціна, борг,
+            // мітки, дата/час тощо після створення незмінні, видалити запис чи ці поля теж не можна.
+            "$bookingId": {
+              ".write": "auth != null && auth.uid === $uid && root.child('instructors/'+$iid+'/users/'+$uid).exists() && (!data.exists() || (newData.exists() && (!data.child('price').exists() || newData.child('price').exists()) && (!data.child('debtAmount').exists() || newData.child('debtAmount').exists()) && (!data.child('manualPrice').exists() || newData.child('manualPrice').exists()) && (!data.child('status').exists() || newData.child('status').exists()) && (!data.child('createdBy').exists() || newData.child('createdBy').exists()) && (!data.child('date').exists() || newData.child('date').exists()) && (!data.child('time').exists() || newData.child('time').exists()) && (!data.child('durationHours').exists() || newData.child('durationHours').exists()) && (!data.child('tag').exists() || newData.child('tag').exists()))) && (data.exists() || (newData.child('status').val() === 'pending' && !newData.child('createdBy').exists()))",
+              "$key": {
+                ".validate": "auth.uid === $iid || newData.val() === data.val() || (!data.parent().exists() && ($key === 'id' || $key === 'date' || $key === 'time' || $key === 'serviceType' || $key === 'serviceId' || $key === 'serviceName' || $key === 'price' || $key === 'surcharge' || $key === 'discountAmt' || $key === 'durationHours' || $key === 'studentName' || $key === 'phone' || $key === 'studentNote' || $key === 'rescheduledFrom' || $key === 'createdAt' || ($key === 'status' && newData.val() === 'pending'))) || (data.parent().exists() && ($key === 'studentConfirmed' || $key === 'rating' || $key === 'goals' || $key === 'studentNote' || $key === 'cancelledAt' || ($key === 'cancelledBy' && (newData.val() === 'student' || newData.val() === 'reschedule')) || ($key === 'status' && newData.val() === 'cancelled')))"
+              }
+            }
           }
         },
         "bookings_by_phone": {
@@ -131,7 +148,7 @@
         "reviews": {
           ".read": true,
           "$uid": {
-            ".write": "auth != null && (auth.uid === $uid || auth.uid === $iid)"
+            ".write": "auth != null && auth.uid === $iid"
           }
         },
         "invites": { },
