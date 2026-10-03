@@ -1219,6 +1219,66 @@ exports.submitContact = onRequest({ region: "europe-west1", cors: true }, async 
   }
 });
 
+// ─── Моніторинг помилок (адмінка і застосунок учня → /api/report-error) ──────
+// Публічний POST без авторизації (помилка може статись до входу). Захист: ліміт 20 запитів/хв
+// за хешем IP, обрізання довжин, групування за відбитком (повтор лише збільшує лічильник).
+// Дані — system/errorLog/{відбиток} (читає лише суперадмін, вкладка "Помилки"). Про НОВУ
+// помилку власнику йде push (не частіше ніж раз на 10 хв), а в Cloud Logging — console.error.
+exports.reportError = onRequest({ region: "europe-west1", cors: true }, async (req, res) => {
+  if (req.method !== "POST") { res.status(405).json({ ok: false }); return; }
+  try {
+    let b = req.body || {};
+    if (typeof b === "string") { try { b = JSON.parse(b); } catch { b = {}; } }
+    const message = String(b.message || "").trim().slice(0, 300);
+    if (!message) { res.status(400).json({ ok: false }); return; }
+    const app = b.app === "client" ? "client" : "admin";
+    const stack = String(b.stack || "").slice(0, 1500);
+    const url = String(b.url || "").replace(/[?#].*$/, "").slice(0, 160);
+    const version = String(b.version || "").slice(0, 20);
+    const ua = String(b.ua || req.get("user-agent") || "").slice(0, 160);
+    const ip = String(req.headers["x-forwarded-for"] || req.ip || "").split(",")[0].trim();
+    const ipHash = crypto.createHash("sha256").update(ip).digest("hex").slice(0, 16);
+    const now = Date.now();
+    const rate = await db.ref(`system/errorRate/${ipHash}`).transaction(cur => {
+      const c = cur || { w: now, n: 0 };
+      if (now - c.w > 60000) { c.w = now; c.n = 0; }
+      if (c.n >= 20) return; // перевищено ліміт — скасовуємо транзакцію
+      c.n += 1;
+      return c;
+    });
+    if (!rate.committed) { res.status(429).json({ ok: false }); return; }
+    const fp = crypto.createHash("sha1").update(`${app}|${message}|${stack.split("\n").slice(0, 2).join("|")}`).digest("hex").slice(0, 16);
+    let isNew = false;
+    await db.ref(`system/errorLog/${fp}`).transaction(cur => {
+      isNew = !cur;
+      return cur
+        ? { ...cur, count: (cur.count || 1) + 1, last: now, version, url, ua }
+        : { app, message, stack, url, version, ua, count: 1, first: now, last: now };
+    });
+    res.status(200).json({ ok: true });
+    if (!isNew) return;
+    console.error(`clientError [${app} ${version}] ${message}\n${stack}`);
+    const push = await db.ref("system/errorLogMeta/lastPush").transaction(cur => (cur && now - cur < 600000 ? undefined : now));
+    if (!push.committed) return;
+    const owner = await admin.auth().getUserByEmail(VENDOR_EMAIL).catch(() => null);
+    if (owner) await pushAdmin(owner.uid, `🐞 Нова помилка (${app === "client" ? "учень" : "адмінка"} ${version})`, message.slice(0, 120), {}).catch(() => {});
+  } catch (e) {
+    console.error("reportError error:", e);
+    if (!res.headersSent) res.status(500).json({ ok: false });
+  }
+});
+
+// Щодня прибирає журнал помилок старше 14 діб і лічильники частоти
+exports.cleanupErrorLog = onSchedule({ schedule: "every 24 hours", region: "europe-west1" }, async () => {
+  const now = Date.now();
+  const log = (await db.ref("system/errorLog").get()).val() || {};
+  const upd = {};
+  for (const [k, v] of Object.entries(log)) if (!v || (v.last || 0) < now - 14 * 86400000) upd[`system/errorLog/${k}`] = null;
+  const rate = (await db.ref("system/errorRate").get()).val() || {};
+  for (const [k, v] of Object.entries(rate)) if (!v || (v.w || 0) < now - 3600000) upd[`system/errorRate/${k}`] = null;
+  if (Object.keys(upd).length) await db.ref().update(upd);
+});
+
 // ─── Видалення акаунтів ──────────────────────────────────────────────
 // POST /api/delete-account (Bearer ID-токен). Тіло: {type:"instructor", iid} або {type:"student", iid, uid}.
 //  • інструктор: може сам інструктор (uid === iid) або суперадмін;
@@ -1510,6 +1570,9 @@ exports.createLiqPayOrder = onRequest(
   { region: "europe-west1", secrets: [LIQPAY_PUBLIC_KEY, LIQPAY_PRIVATE_KEY], cors: true },
   async (req, res) => {
     if (req.method !== "POST") { res.status(405).send("Method not allowed"); return; }
+    // LiqPay тимчасово вимкнено (приймаємо лише Monobank). Колбек liqpayCallback працює далі —
+    // існуючі підписки з автосписанням продовжуються. Повернути: змінна середовища LIQPAY_ENABLED=1.
+    if (process.env.LIQPAY_ENABLED !== "1") { res.status(503).json({ error: "liqpay disabled" }); return; }
     try {
       const authHeader = req.get("Authorization") || "";
       const idToken = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;

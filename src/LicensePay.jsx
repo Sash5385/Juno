@@ -1,6 +1,6 @@
 import { useState, useContext, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { PLANS, startLicensePayment } from "./licensePayApi";
+import { PLANS, LIQPAY_ENABLED, startLicensePayment } from "./licensePayApi";
 import { ThemeContext } from "./theme.js";
 
 // Вибір тарифу + кнопки LiqPay/Monobank (використовується в Налаштуваннях і в модалці банера)
@@ -31,11 +31,11 @@ export function LicensePayPanel() {
         ))}
       </div>
       <div style={{ display: "flex", gap: 8 }}>
-        <button onClick={() => pay("liqpay")} disabled={!!paying} style={{
+        {LIQPAY_ENABLED && <button onClick={() => pay("liqpay")} disabled={!!paying} style={{
           flex: 1, padding: "11px", borderRadius: 12, border: "none", cursor: paying ? "default" : "pointer",
           background: paying === "liqpay" ? "rgba(52,211,153,0.3)" : "linear-gradient(135deg,#4ade80,#34d399)",
           color: "#0a2e1a", fontSize: 13, fontWeight: 800,
-        }}>{paying === "liqpay" ? "..." : "LiqPay"}</button>
+        }}>{paying === "liqpay" ? "..." : "LiqPay"}</button>}
         <button onClick={() => pay("monobank")} disabled={!!paying} style={{
           flex: 1, padding: "11px", borderRadius: 12, border: "none", cursor: paying ? "default" : "pointer",
           background: paying === "monobank" ? "rgba(0,0,0,0.2)" : "linear-gradient(135deg,#3a3a3a,#1a1a1a)",
@@ -43,7 +43,7 @@ export function LicensePayPanel() {
         }}>{paying === "monobank" ? "..." : "Monobank"}</button>
       </div>
       <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", marginTop: 8, lineHeight: 1.4 }}>
-        {cur.note}. Apple Pay / Google Pay / картка. Monobank — разовий платіж (без автосписання).
+        {cur.note}. Apple Pay / Google Pay / картка.{LIQPAY_ENABLED ? " Monobank — разовий платіж (без автосписання)." : " Разовий платіж, без автосписання."}
       </div>
     </div>
   );

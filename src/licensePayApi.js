@@ -1,8 +1,11 @@
 import { auth } from "./firebase";
 
+// LiqPay тимчасово вимкнено — лише Monobank. Повернути: true тут і LIQPAY_ENABLED=1 у functions.
+export const LIQPAY_ENABLED = false;
+
 // Тарифи — суми мають збігатися з functions/index.js (MONTHLY/YEARLY_PRICE_UAH)
 export const PLANS = [
-  { id: "month", label: "Місяць", price: 299,  note: "автосписання щомісяця (LiqPay)" },
+  { id: "month", label: "Місяць", price: 299,  note: LIQPAY_ENABLED ? "автосписання щомісяця (LiqPay)" : "30 днів доступу" },
   { id: "year",  label: "Рік",    price: 2999, note: "економія 589₴ проти 12 місяців" },
 ];
 

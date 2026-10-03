@@ -20,6 +20,22 @@ npx firebase-tools emulators:exec --only database --project demo-pay "node funct
 Підписані тестові колбеки проходять через справжній код функцій: підпис, продовження ліцензії, ідемпотентність,
 річний тариф, повернення коштів, підроблені запити.
 
+## Моніторинг помилок і вимкнений LiqPay
+```bash
+npx firebase-tools emulators:exec --only database --project demo-mon "node functions/test/monitoring.e2e.js"
+```
+`reportError` (групування, ліміт 20/хв на IP, обрізання полів), щоденне очищення `cleanupErrorLog`, `createLiqPayOrder` → 503.
+
+## Смоук-тест інтерфейсу (демо-режим, екран 320px)
+```bash
+npm run build && (npx vite preview --port 4173 &) && cd tests/smoke && npm install && npx playwright install chromium
+node tests/smoke/smoke.mjs admin http://localhost:4173     # у DrivePad-Client: ... smoke.mjs client ...
+```
+Проходить усі вкладки, падає на помилці JS, порожньому екрані чи горизонтальному скролі. Без Firebase.
+
+## CI
+`.github/workflows/tests.yml` запускає все вище; `deploy.yml` викликає його як `needs: tests` — **деплой не йде, поки тести червоні**.
+
 ## Реальна проба платежу (раз перед запуском, вручну)
 1. У Firebase Console → Realtime Database створити `payment_test/{iid тестового інструктора}` = `true` (сума стане 1 ₴).
 2. В адмінці тестового інструктора: Налаштування → оплата → LiqPay, потім Monobank (по одному платежу).

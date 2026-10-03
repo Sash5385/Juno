@@ -54,6 +54,11 @@
           "region": "europe-west1"
         },
         {
+          "source": "/api/report-error",
+          "function": "reportError",
+          "region": "europe-west1"
+        },
+        {
           "source": "**",
           "destination": "/index.html"
         }

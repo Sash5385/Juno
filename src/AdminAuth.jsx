@@ -629,6 +629,13 @@ export function SuperAdminScreen() {
     setMessages(Object.entries(v).map(([id, m]) => ({ id, ...m })).sort((a, b) => b.at - a.at));
   }), []);
   const newMessages = messages.filter(m => m.status !== "done").length;
+  // Журнал помилок з браузерів (function reportError → system/errorLog), групи за відбитком
+  const [errorLog, setErrorLog] = useState([]);
+  useEffect(() => onValue(ref(db, "system/errorLog"), snap => {
+    const v = snap.val() || {};
+    setErrorLog(Object.entries(v).map(([id, e]) => ({ id, ...e, fresh: Date.now() - (e.last || 0) < 86400000 })).sort((a, b) => (b.last || 0) - (a.last || 0)));
+  }), []);
+  const recentErrors = errorLog.filter(e => e.fresh).length;
   // Копія "зараз": чекаємо, поки статус оновиться пізніше за запит (максимум 10 хв)
   const backupPending = backupRequestedAt > (backupStatus?.at || 0) && Date.now() - backupRequestedAt < 10 * 60000;
   const backupNow = () => set(ref(db, "system/backupRequest"), Date.now()).catch(() => alert("Не вдалося запустити копію"));
@@ -781,6 +788,7 @@ export function SuperAdminScreen() {
     ["instructors", "👥", "Інструктори", "#4caf6b"],
     ["payments", "💳", "Платежі", "#f7c948"],
     ["messages", "📨", "Звернення", "#2dd4bf"],
+    ["errors", "🐞", "Помилки", "#ff5a3c"],
     ["service", "⚙️", "Сервіс", "#c084fc"],
   ];
   const [section, setSection] = useState(() => { try { return sessionStorage.getItem("sa_tab") || "overview"; } catch { return "overview"; } });
@@ -820,7 +828,7 @@ export function SuperAdminScreen() {
           <div style={{ display:"flex", gap:6, overflowX:"auto", WebkitOverflowScrolling:"touch" }}>
             {TABS.map(([id, icon, label, color]) => {
               const on = section === id;
-              const badge = id === "instructors" ? allRows.length : id === "payments" ? payments.length : id === "messages" ? (newMessages || null) : id === "overview" && attentionRows.length ? attentionRows.length : null;
+              const badge = id === "instructors" ? allRows.length : id === "payments" ? payments.length : id === "messages" ? (newMessages || null) : id === "errors" ? (recentErrors || null) : id === "overview" && attentionRows.length ? attentionRows.length : null;
               return (
                 <button key={id} onClick={() => go(id)} style={{
                   flex:"1 0 auto", display:"flex", alignItems:"center", justifyContent:"center", gap:6,
@@ -1010,6 +1018,33 @@ export function SuperAdminScreen() {
                   <button onClick={() => { if (window.confirm("Видалити звернення?")) remove(ref(db, `system/contactMessages/${m.id}`)).catch(() => {}); }}
                     style={{ padding:"8px 14px", borderRadius:8, background:"rgba(239,68,68,0.12)", border:"1px solid rgba(239,68,68,0.4)", color:"#f87171", fontSize:12, fontWeight:700, cursor:"pointer" }}>Видалити</button>
                 </div>
+              </>, { marginBottom:12 })}</div>
+            ))}
+          </>
+        )}
+
+        {section === "errors" && (
+          <>
+            {errorLog.length === 0 && panel("#4caf6b", <div style={{ fontSize:13, color:"rgba(255,255,255,0.65)" }}>Помилок немає 🎉 (журнал зберігається 14 днів).</div>)}
+            {errorLog.length > 0 && (
+              <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:10 }}>
+                <button onClick={() => { if (window.confirm("Очистити журнал помилок?")) remove(ref(db, "system/errorLog")).catch(() => {}); }}
+                  style={{ padding:"7px 14px", borderRadius:8, background:"rgba(239,68,68,0.12)", border:"1px solid rgba(239,68,68,0.4)", color:"#f87171", fontSize:12, fontWeight:700, cursor:"pointer" }}>Очистити все</button>
+              </div>
+            )}
+            {errorLog.slice(0, 100).map(e => (
+              <div key={e.id}>{panel(e.fresh ? "#ff5a3c" : "#5a5c62", <>
+                <div style={{ display:"flex", justifyContent:"space-between", gap:8, alignItems:"flex-start" }}>
+                  <div style={{ minWidth:0, fontSize:13, fontWeight:800, color:TEXT, wordBreak:"break-word" }}>{e.message}</div>
+                  <div style={{ fontSize:11, fontWeight:800, color:"#ff5a3c", flexShrink:0 }}>×{e.count || 1}</div>
+                </div>
+                <div style={{ fontSize:11, color:"rgba(255,255,255,0.6)", marginTop:4 }}>
+                  {e.app === "client" ? "учень" : "адмінка"} · {e.version} · {e.url} · {new Date(e.last).toLocaleString("uk")}
+                </div>
+                {e.stack && <pre style={{ fontSize:10, color:"rgba(255,255,255,0.5)", whiteSpace:"pre-wrap", wordBreak:"break-all", margin:"8px 0 0", maxHeight:120, overflow:"auto" }}>{e.stack}</pre>}
+                <div style={{ fontSize:10, color:"rgba(255,255,255,0.4)", marginTop:6, wordBreak:"break-word" }}>{e.ua}</div>
+                <button onClick={() => remove(ref(db, `system/errorLog/${e.id}`)).catch(() => {})}
+                  style={{ marginTop:10, padding:"6px 12px", borderRadius:8, background:"rgba(255,255,255,0.06)", border:`1px solid ${BORDER}`, color:DIM, fontSize:11, fontWeight:700, cursor:"pointer" }}>✓ Виправлено</button>
               </>, { marginBottom:12 })}</div>
             ))}
           </>
