@@ -1759,3 +1759,8 @@ exports.monobankCallback = onRequest(
     }
   }
 );
+
+// ─── Салон (клон під салон/барбершоп/манікюр) ──────────────────────────────
+// Вимкнено за замовчуванням: на проєкті інструкторів нічого не змінюється і не деплоїться. Вмикається змінною
+// SALON_FUNCTIONS=1 (functions/.env.<project> окремого Firebase-проєкту салону). Код — functions/salon/, схема — docs/SALON-SCHEMA.md.
+if (process.env.SALON_FUNCTIONS === "1") Object.assign(exports, require("./salon"));

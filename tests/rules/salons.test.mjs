@@ -25,7 +25,7 @@ await env.withSecurityRulesDisabled(async (ctx) => {
         masters: { m1: { profile: { name: "M1", active: true } }, m2: { profile: { name: "M2", active: true } }, m3: { profile: { name: "M3", active: false } } },
         masterAuth: { mast1: "m1", mast2: "m2" },
         masterSettings: { m1: { commissionPct: 30 }, m2: { commissionPct: 40 } },
-        services: { haircut: { name: "Стрижка", price: 500, duration: 60, masterIds: { m1: true, m2: true } }, nails: { name: "Манікюр", price: 700, duration: 90, masterIds: { m3: true } } },
+        services: { haircut: { name: "Стрижка", price: 500, duration: 60, masterIds: { m1: true, m2: true }, masterPrices: { m2: 450 } }, nails: { name: "Манікюр", price: 700, duration: 90, masterIds: { m3: true } } },
         users: { cli1: { profile: { name: "C1" }, isVip: false, discount: 0, blocked: false }, cliB: { profile: { name: "B" }, blocked: true } },
         timeslots: { m1: { [D]: SLOTS }, m2: { [D]: { slot1000: { time: "10:00", available: true } } }, m3: { [D]: { slot1000: { time: "10:00", available: true } } } },
         bookings: { b1: BOOK1, b2: BOOK2 },
@@ -152,6 +152,19 @@ await t("non-member creates booking", X, () => set(R(CNEW, A_("bookings/n12")), 
 await t("client of another salon creates booking", X, () => set(R(CX, A_("bookings/n13")), NEWBOOK({ id: "n13", clientUid: "cliX" })));
 await t("anonymous creates booking", X, () => set(R(anon, A_("bookings/n14")), NEWBOOK({ id: "n14" })));
 
+console.log("── BOOKINGS: персональна ціна майстра (masterPrices)");
+await t("master with override: price = masterPrices", A, () => set(R(C1, A_("bookings/p1")), NEWBOOK({ id: "p1", masterId: "m2", price: 450 })));
+await t("master with override: catalog price rejected", X, () => set(R(C1, A_("bookings/p2")), NEWBOOK({ id: "p2", masterId: "m2", price: 500 })));
+await t("master without override: catalog price", A, () => set(R(C1, A_("bookings/p3")), NEWBOOK({ id: "p3", masterId: "m1", price: 500 })));
+await t("master without override: other master's price rejected", X, () => set(R(C1, A_("bookings/p4")), NEWBOOK({ id: "p4", masterId: "m1", price: 450 })));
+await t("owner sets masterPrices", A, () => set(R(OWN_A, A_("services/haircut/masterPrices/m1")), 550));
+await t("master sets own masterPrices", X, () => set(R(M1, A_("services/haircut/masterPrices/m1")), 1));
+await t("client sets masterPrices", X, () => set(R(C1, A_("services/haircut/masterPrices/m1")), 1));
+await t("after owner override: old price rejected", X, () => set(R(C1, A_("bookings/p5")), NEWBOOK({ id: "p5", masterId: "m1", price: 500 })));
+await t("after owner override: new price accepted", A, () => set(R(C1, A_("bookings/p6")), NEWBOOK({ id: "p6", masterId: "m1", price: 550 })));
+await env.withSecurityRulesDisabled(async (c) => { await remove(ref(c.database(), A_("services/haircut/masterPrices/m1"))); });
+await reset();
+
 console.log("── BOOKINGS: зміна клієнтом");
 await t("client cancels own booking", A, () => update(R(C1, A_("bookings/b1")), { status: "cancelled", cancelledBy: "client", cancelledAt: NOW }));
 await reset();
@@ -231,12 +244,37 @@ await t("owner reads client chat", A, () => get(R(OWN_A, A_("chats/cli1"))));
 await t("client writes general chat", A, () => set(R(C1, A_("chats/general/z")), { text: "hi" }));
 await t("non-member writes general chat", X, () => set(R(as("cliZ"), A_("chats/general/z")), { text: "hi" }));
 await t("client reads own notifications", A, () => get(R(C1, A_("notifications/cli1"))));
+await t("client reads payments", X, () => get(R(C1, A_("payments"))));
+await t("client queries payments by bookingId", X, () => get(query(R(C1, A_("payments")), orderByChild("bookingId"), equalTo("b1"))));
 await t("client writes payments", X, () => set(R(C1, A_("payments/b1")), { status: "paid" }));
 await t("master writes payments", X, () => set(R(M1, A_("payments/b1")), { status: "paid" }));
 await t("client writes masterInvites", X, () => set(R(C1, A_("masterInvites/c")), { masterId: "m1" }));
 await t("client writes push_tasks", X, () => set(R(C1, A_("push_tasks/x")), { a: 1 }));
 await t("client reads settings", X, () => get(R(C1, A_("settings"))));
 await t("master reads settings", X, () => get(R(M1, A_("settings"))));
+
+console.log("── MASTER CHATS (клієнт ↔ майстер)");
+await env.withSecurityRulesDisabled(async (c) => { await set(ref(c.database(), A_("masterChats/m1/cli1/seed")), { from: "client", text: "hi" }); });
+await t("client writes to master chat (own branch)", A, () => set(R(C1, A_("masterChats/m1/cli1/c1")), { from: "client", text: "hello", ts: NOW }));
+await t("client updates chatMeta (own branch)", A, () => update(R(C1, A_("masterChatMeta/m1/cli1")), { lastMsg: "hello", lastTs: NOW }));
+await t("client writes to another client's branch", X, () => set(R(C1, A_("masterChats/m1/cliB/c1")), { from: "client", text: "x" }));
+await t("client writes chat to non-existent master", X, () => set(R(C1, A_("masterChats/m9/cli1/c1")), { from: "client", text: "x" }));
+await t("client reads own master chat", A, () => get(R(C1, A_("masterChats/m1/cli1"))));
+await t("client reads another client's master chat", X, () => get(R(C1, A_("masterChats/m1/cliB"))));
+await t("client lists all chats of master", X, () => get(R(C1, A_("masterChats/m1"))));
+await t("non-member writes master chat", X, () => set(R(as("cliZ"), A_("masterChats/m1/cliZ/c1")), { from: "client", text: "x" }));
+await t("client of another salon writes master chat", X, () => set(R(CX, A_("masterChats/m1/cliX/c1")), { from: "client", text: "x" }));
+await t("anonymous reads master chat", X, () => get(R(anon, A_("masterChats/m1/cli1"))));
+await t("master reads own chat with client", A, () => get(R(M1, A_("masterChats/m1/cli1"))));
+await t("master replies in own chat", A, () => set(R(M1, A_("masterChats/m1/cli1/r1")), { from: "master", text: "ok", ts: NOW }));
+await t("master updates chatMeta in own chat", A, () => update(R(M1, A_("masterChatMeta/m1/cli1")), { unreadForClient: 1 }));
+await t("master lists own chats", A, () => get(R(M1, A_("masterChats/m1"))));
+await t("master reads another master's chat", X, () => get(R(M2, A_("masterChats/m1/cli1"))));
+await t("master writes into another master's chat", X, () => set(R(M2, A_("masterChats/m1/cli1/r2")), { from: "master", text: "x" }));
+await t("master reads chatMeta of another master", X, () => get(R(M2, A_("masterChatMeta/m1/cli1"))));
+await t("owner reads any master chat", A, () => get(R(OWN_A, A_("masterChats/m1/cli1"))));
+await t("owner writes into master chat", A, () => set(R(OWN_A, A_("masterChats/m1/cli1/o1")), { from: "admin", text: "x" }));
+await t("owner of another salon reads master chat", X, () => get(R(OWN_C, A_("masterChats/m1/cli1"))));
 
 console.log(fails ? `\n${fails} FAILED` : "\nALL PASS");
 await env.cleanup();

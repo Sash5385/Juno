@@ -240,8 +240,8 @@
           "$bookingId": {
             ".read": "auth != null && (data.child('clientUid').val() === auth.uid || (root.child('salons/'+$salonId+'/masterAuth/'+auth.uid).exists() && data.child('masterId').val() === root.child('salons/'+$salonId+'/masterAuth/'+auth.uid).val()))",
             // Майстер пише лише записи СВОГО masterId. Клієнт: створює pending-запис (майстер активний, послуга
-            // дозволена цьому майстру, ціна = каталожна, без paymentStatus), далі лише підтверджує/оцінює/скасовує.
-            ".write": "(auth != null && root.child('salons/'+$salonId+'/masterAuth/'+auth.uid).exists() && (!data.exists() || data.child('masterId').val() === root.child('salons/'+$salonId+'/masterAuth/'+auth.uid).val()) && (!newData.exists() || newData.child('masterId').val() === root.child('salons/'+$salonId+'/masterAuth/'+auth.uid).val())) || (auth != null && root.child('salons/'+$salonId+'/users/'+auth.uid).exists() && (data.exists() ? data.child('clientUid').val() === auth.uid : newData.child('clientUid').val() === auth.uid) && (!data.exists() || (newData.exists() && newData.child('clientUid').val() === auth.uid && (!data.child('price').exists() || newData.child('price').exists()) && (!data.child('debtAmount').exists() || newData.child('debtAmount').exists()) && (!data.child('manualPrice').exists() || newData.child('manualPrice').exists()) && (!data.child('status').exists() || newData.child('status').exists()) && (!data.child('createdBy').exists() || newData.child('createdBy').exists()) && (!data.child('date').exists() || newData.child('date').exists()) && (!data.child('time').exists() || newData.child('time').exists()) && (!data.child('durationMin').exists() || newData.child('durationMin').exists()) && (!data.child('masterId').exists() || newData.child('masterId').exists()) && (!data.child('serviceId').exists() || newData.child('serviceId').exists()) && (!data.child('clientUid').exists() || newData.child('clientUid').exists()) && (!data.child('paymentStatus').exists() || newData.child('paymentStatus').exists()) && (!data.child('paymentMethod').exists() || newData.child('paymentMethod').exists()) && (!data.child('depositAmount').exists() || newData.child('depositAmount').exists()))) && (data.exists() || (newData.child('status').val() === 'pending' && !newData.child('createdBy').exists() && !newData.child('paymentStatus').exists() && root.child('salons/'+$salonId+'/masters/'+newData.child('masterId').val()+'/profile/active').val() !== false && root.child('salons/'+$salonId+'/services/'+newData.child('serviceId').val()+'/masterIds/'+newData.child('masterId').val()).val() === true && newData.child('price').val() === root.child('salons/'+$salonId+'/services/'+newData.child('serviceId').val()+'/price').val())))",
+            // дозволена цьому майстру, ціна = каталожна або персональна ціна майстра (masterPrices), без paymentStatus), далі лише підтверджує/оцінює/скасовує.
+            ".write": "(auth != null && root.child('salons/'+$salonId+'/masterAuth/'+auth.uid).exists() && (!data.exists() || data.child('masterId').val() === root.child('salons/'+$salonId+'/masterAuth/'+auth.uid).val()) && (!newData.exists() || newData.child('masterId').val() === root.child('salons/'+$salonId+'/masterAuth/'+auth.uid).val())) || (auth != null && root.child('salons/'+$salonId+'/users/'+auth.uid).exists() && (data.exists() ? data.child('clientUid').val() === auth.uid : newData.child('clientUid').val() === auth.uid) && (!data.exists() || (newData.exists() && newData.child('clientUid').val() === auth.uid && (!data.child('price').exists() || newData.child('price').exists()) && (!data.child('debtAmount').exists() || newData.child('debtAmount').exists()) && (!data.child('manualPrice').exists() || newData.child('manualPrice').exists()) && (!data.child('status').exists() || newData.child('status').exists()) && (!data.child('createdBy').exists() || newData.child('createdBy').exists()) && (!data.child('date').exists() || newData.child('date').exists()) && (!data.child('time').exists() || newData.child('time').exists()) && (!data.child('durationMin').exists() || newData.child('durationMin').exists()) && (!data.child('masterId').exists() || newData.child('masterId').exists()) && (!data.child('serviceId').exists() || newData.child('serviceId').exists()) && (!data.child('clientUid').exists() || newData.child('clientUid').exists()) && (!data.child('paymentStatus').exists() || newData.child('paymentStatus').exists()) && (!data.child('paymentMethod').exists() || newData.child('paymentMethod').exists()) && (!data.child('depositAmount').exists() || newData.child('depositAmount').exists()))) && (data.exists() || (newData.child('status').val() === 'pending' && !newData.child('createdBy').exists() && !newData.child('paymentStatus').exists() && root.child('salons/'+$salonId+'/masters/'+newData.child('masterId').val()+'/profile/active').val() !== false && root.child('salons/'+$salonId+'/services/'+newData.child('serviceId').val()+'/masterIds/'+newData.child('masterId').val()).val() === true && newData.child('price').val() === (root.child('salons/'+$salonId+'/services/'+newData.child('serviceId').val()+'/masterPrices/'+newData.child('masterId').val()).exists() ? root.child('salons/'+$salonId+'/services/'+newData.child('serviceId').val()+'/masterPrices/'+newData.child('masterId').val()).val() : root.child('salons/'+$salonId+'/services/'+newData.child('serviceId').val()+'/price').val()))))",
             "$key": {
               ".validate": "auth.uid === $salonId || root.child('salons/'+$salonId+'/masterAuth/'+auth.uid).val() !== null && root.child('salons/'+$salonId+'/masterAuth/'+auth.uid).exists() || newData.val() === data.val() || (!data.parent().exists() && ($key === 'id' || $key === 'date' || $key === 'time' || $key === 'masterId' || $key === 'serviceId' || $key === 'serviceName' || $key === 'price' || $key === 'durationMin' || $key === 'clientUid' || $key === 'clientName' || $key === 'phone' || $key === 'clientNote' || $key === 'rescheduledFrom' || $key === 'createdAt' || ($key === 'paymentMethod' && (newData.val() === 'online' || newData.val() === 'onsite')) || ($key === 'status' && newData.val() === 'pending'))) || (data.parent().exists() && ($key === 'clientConfirmed' || $key === 'rating' || $key === 'goals' || $key === 'clientNote' || $key === 'cancelledAt' || ($key === 'cancelledBy' && (newData.val() === 'client' || newData.val() === 'reschedule')) || ($key === 'status' && newData.val() === 'cancelled')))"
             }
@@ -283,7 +283,7 @@
             "customPrice": { ".validate": "auth.uid === $salonId || newData.val() === data.val()" }
           }
         },
-        // Чати: салон ↔ клієнт (майстри поки без доступу — окреме рішення, див. docs/SALON-SCHEMA.md)
+        // Чати: салон ↔ клієнт (чат із конкретним майстром — masterChats нижче)
         "chats": {
           "general": {
             ".read": "auth != null && (auth.uid === $salonId || root.child('salons/'+$salonId+'/users/'+auth.uid).exists())",
@@ -302,6 +302,26 @@
           "$uid": {
             ".read": "auth != null && (auth.uid === $uid || auth.uid === $salonId)",
             ".write": "auth != null && (auth.uid === $uid || auth.uid === $salonId)"
+          }
+        },
+        // Чат клієнт ↔ майстер: masterChats/{masterId}/{clientUid}/{msgId}. Власник бачить усе (правило вузла салону).
+        // Клієнт пише лише у свою гілку і лише існуючому майстру; майстер — лише у свої чати.
+        "masterChats": {
+          "$masterId": {
+            ".read": "auth != null && root.child('salons/'+$salonId+'/masterAuth/'+auth.uid).val() === $masterId",
+            "$uid": {
+              ".read": "auth != null && (auth.uid === $uid || root.child('salons/'+$salonId+'/masterAuth/'+auth.uid).val() === $masterId)",
+              ".write": "auth != null && ((root.child('salons/'+$salonId+'/masterAuth/'+auth.uid).val() === $masterId) || (auth.uid === $uid && root.child('salons/'+$salonId+'/users/'+auth.uid).exists() && root.child('salons/'+$salonId+'/masters/'+$masterId+'/profile').exists()))"
+            }
+          }
+        },
+        "masterChatMeta": {
+          "$masterId": {
+            ".read": "auth != null && root.child('salons/'+$salonId+'/masterAuth/'+auth.uid).val() === $masterId",
+            "$uid": {
+              ".read": "auth != null && (auth.uid === $uid || root.child('salons/'+$salonId+'/masterAuth/'+auth.uid).val() === $masterId)",
+              ".write": "auth != null && ((root.child('salons/'+$salonId+'/masterAuth/'+auth.uid).val() === $masterId) || (auth.uid === $uid && root.child('salons/'+$salonId+'/users/'+auth.uid).exists() && root.child('salons/'+$salonId+'/masters/'+$masterId+'/profile').exists()))"
+            }
           }
         },
         "notifications": {
@@ -323,7 +343,7 @@
         "pushTemplates": { },
         "pushLog": { },
         "invites": { },
-        "payments": { },
+        "payments": { ".indexOn": ["bookingId"] },
         "fcmTokens": {
           "$deviceId": { ".write": "auth != null && auth.uid === $salonId" }
         },

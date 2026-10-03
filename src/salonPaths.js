@@ -15,6 +15,8 @@ export const salonUser = (salonId, uid) => salonPath(salonId, `users/${need(uid,
 export const masterProfile = (salonId, masterId) => salonPath(salonId, `masters/${need(masterId, "masterId")}/profile`);
 export const masterSlots = (salonId, masterId, date) => salonPath(salonId, `timeslots/${need(masterId, "masterId")}${date ? `/${date}` : ""}`);
 export const masterQueue = (salonId, masterId, slotKey) => salonPath(salonId, `queue/${need(masterId, "masterId")}${slotKey ? `/${slotKey}` : ""}`);
+export const masterChat = (salonId, masterId, clientUid) => salonPath(salonId, `masterChats/${need(masterId, "masterId")}/${need(clientUid, "clientUid")}`);
+export const masterChatMeta = (salonId, masterId, clientUid) => salonPath(salonId, `masterChatMeta/${need(masterId, "masterId")}/${need(clientUid, "clientUid")}`);
 export const masterSettings = (salonId, masterId) => salonPath(salonId, `masterSettings/${need(masterId, "masterId")}`);
 // masterId залогіненого майстра (null, якщо це не майстер)
 export const masterAuthPath = (salonId, uid) => salonPath(salonId, `masterAuth/${need(uid, "uid")}`);

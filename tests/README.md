@@ -33,6 +33,15 @@ npx firebase-tools emulators:exec --only database --project demo-mon "node funct
 ```
 `reportError` (групування, ліміт 20/хв на IP, обрізання полів), щоденне очищення `cleanupErrorLog`, `createLiqPayOrder` → 503.
 
+## Cloud Functions салону (`functions/salon/`)
+```bash
+npx firebase-tools emulators:exec --only database --project demo-salon "node functions/test/salon.e2e.js"
+```
+FCM, Firebase Auth і Monobank підмінені; у емулятор вантажаться справжні `database.rules.json` (запити по `date`/`bookingId` працюють лише з `.indexOn`).
+Перевіряє: запис і слоти пер майстер (накладки, phantom, перенесення, особистий час), сповіщення клієнту/власнику/майстру, чергу очікування,
+нагадування, чати, запрошення майстрів, налаштування оплати, рахунок, вебхук Monobank (підпис, ідемпотентність, повернення, чужі/підроблені запити),
+таймаут неоплачених записів, ліцензію та прапорець `SALON_FUNCTIONS` (без нього бойові функції DrivePad не змінюються).
+
 ## Смоук-тест інтерфейсу (демо-режим, екран 320px)
 ```bash
 npm run build && (npx vite preview --port 4173 &) && cd tests/smoke && npm install && npx playwright install chromium

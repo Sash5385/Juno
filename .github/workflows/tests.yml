@@ -39,13 +39,16 @@ jobs:
         run: npx --yes firebase-tools@13 emulators:exec --only database --project demo-rt "node tests/rules/rules.test.mjs"
 
       - name: Database rules (salon)
-        run: npx --yes firebase-tools@13 emulators:exec --only database --project demo-rt "node tests/rules/salons.test.mjs"
+        run: npx --yes firebase-tools@13 emulators:exec --only database --project demo-rt "node tests/rules/salons.test.mjs && node tests/rules/salonPaths.test.mjs"
 
       - name: Payment webhooks
         run: npx --yes firebase-tools@13 emulators:exec --only database --project demo-pay "node functions/test/payments.e2e.js"
 
       - name: Error monitoring and disabled LiqPay
         run: npx --yes firebase-tools@13 emulators:exec --only database --project demo-mon "node functions/test/monitoring.e2e.js"
+
+      - name: Salon functions
+        run: npx --yes firebase-tools@13 emulators:exec --only database --project demo-salon "node functions/test/salon.e2e.js"
 
   smoke:
     runs-on: ubuntu-latest

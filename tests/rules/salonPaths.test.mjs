@@ -9,6 +9,8 @@ assert.equal(P.masterProfile("s1", "m1"), "salons/s1/masters/m1/profile");
 assert.equal(P.masterSlots("s1", "m1"), "salons/s1/timeslots/m1");
 assert.equal(P.masterSlots("s1", "m1", "2026-10-10"), "salons/s1/timeslots/m1/2026-10-10");
 assert.equal(P.masterQueue("s1", "m1", "k"), "salons/s1/queue/m1/k");
+assert.equal(P.masterChat("s1", "m1", "c1"), "salons/s1/masterChats/m1/c1");
+assert.equal(P.masterChatMeta("s1", "m1", "c1"), "salons/s1/masterChatMeta/m1/c1");
 assert.equal(P.masterAuthPath("s1", "u1"), "salons/s1/masterAuth/u1");
 assert.equal(P.salonSlugPath("a"), "salon_slugs/a");
 assert.throws(() => P.salonPath(null), /salonId/);
