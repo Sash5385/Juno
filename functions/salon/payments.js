@@ -450,4 +450,5 @@ const salonExpireUnpaidBookings = onSchedule({ schedule: "every 5 minutes", regi
 module.exports = {
   salonSavePaymentSettings, salonCreateBookingInvoice, salonMonobankCallback, salonExpireUnpaidBookings, salonRefundBooking,
   expireUnpaidForSalon, pickAmount, applyPaymentEvent, refundBookingPayments, settleRefundOnCancel, moveReschedulePayment,
+  mono, verifySignature, // спільні з billing.js (підписка салону на платформі)
 };

@@ -11,6 +11,7 @@ import { callFn, errText } from "../api.js";
 import { CLIENT_URL } from "../env.js";
 import { APP_VERSION } from "../../version.js";
 import { Select, Input, Row, Hint, useTh, slugify, dateLabel } from "../kit.jsx";
+import Subscription from "./Subscription.jsx";
 import { normWorkHours, DEFAULT_CANCEL_FREE_HOURS } from "../../salonLogic.js";
 
 const TZ = ["Europe/Kyiv", "Europe/Warsaw", "Europe/Berlin", "Europe/London", "Europe/Chisinau", "Asia/Tbilisi"];
@@ -29,6 +30,7 @@ export default function Settings() {
       {owner ? (
         <>
           <Section title="Салон" icon="💈" defaultOpen><ProfileForm /></Section>
+          <Section title="Підписка" icon="🧾"><Subscription /></Section>
           <Section title="Онлайн-оплата та скасування" icon="💳"><PaymentForm key={`${!!ctx.payment.enabled}-${!!ctx.payment.hasToken}`} /></Section>
         </>
       ) : (

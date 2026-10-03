@@ -174,9 +174,15 @@
           "trialEndsAt": { ".validate": "auth.token.email === 'sash5385@gmail.com' || (!data.exists() && newData.isNumber() && newData.val() <= now + 1296000000)" },
           "expiresAt":   { ".validate": "auth.token.email === 'sash5385@gmail.com'" },
           "provider":    { ".validate": "auth.token.email === 'sash5385@gmail.com'" },
-          "lastPaymentAt": { ".validate": "auth.token.email === 'sash5385@gmail.com'" }
+          "lastPaymentAt": { ".validate": "auth.token.email === 'sash5385@gmail.com'" },
+          // Тариф, ліміт майстрів і ціна — лише сервер (оплата) або суперадмін; інакше власник міг би виставити собі masterLimit
+          "$other": { ".validate": "auth.token.email === 'sash5385@gmail.com'" }
         }
       }
+    },
+    // Журнал оплат підписки платформі: salon_billing/{salonId}/{paymentId}. Пише лише сервер (Admin SDK), власник читає свій
+    "salon_billing": {
+      "$salonId": { ".read": "auth != null && (auth.uid === $salonId || auth.token.email === 'sash5385@gmail.com')" }
     },
     // Де працює майстер: master_memberships/{uid}/{salonId} = masterId. Пише лише сервер (salonClaimMasterInvite), читає сам майстер.
     "master_memberships": {

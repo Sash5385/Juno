@@ -13,11 +13,12 @@ npx firebase-tools@13 emulators:exec --only database --project demo-rt "node tes
 ## Cloud Functions
 ```bash
 npx firebase-tools@13 emulators:exec --only database --project demo-salon "node functions/test/salon.e2e.js"
+npx firebase-tools@13 emulators:exec --only database --project demo-billing "node functions/test/billing.e2e.js"
 npx firebase-tools@13 emulators:exec --only database --project demo-mon "node functions/test/monitoring.e2e.js"
 ```
 FCM, Firebase Auth і Monobank підмінені; у емулятор вантажаться справжні `database.rules.json` (запити по `date`/`bookingId` працюють лише з `.indexOn`).
 `salon.e2e.js`: запис і слоти по майстрах, сповіщення, черга, нагадування, чати, запрошення майстрів, налаштування оплати, рахунок, вебхук Monobank
-(підпис, ідемпотентність, повернення, чужі запити), політика скасування, таймаут неоплачених записів, ліцензія. `monitoring.e2e.js`: журнал помилок і ліміти.
+(підпис, ідемпотентність, повернення, чужі запити), політика скасування, таймаут неоплачених записів, ліцензія. `billing.e2e.js`: тарифи й розрахунок (новий/продовження/підвищення зі знижкою), рахунок Monobank платформи, вебхук (підпис, ідемпотентність, сума, повернення), ліміт майстрів. `monitoring.e2e.js`: журнал помилок і ліміти.
 
 ## Смоук-тест інтерфейсу (демо-режим, екран 320px)
 ```bash

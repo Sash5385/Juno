@@ -7,6 +7,7 @@ import { sref, useValue, regridMaster, resetGridMark } from "../data.js";
 import { callFn, errText } from "../api.js";
 import { Empty, Input, Row, Hint, Confirm, initials, useTh } from "../kit.jsx";
 import { normWorkHours, DEFAULT_WORK_HOURS } from "../../salonLogic.js";
+import { useSubscription } from "../subscription.js";
 
 const DAYS = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Нд"];
 
@@ -17,9 +18,15 @@ export default function Masters() {
   const settings = useValue(() => sref(ctx.salonId, "masterSettings"), [ctx.salonId]);
   const auths = useValue(() => sref(ctx.salonId, "masterAuth"), [ctx.salonId]);
   const linked = (id) => settings.value?.[id]?.uid || null;
+  // Ліміт активних майстрів за тарифом (сервер ховає зайвих у salonOnMasterWritten, UI не дає їх додати)
+  const { info } = useSubscription({ reloadKey: `${ctx.license?.lastPaymentId || ""}` });
+  const active = ctx.masters.filter((m) => m.profile?.active !== false).length;
+  const limit = info?.masterLimit || null;
+  const full = limit != null && active >= limit;
   return (
     <div>
-      <Btn style={{ marginBottom: 14 }} onClick={() => setEdit({ name: "", spec: "", active: true, workHours: DEFAULT_WORK_HOURS })}>＋ Додати майстра</Btn>
+      <Btn style={{ marginBottom: full ? 6 : 14 }} onClick={() => setEdit({ name: "", spec: "", active: !full, workHours: DEFAULT_WORK_HOURS })}>＋ Додати майстра</Btn>
+      {full && <div onClick={() => ctx.go("settings")} style={{ fontSize: 12, color: th.GOLD, marginBottom: 14, cursor: "pointer" }}>Ліміт тарифу: {limit} {limit === 1 ? "майстер" : "майстрів"}. Новий майстер збережеться прихованим — підвищте тариф в Налаштуваннях → Підписка →</div>}
       {ctx.masters.length === 0 && <Empty icon="💇" text="Додайте майстрів — клієнти оберуть, до кого записатись" />}
       {ctx.masters.map((m) => {
         const p = m.profile || {};
@@ -41,12 +48,12 @@ export default function Masters() {
           </Card>
         );
       })}
-      {edit && <MasterSheet master={edit} onClose={() => setEdit(null)} linkedUid={edit.id ? linked(edit.id) : null} ownerBound={!!auths.value?.[ctx.user.uid]} />}
+      {edit && <MasterSheet master={edit} limitFull={full} onClose={() => setEdit(null)} linkedUid={edit.id ? linked(edit.id) : null} ownerBound={!!auths.value?.[ctx.user.uid]} />}
     </div>
   );
 }
 
-function MasterSheet({ master, onClose, linkedUid, ownerBound }) {
+function MasterSheet({ master, limitFull, onClose, linkedUid, ownerBound }) {
   const ctx = useSalon();
   const th = useTh();
   const [m, setM] = useState(master);
@@ -60,11 +67,15 @@ function MasterSheet({ master, onClose, linkedUid, ownerBound }) {
     setBusy(true);
     try {
       const id = m.id || push(sref(ctx.salonId, "masters")).key;
-      const profile = { name: m.name.trim(), spec: (m.spec || "").trim(), active: m.active !== false, order: m.order ?? ctx.masters.length, workHours: m.workHours };
+      // Сервер лишає в межах ліміту найстаріших за activatedAt/createdAt; повернення прихованого в роботу — нова активація
+      const wasActive = !isNew && master.active !== false;
+      const active = m.active !== false && (wasActive || !limitFull);
+      const now = Date.now();
+      const profile = { name: m.name.trim(), spec: (m.spec || "").trim(), active, order: m.order ?? ctx.masters.length, workHours: m.workHours, createdAt: m.createdAt || now, activatedAt: active ? (wasActive && m.activatedAt ? m.activatedAt : now) : m.activatedAt || null };
       await update(sref(ctx.salonId, `masters/${id}`), { profile });
       resetGridMark(ctx.salonId);
       const n = await regridMaster({ salonId: ctx.salonId, master: { id, profile }, step: ctx.step });
-      ctx.toast(n ? "Збережено, розклад оновлено" : "Збережено");
+      ctx.toast(m.active !== false && !active ? "Збережено прихованим: ліміт тарифу" : n ? "Збережено, розклад оновлено" : "Збережено");
       onClose();
     } catch { ctx.toast("Не вдалося зберегти", "err"); } finally { setBusy(false); }
   };

@@ -19,12 +19,13 @@
 ```
 salon_slugs/{slug}: {salonId}                 публічне читання; пише власник
 salon_index/{salonId}                         реєстр салонів (за ним ходять шедулери); читає лише адмін платформи
+salon_billing/{salonId}/{paymentId}           оплати підписки платформі; пише лише сервер, читає власник
 salon_secrets/{salonId}: {monobankToken}      ТІЛЬКИ сервер (правил немає) — токен мерчанта Monobank
 master_memberships/{uid}/{salonId}: masterId  де працює майстер (пише сервер при прийнятті запрошення, читає сам майстер)
 salons/{salonId}/                             salonId = uid власника
   profile: {name, slug, phone, address, about, timezone, slotStep, ..., payment}    публічно
     payment: {enabled, depositPercent, allowFull, holdMinutes, cancelFreeHours, autoConfirm, hasToken, tokenLast4}
-  license: {status, expiresAt, trialEndsAt, provider, ...}  (SaaS-підписка власника)
+  license: {status, expiresAt, trialEndsAt, provider, tier, masterLimit, monthKop, lastPaymentId, ...}  (SaaS-підписка власника; пише сервер/суперадмін)
   masters/{masterId}/profile: {name, spec, active, order, workHours:[7×{from,to,off}], photo}   публічно
   masterAuth/{uid}: masterId                  логін майстра → masterId; пише власник або Cloud Function
   masterSettings/{masterId}: {uid, commissionPct, ...}      власник + сам майстер (читання); uid — Firebase uid майстра
@@ -112,6 +113,23 @@ salons/{salonId}/                             salonId = uid власника
 Токен лежить у `salon_secrets/{salonId}/monobankToken` (вузол без правил — клієнтам закритий) і ніколи не повертається клієнту.
 Токен мерчанта дозволяє й повернення платежів — це ризик, який приймає салон, підключаючи його. `reference` в Monobank = `{salonId}.{paymentId}`.
 
+### Підписка салону на платформу (етап 6)
+Окремо від оплат клієнтів: гроші йдуть **платформі**, токен Monobank платформи — secret `JUNO_MONOBANK_TOKEN` (`firebase functions:secrets:set JUNO_MONOBANK_TOKEN`).
+Тариф залежить від кількості **активних** майстрів (`profile.active !== false`). Типові тарифи — `functions/salon/tariffs.js` (ціни — тимчасові, їх треба затвердити):
+Соло (1 майстер) 199 ₴/міс · Команда (до 3) 399 ₴ · Студія (до 7) 699 ₴ · Салон (до 15) 1199 ₴; рік = 10 місяців ціни. Пробний період — 14 діб, у ньому до 3 майстрів.
+Ціни — дані: вузол `system/tariffs` (`{yearMonths, trialMasterLimit, tiers:[{key,name,maxMasters,monthKop}]}`, пише суперадмін) перекриває типові без деплою; биті значення ігноруються.
+
+| Функція | Що робить |
+|---|---|
+| `salonSubscriptionInfo` | власник: тарифи, ліцензія, кількість активних майстрів, ліміт, `payable`; з `{tier, months}` — ще й розрахунок (`quote`) |
+| `salonCreateSubscriptionInvoice` | `{tier, months: 1\|12, dryRun?}` → рахунок Monobank (`reference = sub.{salonId}.{paymentId}`), повторний клік віддає той самий рахунок; 409 `too_many_masters`, 503 без токена платформи |
+| `salonSubscriptionCallback` | вебхук (ECDSA `X-Sign`, ключ платформи): `success` → `license` = active + `expiresAt`, `tier`, `masterLimit`, `monthKop`, `lastPaymentId`; ідемпотентно, сума й invoiceId звіряються з журналом |
+| `salonOnMasterWritten` | активних майстрів понад ліміт ховає (`active:false`, лишаються найстарші за `activatedAt/createdAt`) і пише власнику |
+
+Розрахунок (`quote`): пробний/прострочена → період від кінця пробного (якщо діє) або від зараз; той самий чи нижчий тариф при діючій підписці → період додається в кінець; **вищий** тариф → залишок старого (за `license.monthKop`) іде знижкою, новий період від сьогодні. Знизити тариф можна, лише коли активних майстрів не більше за новий ліміт.
+Повернення платежу платформою (`reversed`): якщо це останній платіж — ліцензія відкочується до `prevLicense` з журналу, інакше `needsReview`.
+Журнал — `salon_billing/{salonId}/{paymentId}` (пише лише сервер, читає власник). Поля `license.masterLimit/tier/monthKop/...` правила дозволяють писати лише суперадміну (сервер — Admin SDK).
+
 ### Конфігурація
 `functions/index.js` експортує `./salon` і `./monitoring` (форма зв'язку лендингу, журнал помилок). Адреси застосунків — `functions/.env.<project>`:
 `SALON_ADMIN_URL`, `SALON_CLIENT_URL` (за замовчуванням `https://juno-admin.web.app`, `https://juno-client.web.app`).
@@ -155,7 +173,7 @@ Slug запам'ятовується (localStorage + cookie для ярлика 
 ## Відкриті питання
 0. Адмінка й клієнт поки лише українською; фото майстрів/логотип (Storage) не реалізовані; rewrites `/api/*` для Functions у `firebase.json` не додавались (клієнт і адмінка викликають `cloudfunctions.net` напряму); `notifications/{uid}` клієнт лише читає (пишуть Functions).
 1. **Знижки/VIP/`discountAmt`** — відкладено (рішення пізніше). Ціна запису зараз строго = каталожна/персональна ціна майстра.
-2. Ліміт майстрів за тарифом і підписка власника через Monobank (етап 6): `salonCheckLicenseExpiry` уже ставить `suspended`, оплати підписки для салонів ще немає.
+2. Підписка: ціни тимчасові (затвердити), рекурентного автосписання немає (власник платить вручну на період), рахунок-фактури/чеки (ПРРО) не формуються.
 3. Ще не перенесено з DrivePad (код — у гілці `main`): розсилка «звільнився слот» (`onSlotFreed`), розблокування VIP-слотів, `push_tasks`, шаблони повідомлень,
    нагадування по нотатках дня/особистих подіях, злиття запрошених клієнтів за телефоном, видалення акаунта, нічний бекап.
-4. Підписка власника салону (оплата, тариф за кількістю майстрів) — етап 6; LiqPay/Monobank-оплата ліцензії DrivePad видалена.
+4. LiqPay/Monobank-оплата ліцензії DrivePad видалена; підписка Juno — розділ «Підписка салону на платформу».

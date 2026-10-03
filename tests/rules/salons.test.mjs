@@ -91,6 +91,20 @@ await t("platform sets license", A, () => update(R(PLAT, A_("license")), { statu
 await t("owner reads own license", A, () => get(R(OWN_A, A_("license"))));
 await t("client reads license", X, () => get(R(C1, A_("license"))));
 await t("master reads license", X, () => get(R(M1, A_("license"))));
+await t("owner sets own masterLimit", X, () => set(R(OWN_A, A_("license/masterLimit")), 99));
+await t("owner sets own tier", X, () => set(R(OWN_A, A_("license/tier")), "salon"));
+await t("owner sets own monthKop", X, () => set(R(OWN_A, A_("license/monthKop")), 1));
+await t("owner sets masterLimit via salon-level update", X, () => update(R(OWN_A, "salons/ownA"), { "license/masterLimit": 99 }));
+await t("platform sets masterLimit and tier", A, () => update(R(PLAT, A_("license")), { masterLimit: 7, tier: "studio", monthKop: 69900 }));
+
+console.log("── SUBSCRIPTION BILLING JOURNAL");
+await t("owner reads own billing journal", A, () => get(R(OWN_A, "salon_billing/ownA")));
+await t("owner reads another salon's billing", X, () => get(R(OWN_C, "salon_billing/ownA")));
+await t("client reads billing", X, () => get(R(C1, "salon_billing/ownA")));
+await t("platform reads billing", A, () => get(R(PLAT, "salon_billing/ownA")));
+await t("owner writes billing record", X, () => set(R(OWN_A, "salon_billing/ownA/p1"), { status: "success", amountKop: 1 }));
+await t("owner marks billing record applied", X, () => update(R(OWN_A, "salon_billing/ownA/p1"), { applied: 1 }));
+await t("anonymous reads billing", X, () => get(R(anon, "salon_billing/ownA")));
 
 console.log("── PUBLIC / PRIVATE READS");
 for (const p of ["profile", "services", "masters", "timeslots/m1", `timeslots/m1/${D}`, "reviews"]) await t(`anonymous reads ${p}`, A, () => get(R(anon, A_(p))));

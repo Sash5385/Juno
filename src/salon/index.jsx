@@ -102,6 +102,15 @@ function Shell({ user, session, setThemeMode, mode }) {
     if (list.length) ensureGrid({ salonId, masters: list, step }).catch((e) => console.warn("grid:", e.message));
   }, [ctx.ready, role, masters, masterId, salonId, step]);
 
+  // Повернення зі сторінки оплати підписки (redirectUrl функції salonCreateSubscriptionInvoice): статус оновить вебхук
+  useEffect(() => {
+    try {
+      if (new URLSearchParams(window.location.search).get("subscription") !== "paid") return;
+      window.history.replaceState(null, "", window.location.pathname);
+      queueMicrotask(() => { toast("Дякуємо! Оплату обробляємо — підписка оновиться за хвилину"); go("settings"); });
+    } catch { /* ignore */ }
+  }, [toast, go]);
+
   // Push-токени: якщо дозвіл уже надано — тихо оновлюємо токен пристрою
   useEffect(() => { if (pushPermission() === "granted") registerPush(tokenRef); }, [tokenRef]);
   useEffect(() => onForegroundPush((p) => toast(`${p.data?.title || "Сповіщення"}${p.data?.body ? " — " + p.data.body.split("\n")[0] : ""}`)), [toast]);
@@ -128,7 +137,7 @@ function Shell({ user, session, setThemeMode, mode }) {
           </div>
           {perm === "default" && <button onClick={ctx.enablePush} style={{ border: "none", borderRadius: 10, padding: "7px 10px", background: th.SURF_HI, color: th.TEXT, fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>🔔 Сповіщення</button>}
         </div>
-        {banner && <div style={{ margin: "0 14px 8px", padding: "8px 12px", borderRadius: 10, background: `color-mix(in srgb, ${banner.c} 18%, transparent)`, color: banner.c, fontSize: 12, fontWeight: 700 }}>{banner.t}</div>}
+        {banner && <div onClick={() => ctx.go("settings")} style={{ margin: "0 14px 8px", padding: "8px 12px", borderRadius: 10, background: `color-mix(in srgb, ${banner.c} 18%, transparent)`, color: banner.c, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>{banner.t} · Підписка →</div>}
         <div className="tab-anim" key={tab} style={{ padding: "4px 14px 0" }}>{ctx.ready ? <View /> : <Spinner />}</div>
       </div>
       {toastEl}

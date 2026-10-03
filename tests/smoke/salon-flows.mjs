@@ -90,6 +90,19 @@ check("payment form: connected token and cancellation policy", await has("Monoba
 await btn("Зберегти налаштування").click();
 check("payment settings saved (toast)", await has("Налаштування збережено"));
 
+console.log("── підписка");
+await page.getByText("Підписка", { exact: true }).first().click();
+check("subscription: status and master usage", await has("Пробний період") && await has("майстрів: 2 з 3"));
+check("subscription: four tariffs with prices", await has("Соло") && await has("Команда") && await has("Студія") && await has("Салон") && await has("399 ₴"));
+await page.locator('[data-testid="tier-team"]').click();
+check("subscription: quote for the chosen tariff", await has("До сплати: 399 ₴"));
+await page.getByText("12 міс.").first().click();
+check("subscription: yearly price = 10 months", await has("До сплати: 3990 ₴"));
+await page.locator('[data-testid="tier-solo"]').click();
+check("subscription: tariff smaller than active masters is not selectable", await has("у вас більше активних") && !(await has("До сплати: 1990 ₴", 800)));
+await page.locator('[data-testid="tier-studio"]').click();
+check("subscription: pay button enabled after quote", await has("До сплати: 6990 ₴") && await btn("Сплатити через Monobank").isEnabled());
+
 check("no JS errors", errors.length === 0, "\n    " + errors.join("\n    "));
 await browser.close();
 console.log(fails ? `\n${fails} FAILED` : "\nSALON FLOWS OK");
