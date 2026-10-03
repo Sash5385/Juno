@@ -9,7 +9,11 @@
     "instructors": {
       "$iid": {
         ".read": "auth != null && auth.uid === $iid",
-        ".write": "auth != null && auth.uid === $iid",
+        // Інструктор пише в свій вузол, але НЕ може видалити license чи її ключові поля
+        // (status/expiresAt/trialEndsAt): без них клієнт вважає ліцензію відсутньою, тобто доступ вільним,
+        // а видалення + повторне створення дало б новий пробний період. Змінювати ліцензію може власник
+        // (license/.write нижче) і Cloud Functions (admin SDK обходить правила).
+        ".write": "auth != null && auth.uid === $iid && (!data.child('license/status').exists() || newData.child('license/status').exists()) && (!data.child('license/expiresAt').exists() || newData.child('license/expiresAt').exists()) && (!data.child('license/trialEndsAt').exists() || newData.child('license/trialEndsAt').exists())",
 
         "admin_settings": {
           ".read": true
@@ -19,9 +23,12 @@
         },
         "timeslots": {
           ".read": true,
-          ".write": "auth != null",
           "$date": {
             "$slotId": {
+              // Інструктор — усе. Учень лише свого інструктора (є users/{uid}): адмінські поля незмінні (і не видаляються),
+              // новий слот можна створити тільки як зайнятий (phantom), видалити — тільки phantom.
+              ".write": "auth != null && (auth.uid === $iid || (root.child('instructors/'+$iid+'/users/'+auth.uid).exists() && (data.exists() || newData.child('available').val() === false) && (newData.exists() || data.child('phantom').val() === true) && newData.child('adminBlocked').val() === data.child('adminBlocked').val() && newData.child('vipOnly').val() === data.child('vipOnly').val() && newData.child('privateOnly').val() === data.child('privateOnly').val() && newData.child('surcharge').val() === data.child('surcharge').val() && newData.child('fixedPrice').val() === data.child('fixedPrice').val() && newData.child('lunchOverride').val() === data.child('lunchOverride').val() && newData.child('durMin').val() === data.child('durMin').val() && newData.child('personal').val() === data.child('personal').val()))",
+              "viewing": { "$uid": { ".write": "auth != null && auth.uid === $uid" } },
               "vipOnly":       { ".validate": "auth.uid === $iid || newData.val() === data.val()" },
               "adminBlocked":  { ".validate": "auth.uid === $iid || newData.val() === data.val()" },
               "privateOnly":   { ".validate": "auth.uid === $iid || newData.val() === data.val()" },
@@ -64,7 +71,14 @@
         "users": {
           "$uid": {
             ".read": "auth != null && (auth.uid === $uid || auth.uid === $iid)",
-            ".write": "auth != null && (auth.uid === $uid || auth.uid === $iid)",
+            // Учень НЕ може змінювати isVip/discount/hoursOffset/lessonBalance/blocked/customPrice/notes/badges…
+            // — лише власну анкету й службові гілки нижче. Інструктор (auth.uid === $iid) пише все.
+            ".write": "auth != null && auth.uid === $iid",
+            "profile":       { ".write": "auth != null && auth.uid === $uid" },
+            "welcomeSent":   { ".write": "auth != null && auth.uid === $uid" },
+            "queueOffers":   { ".write": "auth != null && auth.uid === $uid" },
+            "fcmTokens":     { ".write": "auth != null && auth.uid === $uid" },
+            "internalExam":  { ".write": "auth != null && auth.uid === $uid" },
             "customPrice": { ".validate": "auth.uid === $iid || newData.val() === data.val()" }
           }
         },
@@ -128,12 +142,12 @@
         },
         "license": {
           ".read": "auth != null && (auth.uid === $iid || auth.token.email === 'sash5385@gmail.com')",
-          ".write": "auth != null && (auth.uid === $iid || auth.token.email === 'sash5385@gmail.com')",
+          ".write": "auth != null && auth.token.email === 'sash5385@gmail.com'",
           "status": {
             ".validate": "auth.token.email === 'sash5385@gmail.com' || (!data.exists() && newData.val() === 'trial')"
           },
           "trialEndsAt": {
-            ".validate": "auth.token.email === 'sash5385@gmail.com' || (!data.exists() && newData.isNumber())"
+            ".validate": "auth.token.email === 'sash5385@gmail.com' || (!data.exists() && newData.isNumber() && newData.val() <= now + 1296000000)"
           },
           "expiresAt": {
             ".validate": "auth.token.email === 'sash5385@gmail.com'"
