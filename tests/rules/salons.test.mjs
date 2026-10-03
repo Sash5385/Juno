@@ -137,6 +137,8 @@ await t("client creates phantom slot", A, () => set(R(C1, A_(`timeslots/m1/${D}/
 console.log("── BOOKINGS: створення клієнтом");
 await reset();
 await t("client creates valid pending booking", A, () => set(R(C1, A_("bookings/n1")), NEWBOOK()));
+await t("reschedule booking with rescheduledFrom/rescheduledFromId", A, () => set(R(C1, A_("bookings/n20")), NEWBOOK({ id: "n20", rescheduledFrom: `${D} 09:00`, rescheduledFromId: "b1" })));
+await t("rescheduledFromId cannot be edited later", X, () => update(R(C1, A_("bookings/n20")), { rescheduledFromId: "b2" }));
 await t("price below catalog", X, () => set(R(C1, A_("bookings/n2")), NEWBOOK({ id: "n2", price: 1 })));
 await t("price above catalog", X, () => set(R(C1, A_("bookings/n2")), NEWBOOK({ id: "n2", price: 9999 })));
 await t("service not offered by this master", X, () => set(R(C1, A_("bookings/n3")), NEWBOOK({ id: "n3", serviceId: "nails", price: 700 })));

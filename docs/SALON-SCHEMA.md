@@ -1,6 +1,6 @@
 # Схема RTDB і Cloud Functions для салону (клон DrivePad)
 
-Статус: **етап 1** (схема, rules, тести, шлях-хелпери) і **етап 2** (Cloud Functions, оплата клієнтом, запрошення майстрів) готові.
+Статус: **етап 1** (схема, rules, тести, шлях-хелпери) і **етап 2** (Cloud Functions, оплата клієнтом, повернення коштів, запрошення майстрів) готові.
 UI адмінки/клієнта, ребрендинг, тарифи за кількістю майстрів — наступні етапи.
 Рішення: гілка без деплою; чиста схема `salons/` (без міграції); еквайринг — Monobank; `instructors/*` і бойові функції DrivePad не змінено.
 
@@ -19,7 +19,7 @@ salon_index/{salonId}                         реєстр салонів (за 
 salon_secrets/{salonId}: {monobankToken}      ТІЛЬКИ сервер (правил немає) — токен мерчанта Monobank
 salons/{salonId}/                             salonId = uid власника
   profile: {name, slug, address, timezone, ..., payment}    публічно
-    payment: {enabled, depositPercent, allowFull, holdMinutes, autoConfirm, hasToken, tokenLast4}
+    payment: {enabled, depositPercent, allowFull, holdMinutes, cancelFreeHours, autoConfirm, hasToken, tokenLast4}
   license: {status, expiresAt, trialEndsAt, provider, ...}  як в instructors (SaaS-підписка власника)
   masters/{masterId}/profile: {name, photo, active, specIds:{id:true}, order}   публічно
   masterAuth/{uid}: masterId                  логін майстра → masterId; пише власник або Cloud Function
@@ -31,7 +31,7 @@ salons/{salonId}/                             salonId = uid власника
   bookings/{bookingId}: {id, masterId, serviceId, serviceName, clientUid, clientName, phone,
                          date, time, durationMin, price, status, createdBy, createdAt,
                          paymentMethod:'online'|'onsite', paymentStatus, paidAmount, paidAt, paymentInvoiceId,
-                         clientConfirmed, rating, clientNote, cancelledAt, cancelledBy, rescheduledFrom}
+                         clientConfirmed, rating, clientNote, cancelledAt, cancelledBy, rescheduledFrom, rescheduledFromId, paymentMovedFrom/To}
   bookings_by_phone/{phone}                   лише власник
   queue/{masterId}/{slotKey}/entries/{uid}    черга очікування пер майстер (waiting → offered → booked | expired)
   userQueue/{uid}, users/{uid}                клієнти салону (users/{uid}/queueOffers/{masterId}_{slotKey} — пропозиції з черги)
@@ -85,6 +85,7 @@ salons/{salonId}/                             salonId = uid власника
 | `salonSavePaymentSettings` | власник підключає свій токен Monobank (перевіряється запитом ключа), вмикає оплату, задає передоплату/утримання/автопідтвердження |
 | `salonCreateBookingInvoice` | клієнт отримує сторінку оплати Monobank (передоплата `%` або повна/залишок); повторний клік віддає той самий рахунок |
 | `salonMonobankCallback` | вебхук: підпис ключем САМЕ цього салону, ідемпотентність, порядок подій, звірка суми, `paymentStatus`, повернення |
+| `salonRefundBooking` | ручне повернення власником (виняток із політики): усі ще не повернені платежі запису |
 | `salonExpireUnpaidBookings` (5 хв) | неоплачений онлайн-запис `pending` знімається через `holdMinutes` (за відкритого рахунку — ще до 15 хв) |
 
 ### Оплата клієнтом (Monobank, гроші йдуть салону)
@@ -93,6 +94,17 @@ salons/{salonId}/                             salonId = uid власника
 3. Monobank → `salonMonobankCallback`: `success` → `paid`/`deposit_paid`, сповіщення клієнту і персоналу («Новий запис (оплачено)»); `reversed` → знімає суму, `refunded`.
 4. Не сплачено за `holdMinutes` → `cancelledBy: payment_timeout`, слот звільняється. Оплата, що встигла прийти за скасований запис, повертається автоматично
    (`/invoice/cancel`); якщо повернення не вдалось — `payments/{id}/needsRefund` і push власнику.
+
+### Повернення коштів (політика як у більшості систем запису)
+Салон задає `profile/payment/cancelFreeHours` (0–720, типово 24): безкоштовне скасування не пізніше ніж за N год до початку.
+- клієнт скасував **вчасно** → автоповернення (`/invoice/cancel`), сам платіж закриває вебхук `reversed` → `paymentStatus: refunded`;
+- клієнт скасував **пізніше** або після початку → передоплата лишається салону, клієнт отримує пояснення;
+- скасував **власник або майстер** → завжди повне повернення, незалежно від строку;
+- **перенесення** клієнтом: нова бронь з `rescheduledFromId` забирає передоплату старої (платежі переписуються на неї), повернення не робиться;
+- власник може повернути кошти вручну (`salonRefundBooking`) — виняток із політики; невдалий автоповернення → `needsRefund` + push власнику, повторюється вручну.
+Повернення на запит одноразове (прапорець `refundRequestedAt` займається транзакцією). Клієнтський застосунок має показувати політику перед скасуванням.
+Комісії платформи з клієнтських оплат немає: гроші йдуть салону напряму, платформа бере лише підписку.
+
 Токен лежить у `salon_secrets/{salonId}/monobankToken` (вузол без правил — клієнтам закритий) і ніколи не повертається клієнту.
 Токен мерчанта дозволяє й повернення платежів — це ризик, який приймає салон, підключаючи його. `reference` в Monobank = `{salonId}.{paymentId}`.
 
@@ -103,9 +115,7 @@ HTTP-функції викликаються за `https://europe-west1-<project
 
 ## Відкриті питання
 1. **Знижки/VIP/`discountAmt`** — відкладено (рішення пізніше). Ціна запису зараз строго = каталожна/персональна ціна майстра.
-2. Політика повернення при скасуванні клієнтом після оплати (зараз автоповернення лише для оплати, що прийшла за ВЖЕ скасований запис; ручного повернення немає).
-3. Комісія платформи з клієнтських оплат (зараз гроші йдуть салону напряму, платформа бере лише підписку).
-4. Ліміт майстрів за тарифом і підписка власника через Monobank (етап 6): `salonCheckLicenseExpiry` уже ставить `suspended`, оплати підписки для салонів ще немає.
-5. Ще не перенесено з функцій інструкторів: розсилка «звільнився слот» (`onSlotFreed`), розблокування VIP-слотів, `push_tasks`, шаблони повідомлень,
+2. Ліміт майстрів за тарифом і підписка власника через Monobank (етап 6): `salonCheckLicenseExpiry` уже ставить `suspended`, оплати підписки для салонів ще немає.
+3. Ще не перенесено з функцій інструкторів: розсилка «звільнився слот» (`onSlotFreed`), розблокування VIP-слотів, `push_tasks`, шаблони повідомлень,
    нагадування по нотатках дня/особистих подіях, злиття запрошених клієнтів за телефоном, видалення акаунта, нічний бекап.
-6. Старі `instructors/*` правила і функції видаляються в ребрендингу (етап 5), не раніше.
+4. Старі `instructors/*` правила і функції видаляються в ребрендингу (етап 5), не раніше.

@@ -128,7 +128,7 @@ async function del(id) { const before = await val(`bookings/${id}`); await sref(
   // ═══ Прапорець SALON_FUNCTIONS ═══
   console.log("── SALON_FUNCTIONS flag");
   const names = Object.keys(fns).filter((k) => k.startsWith("salon"));
-  check("flag on: 18 salon functions exported", names.length === 18, names.join(","));
+  check("flag on: 19 salon functions exported", names.length === 19, names.join(","));
   check("salon module exports only functions", names.every((k) => typeof fns[k] === "function"));
   const clean = require("child_process").spawnSync(process.execPath, ["-e", "const k=Object.keys(require('./index.js')); console.log(k.filter(x=>x.startsWith('salon')).length+':'+k.length)"], {
     cwd: require("path").join(__dirname, ".."), encoding: "utf8",
@@ -623,6 +623,98 @@ async function del(id) { const before = await val(`bookings/${id}`); await sref(
   mono.refundOk = false; pushes.length = 0;
   await hook({ invoiceId: inv9, status: "success", amount: 20000, reference: `${S}.${pid9}`, modifiedDate: "2030-05-13T16:00:00Z" });
   check("refund failure → needsRefund flag + owner alerted", (await val(`payments/${pid9}/needsRefund`)) === true && titles("tok-owner").includes("⚠️ Оплата за скасований запис — потрібне повернення"));
+
+  // ═══ Повернення коштів (політика скасування) ═══
+  console.log("── refunds: cancellation policy");
+  await seed();
+  await call(fns.salonSavePaymentSettings, { headers: as(S), body: { monobankToken: TOK_A, enabled: true, depositPercent: 30, cancelFreeHours: 24 } });
+  check("cancelFreeHours saved publicly", (await val("profile/payment/cancelFreeHours")) === 24);
+  await call(fns.salonSavePaymentSettings, { headers: as(S), body: { cancelFreeHours: 5000 } });
+  check("cancelFreeHours clamped to 720", (await val("profile/payment/cancelFreeHours")) === 720);
+  await call(fns.salonSavePaymentSettings, { headers: as(S), body: { cancelFreeHours: 24 } });
+  const soon = (h) => { const ms = Date.now() + h * 3600000; return [lib.localDate(ms), new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Kyiv", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(ms)]; };
+  async function paidBook(id, over = {}, amount = 150) {
+    await book(id, NB({ id, paymentMethod: "online", price: 500, paymentStatus: "deposit_paid", paidAmount: amount, paidAt: Date.now(), paymentInvoiceId: `inv-${id}`, status: "confirmed", ...over }));
+    await sref(`payments/p-${id}`).set({ bookingId: id, clientUid: over.clientUid || "c1", amountKop: amount * 100, status: "success", applied: Date.now(), invoiceId: `inv-${id}`, mode: "deposit", createdAt: Date.now() });
+  }
+  const cancels = () => mono.calls.filter((c) => c.path === "/invoice/cancel");
+  await paidBook("f1", { time: "09:00" }); pushes.length = 0; mono.calls.length = 0;
+  await patch("f1", { status: "cancelled", cancelledBy: "client", cancelledAt: Date.now() });
+  check("client cancels in time → automatic refund via salon's token", cancels().length === 1 && cancels()[0].body.invoiceId === "inv-f1" && cancels()[0].body.amount === 15000 && cancels()[0].token === TOK_A && cancels()[0].body.extRef === "p-f1");
+  check("…payment marked, client told", (await val("payments/p-f1/refundReason")) === "client_cancel_in_time" && titles("tok-c1").includes("↩️ Повернення коштів"));
+  const f1 = await val("bookings/f1");
+  await trig("f1", { ...f1, status: "confirmed", cancelledBy: null }, f1);
+  check("duplicate cancel event does not refund twice", cancels().length === 1);
+  await hook({ invoiceId: "inv-f1", status: "reversed", amount: 15000, reference: `${S}.p-f1`, modifiedDate: "2030-05-13T10:00:00Z" });
+  check("Monobank 'reversed' then marks the booking refunded", (await val("bookings/f1/paymentStatus")) === "refunded" && (await val("bookings/f1/paidAmount")) === 0);
+
+  const [ld, lt] = soon(2);
+  await paidBook("f2", { date: ld, time: lt, status: "confirmed" }); pushes.length = 0; mono.calls.length = 0;
+  await patch("f2", { status: "cancelled", cancelledBy: "client", cancelledAt: Date.now() });
+  check("client cancels LATE (<24h) → deposit kept, no refund call", cancels().length === 0 && (await val("bookings/f2/paymentStatus")) === "deposit_paid" && (await val("payments/p-f2/refundRequestedAt")) == null);
+  check("…client told the deposit stays with the salon", titles("tok-c1").includes("💳 Передоплата не повертається") && /24 год/.test(pushOf("tok-c1").find((x) => x.title === "💳 Передоплата не повертається").body));
+  await paidBook("f3", { date: ld, time: lt, masterId: "m2", status: "confirmed" }); mono.calls.length = 0;
+  await patch("f3", { status: "cancelled", cancelledBy: "admin" });
+  check("OWNER cancels a late booking → full refund anyway", cancels().length === 1 && (await val("payments/p-f3/refundReason")) === "admin_cancel");
+  await paidBook("f4", { date: ld, time: lt, status: "confirmed" }); mono.calls.length = 0;
+  await patch("f4", { status: "cancelled", cancelledBy: "master" });
+  check("MASTER cancels → full refund", cancels().length === 1 && (await val("payments/p-f4/refundReason")) === "master_cancel");
+  await sref("profile/payment/cancelFreeHours").set(0);
+  await paidBook("f5", { date: ld, time: lt, status: "confirmed" }); mono.calls.length = 0;
+  await patch("f5", { status: "cancelled", cancelledBy: "client" });
+  check("cancelFreeHours = 0: client may cancel any time before start", cancels().length === 1);
+  await sref("profile/payment/cancelFreeHours").set(24);
+  const [pd, pt] = soon(-3);
+  await paidBook("f6", { date: pd, time: pt, status: "confirmed" }); mono.calls.length = 0;
+  await patch("f6", { status: "cancelled", cancelledBy: "client" });
+  check("cancel after the start time keeps the deposit", cancels().length === 0);
+
+  console.log("── refunds: failures and manual refund");
+  await paidBook("f7", { time: "12:00" }); pushes.length = 0; mono.refundOk = false;
+  await patch("f7", { status: "cancelled", cancelledBy: "client" });
+  check("Monobank refuses → needsRefund, owner alerted, flag released for retry", (await val("payments/p-f7/needsRefund")) === true && (await val("payments/p-f7/refundRequestedAt")) == null && titles("tok-owner").includes("⚠️ Не вдалося повернути кошти"));
+  mono.refundOk = true;
+  let rr = await call(fns.salonRefundBooking, { body: { bookingId: "f7" } });
+  check("manual refund without auth → 401", rr.code === 401);
+  rr = await call(fns.salonRefundBooking, { headers: as("c1"), body: { bookingId: "f7" } });
+  check("a client cannot refund (no salon of their own) → 404", rr.code === 404);
+  rr = await call(fns.salonRefundBooking, { headers: as(S), body: { bookingId: "bad/id" } });
+  check("unsafe id → 400", rr.code === 400);
+  mono.calls.length = 0;
+  rr = await call(fns.salonRefundBooking, { headers: as(S), body: { bookingId: "f7" } });
+  check("owner retries manually → refunded", rr.code === 200 && rr.out.refunded === 1 && cancels().length === 1 && (await val("payments/p-f7/refundReason")) === "owner_manual");
+  rr = await call(fns.salonRefundBooking, { headers: as(S), body: { bookingId: "f7" } });
+  check("second manual refund → nothing left (409)", rr.code === 409 && rr.out.error === "nothing_to_refund" && cancels().length === 1);
+  await paidBook("f8", { time: "12:30" }); mono.refundOk = false;
+  rr = await call(fns.salonRefundBooking, { headers: as(S), body: { bookingId: "f8" } });
+  check("manual refund failing → 502", rr.code === 502 && rr.out.error === "refund_failed");
+  mono.refundOk = true;
+  rr = await call(fns.salonRefundBooking, { headers: as(S), body: { bookingId: "b-none" } });
+  check("unknown booking → 404", rr.code === 404);
+  await book("f9", NB({ id: "f9", time: "13:00" }));
+  rr = await call(fns.salonRefundBooking, { headers: as(S), body: { bookingId: "f9" } });
+  check("nothing paid → 409", rr.code === 409);
+
+  console.log("── refunds: reschedule moves the deposit");
+  await seed();
+  await call(fns.salonSavePaymentSettings, { headers: as(S), body: { monobankToken: TOK_A, enabled: true, depositPercent: 30 } });
+  await paidBook("o1", { time: "09:00" }); pushes.length = 0; mono.calls.length = 0;
+  await book("n1", NB({ id: "n1", time: "11:00", paymentMethod: "online", price: 500, rescheduledFrom: `${D1} 09:00`, rescheduledFromId: "o1" }));
+  const n1 = await val("bookings/n1"), o1 = await val("bookings/o1");
+  check("new booking takes over the deposit (150, deposit_paid)", n1.paidAmount === 150 && n1.paymentStatus === "deposit_paid" && n1.paymentMovedFrom === "o1" && n1.paymentInvoiceId === "inv-o1");
+  check("old booking is zeroed and linked", o1.paidAmount === 0 && o1.paymentStatus == null && o1.paymentMovedTo === "n1");
+  check("payment record now belongs to the new booking", (await val("payments/p-o1/bookingId")) === "n1");
+  check("online reschedule still notifies staff (🔁)", titles("tok-owner").includes("🔁 Запис перенесено"));
+  await patch("o1", { status: "cancelled", cancelledBy: "reschedule" });
+  check("cancelling the old one as 'reschedule' refunds nothing", cancels().length === 0);
+  await book("n2", NB({ id: "n2", time: "12:00", paymentMethod: "online", price: 500, rescheduledFrom: `${D1} 09:00`, rescheduledFromId: "o1" }));
+  check("the same deposit cannot be moved twice", (await val("bookings/n2/paidAmount")) == null);
+  await paidBook("o2", { time: "13:00", clientUid: "c2", clientName: "Two" });
+  await book("n3", NB({ id: "n3", time: "14:00", paymentMethod: "online", rescheduledFrom: `${D1} 13:00`, rescheduledFromId: "o2" })); // клієнт c1 → чужий запис
+  check("deposit of someone else's booking is never taken", (await val("bookings/n3/paidAmount")) == null && (await val("bookings/o2/paidAmount")) === 150);
+  mono.calls.length = 0;
+  await patch("n1", { status: "cancelled", cancelledBy: "client" });
+  check("moved deposit is refundable from the NEW booking", cancels().length === 1 && cancels()[0].body.invoiceId === "inv-o1");
 
   // ═══ Таймаут неоплачених записів ═══
   console.log("── unpaid online bookings expire");

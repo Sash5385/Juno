@@ -9,6 +9,7 @@ const {
 } = require("./lib");
 const { buildSlotUpdates, buildRescheduleSlotUpdates, applySlotUpdates } = require("./slots");
 const { inviteNextInQueue } = require("./queue");
+const { settleRefundOnCancel, moveReschedulePayment } = require("./payments");
 
 const staffCreated = (b) => b.createdBy === "admin" || b.createdBy === "master";
 
@@ -40,6 +41,7 @@ async function handleCreate(salonId, bookingId, after) {
   }
 
   await applySlotUpdates(salonId, await buildSlotUpdates(salonId, after, false));
+  if (uid && after.rescheduledFromId) await moveReschedulePayment(salonId, after.rescheduledFromId, bookingId, uid).catch((e) => console.error("salon payment move error:", e));
   if (uid) {
     await sRef(salonId).update({ [`activeClients/${uid}`]: true, [`recentClients/${uid}`]: Date.now() }).catch(() => {});
   }
@@ -63,7 +65,7 @@ async function handleCreate(salonId, bookingId, after) {
 
   // Онлайн-оплата: персонал дізнається про запис, коли оплату отримано (payments.js); неоплачений запис
   // зніметься сам за holdMinutes (salonExpireUnpaidBookings) і не має засмічувати сповіщення
-  if (after.paymentMethod === "online") return;
+  if (after.paymentMethod === "online" && !after.rescheduledFrom) return;
 
   const mName = await masterName(salonId, after.masterId);
   if (after.rescheduledFrom) {
@@ -85,6 +87,19 @@ async function handleCancel(salonId, bookingId, before, after) {
 
   await applySlotUpdates(salonId, await buildSlotUpdates(salonId, before, true, { uid, excludeBookingId: bookingId }));
   if (by === "reschedule") return; // про перенесення сповістить створення нового запису
+
+  // Сплачений запис: повернення за політикою салону (cancelFreeHours) — клієнт скасував вчасно/пізно, власник/майстер — завжди
+  const refund = await settleRefundOnCancel(salonId, bookingId, after, by).catch((e) => { console.error("salon refund error:", e); return null; });
+  if (refund?.kept) {
+    const body = `${date} о ${time} — скасування пізніше ніж за ${refund.hours} год, передоплата залишається салону`;
+    await pushClient(salonId, uid, "💳 Передоплата не повертається", body, { url: clientBookingsLink() }).catch(() => {});
+    await saveNotification(salonId, uid, "💳 Передоплата не повертається", body, "payment");
+  } else if (refund?.ok) {
+    await pushClient(salonId, uid, "↩️ Повернення коштів", `${date} о ${time} — кошти повернуться на картку протягом кількох днів`, { url: clientBookingsLink() }).catch(() => {});
+  }
+  if (refund?.failed) {
+    await pushOwner(salonId, "⚠️ Не вдалося повернути кошти", `${name} · ${date} о ${time} — поверніть вручну в налаштуваннях оплати`, { url: link }).catch(() => {});
+  }
 
   if (by === "client") {
     await pushStaff(salonId, after.masterId, "❌ Запис скасовано клієнтом", `${name} · ${date} о ${time}`, { url: link });

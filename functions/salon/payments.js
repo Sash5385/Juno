@@ -9,7 +9,7 @@
 //   неоплачений онлайн-запис знімається сам через holdMinutes (salonExpireUnpaidBookings).
 //
 // Публічні налаштування — salons/{salonId}/profile/payment:
-//   {enabled, depositPercent (0-100), allowFull, holdMinutes (5-120), autoConfirm, hasToken, tokenLast4}
+//   {enabled, depositPercent (0-100), allowFull, holdMinutes (5-120), cancelFreeHours (0-720, типово 24), autoConfirm, hasToken, tokenLast4}
 // Журнал платежів — salons/{salonId}/payments/{paymentId} (лише сервер): reference у Monobank = "{salonId}.{paymentId}".
 const { onRequest } = require("firebase-functions/v2/https");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
@@ -17,7 +17,7 @@ const crypto = require("crypto");
 const {
   REGION, db, sRef, isSafeKey, clientUrl, adminUrl, buildAdminLink, clientBookingsLink, buildBookingBody,
   pushClient, pushOwner, pushStaff, saveNotification, masterName, salonName, isCancelled, isLicenseReadonly,
-  allSalonIds, localDate,
+  allSalonIds, localDate, localToMs, salonTimezone,
 } = require("./lib");
 const { authUser, bodyOf } = require("./http");
 
@@ -101,6 +101,7 @@ const salonSavePaymentSettings = onRequest({ region: REGION, cors: true }, async
     }
     if (b.depositPercent !== undefined) next.depositPercent = clamp(Math.round(Number(b.depositPercent) || 0), 0, 100);
     if (b.allowFull !== undefined) next.allowFull = b.allowFull === true;
+    if (b.cancelFreeHours !== undefined) next.cancelFreeHours = clamp(Math.round(Number(b.cancelFreeHours) || 0), 0, 720);
     if (b.holdMinutes !== undefined) next.holdMinutes = clamp(Math.round(Number(b.holdMinutes) || DEFAULT_HOLD_MIN), 5, 120);
     if (b.autoConfirm !== undefined) next.autoConfirm = b.autoConfirm === true;
     if (b.enabled !== undefined) next.enabled = b.enabled === true;
@@ -326,6 +327,86 @@ const salonMonobankCallback = onRequest({ region: REGION }, async (req, res) => 
   }
 });
 
+// ─── Повернення коштів ──────────────────────────────────────────────────
+// Політика як у більшості систем запису: салон задає cancelFreeHours — безкоштовна відміна не пізніше ніж за N год до початку.
+// Клієнт скасував вчасно → автоповернення; пізніше → передоплата лишається салону. Скасував власник/майстер → завжди повне повернення.
+// Повернення йде через Monobank /invoice/cancel; сам платіж позначає вебхук `reversed` (onPaymentReversed).
+const DEFAULT_CANCEL_FREE_HOURS = 24;
+const isRefundable = (p) => !!p && p.status === "success" && !p.reversedAt && !p.orphan && !p.refundRequestedAt;
+
+async function refundBookingPayments(salonId, bookingId, reason) {
+  const token = await getToken(salonId);
+  const recs = Object.entries((await sRef(salonId, "payments").orderByChild("bookingId").equalTo(bookingId).get()).val() || {}).filter(([, p]) => isRefundable(p));
+  let ok = 0, failed = 0;
+  for (const [id, p] of recs) {
+    // Рівно один запит на платіж: прапорець займається транзакцією (повторний виклик/подія його пропустить)
+    const claim = await sRef(salonId, `payments/${id}/refundRequestedAt`).transaction((cur) => (cur === null ? Date.now() : undefined));
+    if (!claim.committed) continue;
+    const done = token ? await refundInvoice(token, p.invoiceId, p.amountKop, id) : false;
+    if (done) { ok++; await sRef(salonId, `payments/${id}`).update({ refundReason: reason }); }
+    else { failed++; await sRef(salonId, `payments/${id}`).update({ refundRequestedAt: null, needsRefund: true }); }
+  }
+  return { total: recs.length, ok, failed };
+}
+
+// Скасування сплаченого запису → рішення за політикою. Повертає {kept} або результат повернення (null — нічого сплаченого)
+async function settleRefundOnCancel(salonId, bookingId, booking, by) {
+  if (by === "reschedule" || !(Number(booking.paidAmount) > 0)) return null;
+  if (by === "client") {
+    const pay = await getPaySettings(salonId);
+    const hours = Number.isFinite(Number(pay.cancelFreeHours)) && pay.cancelFreeHours !== undefined ? Number(pay.cancelFreeHours) : DEFAULT_CANCEL_FREE_HOURS;
+    const startMs = booking.date && booking.time ? localToMs(booking.date, booking.time, await salonTimezone(salonId)) : Infinity;
+    if (startMs - Date.now() < hours * 3600000) return { kept: true, hours };
+  }
+  return refundBookingPayments(salonId, bookingId, by === "client" ? "client_cancel_in_time" : `${by}_cancel`);
+}
+
+// Клієнт переносить запис: нова бронь з rescheduledFromId забирає передоплату старої (платежі переписуються на нову бронь)
+async function moveReschedulePayment(salonId, oldId, newId, clientUid) {
+  if (!isSafeKey(oldId) || oldId === newId) return false;
+  let moved = null;
+  const tx = await sRef(salonId, `bookings/${oldId}`).transaction((b) => {
+    moved = null;
+    if (!b) return b;
+    if (b.clientUid !== clientUid || !(Number(b.paidAmount) > 0) || b.paymentMovedTo) return undefined;
+    moved = { paidAmount: Number(b.paidAmount), paymentInvoiceId: b.paymentInvoiceId || null, paidAt: b.paidAt || null };
+    b.paymentMovedTo = newId; b.paidAmount = 0; b.paymentStatus = null;
+    return b;
+  });
+  if (!tx.committed || !moved) return false;
+  await sRef(salonId, `bookings/${newId}`).transaction((b) => {
+    if (!b) return b;
+    b.paidAmount = moved.paidAmount;
+    b.paymentStatus = moved.paidAmount + 0.001 >= Number(b.price) ? "paid" : "deposit_paid";
+    b.paymentInvoiceId = moved.paymentInvoiceId; b.paidAt = moved.paidAt; b.paymentMovedFrom = oldId;
+    return b;
+  });
+  const recs = (await sRef(salonId, "payments").orderByChild("bookingId").equalTo(oldId).get()).val() || {};
+  for (const id of Object.keys(recs)) await sRef(salonId, `payments/${id}/bookingId`).set(newId);
+  return true;
+}
+
+// Ручне повернення власником (виняток із політики): усі платежі запису, що ще не повернуті
+const salonRefundBooking = onRequest({ region: REGION, cors: true }, async (req, res) => {
+  if (req.method !== "POST") { res.status(405).json({ error: "method" }); return; }
+  try {
+    const user = await authUser(req, res);
+    if (!user) return;
+    const salonId = user.uid; // лише власник салону
+    const { bookingId } = bodyOf(req);
+    if (!isSafeKey(bookingId)) { res.status(400).json({ error: "bad_request" }); return; }
+    const booking = (await sRef(salonId, `bookings/${bookingId}`).get()).val();
+    if (!booking) { res.status(404).json({ error: "booking_not_found" }); return; }
+    const r = await refundBookingPayments(salonId, bookingId, "owner_manual");
+    if (!r.total) { res.status(409).json({ error: "nothing_to_refund" }); return; }
+    if (r.failed) { res.status(502).json({ error: "refund_failed", ...r }); return; }
+    res.json({ ok: true, refunded: r.ok });
+  } catch (e) {
+    console.error("salonRefundBooking error:", e);
+    res.status(500).json({ error: "server" });
+  }
+});
+
 // ─── Таймаут неоплачених онлайн-записів ─────────────────────────────────
 // pending-запис з paymentMethod "online", який не оплачено за holdMinutes, знімається (слот звільняє salonOnBookingChanged).
 // Якщо клієнт саме зараз платить (відкритий рахунок до 15 хв) — даємо дозаплатити.
@@ -367,6 +448,6 @@ const salonExpireUnpaidBookings = onSchedule({ schedule: "every 5 minutes", regi
 });
 
 module.exports = {
-  salonSavePaymentSettings, salonCreateBookingInvoice, salonMonobankCallback, salonExpireUnpaidBookings,
-  expireUnpaidForSalon, pickAmount, applyPaymentEvent,
+  salonSavePaymentSettings, salonCreateBookingInvoice, salonMonobankCallback, salonExpireUnpaidBookings, salonRefundBooking,
+  expireUnpaidForSalon, pickAmount, applyPaymentEvent, refundBookingPayments, settleRefundOnCancel, moveReschedulePayment,
 };
