@@ -4177,7 +4177,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
             const hh = String(Math.floor(addSlotPos.startMin/60)).padStart(2,'0');
             const mm = String(addSlotPos.startMin%60).padStart(2,'0');
             update(iRef( `timeslots/${addSlotPos.dateStr}/slot${hh}${mm}`), {
-              available: true, time: `${hh}:${mm}`
+              available: true, time: `${hh}:${mm}`, lunchOverride: true // ручне відкриття: клієнт не ховає слот фільтром обіду/шаблону
             }).catch(()=>{});
             setAddSlotPos(null);
           }} style={{
