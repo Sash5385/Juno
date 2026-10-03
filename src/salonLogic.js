@@ -1,4 +1,4 @@
-// Чиста логіка салону без Firebase і React — однаковий файл у DrivePad (src/) і DrivePad-Client (src/utils/).
+// Чиста логіка салону без Firebase і React — однаковий файл у Juno (src/) і Juno-client (src/utils/).
 // Слоти, ціни, вільні вікна, правило безкоштовного скасування. Схема: docs/SALON-SCHEMA.md.
 export const pad2 = (n) => String(n).padStart(2, "0");
 export const minToTime = (m) => `${pad2(Math.floor(m / 60))}:${pad2(m % 60)}`;

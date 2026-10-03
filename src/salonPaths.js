@@ -1,5 +1,5 @@
-// Шляхи RTDB для салону (клон DrivePad). Чисті функції без Firebase — однаковий файл у DrivePad і DrivePad-Client.
-// Схема і ролі: docs/SALON-SCHEMA.md. salonId = uid власника салону. Старі шляхи instructors/{iid}/... не змінюються.
+// Шляхи RTDB для салону. Чисті функції без Firebase — однаковий файл у Juno і Juno-client.
+// Схема і ролі: docs/SALON-SCHEMA.md. salonId = uid власника салону.
 const need = (v, name) => { if (!v) throw new Error(`salonPaths: ${name} is required`); return v; };
 const join = (base, path) => (path ? `${base}/${path}` : base);
 

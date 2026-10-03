@@ -1,4 +1,4 @@
-// Сценарії адмінки салону в демо-режимі (?app=salon&demo=1, пам'ять замість Firebase): записи, послуги, майстри, чат, налаштування.
+// Сценарії адмінки салону в демо-режимі (?demo=1, пам'ять замість Firebase): записи, послуги, майстри, чат, налаштування.
 // Запуск: node tests/smoke/salon-flows.mjs [BASE_URL]   (потрібен запущений vite preview)
 import { chromium } from "playwright";
 const base = (process.argv[2] || "http://localhost:4173").replace(/\/$/, "");
@@ -15,7 +15,7 @@ const tab = (t) => page.locator("button", { hasText: t }).last().click();
 const btn = (t) => page.locator("button", { hasText: t }).first();
 const back = async () => { await page.evaluate(() => history.back()); await page.waitForTimeout(300); };
 
-await page.goto(`${base}/?demo=1&app=salon`);
+await page.goto(`${base}/?demo=1`);
 await page.waitForTimeout(2000);
 
 console.log("── календар і запис");

@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// DrivePad · Shared UI design system
+// Juno · Shared UI design system
 // Single source of truth for windows: panels, modals, fields, buttons.
 // Panel look = gradient SURF_HI→SURFACE. Coffee-correct via glow/shade/ink.
 // ═══════════════════════════════════════════════════════════════

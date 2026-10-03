@@ -134,7 +134,7 @@ await t("anonymous books slot", X, () => update(R(anon, A_(`timeslots/m1/${D}/sl
 await t("client books slot of INACTIVE master", X, () => update(R(C1, A_(`timeslots/m3/${D}/slot1000`)), { available: false, bookedBy: "cli1" }));
 await t("client frees someone else's slot", X, () => update(R(C1, A_(`timeslots/m1/${D}/slot1600`)), { available: true, bookedBy: null }));
 await t("client overwrites someone else's slot", X, () => set(R(C1, A_(`timeslots/m1/${D}/slot1600`)), { time: "16:00", available: false, bookedBy: "cli1" }));
-await t("client frees own slot (bookedBy = self, як в instructors)", A, () => update(R(C1, A_(`timeslots/m1/${D}/slot1400`)), { available: true, bookedBy: null }));
+await t("client frees own slot (bookedBy = self)", A, () => update(R(C1, A_(`timeslots/m1/${D}/slot1400`)), { available: true, bookedBy: null }));
 await t("client removes own phantom slot", A, () => remove(R(C1, A_(`timeslots/m1/${D}/slot1200`))));
 await t("client sets adminBlocked", X, () => update(R(C1, A_(`timeslots/m1/${D}/slot1000`)), { adminBlocked: true }));
 await t("client changes surcharge", X, () => update(R(C1, A_(`timeslots/m1/${D}/slot1300`)), { surcharge: 0 }));

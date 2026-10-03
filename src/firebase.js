@@ -1,132 +1,26 @@
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { getDatabase, goOffline, ref, set } from "firebase/database";
-import { getMessaging, getToken, onMessage } from "firebase/messaging";
-import { getStorage, ref as storageRef } from "firebase/storage";
+import { getDatabase, goOffline } from "firebase/database";
+import { getStorage } from "firebase/storage";
 import { DEMO } from "./demo/demoMode.js";
-import { salonPath } from "./salonPaths.js";
 
-// Multi-tenant: iid — це uid інструктора, що зараз залогінений. Кожен
-// інструктор бачить і пише тільки у свій instructors/{iid}/... (rules).
-let _iid = null;
-export const setCurrentIid = (id) => { _iid = id; };
-export const getCurrentIid = () => _iid;
-export const iRef = (path) => ref(db, path ? `instructors/${_iid}/${path}` : `instructors/${_iid}`);
-
-// Салон (клон під барбершоп/манікюр): salonId = uid власника, шляхи — src/salonPaths.js, схема — docs/SALON-SCHEMA.md.
-// Поки лише додано: чинний код DrivePad далі працює через iRef.
-let _salonId = null;
-export const setCurrentSalonId = (id) => { _salonId = id; };
-export const getCurrentSalonId = () => _salonId;
-export const sRef = (path) => ref(db, salonPath(_salonId, path));
-
-const firebaseConfig = {
-  apiKey: "AIzaSyAJFqq9jMrc2RgkceappeGt9EJ2bM2xKBI",
-  authDomain: "drivepad-86fe1.firebaseapp.com",
-  databaseURL: "https://drivepad-86fe1-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "drivepad-86fe1",
-  storageBucket: "drivepad-86fe1.firebasestorage.app",
-  messagingSenderId: "221725287898",
-  appId: "1:221725287898:web:59ee63287a825801104ce3",
-  measurementId: "G-Y1ZTLEDMVK"
+// Конфіг окремого Firebase-проєкту Juno — з .env (VITE_FIREBASE_*, див. .env.example).
+// Без нього застосунок бачить лише демо-проєкт "demo-juno" (префікс demo- зарезервований під емулятор):
+// справжні дані нікуди не пишуться, працює демо-режим (?demo=1).
+const env = import.meta.env;
+const projectId = env.VITE_FIREBASE_PROJECT_ID || "demo-juno";
+export const firebaseConfig = {
+  apiKey: env.VITE_FIREBASE_API_KEY || "demo-key",
+  authDomain: env.VITE_FIREBASE_AUTH_DOMAIN || `${projectId}.firebaseapp.com`,
+  databaseURL: env.VITE_FIREBASE_DATABASE_URL || `https://${projectId}-default-rtdb.europe-west1.firebasedatabase.app`,
+  projectId,
+  storageBucket: env.VITE_FIREBASE_STORAGE_BUCKET || `${projectId}.firebasestorage.app`,
+  messagingSenderId: env.VITE_FIREBASE_MESSAGING_SENDER_ID || "0",
+  appId: env.VITE_FIREBASE_APP_ID || "1:0:web:0",
 };
-
-// VAPID-ключ навмисно НЕ задаємо: раніше тут стояв ключ проєкту ID4 (id4drive-booking-44182),
-// а DrivePad працює на іншому проєкті (drivepad-86fe1) — Firebase відхиляв getToken, токен
-// ніколи не зберігався ("no tokens"), пуші не приходили. Без vapidKey SDK бере ключ за
-// замовчуванням, який працює для будь-якого проєкту.
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getDatabase(app);
 if (DEMO) goOffline(db); // демо: жодних з'єднань зі справжньою базою
 export const storage = getStorage(app);
-// Фото інструктора: instructors/{iid}/profile.jpg (одне фото на інструктора,
-// перезаписується при новому завантаженні — без сміття зі старих версій).
-export const iStorageRef = () => storageRef(storage, `instructors/${getCurrentIid()}/profile.jpg`);
-// Фотоколаж лендингу: до 10 фото, кожне — свій файл (на відміну від
-// profile.jpg, тут не потрібне перезаписування — фото додаються/видаляються
-// незалежно одне від одного).
-export const iGalleryStorageRef = (fileName) => storageRef(storage, `instructors/${getCurrentIid()}/gallery/${fileName}`);
-
-// Стабільний id цього браузера/пристрою — щоб токени з різних пристроїв
-// (ПК і телефон адміна) не перезаписували один одного в БД.
-function getDeviceId() {
-  const KEY = "id4_admin_device_id";
-  try {
-    let id = localStorage.getItem(KEY);
-    if (!id) {
-      id = "d" + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
-      localStorage.setItem(KEY, id);
-    }
-    return id;
-  } catch {
-    return "d" + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
-  }
-}
-
-export async function registerAdminFCM() {
-  if (DEMO) return; // демо-режим: без запиту дозволу на сповіщення й без токенів
-  if (!("Notification" in window)) { console.warn("FCM: Notification API not supported"); return; }
-  try {
-    const permission = await Notification.requestPermission();
-    console.log("FCM permission:", permission);
-    if (permission !== "granted") return;
-
-    let swReg
-    try {
-      // Firebase push SW must live on its OWN scope so it never replaces the
-      // PWA app SW at "/" (that conflict broke the "update available" flow).
-      // "/firebase-cloud-messaging-push-scope" is FCM's default scope.
-      const FCM_SCOPE = '/firebase-cloud-messaging-push-scope'
-      const regs = await navigator.serviceWorker.getRegistrations()
-      const isFbSw = r => (r.active?.scriptURL || r.installing?.scriptURL || r.waiting?.scriptURL || '').includes('firebase-messaging-sw')
-      // Migration: remove any legacy firebase SW registered at the root scope.
-      for (const r of regs) {
-        if (isFbSw(r) && new URL(r.scope).pathname === '/') {
-          await r.unregister().catch(() => {})
-        }
-      }
-      const fresh = await navigator.serviceWorker.getRegistrations()
-      swReg = fresh.find(isFbSw)
-        || await navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: FCM_SCOPE })
-      // Wait for the SW to become active before FCM tries to subscribe
-      if (swReg && !swReg.active) {
-        await new Promise(resolve => {
-          const sw = swReg.installing || swReg.waiting
-          if (!sw) { resolve(); return; }
-          sw.addEventListener('statechange', function handler() {
-            if (this.state === 'activated') { sw.removeEventListener('statechange', handler); resolve(); }
-          })
-        })
-      }
-    } catch (_) {
-      swReg = undefined
-    }
-    console.log("FCM SW scope:", swReg?.scope);
-
-    const messaging = getMessaging(app);
-    const token = await getToken(messaging, { serviceWorkerRegistration: swReg });
-    console.log("FCM token obtained:", !!token, token?.slice(0, 20));
-
-    if (token) {
-      const deviceId = getDeviceId();
-      await set(iRef(`fcmTokens/${deviceId}`), token);
-      console.log("FCM token saved to instructors/" + _iid + "/fcmTokens/" + deviceId);
-    } else {
-      console.warn("FCM: empty token returned");
-    }
-  } catch (e) {
-    console.error("Admin FCM error:", e.code, e.message);
-  }
-}
-
-export function onAdminForegroundMessage(callback) {
-  if (DEMO) return () => {};
-  try {
-    const messaging = getMessaging(app);
-    return onMessage(messaging, callback);
-  } catch {
-    return () => {};
-  }
-}

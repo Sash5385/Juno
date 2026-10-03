@@ -1,4 +1,4 @@
-// Записи клієнтського застосунку салону (DrivePad-Client/src/salon) проти СПРАВЖНІХ правил бази: ті самі шляхи й поля, що в actions.js.
+// Записи клієнтського застосунку салону (Juno-client/src/salon) проти СПРАВЖНІХ правил бази: ті самі шляхи й поля, що в actions.js.
 // Червоне тут = у бойовій базі відповідна дія клієнта впаде з permission_denied.
 import { initializeTestEnvironment } from "@firebase/rules-unit-testing";
 import { ref, get, set, update, remove, push, increment, query, orderByChild, equalTo, limitToLast } from "firebase/database";

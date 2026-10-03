@@ -1,16 +1,17 @@
-# Схема RTDB і Cloud Functions для салону (клон DrivePad)
+# Juno — схема RTDB і Cloud Functions
 
 Статус: **етап 1** (схема, rules), **етап 2** (Cloud Functions, оплата, повернення, запрошення), **етап 3** (адмінка власника/майстра, `src/salon/`)
-і **етап 4** (клієнтський застосунок, `DrivePad-Client/src/salon/`) готові. Ребрендинг (етап 5) і тарифи за кількістю майстрів (етап 6) — далі.
-Рішення: гілка без деплою; чиста схема `salons/` (без міграції); еквайринг — Monobank; `instructors/*` і бойові функції DrivePad не змінено.
+і **етап 4** (клієнтський застосунок, `Juno-client/src/salon/`) готові. **Етап 5 (ребрендинг у Juno)**: салон — єдиний застосунок, код, правила і функції інструкторів видалено
+(повна копія DrivePad лишається в гілці `main` репозиторіїв Juno / Juno-client). Далі — окремий Firebase-проєкт і тарифи за кількістю майстрів (етап 6).
+Рішення: чиста схема `salons/`; еквайринг — Monobank (кожен салон зі своїм токеном); платформа бере лише підписку.
 
 | Що | Де |
 |---|---|
 | Правила | `database.rules.json` (блок «САЛОН») · тести `tests/rules/salons.test.mjs` |
-| Шляхи | `src/salonPaths.js` (однаковий файл у DrivePad і DrivePad-Client) |
+| Шляхи | `src/salonPaths.js` (однаковий файл у Juno і Juno-client) |
 | Functions | `functions/salon/*` · тести `functions/test/salon.e2e.js` |
-| Вмикання Functions | змінна `SALON_FUNCTIONS=1` (див. нижче) |
-| Клієнт | `DrivePad-Client/src/salon/*` · спільна логіка `src/utils/salonLogic.js` (копія) · rules-тест `tests/rules/salonClientApp.test.mjs`, смоук `tests/smoke/salon-flows.mjs` у DrivePad-Client |
+| Конфіг Functions | `functions/.env.<project>`: `SALON_ADMIN_URL`, `SALON_CLIENT_URL` (див. нижче) |
+| Клієнт | `Juno-client/src/salon/*` · спільна логіка `src/utils/salonLogic.js` (копія) · rules-тест `tests/rules/salonClientApp.test.mjs`, смоук `tests/smoke/salon-flows.mjs` у Juno-client |
 | Адмінка | `src/salon/*` · спільна логіка `src/salonLogic.js` · тести `tests/rules/salonApp.test.mjs`, `tests/unit/`, `tests/smoke/salon-flows.mjs` |
 
 ## Дерево
@@ -23,7 +24,7 @@ master_memberships/{uid}/{salonId}: masterId  де працює майстер (
 salons/{salonId}/                             salonId = uid власника
   profile: {name, slug, phone, address, about, timezone, slotStep, ..., payment}    публічно
     payment: {enabled, depositPercent, allowFull, holdMinutes, cancelFreeHours, autoConfirm, hasToken, tokenLast4}
-  license: {status, expiresAt, trialEndsAt, provider, ...}  як в instructors (SaaS-підписка власника)
+  license: {status, expiresAt, trialEndsAt, provider, ...}  (SaaS-підписка власника)
   masters/{masterId}/profile: {name, spec, active, order, workHours:[7×{from,to,off}], photo}   публічно
   masterAuth/{uid}: masterId                  логін майстра → masterId; пише власник або Cloud Function
   masterSettings/{masterId}: {uid, commissionPct, ...}      власник + сам майстер (читання); uid — Firebase uid майстра
@@ -111,15 +112,14 @@ salons/{salonId}/                             salonId = uid власника
 Токен лежить у `salon_secrets/{salonId}/monobankToken` (вузол без правил — клієнтам закритий) і ніколи не повертається клієнту.
 Токен мерчанта дозволяє й повернення платежів — це ризик, який приймає салон, підключаючи його. `reference` в Monobank = `{salonId}.{paymentId}`.
 
-### Як увімкнути
-`functions/index.js` підключає `./salon` лише коли `SALON_FUNCTIONS=1`: на проєкті DrivePad (інструктори) нічого не змінюється й не деплоїться.
-Для проєкту салону: `functions/.env.<project>` із `SALON_FUNCTIONS=1`, `SALON_ADMIN_URL`, `SALON_CLIENT_URL` (за замовчуванням адреси DrivePad).
-HTTP-функції викликаються за `https://europe-west1-<project>.cloudfunctions.net/<name>`; rewrites у `firebase.json` не додавались (деплоя немає).
+### Конфігурація
+`functions/index.js` експортує `./salon` і `./monitoring` (форма зв'язку лендингу, журнал помилок). Адреси застосунків — `functions/.env.<project>`:
+`SALON_ADMIN_URL`, `SALON_CLIENT_URL` (за замовчуванням `https://juno-admin.web.app`, `https://juno-client.web.app`).
+HTTP-функції викликаються за `https://europe-west1-<project>.cloudfunctions.net/<name>`; у `firebase.json` лише rewrites `/api/report-error` (адмінка) і `/api/contact` (лендинг).
 
 ## Адмінка (`src/salon/`)
-Окремий модуль у тому ж Vite-проєкті: `main.jsx` вантажить його lazy-чанком лише в режимі салону — `npm run build:salon` / `npm run dev:salon`
-(`.env.salon` → `VITE_APP_MODE=salon`) або адреса з `?app=salon` (для розробки; `?demo=1` — демо з вигаданими даними в пам'яті, без Firebase).
-Адмінка інструктора DrivePad без цього режиму не змінюється. Змінні збірки: `VITE_FUNCTIONS_BASE` (адреса Cloud Functions, типово за projectId), `VITE_CLIENT_URL` (адреса клієнтського застосунку для посилання `…/s/{slug}`).
+Єдиний застосунок Vite-проєкту: `main.jsx` рендерить `src/salon/index.jsx`. `?demo=1` — демо з вигаданими даними в пам'яті, без Firebase.
+Конфіг Firebase-проєкту — змінні збірки `VITE_FIREBASE_*` (див. `.env.example`; без них — лише демо-проєкт `demo-juno`). Також `VITE_FUNCTIONS_BASE` (адреса Cloud Functions, типово за projectId), `VITE_CLIENT_URL` (адреса клієнтського застосунку для посилання `…/s/{slug}`).
 
 | Вкладка | Власник | Майстер |
 |---|---|---|
@@ -138,8 +138,8 @@ HTTP-функції викликаються за `https://europe-west1-<project
 після зміни годин майстра сітка перебудовується (`regridWrites`: зайві вільні слоти прибираються, записи/блокування/черга не чіпаються).
 Сповіщення: токен пристрою пишеться в `fcmTokens` (власник) або `masterTokens/{masterId}` (майстер) після дозволу в браузері.
 
-## Клієнтський застосунок (`DrivePad-Client/src/salon/`)
-Той самий підхід: lazy-чанк у режимі салону (`npm run build:salon` / `?app=salon`, `?demo=1` — демо); застосунок учня автошколи не змінений.
+## Клієнтський застосунок (`Juno-client/src/salon/`)
+Той самий підхід: салон — єдиний застосунок, `?demo=1` — демо.
 Маршрути: `/s/{slug}` — публічна сторінка салону й запис (вхід не потрібен, поки не дійшли до підтвердження); `/cabinet/{bookings|chat|notifs|profile}` — кабінет.
 Slug запам'ятовується (localStorage + cookie для ярлика iPhone), `/` веде на збережений салон.
 
@@ -156,6 +156,6 @@ Slug запам'ятовується (localStorage + cookie для ярлика 
 0. Адмінка й клієнт поки лише українською; фото майстрів/логотип (Storage) не реалізовані; rewrites `/api/*` для Functions у `firebase.json` не додавались (клієнт і адмінка викликають `cloudfunctions.net` напряму); `notifications/{uid}` клієнт лише читає (пишуть Functions).
 1. **Знижки/VIP/`discountAmt`** — відкладено (рішення пізніше). Ціна запису зараз строго = каталожна/персональна ціна майстра.
 2. Ліміт майстрів за тарифом і підписка власника через Monobank (етап 6): `salonCheckLicenseExpiry` уже ставить `suspended`, оплати підписки для салонів ще немає.
-3. Ще не перенесено з функцій інструкторів: розсилка «звільнився слот» (`onSlotFreed`), розблокування VIP-слотів, `push_tasks`, шаблони повідомлень,
+3. Ще не перенесено з DrivePad (код — у гілці `main`): розсилка «звільнився слот» (`onSlotFreed`), розблокування VIP-слотів, `push_tasks`, шаблони повідомлень,
    нагадування по нотатках дня/особистих подіях, злиття запрошених клієнтів за телефоном, видалення акаунта, нічний бекап.
-4. Старі `instructors/*` правила і функції видаляються в ребрендингу (етап 5), не раніше.
+4. Підписка власника салону (оплата, тариф за кількістю майстрів) — етап 6; LiqPay/Monobank-оплата ліцензії DrivePad видалена.

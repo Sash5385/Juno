@@ -1,9 +1,9 @@
 name: Deploy to Firebase
 
+# Деплой Juno — лише вручну (Actions → Deploy to Firebase → Run workflow), після зелених тестів.
+# Потрібні: secret FIREBASE_TOKEN (firebase login:ci) і repository variable FIREBASE_PROJECT_ID (id проєкту Juno).
 on:
-  push:
-    branches:
-      - claude/optimistic-bardeen-o4gf7w
+  workflow_dispatch:
 
 jobs:
   tests:
@@ -12,6 +12,8 @@ jobs:
   build-and-deploy:
     needs: tests
     runs-on: ubuntu-latest
+    env:
+      FIREBASE_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
     steps:
       - uses: actions/checkout@v4
 
@@ -20,58 +22,34 @@ jobs:
           node-version: 20
           cache: npm
 
+      - name: Check project id
+        run: test -n "$FIREBASE_PROJECT_ID" || { echo "Set repository variable FIREBASE_PROJECT_ID"; exit 1; }
+
       - name: Install dependencies
-        run: npm ci
-
-      - name: Build
-        run: npm run build
-
-      - name: Deploy to Firebase Hosting and Database Rules
-        run: npx firebase-tools deploy --only hosting:admin,database --token "${{ secrets.FIREBASE_TOKEN }}"
-
-      - name: Deploy Storage Rules
-        # окремим кроком і continue-on-error: якщо на проєкті ще не увімкнено
-        # Firebase Storage (Console → Build → Storage → Get Started), ця
-        # команда впаде — і НЕ повинна валити критичний деплой hosting/database.
-        continue-on-error: true
-        run: npx firebase-tools deploy --only storage --token "${{ secrets.FIREBASE_TOKEN }}"
-
-      - name: Install functions dependencies
-        # Firebase CLI аналізує functions/index.js ЛОКАЛЬНО (щоб знайти
-        # exports) ще до аплоаду в Cloud Build — для цього йому треба
-        # firebase-functions/firebase-admin у functions/node_modules. Корене-
-        # вий "npm ci" вище ставить залежності лише адмінки, не functions/ —
-        # без цього кроку "Deploy Cloud Functions" падав з "Couldn't find
-        # firebase-functions package", і жодна зміна в Cloud Functions
-        # ніколи не виїжджала (continue-on-error нижче це мовчки ховав).
-        run: cd functions && npm ci
-
-      - name: Deploy Cloud Functions (пуші, записи, слоти, чат)
-        # Усі функції, КРІМ платіжних. Раніше один спільний крок "--only functions"
-        # мав continue-on-error: поки LIQPAY_*/MONOBANK_TOKEN не задані в Secret
-        # Manager, firebase-tools відхиляв ВЕСЬ деплой функцій цілком (в CI без
-        # підтвердження) — тож жодна зміна пушів/слотів не виїжджала, а CI лишався
-        # зеленим. Тепер основні функції деплояться окремо і БЕЗ continue-on-error:
-        # якщо вони не виїхали — CI червоніє, а не мовчить.
-        env:
-          GCLOUD_PROJECT: drivepad-86fe1
-          FIREBASE_CONFIG: '{"projectId":"drivepad-86fe1","databaseURL":"https://drivepad-86fe1-default-rtdb.europe-west1.firebasedatabase.app"}'
         run: |
-          CORE=$(cd functions && node -e "console.log(Object.keys(require('./index.js')).filter(n=>!/^(createLiqPayOrder|liqpayCallback|createMonobankInvoice|monobankCallback)\$/.test(n)).map(n=>'functions:'+n).join(','))")
-          echo "Deploying: $CORE"
-          npx firebase-tools deploy --only "$CORE" --token "${{ secrets.FIREBASE_TOKEN }}"
+          npm ci
+          (cd functions && npm ci)
 
-      - name: Deploy Landing (публічний сайт)
-        # Окремо і з continue-on-error: лендинг (папка landing/, сайт drivepad-86fe1.web.app)
-        # не повинен валити критичний деплой адмінки. Іде ПІСЛЯ функцій, бо форма
-        # зв'язку (/api/contact) перенаправляється на функцію submitContact.
-        continue-on-error: true
-        run: npx firebase-tools deploy --only hosting:landing --token "${{ secrets.FIREBASE_TOKEN }}"
+      - name: Build admin
+        run: npm run build
+        env:
+          VITE_FIREBASE_API_KEY: ${{ vars.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ vars.VITE_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_DATABASE_URL: ${{ vars.VITE_FIREBASE_DATABASE_URL }}
+          VITE_FIREBASE_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_STORAGE_BUCKET: ${{ vars.VITE_FIREBASE_STORAGE_BUCKET }}
+          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ vars.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+          VITE_FIREBASE_APP_ID: ${{ vars.VITE_FIREBASE_APP_ID }}
+          VITE_CLIENT_URL: ${{ vars.VITE_CLIENT_URL }}
 
-      - name: Deploy Cloud Functions (платежі)
-        # continue-on-error: поки LIQPAY_PUBLIC_KEY/LIQPAY_PRIVATE_KEY/MONOBANK_TOKEN
-        # не задані в Secret Manager проєкту (Google Cloud Console → Security →
-        # Secret Manager, або `firebase functions:secrets:set <NAME>`), цей крок
-        # падатиме — і НЕ повинен валити критичний деплой hosting/database/пушів.
+      - name: Deploy database rules, admin hosting and functions
+        run: npx firebase-tools deploy --project "$FIREBASE_PROJECT_ID" --only hosting:admin,database,functions --token "${{ secrets.FIREBASE_TOKEN }}"
+
+      - name: Deploy storage rules
+        # окремо: якщо Firebase Storage ще не увімкнено в Console, це не має валити основний деплой
         continue-on-error: true
-        run: npx firebase-tools deploy --only functions:createLiqPayOrder,functions:liqpayCallback,functions:createMonobankInvoice,functions:monobankCallback --token "${{ secrets.FIREBASE_TOKEN }}"
+        run: npx firebase-tools deploy --project "$FIREBASE_PROJECT_ID" --only storage --token "${{ secrets.FIREBASE_TOKEN }}"
+
+      - name: Deploy landing
+        continue-on-error: true
+        run: npx firebase-tools deploy --project "$FIREBASE_PROJECT_ID" --only hosting:landing --token "${{ secrets.FIREBASE_TOKEN }}"

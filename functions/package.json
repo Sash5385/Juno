@@ -1,6 +1,6 @@
 {
   "name": "functions",
-  "description": "Cloud Functions for DrivePad admin",
+  "description": "Cloud Functions for Juno",
   "engines": { "node": "22" },
   "main": "index.js",
   "dependencies": {

@@ -39,21 +39,6 @@
       ],
       "rewrites": [
         {
-          "source": "/api/liqpay-order",
-          "function": "createLiqPayOrder",
-          "region": "europe-west1"
-        },
-        {
-          "source": "/api/monobank-invoice",
-          "function": "createMonobankInvoice",
-          "region": "europe-west1"
-        },
-        {
-          "source": "/api/delete-account",
-          "function": "deleteAccount",
-          "region": "europe-west1"
-        },
-        {
           "source": "/api/report-error",
           "function": "reportError",
           "region": "europe-west1"

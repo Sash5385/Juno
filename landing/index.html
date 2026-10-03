@@ -3,224 +3,94 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>DrivePad — онлайн-запис і розклад для інструкторів з водіння</title>
-<meta name="description" content="DrivePad — застосунок для інструкторів з водіння: онлайн-запис учнів, календар, нагадування, черга на заняття, облік учнів. 14 днів безкоштовно. 299 ₴/міс або 2999 ₴/рік.">
+<title>Juno — онлайн-запис для салонів і майстрів</title>
+<meta name="description" content="Juno — розклад, онлайн-запис, передоплата і нагадування для салонів краси, барбершопів і майстрів. Клієнти записуються самі.">
 <meta name="theme-color" content="#161719">
 <link rel="icon" href="img/favicon.svg" type="image/svg+xml">
-<link rel="alternate" hreflang="en" href="en/">
-<meta property="og:title" content="DrivePad — онлайн-запис для інструкторів з водіння">
-<meta property="og:description" content="Учні записуються самі, а ви бачите весь розклад в одному місці. 14 днів безкоштовно.">
+<meta property="og:title" content="Juno — онлайн-запис для салонів і майстрів">
+<meta property="og:description" content="Клієнти записуються самі, а ви бачите весь розклад в одному місці.">
 <meta property="og:type" content="website">
-<meta property="og:image" content="https://drivepad-86fe1.web.app/img/og-image.png">
-<meta property="og:image:width" content="1200">
-<meta property="og:image:height" content="630">
-<meta name="twitter:card" content="summary_large_image">
-<link rel="stylesheet" href="css/style.css">
-<link rel="stylesheet" href="css/fx.css">
-<link rel="stylesheet" href="css/fonts.css">
+<meta property="og:image" content="img/og-image.png">
+<style>
+:root{--bg:#161719;--surf:#26282c;--text:#e8e8ea;--dim:#8b8d93;--acc:#ff5a3c;--acc2:#ff7a5c}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:960px;margin:0 auto;padding:0 16px}
+header .wrap{display:flex;align-items:center;justify-content:space-between;padding-top:16px;padding-bottom:16px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:20px;color:var(--text);text-decoration:none}
+.brand img{width:32px;height:32px;border-radius:8px}
+.btn{display:inline-block;padding:12px 20px;border-radius:12px;background:var(--acc);color:#fff;font-weight:700;text-decoration:none;border:0;font:inherit;cursor:pointer}
+.btn:hover{background:var(--acc2)}
+.hero{padding:56px 0 40px}
+.eyebrow{color:var(--acc2);font-weight:700;font-size:14px;text-transform:uppercase;letter-spacing:.06em}
+h1{font-size:clamp(30px,6vw,48px);line-height:1.1;margin:12px 0 16px;letter-spacing:-.02em}
+h1 em{font-style:normal;color:var(--acc)}
+.lead{color:var(--dim);font-size:18px;max-width:620px;margin:0 0 24px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin:16px 0 48px}
+.card{background:var(--surf);border-radius:16px;padding:18px}
+.card b{display:block;margin-bottom:6px}
+.card span{color:var(--dim);font-size:15px}
+h2{font-size:26px;margin:0 0 16px}
+form{display:grid;gap:10px;max-width:480px;margin-bottom:48px}
+input,textarea{width:100%;padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,.1);background:var(--surf);color:var(--text);font:inherit}
+.hp{position:absolute;left:-9999px}
+#msg{color:var(--dim);min-height:1.4em}
+footer{border-top:1px solid rgba(255,255,255,.06);padding:20px 0;color:var(--dim);font-size:14px}
+</style>
 </head>
 <body>
-<header><div class="wrap nav">
-  <a class="brand" href="./"><img src="img/icon-192.png" alt="">DrivePad</a>
-  <nav class="nav-links">
-    <a class="hide-m" href="#features">Можливості</a><a class="hide-m" href="#pricing">Ціни</a><a class="hide-m" href="#faq">Питання</a><a class="hide-m" href="#contact">Контакти</a>
-    <a class="lang" href="en/">EN</a>
-    <a class="btn btn-primary btn-sm" data-app href="#">Спробувати</a>
-  </nav>
+<header><div class="wrap">
+  <a class="brand" href="./"><img src="img/icon-192.png" alt="">Juno</a>
+  <a class="btn" data-app href="#">Увійти</a>
 </div></header>
-
-<main>
-<section class="hero"><div class="wrap hero-grid">
-  <div>
-    <span class="eyebrow">Для інструкторів з водіння</span>
-    <h1>Учні записуються <em>самі</em>. Ви — просто їдете на урок.</h1>
-    <p class="lead">DrivePad — розклад, онлайн-запис, нагадування й облік учнів в одному застосунку. Без дзвінків, листування й порожніх «вікон» у графіку.</p>
-    <div class="cta-row">
-      <a class="btn btn-primary" data-app href="#">Спробувати 14 днів безкоштовно</a>
-      <a class="btn btn-ghost" href="#how">Як це працює</a>
-    </div>
-    <div class="hero-note">Без прив'язки картки · Налаштування за кілька хвилин · Працює на телефоні</div>
-    <div class="badges"><span class="badge">Автошкола та приватні уроки</span><span class="badge">Без обмежень за учнями</span><span class="badge">Український інтерфейс</span></div>
-  </div>
-  <div class="phones">
-    <div class="phone"><div class="phone-notch"><span></span></div>
-      <div class="shot" data-src="img/admin.webp" data-alt="Розклад інструктора в DrivePad">
-        <div class="mock">
-          <div class="mock-title"><span>Розклад</span><span>Чт 1 жовт</span></div>
-          <div class="mock-grid">
-            <div class="t">09:00</div><div class="slot" style="background:#7ed957;grid-row:span 2">Вікторія<br>1 год</div><div class="slot free">Вільно</div><div class="slot" style="background:#5b9bff">Андрій</div>
-            <div class="t">10:00</div><div class="slot free">Вільно</div><div class="slot empty">.</div>
-            <div class="t">11:00</div><div class="slot" style="background:#f7c948;grid-row:span 2">Ірина<br>2 год</div><div class="slot free">Вільно</div><div class="slot" style="background:#c084fc">Максим</div>
-            <div class="t">12:00</div><div class="slot free">Вільно</div><div class="slot free">Вільно</div>
-            <div class="t">13:00</div><div class="slot" style="background:#2dd4bf">Олена</div><div class="slot free">Вільно</div><div class="slot free">Вільно</div>
-          </div>
-          <div class="toast"><b>📋 Новий запис</b>Олена · Автошкола 1 год<br>01.10 о 13:00</div>
-        </div>
-      </div>
-    </div>
-    <div class="phone sm"><div class="phone-notch"><span></span></div>
-      <div class="shot" data-src="img/client.webp" data-alt="Запис учня на зручний час">
-        <div class="mock">
-          <div class="mock-title"><span>Оберіть час</span><span>Чт, 1 жовтня</span></div>
-          <div class="tiles">
-            <div class="tile mine">07:00<small>ваш</small></div><div class="tile">08:00<small>1 год · 700₴</small></div>
-            <div class="tile">09:00<small>1 год · 700₴</small></div><div class="tile">10:00<small>1 год · 700₴</small></div>
-            <div class="tile taken">11:00</div><div class="tile">13:00<small>1 год · 700₴</small></div>
-            <div class="tile">14:00<small>1 год · 700₴</small></div><div class="tile taken">15:00</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</div></section>
-
-<section class="problem"><div class="wrap">
-  <div class="grid2" style="align-items:center;gap:40px">
-    <div>
-      <span class="eyebrow">Знайомо?</span>
-      <h2 class="sec-title">Розклад в голові, у блокноті та десяти чатах</h2>
-      <p class="sec-sub" style="margin-bottom:0">Кожен запис — це дзвінок або повідомлення. Кожне скасування — порожня година, яку вже не продати.</p>
-    </div>
-    <div>
-      <div class="pain"><span>📞</span><div><b>Постійні дзвінки й чати</b>«Є вільний час?», «А завтра?» — одні й ті самі питання щодня.</div></div>
-      <div class="pain"><span>🕳️</span><div><b>Порожні години після скасувань</b>Вільне вікно не потрапляє тому, хто його чекав.</div></div>
-      <div class="pain"><span>📝</span><div><b>Облік у блокноті</b>Скільки годин відїздив учень, яка знижка, коли був останній урок?</div></div>
-    </div>
-  </div>
-</div></section>
-
-<section id="features"><div class="wrap">
-  <div class="center"><span class="eyebrow">Можливості</span><h2 class="sec-title">Усе, що потрібно інструктору</h2><p class="sec-sub">Один застосунок для розкладу, записів, учнів і нагадувань.</p></div>
-  <div class="grid3">
-    <div class="card"><div class="ico c-red">📅</div><h3>Онлайн-запис 24/7</h3><p>Учень сам обирає вільний час на вашій персональній сторінці. Ви отримуєте сповіщення про новий запис.</p></div>
-    <div class="card"><div class="ico c-green">🗓️</div><h3>Зручний календар</h3><p>Розклад на тиждень, перетягування записів, довгі слоти на 2 години, обід, вихідні, VIP- та приватні слоти, надбавки.</p></div>
-    <div class="card"><div class="ico c-gold">⏰</div><h3>Нагадування учням</h3><p>Автоматичні сповіщення за 24 години та за 2 години до уроку — менше неявок і пропущених занять.</p></div>
-    <div class="card"><div class="ico c-blue">🔔</div><h3>Черга на зайняті слоти</h3><p>Якщо хтось скасував урок, перший у черзі отримує сповіщення і займає звільнений час.</p></div>
-    <div class="card"><div class="ico c-purple">👥</div><h3>Облік учнів</h3><p>Картка кожного учня: контакти, пройдені години, знижка, індивідуальна ціна, нотатки, історія занять і колір у розкладі.</p></div>
-    <div class="card"><div class="ico c-teal">💬</div><h3>Чат і шаблони</h3><p>Спілкування з учнями прямо в застосунку та готові шаблони повідомлень.</p></div>
-  </div>
-  <div class="grid3" style="margin-top:16px">
-    <div class="card"><div class="ico c-gold">💰</div><h3>Ціни й послуги</h3><p>Свої послуги та тарифи, надбавки за зручний час, фіксована ціна окремого слота.</p></div>
-    <div class="card"><div class="ico c-green">📱</div><h3>Працює як застосунок</h3><p>Встановлюється на екран телефона без магазину застосунків. Підходить для Android та iPhone.</p></div>
-    <div class="card"><div class="ico c-red">📊</div><h3>Статистика</h3><p>Скільки занять, учнів і яка виручка за період — видно одразу.</p></div>
-  </div>
-</div></section>
-
-<section id="how"><div class="wrap">
-  <div class="center"><span class="eyebrow">Як це працює</span><h2 class="sec-title">Три кроки до першого запису</h2></div>
-  <div class="steps" style="margin-top:30px">
-    <div class="step"><h3>Зареєструйтесь</h3><p>Створіть акаунт через email або Google, вкажіть ім'я, телефон і адресу вашої сторінки.</p></div>
-    <div class="step"><h3>Налаштуйте розклад</h3><p>Оберіть робочі години, послуги й ціни. Розклад і слоти формуються автоматично.</p></div>
-    <div class="step"><h3>Надішліть учням посилання</h3><p>Учні відкривають вашу сторінку, обирають час і записуються самі — без дзвінків.</p></div>
-  </div>
-</div></section>
-
-<section><div class="wrap show">
-  <div class="phones">
-    <div class="phone"><div class="phone-notch"><span></span></div>
-      <div class="shot" data-src="img/admin2.webp" data-alt="Картка учня">
-        <div class="mock">
-          <div class="mock-title"><span>Учні</span><span>12</span></div>
-          <div style="display:grid;gap:7px">
-            <div class="slot" style="background:#7ed957;padding:9px">Вікторія Р.<br><small>Автошкола · 14/40 год</small></div>
-            <div class="slot" style="background:#5b9bff;padding:9px">Андрій К.<br><small>Приватний · знижка 50₴</small></div>
-            <div class="slot" style="background:#f7c948;padding:9px">Ірина М.<br><small>Автошкола · 28/40 год</small></div>
-            <div class="slot" style="background:#c084fc;padding:9px">Максим Т.<br><small>Приватний</small></div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-  <div>
-    <span class="eyebrow">Для вашої роботи</span>
-    <h2 class="sec-title">Учні — як на долоні</h2>
-    <p class="sec-sub" style="margin-bottom:0">Кольори в розкладі допомагають миттєво бачити, хто на якому занятті. Усе про учня — в одній картці.</p>
-    <ul class="checks">
-      <li>Прогрес автошколи: скільки годин із 40 пройдено</li>
-      <li>Індивідуальні знижки та ціни для окремих учнів</li>
-      <li>Нотатки до заняття та коментар від учня при записі</li>
-      <li>Кольори слотів — автоматично або вручну</li>
-      <li>Особисті події та нагадування в тому ж розкладі</li>
-    </ul>
-  </div>
-</div></section>
-
-<section id="screens"><div class="wrap">
-  <div class="center"><span class="eyebrow">Всередині застосунку</span><h2 class="sec-title">Так це виглядає на телефоні</h2><p class="sec-sub">Розклад, учні, чати й статистика — в одному місці. На знімках демонстраційні дані.</p></div>
-  <div class="gallery" tabindex="0" role="group" aria-label="Знімки екранів застосунку">
-    <figure><div class="phone"><div class="phone-notch"><span></span></div><img src="img/shot-schedule.webp" alt="Розклад інструктора на тиждень у DrivePad" width="540" height="976" loading="lazy" decoding="async"></div><figcaption>Розклад на тиждень<small>VIP, приватні, перший урок, обід — усе видно одразу</small></figcaption></figure>
-    <figure><div class="phone"><div class="phone-notch"><span></span></div><img src="img/shot-chats.webp" alt="Чати з учнями в DrivePad" width="540" height="972" loading="lazy" decoding="async"></div><figcaption>Чати з учнями<small>Особисті діалоги, загальний чат і розсилка</small></figcaption></figure>
-    <figure><div class="phone"><div class="phone-notch"><span></span></div><img src="img/shot-stats.webp" alt="Статистика доходу й уроків у DrivePad" width="540" height="978" loading="lazy" decoding="async"></div><figcaption>Статистика<small>Дохід, уроки й години по днях і місяцях</small></figcaption></figure>
-    <figure><div class="phone"><div class="phone-notch"><span></span></div><img src="img/shot-services.webp" alt="Послуги та ціни в DrivePad" width="540" height="974" loading="lazy" decoding="async"></div><figcaption>Послуги й ціни<small>Автошкола та приватні уроки різної тривалості</small></figcaption></figure>
-    <figure><div class="phone"><div class="phone-notch"><span></span></div><img src="img/shot-templates.webp" alt="Шаблони сповіщень у DrivePad" width="540" height="974" loading="lazy" decoding="async"></div><figcaption>Шаблони сповіщень<small>Нагадування, підтвердження, пропозиція вільного слоту</small></figcaption></figure>
-    <figure><div class="phone"><div class="phone-notch"><span></span></div><img src="img/shot-settings.webp" alt="Робочий графік у DrivePad" width="540" height="968" loading="lazy" decoding="async"></div><figcaption>Робочий графік<small>Години роботи, перерва й дні тижня за вашим шаблоном</small></figcaption></figure>
-  </div>
-</div></section>
-
-<section id="pricing"><div class="wrap">
-  <div class="center"><span class="eyebrow">Ціни</span><h2 class="sec-title">Прозорі тарифи без обмежень</h2><p class="sec-sub">Усі можливості — на обох тарифах. Без обмежень за кількістю учнів і записів.</p></div>
-  <div class="pricing" style="margin-top:34px">
-    <div class="plan"><h3>Місячний</h3><div class="price">299 <small>₴ / місяць</small></div>
-      <ul><li>Усі можливості DrivePad</li><li>Необмежена кількість учнів</li><li>Сповіщення й нагадування</li><li>Оплата карткою, Apple Pay / Google Pay</li></ul>
-      <a class="btn btn-ghost" data-app href="#">Спробувати безкоштовно</a></div>
-    <div class="plan best"><span class="tag">Економія 589 ₴</span><h3>Річний</h3><div class="price">2999 <small>₴ / рік</small></div>
-      <ul><li>Усі можливості DrivePad</li><li>Дешевше за 12 місяців на 589 ₴</li><li>Необмежена кількість учнів</li><li>Оплата карткою, Apple Pay / Google Pay</li></ul>
-      <a class="btn btn-primary" data-app href="#">Спробувати безкоштовно</a></div>
-  </div>
-  <p class="price-note">14 днів безкоштовно · без прив'язки картки · повернення коштів протягом 7 днів — <a href="terms#refund" style="color:var(--acc-hi)">умови</a></p>
-</div></section>
-
-<section id="faq"><div class="wrap">
-  <div class="center"><span class="eyebrow">Питання</span><h2 class="sec-title">Часті запитання</h2></div>
-  <div class="faq" style="margin-top:28px">
-    <details><summary>Чи потрібно щось встановлювати?</summary><p>Ні. DrivePad працює у браузері, а за бажанням його можна додати на головний екран телефона як звичайний застосунок. Окремо встановлювати з магазину нічого не потрібно.</p></details>
-    <details><summary>Що відбувається після 14 безкоштовних днів?</summary><p>Щоб продовжити роботу, потрібно оплатити тариф. Картку під час реєстрації вказувати не потрібно. Якщо не оплатити, акаунт перейде в режим перегляду: ви бачите свої дані, але не можете їх змінювати, а нові записи учнів вимкнено. Після оплати все одразу відновлюється. Дані не видаляються.</p></details>
-    <details><summary>Як учні записуються на урок?</summary><p>Ви надсилаєте учням посилання на вашу сторінку. Вони реєструються, обирають вільний час і записуються. Вам приходить сповіщення.</p></details>
-    <details><summary>Чи є обмеження за кількістю учнів?</summary><p>Ні. Обидва тарифи без обмежень за учнями та записами.</p></details>
-    <details><summary>Як оплатити і чи можна повернути гроші?</summary><p>Оплата карткою, Apple Pay або Google Pay через захищені платіжні сервіси (Monobank). Дані картки ми не зберігаємо. Повернути кошти можна протягом 7 днів після оплати, детальніше в <a href="terms#refund" style="color:var(--acc-hi)">публічній оферті</a>.</p></details>
-    <details><summary>Чи безпечні дані моїх учнів?</summary><p>Дані зберігаються в захищеній хмарній інфраструктурі Google Firebase. Доступ до записів інструктора мають лише він сам та його учні (кожен — до своїх даних). Докладніше — у <a href="privacy" style="color:var(--acc-hi)">політиці конфіденційності</a>.</p></details>
-    <details><summary>Що, якщо мені потрібна допомога?</summary><p>Напишіть нам через форму нижче — ми допоможемо з налаштуванням і відповімо на питання.</p></details>
-  </div>
-</div></section>
-
-<section><div class="wrap"><div class="cta-band">
-  <h2 class="sec-title">Почніть приймати записи вже сьогодні</h2>
-  <p class="sec-sub" style="margin-bottom:22px">14 днів безкоштовно. Без картки. Налаштування займає кілька хвилин.</p>
-  <a class="btn btn-primary" data-app href="#">Спробувати безкоштовно</a>
-</div></div></section>
-
-<section id="contact"><div class="wrap contact">
-  <div>
-    <span class="eyebrow">Контакти</span>
-    <h2 class="sec-title">Є питання? Напишіть нам</h2>
-    <p class="sec-sub" style="margin-bottom:0">Допоможемо з налаштуванням і підкажемо, як почати.</p>
-    <ul class="contact-list">
-      <li data-hide-empty><span data-email></span></li>
-      <li data-hide-empty><span data-phone></span></li>
-      <li data-hide-empty><span data-telegram></span></li>
-    </ul>
-  </div>
-  <form id="contact-form" novalidate>
-    <div><label for="f-name">Ім'я</label><input id="f-name" name="name" autocomplete="name" maxlength="80" required></div>
-    <div><label for="f-email">Email</label><input id="f-email" name="email" type="email" autocomplete="email" maxlength="120" required></div>
-    <div><label for="f-phone">Телефон (необов'язково)</label><input id="f-phone" name="phone" type="tel" autocomplete="tel" maxlength="30"></div>
-    <div><label for="f-msg">Повідомлення</label><textarea id="f-msg" name="message" maxlength="2000" required></textarea></div>
-    <input class="hp" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
-    <div id="form-msg" class="form-msg"></div>
-    <button class="btn btn-primary" type="submit">Надіслати</button>
-    <div style="font-size:12px;color:var(--dim)">Надсилаючи форму, ви погоджуєтесь з <a href="privacy" style="color:var(--acc-hi)">політикою конфіденційності</a>.</div>
-  </form>
-</div></section>
+<main class="wrap">
+  <section class="hero">
+    <span class="eyebrow">Для салонів, барбершопів і майстрів</span>
+    <h1>Клієнти записуються <em>самі</em>. Ви — працюєте.</h1>
+    <p class="lead">Juno — розклад по майстрах, онлайн-запис, передоплата, нагадування і чат з клієнтами в одному застосунку. Без дзвінків і листування.</p>
+    <a class="btn" data-app href="#">Спробувати безкоштовно</a>
+  </section>
+  <section class="grid">
+    <div class="card"><b>Розклад по майстрах</b><span>Кожен майстер бачить лише свої записи, власник — усе.</span></div>
+    <div class="card"><b>Онлайн-запис 24/7</b><span>Клієнт обирає послугу, майстра і вільний час за хвилину.</span></div>
+    <div class="card"><b>Оплата на ваш рахунок</b><span>Передоплата через Monobank — кошти йдуть напряму салону.</span></div>
+    <div class="card"><b>Нагадування і чат</b><span>Push-сповіщення клієнтам і майстрам, чат клієнт ↔ майстер.</span></div>
+    <div class="card"><b>Статистика</b><span>Виручка, завантаження, виручка по майстрах.</span></div>
+    <div class="card"><b>Працює на телефоні</b><span>Встановлюється як застосунок, без App Store.</span></div>
+  </section>
+  <section id="contact">
+    <h2>Напишіть нам</h2>
+    <form id="contact-form">
+      <input class="hp" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+      <input name="name" placeholder="Ім'я" required maxlength="80">
+      <input name="email" type="email" placeholder="Email" required maxlength="120">
+      <input name="phone" placeholder="Телефон (необов'язково)" maxlength="30">
+      <textarea name="message" rows="4" placeholder="Повідомлення" required minlength="5" maxlength="2000"></textarea>
+      <button class="btn" type="submit">Надіслати</button>
+      <div id="msg" role="status"></div>
+    </form>
+  </section>
 </main>
-
-<footer><div class="wrap foot">
-  <div>© <span data-year></span> DrivePad · <span data-fop-name></span></div>
-  <div><a href="terms">Публічна оферта</a><a href="privacy">Політика конфіденційності</a><a href="terms#refund">Повернення коштів</a><a href="#" data-cookie-settings>Налаштування cookie</a></div>
-</div></footer>
-
-<div id="cookie" role="dialog" aria-label="Cookie">
-  <p>Ми використовуємо необхідні cookie для роботи сайту. З вашої згоди — також аналітичні cookie, щоб розуміти, як покращити сайт. Докладніше — у <a href="privacy#cookies">політиці конфіденційності</a>.</p>
-  <div class="row"><button id="cookie-all" class="btn btn-primary btn-sm">Прийняти всі</button><button id="cookie-necessary" class="btn btn-ghost btn-sm">Лише необхідні</button></div>
-</div>
-<script src="js/config.js"></script><script src="js/site.js"></script><script src="js/fx.js"></script>
-</body></html>
+<footer><div class="wrap">© Juno</div></footer>
+<script src="config.js"></script>
+<script>
+(function(){
+  var C = window.JUNO_SITE || {};
+  document.querySelectorAll("[data-app]").forEach(function(a){ a.href = C.appUrl || "#"; });
+  var form = document.getElementById("contact-form"), msg = document.getElementById("msg");
+  form.addEventListener("submit", function(e){
+    e.preventDefault();
+    var data = Object.fromEntries(new FormData(form).entries());
+    msg.textContent = "Надсилаємо…";
+    fetch("/api/contact", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) })
+      .then(function(r){ return r.json().then(function(j){ return { ok: r.ok && j.ok, status: r.status }; }); })
+      .then(function(r){
+        if (r.ok) { msg.textContent = "Дякуємо! Ми відповімо найближчим часом."; form.reset(); }
+        else msg.textContent = r.status === 429 ? "Забагато спроб — спробуйте за хвилину." : "Не вдалося надіслати. Перевірте поля й спробуйте ще раз.";
+      })
+      .catch(function(){ msg.textContent = "Помилка мережі. Спробуйте пізніше."; });
+  });
+})();
+</script>
+</body>
+</html>

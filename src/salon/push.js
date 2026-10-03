@@ -1,8 +1,8 @@
 // Push-токени персоналу: власник → salons/{id}/fcmTokens/{device}, майстер → masterTokens/{masterId}/{device}.
-// Сервер (functions/salon/lib.js) шле data-only push; показує його той самий SW /firebase-messaging-sw.js, що й в DrivePad.
+// Сервер (functions/salon/lib.js) шле data-only push; показує його SW /firebase-messaging-sw.js (конфіг проєкту приходить у query).
 import { getMessaging, getToken, onMessage } from "firebase/messaging";
 import { set } from "firebase/database";
-import { auth } from "../firebase.js";
+import { auth, firebaseConfig } from "../firebase.js";
 import { DEMO } from "../demo/demoMode.js";
 
 function deviceId() {
@@ -21,7 +21,7 @@ export async function registerPush(tokenRefFor) {
     const SCOPE = "/firebase-cloud-messaging-push-scope";
     const regs = await navigator.serviceWorker.getRegistrations();
     const isFb = (r) => (r.active?.scriptURL || r.installing?.scriptURL || r.waiting?.scriptURL || "").includes("firebase-messaging-sw");
-    const swReg = regs.find(isFb) || await navigator.serviceWorker.register("/firebase-messaging-sw.js", { scope: SCOPE });
+    const swReg = regs.find(isFb) || await navigator.serviceWorker.register("/firebase-messaging-sw.js?c=" + encodeURIComponent(JSON.stringify(firebaseConfig)), { scope: SCOPE });
     const token = await getToken(getMessaging(auth.app), { serviceWorkerRegistration: swReg });
     if (!token) return false;
     await set(tokenRefFor(deviceId()), token);

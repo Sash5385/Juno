@@ -1,16 +1,10 @@
 // Смоук-тест у демо-режимі (?demo=1, без Firebase): відкриває застосунок, проходить усі вкладки
 // на вузькому екрані 320px і падає, якщо є помилка JS, порожній екран або горизонтальний скрол.
-// Запуск: node tests/smoke/smoke.mjs <admin|client> [BASE_URL]   (потрібен запущений vite preview)
+// Запуск: node tests/smoke/smoke.mjs [BASE_URL]   (потрібен запущений vite preview)
 import { chromium } from "playwright";
 
-const kind = process.argv[2];
-const base = (process.argv[3] || "http://localhost:4173").replace(/\/$/, "");
-const TABS = {
-  admin: ["Записи", "Журнал", "Учні", "Черга", "Послуги", "Чати", "Шаблони", "Статист.", "Налашт."],
-  client: ["Записи", "Черга", "Чат", "Сповіщення"],
-  salon: ["Календар", "Записи", "Клієнти", "Послуги", "Майстри", "Чати", "Статист.", "Налашт."],
-};
-if (!TABS[kind]) { console.error("usage: smoke.mjs <admin|client|salon> [BASE_URL]"); process.exit(2); }
+const base = (process.argv[2] || "http://localhost:4173").replace(/\/$/, "");
+const TABS = ["Календар", "Записи", "Клієнти", "Послуги", "Майстри", "Чати", "Статист.", "Налашт."];
 
 const browser = await chromium.launch({ executablePath: process.env.PW_CHROMIUM || undefined });
 const page = await (await browser.newContext({ viewport: { width: 320, height: 640 }, serviceWorkers: "block" })).newPage();
@@ -26,12 +20,12 @@ const check = (name, ok, info = "") => { if (!ok) fails++; console.log(`${ok ? "
 const noOverflow = () => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
 const textLen = () => page.evaluate(() => document.body.innerText.trim().length);
 
-await page.goto(`${base}/?demo=1${kind === "salon" ? "&app=salon" : ""}`);
+await page.goto(`${base}/?demo=1`);
 await page.waitForTimeout(2500);
 check("home renders", (await textLen()) > 50, `body text ${await textLen()}`);
 check("home fits 320px", await noOverflow());
 
-for (const tab of TABS[kind]) {
+for (const tab of TABS) {
   const btn = page.locator("button", { hasText: tab }).last();
   const found = (await btn.count()) > 0;
   check(`tab «${tab}» exists`, found);

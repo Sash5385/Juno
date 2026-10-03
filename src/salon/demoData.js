@@ -1,4 +1,4 @@
-// Вигадані дані салону для демо-режиму (?app=salon&demo=1): жодного звернення до справжнього Firebase.
+// Вигадані дані салону для демо-режиму (?demo=1): жодного звернення до справжнього Firebase.
 import { toYMD, addDays, daySlotDocs, DEFAULT_WORK_HOURS, timeToMin, minToTime, slotIdOf } from "../salonLogic.js";
 
 export function buildSalonDemoTree() {

@@ -1,6 +1,5 @@
-// Спільні хелпери Cloud Functions салону (клон DrivePad). Схема і ролі: docs/SALON-SCHEMA.md.
-// Нічого не імпортує з ../index.js (щоб не було циклу) — дрібні хелпери продубльовано свідомо:
-// код інструкторів лишається нетронутим, поки салон живе на окремій гілці.
+// Спільні хелпери Cloud Functions Juno. Схема і ролі: docs/SALON-SCHEMA.md.
+// Нічого не імпортує з ../index.js (щоб не було циклу).
 const admin = require("firebase-admin");
 
 if (!admin.apps.length) admin.initializeApp();
@@ -9,9 +8,9 @@ const REGION = "europe-west1";
 const DEFAULT_TZ = "Europe/Kyiv";
 const VENDOR_EMAIL = "sash5385@gmail.com";
 
-// Адреси застосунків: на окремому Firebase-проєкті (ребрендинг) задаються через .env.<project>
-const adminUrl = () => process.env.SALON_ADMIN_URL || "https://drivepad-admin.web.app";
-const clientUrl = () => process.env.SALON_CLIENT_URL || "https://drivepad-client.web.app";
+// Адреси застосунків: задаються через functions/.env.<project>
+const adminUrl = () => process.env.SALON_ADMIN_URL || "https://juno-admin.web.app";
+const clientUrl = () => process.env.SALON_CLIENT_URL || "https://juno-client.web.app";
 
 const db = () => admin.database();
 const sRef = (salonId, path) => db().ref(path ? `salons/${salonId}/${path}` : `salons/${salonId}`);

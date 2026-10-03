@@ -1,16 +1,15 @@
 // Наскрізний тест Cloud Functions салону на ЕМУЛЯТОРІ Realtime Database — без мережі, FCM, Auth і Monobank (усе підмінено).
-// Запуск (з кореня DrivePad, потрібні firebase-tools і Java):
+// Запуск (з кореня Juno, потрібні firebase-tools і Java):
 //   npx firebase-tools@13 emulators:exec --only database --project demo-salon "node functions/test/salon.e2e.js"
 // Перевіряє: життєвий цикл запису і слоти пер майстер, сповіщення (клієнт/власник/майстер), черга очікування,
 // нагадування, чати, запрошення майстрів, налаштування оплати, рахунок, вебхук Monobank (підпис, ідемпотентність,
-// повернення, чужі запити), таймаут неоплачених записів, ліцензію і прапорець SALON_FUNCTIONS.
+// повернення, чужі запити), таймаут неоплачених записів, ліцензію і набір експортів.
 /* eslint-disable no-useless-assignment */
 process.env.GCLOUD_PROJECT = "demo-salon";
 process.env.FIREBASE_DATABASE_EMULATOR_HOST = process.env.FIREBASE_DATABASE_EMULATOR_HOST || "127.0.0.1:9000";
 process.env.SALON_ADMIN_URL = "https://admin.test";
 process.env.SALON_CLIENT_URL = "https://client.test";
 process.env.SALON_MONOBANK_WEBHOOK_URL = "https://hooks.test/salonMonobankCallback";
-delete process.env.SALON_FUNCTIONS;
 
 const crypto = require("crypto");
 const admin = require("firebase-admin");
@@ -56,7 +55,6 @@ global.fetch = async (url, opts = {}) => {
   return R(false, 404, {});
 };
 
-process.env.SALON_FUNCTIONS = "1";
 const fns = require("../index.js");
 const lib = require("../salon/lib");
 const reminders = require("../salon/reminders");
@@ -125,16 +123,13 @@ async function del(id) { const before = await val(`bookings/${id}`); await sref(
 
 (async () => {
   await loadRules();
-  // ═══ Прапорець SALON_FUNCTIONS ═══
-  console.log("── SALON_FUNCTIONS flag");
+  // ═══ Експорти ═══
+  console.log("── exports");
   const names = Object.keys(fns).filter((k) => k.startsWith("salon"));
-  check("flag on: 19 salon functions exported", names.length === 19, names.join(","));
-  check("salon module exports only functions", names.every((k) => typeof fns[k] === "function"));
-  const clean = require("child_process").spawnSync(process.execPath, ["-e", "const k=Object.keys(require('./index.js')); console.log(k.filter(x=>x.startsWith('salon')).length+':'+k.length)"], {
-    cwd: require("path").join(__dirname, ".."), encoding: "utf8",
-    env: { ...process.env, SALON_FUNCTIONS: "", FIREBASE_CONFIG: JSON.stringify({ projectId: "demo-salon", databaseURL: `http://${process.env.FIREBASE_DATABASE_EMULATOR_HOST}?ns=demo-salon` }) },
-  });
-  check("flag off: no salon functions, production exports untouched", /^0:\d+/.test(clean.stdout.trim()), clean.stdout + clean.stderr);
+  check("19 salon functions exported", names.length === 19, names.join(","));
+  check("exports are only functions", Object.values(fns).every((f) => typeof f === "function"));
+  check("general functions exported: contact form + error monitoring", ["submitContact", "reportError", "cleanupErrorLog"].every((k) => typeof fns[k] === "function"));
+  check("no leftovers from the instructor product", Object.keys(fns).length === 22 && !fns.onBookingChanged && !fns.deleteAccount && !fns.createLiqPayOrder, Object.keys(fns).join(","));
 
   // ═══ Час ═══
   console.log("── localToMs / timezones");

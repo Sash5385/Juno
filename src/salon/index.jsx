@@ -1,4 +1,4 @@
-// Адмінка салону/барбершопу (клон DrivePad): оболонка, роль (власник/майстер), вкладки. Запускається з main.jsx лише в режимі салону.
+// Адмінка Juno (салон/барбершоп/майстри): оболонка, роль (власник/майстер), вкладки.
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { DEMO, demoTheme } from "../demo/demoMode.js";
 import { ThemeContext, getTheme } from "../theme.js";

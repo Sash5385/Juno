@@ -1,15 +1,10 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
-    match /instructors/{iid}/profile.jpg {
+    // Фото салону і майстрів (логотип, аватари, галерея): salons/{salonId}/..., пише лише власник салону
+    match /salons/{salonId}/{allPaths=**} {
       allow read: if true;
-      allow write: if request.auth != null && request.auth.uid == iid
-        && request.resource.size < 5 * 1024 * 1024
-        && request.resource.contentType.matches('image/.*');
-    }
-    match /instructors/{iid}/gallery/{file} {
-      allow read: if true;
-      allow write, delete: if request.auth != null && request.auth.uid == iid
+      allow write, delete: if request.auth != null && request.auth.uid == salonId
         && (request.resource == null || (request.resource.size < 5 * 1024 * 1024
           && request.resource.contentType.matches('image/.*')));
     }
