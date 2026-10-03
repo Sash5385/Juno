@@ -38,6 +38,9 @@ jobs:
       - name: Database rules
         run: npx --yes firebase-tools@13 emulators:exec --only database --project demo-rt "node tests/rules/rules.test.mjs"
 
+      - name: Database rules (salon)
+        run: npx --yes firebase-tools@13 emulators:exec --only database --project demo-rt "node tests/rules/salons.test.mjs"
+
       - name: Payment webhooks
         run: npx --yes firebase-tools@13 emulators:exec --only database --project demo-pay "node functions/test/payments.e2e.js"
 

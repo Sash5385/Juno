@@ -2,6 +2,6 @@
   "name": "drivepad-rules-tests",
   "private": true,
   "type": "module",
-  "scripts": { "test": "cd ../.. && firebase emulators:exec --only database --project demo-rt \"node tests/rules/rules.test.mjs\"" },
+  "scripts": { "test": "cd ../.. && firebase emulators:exec --only database --project demo-rt \"node tests/rules/rules.test.mjs && node tests/rules/salons.test.mjs\"" },
   "devDependencies": { "@firebase/rules-unit-testing": "^3.0.4", "firebase": "^10.14.1", "firebase-tools": "^13.0.0" }
 }

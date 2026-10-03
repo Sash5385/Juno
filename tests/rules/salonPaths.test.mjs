@@ -1,0 +1,16 @@
+import assert from "node:assert/strict";
+import * as P from "../../src/salonPaths.js";
+assert.equal(P.salonPath("s1"), "salons/s1");
+assert.equal(P.salonPath("s1", "profile"), "salons/s1/profile");
+assert.equal(P.salonBookings("s1"), "salons/s1/bookings");
+assert.equal(P.salonBookings("s1", "b1"), "salons/s1/bookings/b1");
+assert.equal(P.salonServices("s1", "cut"), "salons/s1/services/cut");
+assert.equal(P.masterProfile("s1", "m1"), "salons/s1/masters/m1/profile");
+assert.equal(P.masterSlots("s1", "m1"), "salons/s1/timeslots/m1");
+assert.equal(P.masterSlots("s1", "m1", "2026-10-10"), "salons/s1/timeslots/m1/2026-10-10");
+assert.equal(P.masterQueue("s1", "m1", "k"), "salons/s1/queue/m1/k");
+assert.equal(P.masterAuthPath("s1", "u1"), "salons/s1/masterAuth/u1");
+assert.equal(P.salonSlugPath("a"), "salon_slugs/a");
+assert.throws(() => P.salonPath(null), /salonId/);
+assert.throws(() => P.masterSlots("s1", ""), /masterId/);
+console.log("salonPaths: OK");

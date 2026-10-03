@@ -4,6 +4,7 @@ import { getDatabase, goOffline, ref, set } from "firebase/database";
 import { getMessaging, getToken, onMessage } from "firebase/messaging";
 import { getStorage, ref as storageRef } from "firebase/storage";
 import { DEMO } from "./demo/demoMode.js";
+import { salonPath } from "./salonPaths.js";
 
 // Multi-tenant: iid — це uid інструктора, що зараз залогінений. Кожен
 // інструктор бачить і пише тільки у свій instructors/{iid}/... (rules).
@@ -11,6 +12,13 @@ let _iid = null;
 export const setCurrentIid = (id) => { _iid = id; };
 export const getCurrentIid = () => _iid;
 export const iRef = (path) => ref(db, path ? `instructors/${_iid}/${path}` : `instructors/${_iid}`);
+
+// Салон (клон під барбершоп/манікюр): salonId = uid власника, шляхи — src/salonPaths.js, схема — docs/SALON-SCHEMA.md.
+// Поки лише додано: чинний код DrivePad далі працює через iRef.
+let _salonId = null;
+export const setCurrentSalonId = (id) => { _salonId = id; };
+export const getCurrentSalonId = () => _salonId;
+export const sRef = (path) => ref(db, salonPath(_salonId, path));
 
 const firebaseConfig = {
   apiKey: "AIzaSyAJFqq9jMrc2RgkceappeGt9EJ2bM2xKBI",

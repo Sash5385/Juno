@@ -178,6 +178,172 @@
         }
       }
     },
+    // ═══ САЛОН / БАРБЕРШОП / МАНІКЮР (клон DrivePad) ═══════════════════════════════════════
+    // Схема і ролі: docs/SALON-SCHEMA.md. $salonId = uid власника салону (як $iid в instructors).
+    // Ролі: власник (auth.uid === $salonId) — усе; майстер (masterAuth/{uid} = masterId) — лише свій розклад і свої записи;
+    // клієнт (є users/{uid}) — слоти, свої записи, чат. instructors/* вище НЕ змінено.
+    "salon_slugs": {
+      ".read": true,
+      "$slug": {
+        ".write": "auth != null && (data.exists() ? data.child('salonId').val() === auth.uid : newData.child('salonId').val() === auth.uid)"
+      }
+    },
+    "salons": {
+      "$salonId": {
+        ".read": "auth != null && auth.uid === $salonId",
+        // Власник пише у свій вузол, але не може видалити license чи її ключові поля (див. instructors)
+        ".write": "auth != null && auth.uid === $salonId && (!data.child('license/status').exists() || newData.child('license/status').exists()) && (!data.child('license/expiresAt').exists() || newData.child('license/expiresAt').exists()) && (!data.child('license/trialEndsAt').exists() || newData.child('license/trialEndsAt').exists())",
+
+        "profile":  { ".read": true },
+        "services": { ".read": true },
+        // Профілі майстрів публічні (вибір майстра при записі); приватне (комісія, логін) — у masterSettings
+        "masters":  { ".read": true },
+        "masterAuth": {
+          // Прив'язка логіну майстра до masterId пишеться лише власником або Cloud Function (запрошення за кодом)
+          "$uid": { ".read": "auth != null && (auth.uid === $salonId || auth.uid === $uid)" }
+        },
+        "masterSettings": {
+          "$masterId": { ".read": "auth != null && root.child('salons/'+$salonId+'/masterAuth/'+auth.uid).val() === $masterId" }
+        },
+        "masterInvites": { },
+        "masterTokens": {
+          "$masterId": {
+            "$deviceId": { ".write": "auth != null && root.child('salons/'+$salonId+'/masterAuth/'+auth.uid).val() === $masterId" }
+          }
+        },
+        // Слоти ПЕР МАЙСТЕР: timeslots/{masterId}/{date}/{slotId}. Логіка клієнтського запису — як в instructors/timeslots.
+        "timeslots": {
+          "$masterId": {
+            ".read": true,
+            "$date": {
+              "$slotId": {
+                ".write": "auth != null && (auth.uid === $salonId || root.child('salons/'+$salonId+'/masterAuth/'+auth.uid).val() === $masterId || (root.child('salons/'+$salonId+'/users/'+auth.uid).exists() && root.child('salons/'+$salonId+'/masters/'+$masterId+'/profile/active').val() !== false && (data.exists() || newData.child('available').val() === false) && (newData.exists() || (data.child('phantom').val() === true && data.child('bookedBy').val() === auth.uid)) && (data.child('available').val() !== false || data.child('bookedBy').val() === auth.uid) && (newData.child('bookedBy').val() === data.child('bookedBy').val() || newData.child('bookedBy').val() === auth.uid || newData.child('bookedBy').val() === null) && (!data.child('reservedFor').exists() || data.child('reservedFor').val() === auth.uid || data.child('reservedUntil').val() < now) && newData.child('adminBlocked').val() === data.child('adminBlocked').val() && newData.child('vipOnly').val() === data.child('vipOnly').val() && newData.child('privateOnly').val() === data.child('privateOnly').val() && newData.child('surcharge').val() === data.child('surcharge').val() && newData.child('fixedPrice').val() === data.child('fixedPrice').val() && newData.child('lunchOverride').val() === data.child('lunchOverride').val() && newData.child('durMin').val() === data.child('durMin').val() && newData.child('personal').val() === data.child('personal').val()))",
+                "viewing":   { "$uid": { ".write": "auth != null && auth.uid === $uid" } },
+                "offeredTo": { "$uid": { ".write": "auth != null && auth.uid === $uid" } },
+                "reservedFor":   { ".write": "auth != null && data.val() === auth.uid" },
+                "reservedUntil": { ".write": "auth != null && root.child('salons/'+$salonId+'/timeslots/'+$masterId+'/'+$date+'/'+$slotId+'/reservedFor').val() === auth.uid" },
+                "vipOnly": { ".validate": "auth.uid === $salonId || root.child('salons/'+$salonId+'/masterAuth/'+auth.uid).val() === $masterId || newData.val() === data.val()" },
+                "adminBlocked": { ".validate": "auth.uid === $salonId || root.child('salons/'+$salonId+'/masterAuth/'+auth.uid).val() === $masterId || newData.val() === data.val()" },
+                "privateOnly": { ".validate": "auth.uid === $salonId || root.child('salons/'+$salonId+'/masterAuth/'+auth.uid).val() === $masterId || newData.val() === data.val()" },
+                "surcharge": { ".validate": "auth.uid === $salonId || root.child('salons/'+$salonId+'/masterAuth/'+auth.uid).val() === $masterId || newData.val() === data.val()" },
+                "fixedPrice": { ".validate": "auth.uid === $salonId || root.child('salons/'+$salonId+'/masterAuth/'+auth.uid).val() === $masterId || newData.val() === data.val()" },
+                "lunchOverride": { ".validate": "auth.uid === $salonId || root.child('salons/'+$salonId+'/masterAuth/'+auth.uid).val() === $masterId || newData.val() === data.val()" },
+                "durMin": { ".validate": "auth.uid === $salonId || root.child('salons/'+$salonId+'/masterAuth/'+auth.uid).val() === $masterId || newData.val() === data.val()" }
+              }
+            }
+          }
+        },
+        // Записи — плоский список. Читання лише запитом по своєму ключу: клієнт (clientUid) або майстер (masterId).
+        "bookings": {
+          ".indexOn": ["clientUid", "masterId", "date"],
+          ".read": "auth != null && (auth.uid === $salonId || auth.token.email === 'sash5385@gmail.com' || (query.orderByChild === 'clientUid' && query.equalTo === auth.uid) || (root.child('salons/'+$salonId+'/masterAuth/'+auth.uid).exists() && query.orderByChild === 'masterId' && query.equalTo === root.child('salons/'+$salonId+'/masterAuth/'+auth.uid).val()))",
+          "$bookingId": {
+            ".read": "auth != null && (data.child('clientUid').val() === auth.uid || (root.child('salons/'+$salonId+'/masterAuth/'+auth.uid).exists() && data.child('masterId').val() === root.child('salons/'+$salonId+'/masterAuth/'+auth.uid).val()))",
+            // Майстер пише лише записи СВОГО masterId. Клієнт: створює pending-запис (майстер активний, послуга
+            // дозволена цьому майстру, ціна = каталожна, без paymentStatus), далі лише підтверджує/оцінює/скасовує.
+            ".write": "(auth != null && root.child('salons/'+$salonId+'/masterAuth/'+auth.uid).exists() && (!data.exists() || data.child('masterId').val() === root.child('salons/'+$salonId+'/masterAuth/'+auth.uid).val()) && (!newData.exists() || newData.child('masterId').val() === root.child('salons/'+$salonId+'/masterAuth/'+auth.uid).val())) || (auth != null && root.child('salons/'+$salonId+'/users/'+auth.uid).exists() && (data.exists() ? data.child('clientUid').val() === auth.uid : newData.child('clientUid').val() === auth.uid) && (!data.exists() || (newData.exists() && newData.child('clientUid').val() === auth.uid && (!data.child('price').exists() || newData.child('price').exists()) && (!data.child('debtAmount').exists() || newData.child('debtAmount').exists()) && (!data.child('manualPrice').exists() || newData.child('manualPrice').exists()) && (!data.child('status').exists() || newData.child('status').exists()) && (!data.child('createdBy').exists() || newData.child('createdBy').exists()) && (!data.child('date').exists() || newData.child('date').exists()) && (!data.child('time').exists() || newData.child('time').exists()) && (!data.child('durationMin').exists() || newData.child('durationMin').exists()) && (!data.child('masterId').exists() || newData.child('masterId').exists()) && (!data.child('serviceId').exists() || newData.child('serviceId').exists()) && (!data.child('clientUid').exists() || newData.child('clientUid').exists()) && (!data.child('paymentStatus').exists() || newData.child('paymentStatus').exists()) && (!data.child('paymentMethod').exists() || newData.child('paymentMethod').exists()) && (!data.child('depositAmount').exists() || newData.child('depositAmount').exists()))) && (data.exists() || (newData.child('status').val() === 'pending' && !newData.child('createdBy').exists() && !newData.child('paymentStatus').exists() && root.child('salons/'+$salonId+'/masters/'+newData.child('masterId').val()+'/profile/active').val() !== false && root.child('salons/'+$salonId+'/services/'+newData.child('serviceId').val()+'/masterIds/'+newData.child('masterId').val()).val() === true && newData.child('price').val() === root.child('salons/'+$salonId+'/services/'+newData.child('serviceId').val()+'/price').val())))",
+            "$key": {
+              ".validate": "auth.uid === $salonId || root.child('salons/'+$salonId+'/masterAuth/'+auth.uid).val() !== null && root.child('salons/'+$salonId+'/masterAuth/'+auth.uid).exists() || newData.val() === data.val() || (!data.parent().exists() && ($key === 'id' || $key === 'date' || $key === 'time' || $key === 'masterId' || $key === 'serviceId' || $key === 'serviceName' || $key === 'price' || $key === 'durationMin' || $key === 'clientUid' || $key === 'clientName' || $key === 'phone' || $key === 'clientNote' || $key === 'rescheduledFrom' || $key === 'createdAt' || ($key === 'paymentMethod' && (newData.val() === 'online' || newData.val() === 'onsite')) || ($key === 'status' && newData.val() === 'pending'))) || (data.parent().exists() && ($key === 'clientConfirmed' || $key === 'rating' || $key === 'goals' || $key === 'clientNote' || $key === 'cancelledAt' || ($key === 'cancelledBy' && (newData.val() === 'client' || newData.val() === 'reschedule')) || ($key === 'status' && newData.val() === 'cancelled')))"
+            }
+          }
+        },
+        "bookings_by_phone": {
+          "$phone": {
+            ".read": "auth != null && auth.uid === $salonId",
+            ".write": "auth != null && auth.uid === $salonId"
+          }
+        },
+        // Черга очікування пер майстер: queue/{masterId}/{slotKey}/entries/{uid}
+        "queue": {
+          "$masterId": {
+            ".read": "auth != null && (auth.uid === $salonId || root.child('salons/'+$salonId+'/masterAuth/'+auth.uid).val() === $masterId || root.child('salons/'+$salonId+'/users/'+auth.uid).exists())",
+            "$slotKey": {
+              "entries": {
+                "$uid": {
+                  ".write": "auth != null && (auth.uid === $uid || auth.uid === $salonId || root.child('salons/'+$salonId+'/masterAuth/'+auth.uid).val() === $masterId)"
+                }
+              }
+            }
+          }
+        },
+        "userQueue": {
+          "$uid": {
+            ".read": "auth != null && (auth.uid === $uid || auth.uid === $salonId)",
+            ".write": "auth != null && (auth.uid === $uid || auth.uid === $salonId)"
+          }
+        },
+        // Клієнти салону. Клієнт НЕ змінює isVip/discount/blocked/customPrice/notes/badges — лише анкету і службові гілки.
+        "users": {
+          "$uid": {
+            ".read": "auth != null && (auth.uid === $uid || auth.uid === $salonId)",
+            "profile":     { ".write": "auth != null && auth.uid === $uid" },
+            "welcomeSent": { ".write": "auth != null && auth.uid === $uid" },
+            "queueOffers": { ".write": "auth != null && auth.uid === $uid" },
+            "fcmTokens":   { ".write": "auth != null && auth.uid === $uid" },
+            "customPrice": { ".validate": "auth.uid === $salonId || newData.val() === data.val()" }
+          }
+        },
+        // Чати: салон ↔ клієнт (майстри поки без доступу — окреме рішення, див. docs/SALON-SCHEMA.md)
+        "chats": {
+          "general": {
+            ".read": "auth != null && (auth.uid === $salonId || root.child('salons/'+$salonId+'/users/'+auth.uid).exists())",
+            ".write": "auth != null && (auth.uid === $salonId || root.child('salons/'+$salonId+'/users/'+auth.uid).exists())"
+          },
+          "$uid": {
+            ".read": "auth != null && (auth.uid === $uid || auth.uid === $salonId)",
+            ".write": "auth != null && (auth.uid === $uid || auth.uid === $salonId)"
+          }
+        },
+        "chatMeta": {
+          "general": {
+            ".read": "auth != null && (auth.uid === $salonId || root.child('salons/'+$salonId+'/users/'+auth.uid).exists())",
+            ".write": "auth != null && (auth.uid === $salonId || root.child('salons/'+$salonId+'/users/'+auth.uid).exists())"
+          },
+          "$uid": {
+            ".read": "auth != null && (auth.uid === $uid || auth.uid === $salonId)",
+            ".write": "auth != null && (auth.uid === $uid || auth.uid === $salonId)"
+          }
+        },
+        "notifications": {
+          "$uid": {
+            ".read": "auth != null && auth.uid === $uid",
+            ".write": "auth != null && (auth.uid === $uid || auth.uid === $salonId)"
+          }
+        },
+        "settings":   { ".read": "auth != null && auth.uid === $salonId" },
+        "dayNotes":   { ".read": "auth != null && auth.uid === $salonId" },
+        "reviews":    { ".read": true },
+        "clientTokens": {
+          "$uid": { ".write": "auth != null && auth.uid === $uid" }
+        },
+        // Службові гілки лише для Cloud Functions (admin SDK): правил для клієнтів немає
+        "push_tasks": { },
+        "adminPush": { },
+        "slotBookings": { },
+        "pushTemplates": { },
+        "pushLog": { },
+        "invites": { },
+        "payments": { },
+        "fcmTokens": {
+          "$deviceId": { ".write": "auth != null && auth.uid === $salonId" }
+        },
+        "license": {
+          ".read": "auth != null && (auth.uid === $salonId || auth.token.email === 'sash5385@gmail.com')",
+          ".write": "auth != null && auth.token.email === 'sash5385@gmail.com'",
+          "status":      { ".validate": "auth.token.email === 'sash5385@gmail.com' || (!data.exists() && newData.val() === 'trial')" },
+          "trialEndsAt": { ".validate": "auth.token.email === 'sash5385@gmail.com' || (!data.exists() && newData.isNumber() && newData.val() <= now + 1296000000)" },
+          "expiresAt":   { ".validate": "auth.token.email === 'sash5385@gmail.com'" },
+          "provider":    { ".validate": "auth.token.email === 'sash5385@gmail.com'" },
+          "lastPaymentAt": { ".validate": "auth.token.email === 'sash5385@gmail.com'" }
+        }
+      }
+    },
+    "salon_index": {
+      ".read": "auth != null && auth.token.email === 'sash5385@gmail.com'",
+      "$salonId": {
+        ".write": "auth != null && auth.uid === $salonId"
+      }
+    },
     "system": {
       ".read": "auth != null && auth.token.email === 'sash5385@gmail.com'",
       ".write": "auth != null && auth.token.email === 'sash5385@gmail.com'"

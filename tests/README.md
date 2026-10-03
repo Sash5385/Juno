@@ -12,6 +12,13 @@ cd tests/rules && npm install && npm test
 адмінські поля слота незмінні, справжній слот не видалити, «вільний» слот не створити.
 **Після будь-якої зміни правил прогнати тест до деплою.**
 
+### Правила салону (`salons/*`)
+```bash
+npx firebase-tools emulators:exec --only database --project demo-rt "node tests/rules/salons.test.mjs"
+```
+Ролі власник / майстер / клієнт: майстер бачить і пише лише свій `masterId` (слоти, записи, черга, токени), клієнт створює лише
+`pending`-запис з каталожною ціною для дозволеного майстра і не може чіпати `paymentStatus`/ціну/`masterId`, `license` — як в `instructors`.
+
 ## Платіжні вебхуки (LiqPay, Monobank)
 ```bash
 cd functions && npm install && cd ..
