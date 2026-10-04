@@ -5,6 +5,7 @@ import { Card, Modal, Btn, Field, Toggle, ModalSection, Pill } from "../../ui.js
 import { useSalon } from "../ctx.js";
 import { sref, useValue, toList } from "../data.js";
 import BookingSheet from "../BookingSheet.jsx";
+import Broadcast from "../Broadcast.jsx";
 import { Empty, Spinner, statusOf, money, dateLabel, initials, useTh, Row } from "../kit.jsx";
 import { bookingSort } from "../../salonLogic.js";
 
@@ -14,6 +15,7 @@ export default function Clients() {
   const users = useValue(() => sref(ctx.salonId, "users"), [ctx.salonId]);
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(null);
+  const [bc, setBc] = useState(false);
   const list = useMemo(() => {
     const s = q.trim().toLowerCase();
     return toList(users.value).map((u) => ({ uid: u.id, name: u.profile?.name || "Без імені", phone: u.profile?.phone || "", blocked: !!u.blocked, notes: u.notes || "" }))
@@ -21,6 +23,7 @@ export default function Clients() {
   }, [users.value, q]);
   return (
     <div>
+      <Btn variant="ghost" style={{ marginBottom: 10 }} onClick={() => setBc(true)}>📣 Розсилка клієнтам</Btn>
       <Field value={q} onChange={setQ} placeholder="Пошук клієнта: ім'я або телефон" style={{ marginBottom: 12 }} />
       {users.loading ? <Spinner /> : list.length === 0 ? <Empty icon="👥" text={q ? "Нічого не знайдено" : "Клієнти з'являться, коли зареєструються за вашим посиланням для запису"} /> : (
         <>
@@ -40,6 +43,7 @@ export default function Clients() {
         </>
       )}
       {open && <ClientSheet client={open} onClose={() => setOpen(null)} />}
+      {bc && <Broadcast onClose={() => setBc(false)} />}
     </div>
   );
 }

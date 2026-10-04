@@ -23,10 +23,12 @@ salon_billing/{salonId}/{paymentId}           оплати підписки пл
 salon_secrets/{salonId}: {monobankToken}      ТІЛЬКИ сервер (правил немає) — токен мерчанта Monobank
 master_memberships/{uid}/{salonId}: masterId  де працює майстер (пише сервер при прийнятті запрошення, читає сам майстер)
 salons/{salonId}/                             salonId = uid власника
-  profile: {name, slug, phone, address, about, timezone, slotStep, ..., payment}    публічно
+  profile: {name, slug, phone, address, about, timezone, slotStep, logo, slotFreedPush, ..., payment}    публічно; logo — URL у Storage
     payment: {enabled, depositPercent, allowFull, holdMinutes, cancelFreeHours, autoConfirm, hasToken, tokenLast4}
   license: {status, expiresAt, trialEndsAt, provider, tier, masterLimit, monthKop, lastPaymentId, ...}  (SaaS-підписка власника; пише сервер/суперадмін)
-  masters/{masterId}/profile: {name, spec, active, order, workHours:[7×{from,to,off}], photo}   публічно
+  masters/{masterId}/profile: {name, spec, active, order, workHours:[7×{from,to,off}], photo, createdAt, activatedAt}   публічно; photo — URL у Storage
+  slotFreedQueue/{masterId_date_HHMM}, lastSlotNotif/{uid}   ТІЛЬКИ сервер: черга «звільнився час» і ліміт 30 хв на клієнта
+  pushTemplates/{id}: {name,title,body}, pushLog/{id}: {title,body,sentAt,recipients,sent}   шаблони й журнал розсилок (власник)
   masterAuth/{uid}: masterId                  логін майстра → masterId; пише власник або Cloud Function
   masterSettings/{masterId}: {uid, commissionPct, ...}      власник + сам майстер (читання); uid — Firebase uid майстра
   masterInvites/{secret}: {masterId, expiresAt, claimedBy}  власник / Cloud Function
@@ -85,12 +87,16 @@ salons/{salonId}/                             salonId = uid власника
 | `salonOnQueueInvite`, `salonOnAdminSlotOpened`, `salonCascadeQueueInvites` | черга очікування пер майстер: пропозиція на 30 хв, каскад на наступного, запрошення при розблокуванні слота |
 | `salonSendReminders` (5 хв), `salonFlushRescheduleQueue` (1 хв) | нагадування за 24 год / 2 год (тихі години 23–06 за часовим поясом салону), відкладені сповіщення про перенесення |
 | `salonOnClientMessage`, `salonOnOwnerMessage`, `salonOnMasterChatMessage` | push про повідомлення в чатах |
-| `salonOnProfileCreated`, `salonOnClientRegistered`, `salonCheckLicenseExpiry` | реєстр `salon_index`, новий клієнт, термін підписки (попередження → пільгова доба → `suspended`) |
+| `salonOnProfileCreated`, `salonOnClientRegistered`, `salonCheckLicenseExpiry` | реєстр `salon_index`, новий клієнт (+ прив'язка записів без акаунта за **підтвердженим SMS** телефоном, від −30 діб), термін підписки (попередження → пільгова доба → `suspended`) |
 | `salonCreateMasterInvite`, `salonClaimMasterInvite` | запрошення майстра: код `{salonId}.{secret}` на 72 год (до 7 діб), одноразовий; прийняття прив'язує `masterAuth/{uid}` |
 | `salonSavePaymentSettings` | власник підключає свій токен Monobank (перевіряється запитом ключа), вмикає оплату, задає передоплату/утримання/автопідтвердження |
 | `salonCreateBookingInvoice` | клієнт отримує сторінку оплати Monobank (передоплата `%` або повна/залишок); повторний клік віддає той самий рахунок |
 | `salonMonobankCallback` | вебхук: підпис ключем САМЕ цього салону, ідемпотентність, порядок подій, звірка суми, `paymentStatus`, повернення |
 | `salonRefundBooking` | ручне повернення власником (виняток із політики): усі ще не повернені платежі запису |
+| `salonOnSlotFreed`, `salonFlushSlotFreedQueue` (1 хв) | слот звільнився (скасування) у найближчі 10 днів → через 5 хв, якщо ще вільний, push усім клієнтам зі сповіщеннями (не частіше 30 хв на клієнта, не вночі, не в режимі читання); вимикається `profile/slotFreedPush=false` |
+| `salonSendBroadcast` | ручна розсилка власника всім клієнтам зі сповіщеннями: `{title, body}`, `{ім'я}` підставляється, до 5 на добу, журнал `pushLog` |
+| `salonDeleteAccount` | `{type:"client", salonId?}` — дані клієнта (майбутні записи скасовуються, чат/сповіщення/черга видаляються, минулі записи знеособлюються) + обліковий запис; `{type:"owner"}` — архів у Storage `backups/deleted/…` (без токена Monobank) і видалення салону, slug, секретів, журналу підписки, файлів, облікового запису |
+| `salonNightlyBackup` (03:00 Київ) | JSON-копія кожного салону в Storage `backups/{дата}/{salonId}.json` (без чатів, слотів, токенів), 30 діб; працює лише коли суперадмін виставив `system/backupEnabled = true` |
 | `salonExpireUnpaidBookings` (5 хв) | неоплачений онлайн-запис `pending` знімається через `holdMinutes` (за відкритого рахунку — ще до 15 хв) |
 
 ### Оплата клієнтом (Monobank, гроші йдуть салону)
@@ -129,6 +135,11 @@ salons/{salonId}/                             salonId = uid власника
 Розрахунок (`quote`): пробний/прострочена → період від кінця пробного (якщо діє) або від зараз; той самий чи нижчий тариф при діючій підписці → період додається в кінець; **вищий** тариф → залишок старого (за `license.monthKop`) іде знижкою, новий період від сьогодні. Знизити тариф можна, лише коли активних майстрів не більше за новий ліміт.
 Повернення платежу платформою (`reversed`): якщо це останній платіж — ліцензія відкочується до `prevLicense` з журналу, інакше `needsReview`.
 Журнал — `salon_billing/{salonId}/{paymentId}` (пише лише сервер, читає власник). Поля `license.masterLimit/tier/monthKop/...` правила дозволяють писати лише суперадміну (сервер — Admin SDK).
+
+### Фото салону й майстрів (Firebase Storage)
+Файли — `salons/{salonId}/logo-{ts}.jpg` і `salons/{salonId}/masters/{masterId}-{ts}.jpg` (`storage.rules`: читають усі, пише лише власник салону, до 5 МБ, лише `image/*`).
+Адмінка стискає знімок у браузері (до 900 px, JPEG) і зберігає URL у `profile/logo` та `masters/{id}/profile/photo`; старий файл видаляється після збереження.
+Клієнт показує логотип і фото на публічній сторінці салону, у виборі майстра й у списку чатів. Storage потрібно один раз увімкнути в Firebase Console.
 
 ### Конфігурація
 `functions/index.js` експортує `./salon` і `./monitoring` (форма зв'язку лендингу, журнал помилок). Адреси застосунків — `functions/.env.<project>`:
@@ -171,9 +182,10 @@ Slug запам'ятовується (localStorage + cookie для ярлика 
 Ризик, відомий і прийнятий: якщо вкладку закрити між захопленням слотів і створенням броні (мілісекунди), слоти лишаться «зайнятими» без броні — власник може розблокувати їх у календарі.
 
 ## Відкриті питання
-0. Адмінка й клієнт поки лише українською; фото майстрів/логотип (Storage) не реалізовані; rewrites `/api/*` для Functions у `firebase.json` не додавались (клієнт і адмінка викликають `cloudfunctions.net` напряму); `notifications/{uid}` клієнт лише читає (пишуть Functions).
+0. Адмінка й клієнт поки лише українською; галереї робіт немає (лише логотип і фото майстрів); rewrites `/api/*` для Functions у `firebase.json` не додавались (клієнт і адмінка викликають `cloudfunctions.net` напряму); `notifications/{uid}` клієнт лише читає (пишуть Functions).
 1. **Знижки/VIP/`discountAmt`** — відкладено (рішення пізніше). Ціна запису зараз строго = каталожна/персональна ціна майстра.
 2. Підписка: ціни тимчасові (затвердити), рекурентного автосписання немає (власник платить вручну на період), рахунок-фактури/чеки (ПРРО) не формуються.
-3. Ще не перенесено з DrivePad (код — у гілці `main`): розсилка «звільнився слот» (`onSlotFreed`), розблокування VIP-слотів, `push_tasks`, шаблони повідомлень,
-   нагадування по нотатках дня/особистих подіях, злиття запрошених клієнтів за телефоном, видалення акаунта, нічний бекап.
+3. Перенесено з DrivePad: «звільнився слот», ручна розсилка й шаблони, прив'язка записів за телефоном, видалення акаунта, нічна копія. Свідомо НЕ перенесено:
+   розблокування VIP-слотів (разом зі знижками/VIP — рішення відкладено), нотатки дня з нагадуванням, автошаблони повідомлень (welcome/нагадування з редагованим текстом),
+   кнопка «зробити копію зараз» у суперадмінці (тумблер `system/backupEnabled` і статус `system/backupStatus` — вручну в базі).
 4. LiqPay/Monobank-оплата ліцензії DrivePad видалена; підписка Juno — розділ «Підписка салону на платформу».

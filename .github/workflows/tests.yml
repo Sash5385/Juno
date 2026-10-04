@@ -41,6 +41,9 @@ jobs:
       - name: Subscription billing (tariffs, Monobank webhook, master limit)
         run: npx --yes firebase-tools@13 emulators:exec --only database --project demo-billing "node functions/test/billing.e2e.js"
 
+      - name: Outreach, account deletion, backups
+        run: npx --yes firebase-tools@13 emulators:exec --only database --project demo-outreach "node functions/test/outreach.e2e.js"
+
       - name: Error monitoring
         run: npx --yes firebase-tools@13 emulators:exec --only database --project demo-mon "node functions/test/monitoring.e2e.js"
 

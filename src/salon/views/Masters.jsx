@@ -5,7 +5,9 @@ import { Card, Modal, Btn, Field, Toggle, ModalSection, Pill } from "../../ui.js
 import { useSalon } from "../ctx.js";
 import { sref, useValue, regridMaster, resetGridMark } from "../data.js";
 import { callFn, errText } from "../api.js";
-import { Empty, Input, Row, Hint, Confirm, initials, useTh } from "../kit.jsx";
+import { Empty, Input, Row, Hint, Confirm, Avatar, useTh } from "../kit.jsx";
+import PhotoField from "../PhotoField.jsx";
+import { removeSalonImage } from "../photo.js";
 import { normWorkHours, DEFAULT_WORK_HOURS } from "../../salonLogic.js";
 import { useSubscription } from "../subscription.js";
 
@@ -35,7 +37,7 @@ export default function Masters() {
         return (
           <Card key={m.id} onClick={() => setEdit({ id: m.id, ...p, workHours: wh })} style={{ marginBottom: 8, cursor: "pointer", opacity: p.active === false ? 0.55 : 1 }}>
             <Row gap={10} style={{ padding: "10px 12px" }}>
-              <div style={{ width: 42, height: 42, borderRadius: 14, background: `color-mix(in srgb, ${th.PURPLE} 28%, transparent)`, color: th.PURPLE, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, flexShrink: 0 }}>{initials(p.name)}</div>
+              <Avatar url={p.photo} name={p.name} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 14, fontWeight: 800, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name || "Майстер"}</div>
                 <div style={{ fontSize: 12, color: th.DIM, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.spec || "—"} · {workDays || "вихідні"}</div>
@@ -61,18 +63,20 @@ function MasterSheet({ master, limitFull, onClose, linkedUid, ownerBound }) {
   const [invite, setInvite] = useState(null);
   const [unlink, setUnlink] = useState(false);
   const isNew = !master.id;
+  const [mid] = useState(() => master.id || push(sref(ctx.salonId, "masters")).key); // id потрібен до збереження — під шлях фото
   const setDay = (i, patch) => setM({ ...m, workHours: m.workHours.map((d, k) => (k === i ? { ...d, ...patch } : d)) });
 
   const save = async () => {
     setBusy(true);
     try {
-      const id = m.id || push(sref(ctx.salonId, "masters")).key;
+      const id = mid;
       // Сервер лишає в межах ліміту найстаріших за activatedAt/createdAt; повернення прихованого в роботу — нова активація
       const wasActive = !isNew && master.active !== false;
       const active = m.active !== false && (wasActive || !limitFull);
       const now = Date.now();
-      const profile = { name: m.name.trim(), spec: (m.spec || "").trim(), active, order: m.order ?? ctx.masters.length, workHours: m.workHours, createdAt: m.createdAt || now, activatedAt: active ? (wasActive && m.activatedAt ? m.activatedAt : now) : m.activatedAt || null };
+      const profile = { name: m.name.trim(), spec: (m.spec || "").trim(), active, order: m.order ?? ctx.masters.length, workHours: m.workHours, photo: m.photo || null, createdAt: m.createdAt || now, activatedAt: active ? (wasActive && m.activatedAt ? m.activatedAt : now) : m.activatedAt || null };
       await update(sref(ctx.salonId, `masters/${id}`), { profile });
+      if (master.photo && master.photo !== m.photo) removeSalonImage(ctx.salonId, master.photo); // старе фото — лише після збереження
       resetGridMark(ctx.salonId);
       const n = await regridMaster({ salonId: ctx.salonId, master: { id, profile }, step: ctx.step });
       ctx.toast(m.active !== false && !active ? "Збережено прихованим: ліміт тарифу" : n ? "Збережено, розклад оновлено" : "Збережено");
@@ -97,6 +101,7 @@ function MasterSheet({ master, limitFull, onClose, linkedUid, ownerBound }) {
   return (
     <>
       <Modal open onClose={onClose} title={isNew ? "Новий майстер" : m.name || "Майстер"} icon="💇" footer={<><Btn variant="ghost" flex={1} onClick={onClose}>Закрити</Btn><Btn flex={2} disabled={!m.name.trim() || busy} onClick={save}>{busy ? "Зберігаю..." : "Зберегти"}</Btn></>}>
+        <PhotoField kind="master" masterId={mid} url={m.photo} name={m.name} label="Фото майстра" onUploaded={(u) => setM({ ...m, photo: u })} onRemove={() => setM({ ...m, photo: null })} />
         <Field label="Ім'я" value={m.name} onChange={(v) => setM({ ...m, name: v })} placeholder="Анна" />
         <Field label="Спеціалізація" value={m.spec || ""} onChange={(v) => setM({ ...m, spec: v })} placeholder="Барбер, майстер манікюру…" />
         <Row gap={10} style={{ marginBottom: 6 }}><div style={{ flex: 1, fontSize: 13 }}>Приймає клієнтів<div style={{ fontSize: 11, color: th.DIM }}>Вимкніть, щоб сховати майстра від клієнтів</div></div><Toggle on={m.active !== false} onChange={(v) => setM({ ...m, active: v })} /></Row>

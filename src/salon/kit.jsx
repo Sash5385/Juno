@@ -87,3 +87,12 @@ export const initials = (name) => (name || "?").trim().split(/\s+/).slice(0, 2).
 export const slugify = (s) => String(s || "").toLowerCase().replace(/[іїє]/g, (c) => ({ і: "i", ї: "yi", є: "ye" }[c]))
   .replace(/[а-я]/g, (c) => ({ а: "a", б: "b", в: "v", г: "h", д: "d", е: "e", ж: "zh", з: "z", и: "y", й: "y", к: "k", л: "l", м: "m", н: "n", о: "o", п: "p", р: "r", с: "s", т: "t", у: "u", ф: "f", х: "kh", ц: "ts", ч: "ch", ш: "sh", щ: "shch", ь: "", ю: "yu", я: "ya", ы: "y", э: "e", ъ: "" }[c] ?? ""))
   .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 32) || "salon";
+
+// Аватар: фото (URL) або ініціали на кольоровому тлі
+export function Avatar({ url, name, size = 42, radius = 14, color, style = {} }) {
+  const th = useTh();
+  const c = color || th.PURPLE;
+  const box = { width: size, height: size, borderRadius: radius, flexShrink: 0, overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center", ...style };
+  if (url) return <div style={box}><img src={url} alt="" loading="lazy" style={{ width: "100%", height: "100%", objectFit: "cover" }} /></div>;
+  return <div style={{ ...box, background: `color-mix(in srgb, ${c} 28%, transparent)`, color: c, fontWeight: 900, fontSize: Math.round(size * 0.36) }}>{initials(name)}</div>;
+}

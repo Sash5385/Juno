@@ -106,6 +106,17 @@ await t("master edits own master profile (hours are owner-only)", X, () => updat
 await t("master membership read (resolveSession)", A, async () => { await env.withSecurityRulesDisabled(async (c) => { await set(ref(c.database(), "master_memberships/uM1/S"), "m1"); }); await get(R(M1, "master_memberships/uM1")); await get(R(M1, S("masterAuth/uM1"))); });
 await t("stranger has no salon: resolveSession reads are allowed but empty", A, async () => { const p = await get(R(STRANGER, "salons/stranger/profile")); if (p.exists()) throw new Error("x"); await get(R(STRANGER, "master_memberships/stranger")); });
 
+console.log("── розсилка, фото, видалення (як Broadcast / PhotoField / Settings)");
+await t("owner saves a broadcast template", A, () => update(R(OWN, S("pushTemplates/t1")), { name: "Акція", title: "Знижка", body: "{ім'я}, −20%" }));
+await t("owner deletes the template", A, () => remove(R(OWN, S("pushTemplates/t1"))));
+await t("owner reads broadcast log", A, () => get(R(OWN, S("pushLog"))));
+await t("owner sets salon logo (profile/logo)", A, () => update(R(OWN, S("profile")), { logo: "https://firebasestorage.googleapis.com/x.jpg" }));
+await t("owner switches slot-freed pushes (profile/slotFreedPush)", A, () => update(R(OWN, S("profile")), { slotFreedPush: false }));
+await t("owner saves master with photo + createdAt/activatedAt", A, () => update(R(OWN, S("masters/m2")), { profile: { name: "B", active: true, order: 1, photo: "https://firebasestorage.googleapis.com/m.jpg", createdAt: NOW, activatedAt: NOW } }));
+await t("master cannot write broadcast templates", X, () => set(R(M1, S("pushTemplates/t2")), { name: "x" }));
+await t("master cannot set the salon logo", X, () => update(R(M1, S("profile")), { logo: "https://evil" }));
+await t("master cannot read the broadcast log", X, () => get(R(M1, S("pushLog"))));
+
 console.log(fails ? `\n${fails} FAILED` : "\nALL PASS");
 await env.cleanup();
 process.exit(fails ? 1 : 0);

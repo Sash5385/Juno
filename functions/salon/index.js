@@ -8,5 +8,7 @@ module.exports = {
   ...require("./registry"),   // salonOnProfileCreated, salonOnClientRegistered, salonCheckLicenseExpiry
   ...require("./masters"),    // salonCreateMasterInvite, salonClaimMasterInvite
   ...require("./payments"),   // salonSavePaymentSettings, salonCreateBookingInvoice, salonMonobankCallback, salonExpireUnpaidBookings
+  ...require("./broadcast"),  // salonOnSlotFreed, salonFlushSlotFreedQueue, salonSendBroadcast
+  ...require("./account"),    // salonDeleteAccount, salonNightlyBackup
   ...require("./billing"),    // salonSubscriptionInfo, salonCreateSubscriptionInvoice, salonSubscriptionCallback, salonOnMasterWritten
 };

@@ -2,7 +2,8 @@
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { onValueCreated } = require("firebase-functions/v2/database");
 const {
-  REGION, db, sRef, adminUrl, allSalonIds, pushOwner, licenseUntilTs, LICENSE_GRACE_MS, LICENSE_WARN_MS,
+  admin, REGION, db, sRef, adminUrl, allSalonIds, pushOwner, licenseUntilTs, LICENSE_GRACE_MS, LICENSE_WARN_MS,
+  salonTimezone, localDate, saveNotification,
 } = require("./lib");
 
 // Новий салон (з'явився profile) → запис у salon_index: за ним шедулери знаходять усі салони
@@ -16,12 +17,38 @@ const salonOnProfileCreated = onValueCreated(
   }
 );
 
+const normPhone = (p) => String(p || "").replace(/\D/g, "");
+
+// Записи, які власник завів клієнту без акаунта (лише ім'я й телефон), прив'язуємо до щойно зареєстрованого клієнта з тим самим
+// телефоном — тоді вони видно в його кабінеті, і нагадування працюють. Лише якщо телефон ПІДТВЕРДЖЕНО входом за SMS
+// (Auth phoneNumber): телефон з анкети можна вписати чужий. Дивимось записи від -30 діб і далі; історію не переносимо.
+async function linkWalkInBookings(salonId, uid, profile) {
+  const phone = normPhone(profile.phone);
+  if (phone.length < 9) return 0;
+  const authPhone = await admin.auth().getUser(uid).then((u) => normPhone(u.phoneNumber)).catch(() => "");
+  if (!authPhone || authPhone !== phone) return 0;
+  const from = localDate(Date.now() - 30 * 86400000, await salonTimezone(salonId));
+  const snap = await sRef(salonId, "bookings").orderByChild("date").startAt(from).get();
+  const upd = {};
+  snap.forEach((c) => {
+    const b = c.val();
+    if (b && !b.clientUid && b.status !== "personal" && normPhone(b.phone) === phone) upd[`bookings/${c.key}/clientUid`] = uid;
+  });
+  const n = Object.keys(upd).length;
+  if (n) {
+    await sRef(salonId).update(upd);
+    await saveNotification(salonId, uid, "📋 Знайшли ваші записи", `Записи, створені салоном за вашим номером, тепер у «Мої записи»: ${n}`, "system");
+  }
+  return n;
+}
+
 // Новий клієнт заповнив анкету → push власнику
 const salonOnClientRegistered = onValueCreated(
   { ref: "salons/{salonId}/users/{uid}/profile", region: REGION },
   async (event) => {
     const profile = event.data.val() || {};
     const { salonId, uid } = event.params;
+    await linkWalkInBookings(salonId, uid, profile).catch((e) => console.error("linkWalkInBookings:", e));
     const name = profile.name || "Новий клієнт";
     await pushOwner(salonId, "🎉 Новий клієнт", profile.phone ? `${name} · ${profile.phone}` : name, { url: `${adminUrl()}/?client=${encodeURIComponent(uid)}` });
   }
@@ -59,4 +86,4 @@ const salonCheckLicenseExpiry = onSchedule({ schedule: "every 6 hours", region: 
   }
 });
 
-module.exports = { salonOnProfileCreated, salonOnClientRegistered, salonCheckLicenseExpiry, checkSalonLicense };
+module.exports = { salonOnProfileCreated, salonOnClientRegistered, salonCheckLicenseExpiry, checkSalonLicense, linkWalkInBookings };

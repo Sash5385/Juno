@@ -300,6 +300,16 @@ await t("owner reads any master chat", A, () => get(R(OWN_A, A_("masterChats/m1/
 await t("owner writes into master chat", A, () => set(R(OWN_A, A_("masterChats/m1/cli1/o1")), { from: "admin", text: "x" }));
 await t("owner of another salon reads master chat", X, () => get(R(OWN_C, A_("masterChats/m1/cli1"))));
 
+console.log("── SERVER-ONLY NODES (slot-freed queue, push log, rate-limit stamps)");
+await t("client writes slotFreedQueue", X, () => set(R(C1, A_("slotFreedQueue/x")), { sendAfter: 0 }));
+await t("client writes pushLog", X, () => set(R(C1, A_("pushLog/x")), { title: "spam" }));
+await t("client writes pushTemplates", X, () => set(R(C1, A_("pushTemplates/x")), { title: "spam" }));
+await t("client writes lastSlotNotif", X, () => set(R(C1, A_("lastSlotNotif/cli1")), 0));
+await t("client reads slotFreedQueue", X, () => get(R(C1, A_("slotFreedQueue"))));
+await t("client sets salon logo", X, () => set(R(C1, A_("profile/logo")), "https://evil"));
+await t("anonymous reads the logo (public profile)", A, () => get(R(anon, A_("profile/logo"))));
+await t("owner reads slotFreedQueue", A, () => get(R(OWN_A, A_("slotFreedQueue"))));
+
 console.log(fails ? `\n${fails} FAILED` : "\nALL PASS");
 await env.cleanup();
 process.exit(fails ? 1 : 0);

@@ -6,12 +6,14 @@ import { auth, db } from "../../firebase.js";
 import { ref } from "firebase/database";
 import { Section, Btn, Field, Toggle, Chip, Card } from "../../ui.jsx";
 import { useSalon } from "../ctx.js";
-import { rootRef } from "../data.js";
+import { rootRef, sref } from "../data.js";
 import { callFn, errText } from "../api.js";
 import { CLIENT_URL } from "../env.js";
 import { APP_VERSION } from "../../version.js";
-import { Select, Input, Row, Hint, useTh, slugify, dateLabel } from "../kit.jsx";
+import { Select, Input, Row, Hint, Confirm, useTh, slugify, dateLabel } from "../kit.jsx";
 import Subscription from "./Subscription.jsx";
+import PhotoField from "../PhotoField.jsx";
+import { removeSalonImage } from "../photo.js";
 import { normWorkHours, DEFAULT_CANCEL_FREE_HOURS } from "../../salonLogic.js";
 
 const TZ = ["Europe/Kyiv", "Europe/Warsaw", "Europe/Berlin", "Europe/London", "Europe/Chisinau", "Asia/Tbilisi"];
@@ -45,6 +47,12 @@ export default function Settings() {
         <div style={{ fontSize: 13, marginBottom: 8 }}>{ctx.pushPerm === "granted" ? "✅ Увімкнено на цьому пристрої" : ctx.pushPerm === "denied" ? "⛔ Заблоковано в налаштуваннях браузера" : ctx.pushPerm === "unsupported" ? "Цей браузер не підтримує сповіщення" : "Вимкнено"}</div>
         {ctx.pushPerm === "default" && <Btn onClick={ctx.enablePush}>🔔 Увімкнути сповіщення</Btn>}
         <Hint>Нові записи, скасування, оплати й повідомлення клієнтів приходитимуть на цей пристрій.</Hint>
+        {owner && (
+          <Row gap={10} style={{ marginTop: 10 }}>
+            <div style={{ flex: 1, fontSize: 13 }}>Повідомляти клієнтів, коли звільняється час<div style={{ fontSize: 11, color: th.DIM }}>Через 5 хв після скасування, якщо час досі вільний (найближчі 10 днів)</div></div>
+            <Toggle on={ctx.profile.slotFreedPush !== false} onChange={(v) => update(sref(ctx.salonId, "profile"), { slotFreedPush: v }).catch(() => ctx.toast("Не вдалося зберегти", "err"))} />
+          </Row>
+        )}
       </Section>
       <Section title="Вигляд" icon="🎨">
         <Row gap={8}><Chip active={ctx.mode === "dark"} color={th.ACCENT} onClick={() => ctx.setThemeMode("dark")}>Темна</Chip><Chip active={ctx.mode === "light"} color={th.ACCENT} onClick={() => ctx.setThemeMode("light")}>Світла (кава)</Chip></Row>
@@ -53,9 +61,29 @@ export default function Settings() {
         <div style={{ fontSize: 13, marginBottom: 4 }}>{ctx.user.email}</div>
         {owner && lic && <div style={{ fontSize: 12, color: th.DIM, marginBottom: 8 }}>{lic.status === "trial" ? "Пробний період" : lic.status === "suspended" ? "Підписку призупинено" : "Підписка активна"}{until ? ` до ${dateLabel(new Date(until).toISOString().slice(0, 10))}` : ""}</div>}
         <Btn variant="ghost" accent={th.RED} onClick={() => signOut(auth)}>Вийти</Btn>
+        {owner && <DeleteSalon />}
         <div style={{ fontSize: 11, color: th.FAINT, textAlign: "center", marginTop: 12 }}>Версія {APP_VERSION}</div>
       </Section>
     </div>
+  );
+}
+
+function DeleteSalon() {
+  const ctx = useSalon();
+  const th = useTh();
+  const [ask, setAsk] = useState(false);
+  const [word, setWord] = useState("");
+  const [busy, setBusy] = useState(false);
+  const del = async () => {
+    setBusy(true);
+    try { await callFn("salonDeleteAccount", { type: "owner" }); ctx.toast("Салон видалено"); signOut(auth); } catch (e) { ctx.toast(errText(e), "err"); setBusy(false); }
+  };
+  return (
+    <>
+      <Btn variant="ghost" accent={th.RED} style={{ marginTop: 8 }} onClick={() => setAsk(true)}>Видалити салон і акаунт</Btn>
+      <Confirm open={ask} danger title="Видалити салон?" yes={busy ? "Видаляю…" : "Видалити назавжди"} no="Скасувати" onNo={() => { setAsk(false); setWord(""); }} onYes={() => word.trim().toUpperCase() === "ВИДАЛИТИ" && !busy && del()}
+        text={<><div style={{ marginBottom: 8 }}>Буде видалено салон, майстрів, клієнтів, записи, чати, фото та ваш акаунт. Архів зберігається на сервері лише для служби підтримки. Скасувати неможливо.</div><Field label="Для підтвердження введіть: ВИДАЛИТИ" value={word} onChange={setWord} /></>} />
+    </>
   );
 }
 
@@ -84,8 +112,13 @@ function ProfileForm() {
     } catch { ctx.toast("Не вдалося зберегти", "err"); } finally { setBusy(false); }
   };
   const copy = async () => { try { await navigator.clipboard.writeText(link); ctx.toast("Посилання скопійовано"); } catch { ctx.toast("Не вдалося скопіювати", "err"); } };
+  const setLogo = async (url) => {
+    try { await update(sref(ctx.salonId, "profile"), { logo: url }); if (p.logo && p.logo !== url) removeSalonImage(ctx.salonId, p.logo); ctx.toast(url ? "Логотип збережено" : "Логотип прибрано"); }
+    catch { ctx.toast("Не вдалося зберегти логотип", "err"); }
+  };
   return (
     <>
+      <PhotoField kind="logo" url={p.logo} name={p.name} size={72} radius={20} label="Логотип салону" onUploaded={setLogo} onRemove={() => setLogo(null)} />
       <Field label="Назва" value={f.name} onChange={(v) => setF({ ...f, name: v })} />
       <Field label="Телефон" type="tel" value={f.phone} onChange={(v) => setF({ ...f, phone: v })} />
       <Field label="Адреса" value={f.address} onChange={(v) => setF({ ...f, address: v })} />

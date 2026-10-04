@@ -103,6 +103,33 @@ check("subscription: tariff smaller than active masters is not selectable", awai
 await page.locator('[data-testid="tier-studio"]').click();
 check("subscription: pay button enabled after quote", await has("До сплати: 6990 ₴") && await btn("Сплатити через Monobank").isEnabled());
 
+console.log("── розсилка, фото, видалення салону");
+const PNG = { name: "p.png", mimeType: "image/png", buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAFUlEQVR42mP8z8BQz0AEYBxVSF+FABJADveWkH6oAAAAAElFTkSuQmCC", "base64") };
+await tab("Клієнти");
+await btn("Розсилка клієнтам").click();
+check("broadcast sheet opens with limits hint", await has("Розсилка клієнтам") && await has("До 5 розсилок на добу"));
+await page.getByPlaceholder("Напр.: Знижка на манікюр").fill("Знижка");
+await page.getByPlaceholder("Напр.: {ім'я}, цього тижня −20% на манікюр").fill("{ім'я}, −20% на манікюр");
+await btn("Зберегти як шаблон").click();
+check("template saved", await has("Шаблон збережено"));
+await btn("Надіслати всім").click();
+check("sending asks for confirmation", await has("Надіслати розсилку?"));
+await page.locator("button", { hasText: /^Надіслати$/ }).click();
+check("broadcast sent (toast with counts)", await has("Надіслано: 9 з 12"));
+await tab("Майстри");
+await btn("Додати майстра").click();
+await page.locator('[data-testid="photo-master"]').setInputFiles(PNG);
+check("master photo uploaded and shown", await page.locator("img").first().waitFor({ timeout: 4000 }).then(() => true).catch(() => false));
+await page.evaluate(() => history.back()); await page.waitForTimeout(300);
+await tab("Налашт.");
+check("slot-freed notifications toggle is in settings", await has("Повідомляти клієнтів, коли звільняється час"));
+await page.locator('[data-testid="photo-logo"]').setInputFiles(PNG);
+check("salon logo saved", await has("Логотип збережено"));
+await page.getByText("Акаунт", { exact: true }).first().click();
+await btn("Видалити салон і акаунт").click();
+check("delete salon asks to type the word", await has("Для підтвердження введіть: ВИДАЛИТИ"));
+check("account stays until the word is typed", !(await has("Салон видалено", 800)));
+
 check("no JS errors", errors.length === 0, "\n    " + errors.join("\n    "));
 await browser.close();
 console.log(fails ? `\n${fails} FAILED` : "\nSALON FLOWS OK");

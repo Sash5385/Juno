@@ -80,7 +80,7 @@ async function handleCreate(salonId, bookingId, after) {
 async function handleCancel(salonId, bookingId, before, after) {
   const by = after.cancelledBy || "admin";
   if (by === "license") return; // уже оброблено в handleCreate
-  const uid = after.clientUid || null;
+  const uid = after.deletedClient ? null : (after.clientUid || null); // клієнт видалив акаунт (account.js) — сповіщати нікого
   const name = after.clientName || "Клієнт";
   const date = after.date || "—", time = after.time || "—";
   const link = buildAdminLink({ date, time, masterId: after.masterId, bookingId });

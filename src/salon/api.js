@@ -13,6 +13,8 @@ export const ERR_TEXT = {
   nothing_to_refund: "Немає платежів для повернення", refund_failed: "Monobank не виконав повернення — спробуйте пізніше",
   booking_not_found: "Запис не знайдено", too_many_masters: "Активних майстрів більше, ніж дозволяє цей тариф",
   billing_unavailable: "Оплата підписки тимчасово недоступна", too_many_attempts: "Забагато спроб — спробуйте за годину",
+  empty_message: "Заповніть заголовок і текст", too_many_broadcasts: "Ліміт розсилок на добу вичерпано — спробуйте завтра",
+  salon_unavailable: "Салон у режимі читання — оплатіть підписку", vendor_account: "Цей акаунт видаляти не можна", archive: "Не вдалося зберегти архів — спробуйте пізніше",
   bad_tier: "Невідомий тариф", bad_period: "Невірний період", salon_blocked: "Акаунт заблоковано — напишіть у підтримку",
   monobank_error: "Monobank не створив рахунок — спробуйте пізніше", server: "Помилка сервера, спробуйте пізніше",
 };
@@ -33,6 +35,8 @@ function demoReply(name, body) {
   if (name === "salonCreateMasterInvite") return { ok: true, code: "demo.INVITE", link: `${window.location.origin}/join/demo.INVITE`, expiresAt: Date.now() + 72 * 3600000 };
   if (name === "salonSavePaymentSettings") return { ok: true, payment: { ...body, hasToken: true, tokenLast4: "demo" } };
   if (name === "salonRefundBooking") return { ok: true, refunded: 1 };
+  if (name === "salonSendBroadcast") return { ok: true, recipients: 12, sent: 9 };
+  if (name === "salonDeleteAccount") return { ok: true };
   if (name === "salonSubscriptionInfo") return demoSubscription(body);
   if (name === "salonCreateSubscriptionInvoice") return { pageUrl: "https://pay.example/demo", invoiceId: "demo", paymentId: "demo" };
   if (name === "salonClaimMasterInvite") return { ok: true, salonId: "demo-salon", masterId: "m1" };
