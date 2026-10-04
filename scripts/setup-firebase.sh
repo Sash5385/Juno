@@ -32,8 +32,12 @@ step "1. Проєкт $PROJECT"
 case "$PROJECTS" in *" $PROJECT "*) echo "вже існує" ;; *) "${FB[@]}" projects:create "$PROJECT" --display-name "Juno" ;; esac
 
 step "2. Сайти Hosting: $ADMIN_SITE (адмінка), $CLIENT_SITE (клієнт), $PROJECT (лендинг)"
+echo "(перший виклик Hosting у новому проєкті вмикає API — це може тривати 1–3 хв)"
 for s in "$ADMIN_SITE" "$CLIENT_SITE"; do
-  "${FB[@]}" hosting:sites:create "$s" --project "$PROJECT" 2>&1 | tail -1 || true
+  # Повний вивід видно; --non-interactive: замість питання скрипт не зависає, а показує помилку. Сайт, що вже є, — не помилка.
+  OUT="$("${FB[@]}" hosting:sites:create "$s" --project "$PROJECT" --non-interactive 2>&1)" && echo "$OUT" | tail -2 || {
+    case "$OUT" in *"already exists"*|*"already in use"*) echo "сайт $s вже існує" ;; *) echo "$OUT"; echo "Не вдалося створити сайт $s — створіть вручну: firebase hosting:sites:create $s --project $PROJECT"; exit 1 ;; esac
+  }
 done
 
 step "3. Веб-застосунок і конфіг"
@@ -45,7 +49,9 @@ echo "appId: $APP_ID"
 CONFIG_JSON="$("${FB[@]}" apps:sdkconfig WEB "$APP_ID" --project "$PROJECT" --json | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.stringify(JSON.parse(s).result.sdkConfig)))')"
 
 step "4. Realtime Database ($REGION)"
-"${FB[@]}" database:instances:create "$PROJECT-default-rtdb" --location "$REGION" --project "$PROJECT" 2>&1 | tail -2 || true
+OUT="$("${FB[@]}" database:instances:create "$PROJECT-default-rtdb" --location "$REGION" --project "$PROJECT" --non-interactive 2>&1)" && echo "$OUT" | tail -2 || {
+  case "$OUT" in *"already exists"*) echo "база вже існує" ;; *) echo "$OUT"; echo "Не вдалося створити базу — створіть у Console: Build → Realtime Database → Create (europe-west1), потім запустіть скрипт знову"; exit 1 ;; esac
+}
 
 step "5. Файли конфігурації обох репозиторіїв"
 export PROJECT ADMIN_SITE CLIENT_SITE CONFIG_JSON ROOT CLIENT_DIR REGION
