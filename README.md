@@ -13,3 +13,6 @@ npm run build
 Тести: [tests/README.md](tests/README.md). Деплой — вручну: GitHub Actions → «Deploy to Firebase».
 
 Гілка `main` містить повну копію DrivePad на момент створення Juno; розробка Juno — в інших гілках.
+
+Бренд: макет `assets/brand/juno-brand-source.jpg` (логотип + іконка); усі PNG (іконки PWA, maskable, apple-touch, фавікон, превʼю для посилань, логотип) пересобираються
+`node scripts/make-brand-assets.mjs [макет.jpg] [шлях/до/Juno-client]`. Для різкіших іконок потрібен макет більшого розміру.

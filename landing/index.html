@@ -6,11 +6,14 @@
 <title>Juno — онлайн-запис для салонів і майстрів</title>
 <meta name="description" content="Juno — розклад, онлайн-запис, передоплата і нагадування для салонів краси, барбершопів і майстрів. Клієнти записуються самі.">
 <meta name="theme-color" content="#161719">
-<link rel="icon" href="img/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="img/favicon-64.png" type="image/png">
 <meta property="og:title" content="Juno — онлайн-запис для салонів і майстрів">
 <meta property="og:description" content="Клієнти записуються самі, а ви бачите весь розклад в одному місці.">
 <meta property="og:type" content="website">
 <meta property="og:image" content="img/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
 <style>
 :root{--bg:#161719;--surf:#26282c;--text:#e8e8ea;--dim:#8b8d93;--acc:#ff5a3c;--acc2:#ff7a5c}
 *{box-sizing:border-box}
@@ -21,7 +24,10 @@ header .wrap{display:flex;align-items:center;justify-content:space-between;paddi
 .brand img{width:32px;height:32px;border-radius:8px}
 .btn{display:inline-block;padding:12px 20px;border-radius:12px;background:var(--acc);color:#fff;font-weight:700;text-decoration:none;border:0;font:inherit;cursor:pointer}
 .btn:hover{background:var(--acc2)}
-.hero{padding:56px 0 40px}
+.hero{padding:40px 0 40px;display:flex;gap:28px;align-items:center;flex-wrap:wrap}
+.hero-text{flex:1 1 360px}
+.logo-card{flex:0 0 auto;margin:0 auto;background:#fff;border-radius:28px;padding:10px 16px;box-shadow:0 8px 40px rgba(180,150,255,.25)}
+.logo-card img{display:block;width:min(240px,62vw);height:auto}
 .eyebrow{color:var(--acc2);font-weight:700;font-size:14px;text-transform:uppercase;letter-spacing:.06em}
 h1{font-size:clamp(30px,6vw,48px);line-height:1.1;margin:12px 0 16px;letter-spacing:-.02em}
 h1 em{font-style:normal;color:var(--acc)}
@@ -45,10 +51,13 @@ footer{border-top:1px solid rgba(255,255,255,.06);padding:20px 0;color:var(--dim
 </div></header>
 <main class="wrap">
   <section class="hero">
+    <div class="logo-card"><img src="img/juno-logo.png" alt="Juno — beauty &amp; grooming app"></div>
+    <div class="hero-text">
     <span class="eyebrow">Для салонів, барбершопів і майстрів</span>
     <h1>Клієнти записуються <em>самі</em>. Ви — працюєте.</h1>
     <p class="lead">Juno — розклад по майстрах, онлайн-запис, передоплата, нагадування і чат з клієнтами в одному застосунку. Без дзвінків і листування.</p>
     <a class="btn" data-app href="#">Спробувати безкоштовно</a>
+    </div>
   </section>
   <section class="grid">
     <div class="card"><b>Розклад по майстрах</b><span>Кожен майстер бачить лише свої записи, власник — усе.</span></div>
