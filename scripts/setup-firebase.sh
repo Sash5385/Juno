@@ -16,18 +16,19 @@ CLIENT_DIR="${2:-../juno-client}"
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 [ -d "$CLIENT_DIR" ] || { echo "Не знайдено репозиторій клієнта: $CLIENT_DIR (другий аргумент)"; exit 2; }
 CLIENT_DIR="$(cd "$CLIENT_DIR" && pwd)"
-FB=(npx --yes firebase-tools@13)
+# Свіжа версія CLI (на Node 22 старий firebase-tools@13 з кешу npx буває зламаний); можна підмінити: JUNO_FIREBASE_CLI="firebase"
+if [ -n "${JUNO_FIREBASE_CLI:-}" ]; then read -r -a FB <<< "$JUNO_FIREBASE_CLI"; else FB=(npx --yes firebase-tools); fi
 ADMIN_SITE="${JUNO_ADMIN_SITE:-juno-admin}"
 CLIENT_SITE="${JUNO_CLIENT_SITE:-juno-client}"
 REGION="europe-west1"
 
 step() { printf '\n== %s\n' "$*"; }
-# Вивід спершу в змінну: `grep -q` у конвеєрі закриває потік раніше часу, і з pipefail це хибно вважалось помилкою
-LOGINS="$("${FB[@]}" login:list 2>&1 || true)"
-case "$LOGINS" in *@*) ;; *) echo "Спершу: npx firebase-tools login"; exit 1 ;; esac
+# Список проєктів заодно перевіряє вхід; вивід беремо в змінну (grep -q у конвеєрі під pipefail дає хибні помилки)
+if ! PROJECTS="$("${FB[@]}" projects:list 2>&1)"; then
+  echo "$PROJECTS"; echo; echo "Не вдалося отримати список проєктів: перевірте вхід (npx firebase-tools login) і мережу."; exit 1
+fi
 
 step "1. Проєкт $PROJECT"
-PROJECTS="$("${FB[@]}" projects:list 2>/dev/null || true)"
 case "$PROJECTS" in *" $PROJECT "*) echo "вже існує" ;; *) "${FB[@]}" projects:create "$PROJECT" --display-name "Juno" ;; esac
 
 step "2. Сайти Hosting: $ADMIN_SITE (адмінка), $CLIENT_SITE (клієнт), $PROJECT (лендинг)"
