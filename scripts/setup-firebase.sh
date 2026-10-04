@@ -18,8 +18,9 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 CLIENT_DIR="$(cd "$CLIENT_DIR" && pwd)"
 # Свіжа версія CLI (на Node 22 старий firebase-tools@13 з кешу npx буває зламаний); можна підмінити: JUNO_FIREBASE_CLI="firebase"
 if [ -n "${JUNO_FIREBASE_CLI:-}" ]; then read -r -a FB <<< "$JUNO_FIREBASE_CLI"; else FB=(npx --yes firebase-tools); fi
-ADMIN_SITE="${JUNO_ADMIN_SITE:-juno-admin}"
-CLIENT_SITE="${JUNO_CLIENT_SITE:-juno-client}"
+# ID сайтів Hosting глобальні для всього Google (juno-admin, juno-client вже зайняті іншими) — тому на основі id проєкту
+ADMIN_SITE="${JUNO_ADMIN_SITE:-$PROJECT-admin}"
+CLIENT_SITE="${JUNO_CLIENT_SITE:-$PROJECT-client}"
 REGION="europe-west1"
 
 step() { printf '\n== %s\n' "$*"; }
@@ -49,9 +50,13 @@ echo "appId: $APP_ID"
 CONFIG_JSON="$("${FB[@]}" apps:sdkconfig WEB "$APP_ID" --project "$PROJECT" --json | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.stringify(JSON.parse(s).result.sdkConfig)))')"
 
 step "4. Realtime Database ($REGION)"
-OUT="$("${FB[@]}" database:instances:create "$PROJECT-default-rtdb" --location "$REGION" --project "$PROJECT" --non-interactive 2>&1)" && echo "$OUT" | tail -2 || {
-  case "$OUT" in *"already exists"*) echo "база вже існує" ;; *) echo "$OUT"; echo "Не вдалося створити базу — створіть у Console: Build → Realtime Database → Create (europe-west1), потім запустіть скрипт знову"; exit 1 ;; esac
-}
+DBS="$("${FB[@]}" database:instances:list --project "$PROJECT" 2>&1 || true)"
+case "$DBS" in
+  *"$PROJECT-default-rtdb"*) echo "база вже існує" ;;
+  *) OUT="$("${FB[@]}" database:instances:create "$PROJECT-default-rtdb" --location "$REGION" --project "$PROJECT" --non-interactive 2>&1)" && echo "$OUT" | tail -2 || {
+       echo "$OUT"; echo "Створіть базу в Console: Build → Realtime Database → Create database (europe-west1, locked mode), потім запустіть скрипт знову"; exit 1; }
+     ;;
+esac
 
 step "5. Файли конфігурації обох репозиторіїв"
 export PROJECT ADMIN_SITE CLIENT_SITE CONFIG_JSON ROOT CLIENT_DIR REGION

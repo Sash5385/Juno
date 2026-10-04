@@ -15,10 +15,10 @@
 cd Juno
 scripts/setup-firebase.sh juno-booking ../Juno-client   # juno-booking — приклад id: унікальний, 6–30 символів
 ```
-Створить проєкт, сайти Hosting `juno-admin` і `juno-client` (лендинг піде на сайт за id проєкту), веб-застосунок, Realtime Database
+Створить проєкт, сайти Hosting `<id>-admin` і `<id>-client` (лендинг піде на сайт за id проєкту), веб-застосунок, Realtime Database
 в europe-west1, файли `.env.local` (обидва репо), `functions/.env.<id>`, `.firebaserc`, і задеплоїть правила бази та Storage.
 Скрипт не перевірявся на живому акаунті — якщо якийсь крок упаде, виконайте його вручну за описом нижче й запустіть скрипт повторно (він ідемпотентний).
-Інші назви сайтів: `JUNO_ADMIN_SITE=my-admin JUNO_CLIENT_SITE=my-client scripts/setup-firebase.sh …`.
+Інші назви сайтів: `JUNO_ADMIN_SITE=my-admin JUNO_CLIENT_SITE=my-client (ID сайтів глобальні — прості назви на кшталт juno-admin зазвичай зайняті) scripts/setup-firebase.sh …`.
 
 ## 2. Тариф Blaze (Console, обов'язково)
 Console → ⚙ Usage and billing → Upgrade → Blaze. Без нього не працюють Cloud Functions, розклад (Cloud Scheduler) і Secret Manager.
@@ -49,7 +49,7 @@ npx firebase-tools deploy --only database,storage,functions,hosting --project <i
 cd ../Juno-client && npm ci && npm run build && npx firebase-tools deploy --only hosting --project <id>
 ```
 - Перший деплой функцій може впасти на правах Eventarc/Pub/Sub — зачекайте 3–5 хв і повторіть; Firebase CLI сам вмикає потрібні API.
-- Очікується 32 функції (`firebase functions:list`). Після деплою адмінка: `https://juno-admin.web.app`, клієнт: `https://juno-client.web.app`.
+- Очікується 32 функції (`firebase functions:list`). Після деплою адмінка: `https://<id>-admin.web.app`, клієнт: `https://<id>-client.web.app`.
 - Лендинг: `npx firebase-tools deploy --only hosting:landing`.
 
 ## 7. Перший вхід — суперадмін
@@ -58,7 +58,7 @@ cd ../Juno-client && npm ci && npm run build && npx firebase-tools deploy --only
 
 ## 8. Перевірка (≈15 хв)
 1. Інший акаунт: створити салон → додати майстра, послугу → завантажити логотип і фото майстра (перевіряє Storage).
-2. Відкрити `https://juno-client.web.app/s/<slug>` з телефона: запис → кабінет → увімкнути сповіщення (перевіряє FCM).
+2. Відкрити `https://<id>-client.web.app/s/<slug>` з телефона: запис → кабінет → увімкнути сповіщення (перевіряє FCM).
 3. Оплата підписки на живому Monobank: у «Тарифи» на хвилину поставте ціну 1 ₴ → Налаштування → Підписка → оплатити → статус «активна»
    (перевіряє вебхук) → поверніть ціни кнопкою «Типові».
 4. Скасувати оплачений запис за політикою — перевіряє повернення коштів (потрібен токен Monobank салону).
