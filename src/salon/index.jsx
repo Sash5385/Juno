@@ -137,7 +137,7 @@ function Shell({ user, session, setThemeMode, mode }) {
     <SalonCtx.Provider value={ctx}>
       <div style={{ maxWidth: 720, margin: "0 auto", paddingBottom: "calc(86px + env(safe-area-inset-bottom,0px))" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "calc(10px + env(safe-area-inset-top,0px)) 14px 8px" }}>
-          {profile.logo ? <Avatar url={profile.logo} name={profile.name} size={34} radius={10} /> : <div style={{ fontSize: 22 }}>💈</div>}
+          <Avatar url={profile.logo || "/icon-192.png"} name={profile.name} size={34} radius={10} />
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 15, fontWeight: 900, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{profile.name || "Салон"}</div>
             <div style={{ fontSize: 11, color: th.DIM }}>{role === "owner" ? "Власник" : `Майстер · ${masters.find((m) => m.id === masterId)?.profile?.name || ""}`}</div>

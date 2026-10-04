@@ -14,5 +14,5 @@ npm run build
 
 Гілка `main` містить повну копію DrivePad на момент створення Juno; розробка Juno — в інших гілках.
 
-Бренд: макет `assets/brand/juno-brand-source.jpg` (логотип + іконка); усі PNG (іконки PWA, maskable, apple-touch, фавікон, превʼю для посилань, логотип) пересобираються
+Бренд: макет `assets/brand/juno-brand-source.jpg` (іконка Juno); усі PNG (іконки PWA, maskable, apple-touch, фавікон, превʼю для посилань) пересобираються
 `node scripts/make-brand-assets.mjs [макет.jpg] [шлях/до/Juno-client]`. Для різкіших іконок потрібен макет більшого розміру.

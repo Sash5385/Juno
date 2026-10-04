@@ -59,7 +59,7 @@ export function SalonLogin({ inviteCode }) {
       <div className="lg-bg" aria-hidden="true"><i /><i /><i /></div>
       <div className="lg-card">
         <div className="lg-head">
-          <div style={{ background: "#fff", borderRadius: 22, padding: "6px 10px", width: 168, margin: "0 auto 8px", boxShadow: "0 4px 18px rgba(0,0,0,0.25)" }}><img src="/juno-logo.png" alt="Juno" width="148" style={{ display: "block", width: "100%", height: "auto" }} /></div>
+          <img src="/icon-192.png" alt="Juno" width="112" height="112" style={{ display: "block", width: 112, height: 112, margin: "0 auto 10px", filter: "drop-shadow(0 6px 18px rgba(150,120,220,0.45))" }} />
           <div className="lg-title">{registering ? "Реєстрація" : "Вхід"}</div>
           <div className="lg-sub">{inviteCode ? "Вас запросили як майстра — увійдіть або зареєструйтесь" : registering ? "Реєстрація · 14 днів безкоштовно" : "Вхід для власника і майстрів"}</div>
         </div>
