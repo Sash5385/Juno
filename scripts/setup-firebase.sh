@@ -22,10 +22,13 @@ CLIENT_SITE="${JUNO_CLIENT_SITE:-juno-client}"
 REGION="europe-west1"
 
 step() { printf '\n== %s\n' "$*"; }
-"${FB[@]}" login:list 2>&1 | grep -q "@" || { echo "Спершу: npx firebase-tools login"; exit 1; }
+# Вивід спершу в змінну: `grep -q` у конвеєрі закриває потік раніше часу, і з pipefail це хибно вважалось помилкою
+LOGINS="$("${FB[@]}" login:list 2>&1 || true)"
+case "$LOGINS" in *@*) ;; *) echo "Спершу: npx firebase-tools login"; exit 1 ;; esac
 
 step "1. Проєкт $PROJECT"
-if "${FB[@]}" projects:list 2>/dev/null | grep -q " $PROJECT "; then echo "вже існує"; else "${FB[@]}" projects:create "$PROJECT" --display-name "Juno"; fi
+PROJECTS="$("${FB[@]}" projects:list 2>/dev/null || true)"
+case "$PROJECTS" in *" $PROJECT "*) echo "вже існує" ;; *) "${FB[@]}" projects:create "$PROJECT" --display-name "Juno" ;; esac
 
 step "2. Сайти Hosting: $ADMIN_SITE (адмінка), $CLIENT_SITE (клієнт), $PROJECT (лендинг)"
 for s in "$ADMIN_SITE" "$CLIENT_SITE"; do
