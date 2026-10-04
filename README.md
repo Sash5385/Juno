@@ -9,7 +9,7 @@ npm run dev          # http://localhost:5174/?demo=1 — демо з вигад�
 npm run build
 ```
 
-Свій Firebase-проєкт: скопіюйте `.env.example` у `.env.local`, заповніть `VITE_FIREBASE_*`; у `functions/.env.<project>` задайте `SALON_ADMIN_URL`, `SALON_CLIENT_URL`.
+Новий Firebase-проєкт — крок за кроком: [docs/FIREBASE-SETUP.md](docs/FIREBASE-SETUP.md) (`scripts/setup-firebase.sh`). Вручну: скопіюйте `.env.example` у `.env.local`, заповніть `VITE_FIREBASE_*`; у `functions/.env.<project>` задайте `SALON_ADMIN_URL`, `SALON_CLIENT_URL`.
 Тести: [tests/README.md](tests/README.md). Деплой — вручну: GitHub Actions → «Deploy to Firebase».
 
 Гілка `main` містить повну копію DrivePad на момент створення Juno; розробка Juno — в інших гілках.
