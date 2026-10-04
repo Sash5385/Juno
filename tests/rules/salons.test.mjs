@@ -36,7 +36,7 @@ await env.withSecurityRulesDisabled(async (ctx) => {
     },
   });
 });
-const as = (uid, email) => env.authenticatedContext(uid, email ? { email } : {}).database();
+const as = (uid, email) => env.authenticatedContext(uid, email ? { email, email_verified: true } : {}).database();
 const anon = env.unauthenticatedContext().database();
 const OWN_A = as("ownA"), OWN_C = as("ownC"), PLAT = as("platUid", "sash5385@gmail.com");
 const M1 = as("mast1"), M2 = as("mast2");
@@ -309,6 +309,14 @@ await t("client reads slotFreedQueue", X, () => get(R(C1, A_("slotFreedQueue")))
 await t("client sets salon logo", X, () => set(R(C1, A_("profile/logo")), "https://evil"));
 await t("anonymous reads the logo (public profile)", A, () => get(R(anon, A_("profile/logo"))));
 await t("owner reads slotFreedQueue", A, () => get(R(OWN_A, A_("slotFreedQueue"))));
+
+console.log("── SUPERADMIN: the e-mail must be VERIFIED (nobody can claim it by signing up with it)");
+const PLAT_UNV = env.authenticatedContext("platUnv", { email: "sash5385@gmail.com", email_verified: false }).database();
+await t("unverified same e-mail reads salon_index", X, () => get(R(PLAT_UNV, "salon_index")));
+await t("unverified same e-mail reads system/*", X, () => get(R(PLAT_UNV, "system/errorLog")));
+await t("unverified same e-mail writes system/tariffs", X, () => set(R(PLAT_UNV, "system/tariffs"), { tiers: [] }));
+await t("unverified same e-mail edits a license", X, () => update(R(PLAT_UNV, "salons/ownB/license"), { status: "active", expiresAt: NOW + 900 * DAY }));
+await t("unverified same e-mail reads a salon's billing", X, () => get(R(PLAT_UNV, "salon_billing/ownB")));
 
 console.log("── SUPERADMIN: system/*, salon_index, license of any salon");
 await t("platform reads system/tariffs", A, () => get(R(PLAT, "system/tariffs")));

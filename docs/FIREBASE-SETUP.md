@@ -30,7 +30,9 @@ Console → ⚙ Usage and billing → Upgrade → Blaze. Без нього не 
 | Email/Password | увімкнути |
 | Google | увімкнути, вказати support email; для iPhone-клієнта додати `https://<juno-client>.web.app/__/auth/handler` у Google Cloud Console → Credentials → OAuth Web client → Authorized redirect URIs |
 | Phone | увімкнути (SMS потребує Blaze); за потреби додати тестові номери |
-Settings → Authorized domains: домени Hosting додаються самі; власні домени додайте вручну.
+**Settings → Authorized domains → Add domain — обов'язково додайте домени обох сайтів**: `<id>-admin.web.app` і `<id>-client.web.app`
+(автоматично додаються лише `<id>.web.app` і `<id>.firebaseapp.com`; без цього вхід падає з `auth/unauthorized-domain`). Власні домени — теж сюди.
+Суперадміну входьте через **Google**: правила вважають суперадміном лише акаунт із ПІДТВЕРДЖЕНИМ email (`email_verified`).
 
 ## 4. Storage (Console → Build → Storage → Get started)
 Режим production, локація europe-west1. Потім: `npx firebase-tools deploy --only storage --project <id>` (скрипт спробує це зробити сам).

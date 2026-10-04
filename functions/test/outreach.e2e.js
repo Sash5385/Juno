@@ -14,7 +14,7 @@ Object.defineProperty(admin, "auth", {
   configurable: true, writable: true,
   value: () => ({
     // токен "tok:uid[:email]"
-    verifyIdToken: async (t) => { if (!String(t).startsWith("tok:")) throw new Error("bad token"); const [, uid, email] = String(t).split(":"); return { uid, email }; },
+    verifyIdToken: async (t) => { if (!String(t).startsWith("tok:")) throw new Error("bad token"); const [, uid, email, unverified] = String(t).split(":"); return { uid, email, email_verified: !!email && !unverified }; },
     getUser: async (uid) => ({ uid, phoneNumber: authState.phones[uid] }),
     deleteUser: async (uid) => { authState.deleted.push(uid); },
   }),
@@ -221,6 +221,8 @@ const FREE = { available: true, time: "14:00" };
   check("salon, index, slug, secrets, billing, memberships, files and auth user removed", (await val("")) === null && !(await db.ref(`salon_index/${S}`).get()).exists() && !(await db.ref("salon_slugs/beauty").get()).exists() && !(await db.ref(`salon_secrets/${S}`).get()).exists() && !(await db.ref(`salon_billing/${S}`).get()).exists() && !(await db.ref(`master_memberships/uM1/${S}`).get()).exists() && deletedPrefixes.includes(`salons/${S}/`) && authState.deleted.includes(S));
   check("other salon untouched", (await val("profile/name", S2)) === "Other");
   await seed();
+  r = await call(fns.salonDeleteAccount, { headers: { Authorization: `Bearer tok:fake:${VENDOR}:unverified` }, body: { type: "owner", salonId: S } });
+  check("the vendor e-mail without verification is NOT the vendor", r.code === 403 && (await val("profile/name")) === "Beauty");
   r = await call(fns.salonDeleteAccount, { headers: as("vendor", VENDOR), body: { type: "owner", salonId: S } });
   check("vendor may delete any salon", r.code === 200 && (await val("")) === null);
   await seed();

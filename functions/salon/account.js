@@ -65,7 +65,7 @@ const salonDeleteAccount = onRequest({ region: REGION, cors: true, timeoutSecond
   try {
     const caller = await authUser(req, res);
     if (!caller) return;
-    const isVendor = caller.email === VENDOR_EMAIL;
+    const isVendor = caller.email === VENDOR_EMAIL && caller.email_verified === true; // без підтвердженого email суперадміном не стати
     const { type, salonId: sid } = bodyOf(req);
     if (sid !== undefined && !isSafeKey(sid)) { res.status(400).json({ error: "bad_salon" }); return; }
 

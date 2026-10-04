@@ -19,7 +19,7 @@ await env.withSecurityRulesDisabled(async (c) => {
   } } });
 });
 const as = (uid) => env.authenticatedContext(uid).database();
-const PLAT = env.authenticatedContext("plat", { email: "sash5385@gmail.com" }).database();
+const PLAT = env.authenticatedContext("plat", { email: "sash5385@gmail.com", email_verified: true }).database();
 const OWN = as("S"), M1 = as("uM1"), NEW = as("ownNew"), STRANGER = as("stranger");
 let fails = 0;
 async function t(name, expect, fn) {
