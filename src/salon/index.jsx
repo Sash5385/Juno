@@ -16,10 +16,15 @@ import Masters from "./views/Masters.jsx";
 import Chats from "./views/Chats.jsx";
 import Stats from "./views/Stats.jsx";
 import Settings from "./views/Settings.jsx";
+import Superadmin from "./views/Superadmin.jsx";
+import { isVendor } from "./env.js";
+import { signOut } from "firebase/auth";
+import { auth } from "../firebase.js";
 
 const OWNER_TABS = [["schedule", "📅", "Календар"], ["bookings", "📋", "Записи"], ["clients", "👥", "Клієнти"], ["services", "✂️", "Послуги"], ["masters", "💇", "Майстри"], ["chats", "💬", "Чати"], ["stats", "📊", "Статист."], ["settings", "⚙️", "Налашт."]];
 const MASTER_TABS = [["schedule", "📅", "Календар"], ["bookings", "📋", "Записи"], ["chats", "💬", "Чати"], ["settings", "⚙️", "Профіль"]];
-const VIEWS = { schedule: Schedule, bookings: Bookings, clients: Clients, services: Services, masters: Masters, chats: Chats, stats: Stats, settings: Settings };
+const VENDOR_TAB = ["admin", "🛠", "Адмін"];
+const VIEWS = { schedule: Schedule, bookings: Bookings, clients: Clients, services: Services, masters: Masters, chats: Chats, stats: Stats, settings: Settings, admin: () => <Superadmin embedded /> };
 
 const inviteFromUrl = () => {
   try {
@@ -37,6 +42,7 @@ export default function SalonApp() {
   const [invite] = useState(inviteFromUrl);
   const [sess, setSess] = useState({ uid: null, value: null });
   const [reload, setReload] = useState(0);
+  const [makeOwn, setMakeOwn] = useState(false); // суперадмін без салону вирішив створити власний
   const session = user && sess.uid === user.uid ? sess.value : null;
 
   useEffect(() => {
@@ -55,6 +61,7 @@ export default function SalonApp() {
   let body;
   if (user === undefined || (user && !session)) body = <Spinner />;
   else if (!user) body = <SalonLogin inviteCode={invite} />;
+  else if (session.status === "onboard" && isVendor(user) && !makeOwn) body = <Superadmin onCreateSalon={() => setMakeOwn(true)} onSignOut={() => signOut(auth)} />;
   else if (session.status === "onboard") body = <Onboarding user={user} inviteCode={invite} onDone={() => { setSess({ uid: null, value: null }); setReload((n) => n + 1); }} />;
   else body = <Shell user={user} session={session} setThemeMode={setThemeMode} mode={mode} />;
 
@@ -70,7 +77,7 @@ function Shell({ user, session, setThemeMode, mode }) {
   const th = useMemo(() => getTheme(mode), [mode]);
   const { salonId, masterId } = session;
   const role = session.status === "owner" ? "owner" : "master";
-  const tabs = role === "owner" ? OWNER_TABS : MASTER_TABS;
+  const tabs = role === "owner" ? (isVendor(user) ? [...OWNER_TABS, VENDOR_TAB] : OWNER_TABS) : MASTER_TABS;
   const [tab, setTab] = useState(() => { try { const t = localStorage.getItem("salon_tab"); return tabs.some((x) => x[0] === t) ? t : "schedule"; } catch { return "schedule"; } });
   const [toastEl, toast] = useToast();
   const [perm, setPerm] = useState(pushPermission());

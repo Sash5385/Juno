@@ -126,10 +126,10 @@ async function del(id) { const before = await val(`bookings/${id}`); await sref(
   // ═══ Експорти ═══
   console.log("── exports");
   const names = Object.keys(fns).filter((k) => k.startsWith("salon"));
-  check("28 salon functions exported", names.length === 28, names.join(","));
+  check("29 salon functions exported", names.length === 29, names.join(","));
   check("exports are only functions", Object.values(fns).every((f) => typeof f === "function"));
   check("general functions exported: contact form + error monitoring", ["submitContact", "reportError", "cleanupErrorLog"].every((k) => typeof fns[k] === "function"));
-  check("no leftovers from the instructor product", Object.keys(fns).length === 31 && !fns.onBookingChanged && !fns.deleteAccount && !fns.createLiqPayOrder, Object.keys(fns).join(","));
+  check("no leftovers from the instructor product", Object.keys(fns).length === 32 && !fns.onBookingChanged && !fns.deleteAccount && !fns.createLiqPayOrder, Object.keys(fns).join(","));
 
   // ═══ Час ═══
   console.log("── localToMs / timezones");

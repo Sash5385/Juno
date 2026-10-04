@@ -3,12 +3,12 @@ import { useEffect, useState } from "react";
 import { ref, onValue, get, update, query, orderByChild, equalTo, startAt, endAt } from "firebase/database";
 import { onAuthStateChanged } from "firebase/auth";
 import { db, auth } from "../firebase.js";
-import { DEMO } from "../demo/demoMode.js";
+import { DEMO, DEMO_VENDOR } from "../demo/demoMode.js";
 import { salonPath } from "../salonPaths.js";
 import { gridWrites, regridWrites, toYMD, normWorkHours } from "../salonLogic.js";
 
 export const DEMO_SALON_ID = "demo-salon";
-export const DEMO_SALON_USER = { uid: DEMO_SALON_ID, email: "demo@salon.pro", displayName: "Демо", isAnonymous: false };
+export const DEMO_SALON_USER = { uid: DEMO_SALON_ID, email: DEMO_VENDOR ? "sash5385@gmail.com" : "demo@juno.app", displayName: "Демо", isAnonymous: false };
 
 export const sref = (salonId, path) => ref(db, salonPath(salonId, path));
 export const rootRef = (path) => ref(db, path);

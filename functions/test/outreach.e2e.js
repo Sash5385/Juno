@@ -239,6 +239,11 @@ const FREE = { available: true, time: "14:00" };
   check("enabled: one JSON per salon", !!bk && files.has(`backups/${today}/${S2}.json`));
   const parsed = JSON.parse(bk);
   check("copy has profile, masters, users — without chats and push tokens", parsed.data.profile.name === "Beauty" && !!parsed.data.masters && !!parsed.data.users.c1.profile && !bk.includes("private") && !bk.includes("tok-c1"));
+  files.clear(); await db.ref("system/backupEnabled").set(false); await db.ref("system/backupRequest").set(Date.now());
+  await fns.salonManualBackup.run(wr(null, Date.now(), {}));
+  check("manual backup (system/backupRequest) works even when the toggle is off and clears the request", files.has(`backups/${today}/${S}.json`) && (await db.ref("system/backupRequest").get()).val() === null && (await db.ref("system/backupStatus").get()).val().trigger === "manual");
+  await fns.salonManualBackup.run(wr(Date.now(), null, {}));
+  check("request removal itself does not start a backup", (await db.ref("system/backupStatus").get()).val().trigger === "manual");
   check("status recorded and old copies pruned", (await db.ref("system/backupStatus").get()).val().ok === true && removedFiles.includes("backups/2000-01-01/old.json"));
 
   console.log(failed ? `\n${failed} FAILED` : "\nALL PASS");

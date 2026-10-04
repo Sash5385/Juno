@@ -29,7 +29,34 @@ export function buildSalonDemoTree() {
       timeslots[mid][date] = day;
     }
   }
-  return { salons: { "demo-salon": {
+  const D = 86400000;
+  const fake = (name, slug, license) => ({ name, slug, license });
+  const others = {
+    "demo-s2": fake("Barber House", "barber-house", { status: "active", expiresAt: now + 21 * D, tier: "team", masterLimit: 3, monthKop: 39900, provider: "monobank", lastPaymentAt: now - 9 * D }),
+    "demo-s3": fake("Нігтик", "nigtyk", { status: "active", expiresAt: now + 200 * D, tier: "solo", masterLimit: 1, monthKop: 19900, provider: "monobank", lastPaymentAt: now - 160 * D }),
+    "demo-s4": fake("Студія Лілія", "lilia", { status: "trial", trialEndsAt: now + 2 * D }),
+    "demo-s5": fake("Old Salon", "old-salon", { status: "suspended", expiresAt: now - 20 * D, tier: "studio", masterLimit: 7, monthKop: 69900 }),
+  };
+  const index = { "demo-salon": { name: "Beauty Studio", slug: "beauty-studio", createdAt: now - 30 * D } };
+  const extra = {};
+  for (const [id, o] of Object.entries(others)) { index[id] = { name: o.name, slug: o.slug, createdAt: now - 60 * D }; extra[id] = { profile: { name: o.name, slug: o.slug }, license: o.license }; }
+  const system = {
+    backupEnabled: true, backupStatus: { ok: true, at: now - 5 * 3600000, date: toYMD(new Date()), salons: 5, bytes: 183400, removed: 1, trigger: "nightly" },
+    contactMessages: {
+      m1: { name: "Оксана", email: "oksana@example.com", phone: "+380501234567", message: "Скільки коштує для салону на 4 майстрів?", at: now - 3600000, status: "new" },
+      m2: { name: "Тарас", email: "taras@example.com", phone: "", message: "Чи є інтеграція з Instagram?", at: now - 2 * D, status: "new" },
+      m3: { name: "Ірина", email: "iryna@example.com", phone: "+380671112233", message: "Дякую, все працює!", at: now - 6 * D, status: "done" },
+    },
+    errorLog: {
+      e1: { app: "client", message: "TypeError: Cannot read properties of undefined (reading 'name')", stack: "TypeError: Cannot read properties of undefined\n    at Public (app.js:1:1)", url: "/s/lilia", version: "v04.10.1", ua: "Mozilla/5.0 (iPhone)", count: 7, first: now - 3 * D, last: now - 3600000 },
+      e2: { app: "admin", message: "permission_denied at /salons/demo-s2/bookings", stack: "", url: "/", version: "v04.10.1", ua: "Mozilla/5.0 (Android)", count: 2, first: now - 5 * D, last: now - 2 * D },
+    },
+  };
+  return { salon_index: index, system, salon_billing: { "demo-s2": {
+    p1: { tierKey: "team", months: 1, mode: "extend", amountKop: 39900, status: "success", createdAt: now - 9 * D, appliedExpiresAt: now + 21 * D },
+    p2: { tierKey: "solo", months: 1, mode: "new", amountKop: 19900, status: "success", createdAt: now - 40 * D },
+    p3: { tierKey: "team", months: 12, mode: "upgrade", amountKop: 100000, status: "failure", createdAt: now - 41 * D },
+  } }, salons: { ...extra, "demo-salon": {
     profile: { name: "Beauty Studio", slug: "beauty-studio", phone: "+380441234567", address: "Київ, вул. Хрещатик, 1", about: "Стрижки, манікюр, догляд", timezone: "Europe/Kyiv", slotStep: 30, createdAt: now - 30 * 86400000,
       payment: { enabled: true, hasToken: true, tokenLast4: "a1b2", depositPercent: 30, allowFull: true, holdMinutes: 15, cancelFreeHours: 24, autoConfirm: false } },
     license: { status: "trial", trialEndsAt: now + 9 * 86400000 },

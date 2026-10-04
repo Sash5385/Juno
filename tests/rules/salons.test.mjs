@@ -310,6 +310,21 @@ await t("client sets salon logo", X, () => set(R(C1, A_("profile/logo")), "https
 await t("anonymous reads the logo (public profile)", A, () => get(R(anon, A_("profile/logo"))));
 await t("owner reads slotFreedQueue", A, () => get(R(OWN_A, A_("slotFreedQueue"))));
 
+console.log("── SUPERADMIN: system/*, salon_index, license of any salon");
+await t("platform reads system/tariffs", A, () => get(R(PLAT, "system/tariffs")));
+await t("platform writes system/tariffs", A, () => set(R(PLAT, "system/tariffs"), { yearMonths: 10, trialMasterLimit: 3, tiers: [] }));
+await t("platform requests a manual backup", A, () => set(R(PLAT, "system/backupRequest"), NOW));
+await t("platform edits any salon's license", A, () => update(R(PLAT, "salons/ownB/license"), { status: "active", expiresAt: NOW + DAY, masterLimit: 3, tier: "team", provider: "manual" }));
+await t("platform reads billing of any salon", A, () => get(R(PLAT, "salon_billing/ownB")));
+await t("owner reads system/tariffs", X, () => get(R(OWN_A, "system/tariffs")));
+await t("owner writes system/tariffs (would set own prices)", X, () => set(R(OWN_A, "system/tariffs"), { tiers: [] }));
+await t("owner writes system/backupRequest", X, () => set(R(OWN_A, "system/backupRequest"), NOW));
+await t("owner reads system/errorLog", X, () => get(R(OWN_A, "system/errorLog")));
+await t("owner reads system/contactMessages", X, () => get(R(OWN_A, "system/contactMessages")));
+await t("client writes system/backupEnabled", X, () => set(R(C1, "system/backupEnabled"), true));
+await t("anonymous reads system/tariffs", X, () => get(R(anon, "system/tariffs")));
+await t("owner edits ANOTHER salon's license", X, () => update(R(OWN_A, "salons/ownB/license"), { status: "active" }));
+
 console.log(fails ? `\n${fails} FAILED` : "\nALL PASS");
 await env.cleanup();
 process.exit(fails ? 1 : 0);

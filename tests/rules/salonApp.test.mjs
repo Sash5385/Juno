@@ -3,6 +3,7 @@
 import { initializeTestEnvironment } from "@firebase/rules-unit-testing";
 import { ref, get, set, update, remove, push, increment, query, orderByChild, equalTo, limitToLast } from "firebase/database";
 import { readFileSync } from "node:fs";
+import { DEFAULT_TARIFFS, toDraft, validateDraft } from "../../src/salonTariffs.js";
 const [HOST, PORT] = (process.env.FIREBASE_DATABASE_EMULATOR_HOST || "127.0.0.1:9000").split(":");
 const env = await initializeTestEnvironment({ projectId: "demo-rt", database: { host: HOST, port: Number(PORT), rules: readFileSync("database.rules.json", "utf8") } });
 const NOW = Date.now(), DAY = 86400000, D = "2030-05-14";
@@ -18,6 +19,7 @@ await env.withSecurityRulesDisabled(async (c) => {
   } } });
 });
 const as = (uid) => env.authenticatedContext(uid).database();
+const PLAT = env.authenticatedContext("plat", { email: "sash5385@gmail.com" }).database();
 const OWN = as("S"), M1 = as("uM1"), NEW = as("ownNew"), STRANGER = as("stranger");
 let fails = 0;
 async function t(name, expect, fn) {
@@ -116,6 +118,18 @@ await t("owner saves master with photo + createdAt/activatedAt", A, () => update
 await t("master cannot write broadcast templates", X, () => set(R(M1, S("pushTemplates/t2")), { name: "x" }));
 await t("master cannot set the salon logo", X, () => update(R(M1, S("profile")), { logo: "https://evil" }));
 await t("master cannot read the broadcast log", X, () => get(R(M1, S("pushLog"))));
+
+console.log("── екран суперадміна (як Superadmin / SuperTariffs / SuperSystem)");
+const tariffs = validateDraft(toDraft(DEFAULT_TARIFFS)).value;
+await t("list salons: salon_index + license of each", A, async () => { await get(R(PLAT, "salon_index")); await get(R(PLAT, "salons/S/license")); await get(R(PLAT, "salon_billing/S")); });
+await t("license edit (status + until + limit + tier + provider)", A, () => update(R(PLAT, "salons/S/license"), { status: "active", expiresAt: NOW + 30 * DAY, masterLimit: 3, tier: "team", provider: "manual" }));
+await t("trial edit (trialEndsAt) beyond 15 days", A, () => update(R(PLAT, "salons/S/license"), { status: "trial", trialEndsAt: NOW + 90 * DAY, masterLimit: null, tier: null }));
+await t("save tariffs from the form (validated draft)", A, () => set(R(PLAT, "system/tariffs"), { ...tariffs, currency: "UAH" }));
+await t("reset tariffs to defaults", A, () => remove(R(PLAT, "system/tariffs")));
+await t("toggle nightly backup + manual request", A, async () => { await set(R(PLAT, "system/backupEnabled"), true); await set(R(PLAT, "system/backupRequest"), NOW); });
+await t("contact messages: mark done / delete", A, async () => { await update(R(PLAT, "system/contactMessages/m1"), { status: "done" }); await remove(R(PLAT, "system/contactMessages/m1")); });
+await t("error log: remove one / clear all", A, async () => { await remove(R(PLAT, "system/errorLog/e1")); await remove(R(PLAT, "system/errorLog")); });
+await t("the same license edit by the owner", X, () => update(R(OWN, "salons/S/license"), { status: "active", expiresAt: NOW + 900 * DAY }));
 
 console.log(fails ? `\n${fails} FAILED` : "\nALL PASS");
 await env.cleanup();

@@ -9,6 +9,6 @@ module.exports = {
   ...require("./masters"),    // salonCreateMasterInvite, salonClaimMasterInvite
   ...require("./payments"),   // salonSavePaymentSettings, salonCreateBookingInvoice, salonMonobankCallback, salonExpireUnpaidBookings
   ...require("./broadcast"),  // salonOnSlotFreed, salonFlushSlotFreedQueue, salonSendBroadcast
-  ...require("./account"),    // salonDeleteAccount, salonNightlyBackup
+  ...require("./account"),    // salonDeleteAccount, salonNightlyBackup, salonManualBackup
   ...require("./billing"),    // salonSubscriptionInfo, salonCreateSubscriptionInvoice, salonSubscriptionCallback, salonOnMasterWritten
 };

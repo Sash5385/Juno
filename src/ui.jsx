@@ -76,10 +76,10 @@ export function UICss() {
 }
 
 // ── Card: the canonical panel (gradient) ───────────────────────
-export function Card({ children, style = {}, onClick, inset = false, className }) {
+export function Card({ children, style = {}, onClick, inset = false, className, ...rest }) {
   const { SURF_HI, SURFACE, BG_DEEP, BORDER, SO, SI } = useContext(ThemeContext);
   return (
-    <div onClick={onClick} className={className} style={{
+    <div onClick={onClick} className={className} {...rest} style={{
       background: inset ? BG_DEEP : panel(SURF_HI, SURFACE),
       borderRadius: RADIUS.card,
       border: `1px solid ${BORDER}`,

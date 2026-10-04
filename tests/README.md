@@ -4,7 +4,7 @@
 
 ## Правила бази, логіка, записи UI (емулятор)
 ```bash
-npx firebase-tools@13 emulators:exec --only database --project demo-rt "node tests/rules/salons.test.mjs && node tests/rules/salonApp.test.mjs && node tests/rules/salonClientApp.test.mjs && node tests/rules/salonPaths.test.mjs && node tests/unit/salonLogic.test.mjs"
+npx firebase-tools@13 emulators:exec --only database --project demo-rt "node tests/rules/salons.test.mjs && node tests/rules/salonApp.test.mjs && node tests/rules/salonClientApp.test.mjs && node tests/rules/salonPaths.test.mjs && node tests/unit/salonLogic.test.mjs && node tests/unit/salonTariffs.test.mjs"
 ```
 `salons.test.mjs` — ролі власник / майстер / клієнт: майстер бачить і пише лише свій `masterId`, клієнт створює лише `pending`-запис з каталожною ціною
 для дозволеного майстра і не чіпає `paymentStatus`/ціну/`masterId`, `license` пише лише суперадмін. `salonApp` / `salonClientApp` повторюють кожен запис адмінки
@@ -25,7 +25,8 @@ FCM, Firebase Auth і Monobank підмінені; у емулятор вант�
 ```bash
 npm run build && (npx vite preview --port 4173 &) && cd tests/smoke && npm install && npx playwright install chromium && cd ../..
 node tests/smoke/smoke.mjs http://localhost:4173          # усі вкладки: помилки JS, порожній екран, горизонтальний скрол
-node tests/smoke/salon-flows.mjs http://localhost:4173    # сценарії: запис, послуги, майстри, чат, налаштування оплати
+node tests/smoke/salon-flows.mjs http://localhost:4173    # сценарії: запис, послуги, майстри, чат, налаштування оплати, підписка, розсилка, фото
+node tests/smoke/superadmin-flows.mjs http://localhost:4173   # екран суперадміна (?demo=1&vendor=1): салони, тарифи, система
 ```
 
 ## CI

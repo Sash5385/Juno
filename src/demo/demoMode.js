@@ -21,4 +21,16 @@ function detect() {
 }
 
 export const DEMO = detect();
+
+// ?demo=1&vendor=1 — демо від імені власника платформи (екран суперадміна); ?vendor=0 вимикає
+const VKEY = "juno_demo_vendor";
+function detectVendor() {
+  try {
+    const v = new URLSearchParams(window.location.search).get("vendor");
+    if (v === "0") sessionStorage.removeItem(VKEY);
+    if (v === "1") sessionStorage.setItem(VKEY, "1");
+    return DEMO && sessionStorage.getItem(VKEY) === "1";
+  } catch { return false; }
+}
+export const DEMO_VENDOR = detectVendor();
 export const demoTheme = () => { try { return sessionStorage.getItem(TKEY) || "dark"; } catch { return "dark"; } };

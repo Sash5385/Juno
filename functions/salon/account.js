@@ -7,8 +7,10 @@
 //   {type:"owner", salonId?}   — власник видаляє салон: JSON-архів у Storage (backups/deleted/…), потім дані салону, slug, токен Monobank,
 //       журнал підписки, членства майстрів, файли Storage і обліковий запис. salonId (чужий) може вказати лише суперадмін.
 // Нічна резервна копія (salonNightlyBackup): лише коли суперадмін увімкнув system/backupEnabled = true; 30 діб зберігання.
+// Ручна (salonManualBackup): запис system/backupRequest — працює незалежно від тумблера.
 const { onRequest } = require("firebase-functions/v2/https");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
+const { onValueWritten } = require("firebase-functions/v2/database");
 const {
   admin, REGION, db, sRef, isSafeKey, VENDOR_EMAIL, localDate, salonTimezone, isCancelled, allSalonIds,
 } = require("./lib");
@@ -138,4 +140,11 @@ const salonNightlyBackup = onSchedule({ schedule: "every day 03:00", timeZone: "
   await runBackup("nightly");
 });
 
-module.exports = { salonDeleteAccount, salonNightlyBackup, deleteClientData, deleteOwnerSalon, runBackup };
+// Кнопка «Зробити копію зараз» у суперадміні: запис system/backupRequest (пише лише суперадмін) → копія незалежно від тумблера
+const salonManualBackup = onValueWritten({ ref: "system/backupRequest", region: REGION, timeoutSeconds: 540, memory: "512MiB" }, async (event) => {
+  if (event.data.after.val() == null) return;
+  await runBackup("manual");
+  await db().ref("system/backupRequest").remove().catch(() => {});
+});
+
+module.exports = { salonDeleteAccount, salonNightlyBackup, salonManualBackup, deleteClientData, deleteOwnerSalon, runBackup };
