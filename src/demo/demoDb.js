@@ -1,10 +1,18 @@
 // Фейкова Realtime Database в пам'яті для демо-режиму (див. demoMode.js).
 // Реалізує лише те, чим користується застосунок: onValue/get/set/update/remove/push/
-// runTransaction/off. Дані — з buildSalonDemoTree(); записи міняють лише цю копію в пам'яті,
+// runTransaction/off. Дані — з buildDemoTree(); записи міняють лише цю копію в пам'яті,
 // тож інтерфейс у демо "живий" (можна тапати, переносити), а Firebase лишається недоторканим.
-import { buildSalonDemoTree } from "../salon/demoData.js";
+import { buildDemoTree } from "./demoData.js";
+import { DEMO_UID } from "./demoMode.js";
 
-let root = buildSalonDemoTree();
+let root = buildDemoTree();
+// ?demo=1&fresh=1 — «щойно зареєстрований інструктор»: лише профіль і ліцензія, жодних налаштувань, слотів і записів
+try {
+  if (new URLSearchParams(window.location.search).get("fresh") === "1") {
+    const inst = root.instructors?.[DEMO_UID] || {};
+    root.instructors = { [DEMO_UID]: { license: inst.license, admin_settings: { profile: inst.admin_settings?.profile || { name: "Новий інструктор" } } } };
+  }
+} catch { /* без window */ }
 const listeners = new Set();
 
 const norm = (p) => String(p || "").replace(/^\/+|\/+$/g, "");

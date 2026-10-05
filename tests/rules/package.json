@@ -1,13 +1,7 @@
 {
-  "name": "juno-rules-tests",
+  "name": "drivepad-rules-tests",
   "private": true,
   "type": "module",
-  "scripts": {
-    "test": "cd ../.. && firebase emulators:exec --only database --project demo-rt \"node tests/rules/salons.test.mjs && node tests/rules/salonApp.test.mjs && node tests/rules/salonClientApp.test.mjs && node tests/rules/salonPaths.test.mjs && node tests/unit/salonLogic.test.mjs && node tests/unit/salonTariffs.test.mjs\""
-  },
-  "devDependencies": {
-    "@firebase/rules-unit-testing": "^3.0.4",
-    "firebase": "^10.14.1",
-    "firebase-tools": "^13.0.0"
-  }
+  "scripts": { "test": "cd ../.. && firebase emulators:exec --only database --project demo-rt \"node tests/rules/rules.test.mjs\"" },
+  "devDependencies": { "@firebase/rules-unit-testing": "^3.0.4", "firebase": "^10.14.1", "firebase-tools": "^13.0.0" }
 }

@@ -1,15 +1,15 @@
 {
   "projects": {
-    "default": "juno-project-id"
+    "default": "drivepad-86fe1"
   },
   "targets": {
-    "juno-project-id": {
+    "drivepad-86fe1": {
       "hosting": {
         "admin": [
-          "juno-admin"
+          "drivepad-admin"
         ],
         "landing": [
-          "juno-project-id"
+          "drivepad-86fe1"
         ]
       }
     }

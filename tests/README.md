@@ -1,33 +1,56 @@
-# Тести Juno
+# Тести безпеки і платежів
 
 Потрібні Node 20+ і Java (для емулятора Realtime Database). Нічого з бойової бази не чіпають.
 
-## Правила бази, логіка, записи UI (емулятор)
+## Правила бази (`database.rules.json`)
 ```bash
-npx firebase-tools@13 emulators:exec --only database --project demo-rt "node tests/rules/salons.test.mjs && node tests/rules/salonApp.test.mjs && node tests/rules/salonClientApp.test.mjs && node tests/rules/salonPaths.test.mjs && node tests/unit/salonLogic.test.mjs && node tests/unit/salonTariffs.test.mjs"
+cd tests/rules && npm install && npm test
+# або з кореня: npx firebase-tools emulators:exec --only database --project demo-rt "node tests/rules/rules.test.mjs"
 ```
-`salons.test.mjs` — ролі власник / майстер / клієнт: майстер бачить і пише лише свій `masterId`, клієнт створює лише `pending`-запис з каталожною ціною
-для дозволеного майстра і не чіпає `paymentStatus`/ціну/`masterId`, `license` пише лише суперадмін. `salonApp` / `salonClientApp` повторюють кожен запис адмінки
-й клієнтського застосунку проти справжніх правил — якщо UI почне писати заборонене, тест червоний. **Після будь-якої зміни правил — прогнати до деплою.**
+Перевіряє: інструктор не може видалити/продовжити `license`, пробний період ≤ 15 діб; учень не може змінювати
+`isVip/discount/hoursOffset/blocked/…` у своїй картці; слоти розкладу пише лише учень ЦЬОГО інструктора,
+адмінські поля слота незмінні, справжній слот не видалити, «вільний» слот не створити.
+**Після будь-якої зміни правил прогнати тест до деплою.**
 
-## Cloud Functions
+## Платіжні вебхуки (LiqPay, Monobank)
 ```bash
-npx firebase-tools@13 emulators:exec --only database --project demo-salon "node functions/test/salon.e2e.js"
-npx firebase-tools@13 emulators:exec --only database --project demo-billing "node functions/test/billing.e2e.js"
-npx firebase-tools@13 emulators:exec --only database --project demo-outreach "node functions/test/outreach.e2e.js"
-npx firebase-tools@13 emulators:exec --only database --project demo-mon "node functions/test/monitoring.e2e.js"
+cd functions && npm install && cd ..
+npx firebase-tools emulators:exec --only database --project demo-pay "node functions/test/payments.e2e.js"
 ```
-FCM, Firebase Auth і Monobank підмінені; у емулятор вантажаться справжні `database.rules.json` (запити по `date`/`bookingId` працюють лише з `.indexOn`).
-`salon.e2e.js`: запис і слоти по майстрах, сповіщення, черга, нагадування, чати, запрошення майстрів, налаштування оплати, рахунок, вебхук Monobank
-(підпис, ідемпотентність, повернення, чужі запити), політика скасування, таймаут неоплачених записів, ліцензія. `billing.e2e.js`: тарифи й розрахунок (новий/продовження/підвищення зі знижкою), рахунок Monobank платформи, вебхук (підпис, ідемпотентність, сума, повернення), ліміт майстрів. `outreach.e2e.js`: «звільнився час» (черга, вікно 10 днів, ліміти, тихі години), розсилка, прив'язка записів за підтвердженим телефоном, видалення клієнта і салону, нічна копія. `monitoring.e2e.js`: журнал помилок і ліміти.
+Підписані тестові колбеки проходять через справжній код функцій: підпис, продовження ліцензії, ідемпотентність,
+річний тариф, повернення коштів, підроблені запити.
+
+## Записи / скасування / перенесення (слоти)
+```bash
+bash tests/flows/run.sh        # потрібен клонований DrivePad-Client поруч (або CLIENT_DIR=...), Java, firebase-tools
+```
+РЕАЛЬНИЙ `db.js` клієнта + РЕАЛЬНІ правила БД + серверна `onBookingChanged` на емуляторах Database+Auth, два учні й інструктор.
+Сценарії: запис, перекриття двох учнів, скасування учнем/адміном, phantom-слоти, перенос учнем, перенос адміном (в той самий і інший день),
+скасування вже переніс. запису, атака «звільнити чужий слот», старі слоти без `bookedBy`, «накладка» записів.
+**Гонка за слоти:** `bash tests/flows/run.sh race` — троє учнів (три незалежні екземпляри `db.js`) одночасно беруть той самий/перекривний час,
+з випадковими затримками і повним потоком `claimSlot → createBooking`; перевіряє: переможець один, слоти лише його, у програвших не лишається слідів.
+Адмінські операції (`blockSlots/freeSlots/перенос`) у тесті — репліка логіки `src/App.jsx`: змінюєш її там — онови й тут. У CI не запускається (потрібен другий репозиторій).
+
+## Моніторинг помилок і вимкнений LiqPay
+```bash
+npx firebase-tools emulators:exec --only database --project demo-mon "node functions/test/monitoring.e2e.js"
+```
+`reportError` (групування, ліміт 20/хв на IP, обрізання полів), щоденне очищення `cleanupErrorLog`, `createLiqPayOrder` → 503.
 
 ## Смоук-тест інтерфейсу (демо-режим, екран 320px)
 ```bash
-npm run build && (npx vite preview --port 4173 &) && cd tests/smoke && npm install && npx playwright install chromium && cd ../..
-node tests/smoke/smoke.mjs http://localhost:4173          # усі вкладки: помилки JS, порожній екран, горизонтальний скрол
-node tests/smoke/salon-flows.mjs http://localhost:4173    # сценарії: запис, послуги, майстри, чат, налаштування оплати, підписка, розсилка, фото
-node tests/smoke/superadmin-flows.mjs http://localhost:4173   # екран суперадміна (?demo=1&vendor=1): салони, тарифи, система
+npm run build && (npx vite preview --port 4173 &) && cd tests/smoke && npm install && npx playwright install chromium
+node tests/smoke/smoke.mjs admin http://localhost:4173     # у DrivePad-Client: ... smoke.mjs client ...
 ```
+Проходить усі вкладки, падає на помилці JS, порожньому екрані чи горизонтальному скролі. Без Firebase.
 
 ## CI
-`.github/workflows/tests.yml` запускає все вище; `deploy.yml` (ручний) викликає його як `needs: tests` — деплой не йде, поки тести червоні.
+`.github/workflows/tests.yml` запускає все вище; `deploy.yml` викликає його як `needs: tests` — **деплой не йде, поки тести червоні**.
+
+## Реальна проба платежу (раз перед запуском, вручну)
+1. У Firebase Console → Realtime Database створити `payment_test/{iid тестового інструктора}` = `true` (сума стане 1 ₴).
+2. В адмінці тестового інструктора: Налаштування → оплата → LiqPay, потім Monobank (по одному платежу).
+3. Перевірити `instructors/{iid}/license`: `status: active`, `expiresAt` +31 доба, є `paymentLog/…`.
+4. Повторити надсилання вебхука з кабінету провайдера — `expiresAt` не повинен змінитися.
+5. Повернути платіж у кабінеті провайдера — ліцензія має відкотитися (`lastRefundAt`).
+6. Видалити `payment_test/{iid}`.

@@ -1,5 +1,5 @@
 {
-  "name": "juno-smoke",
+  "name": "drivepad-smoke",
   "private": true,
   "type": "module",
   "dependencies": { "playwright": "1.56.1" }

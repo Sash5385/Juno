@@ -1,0 +1,31 @@
+/* Фон і анімація прокрутки: «Скло і орби» */
+/* Фони та анімації прокрутки: 10 варіантів (?v=1…10). Клас body.fx.vN ставить js/fx.js */
+body.fx{background:#0a0b0d}
+.fx #bg{position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none}
+.fx .hero,.fx .problem{background:none}
+.fx header{background:rgba(10,11,13,.8)}
+.fx main,.fx footer{position:relative;z-index:1}
+#fxbar{position:fixed;top:0;left:0;height:3px;width:calc(var(--p,0)*100%);background:linear-gradient(90deg,var(--accent),var(--gold),var(--green));z-index:80;display:none}
+.fx #fxbar{display:block}
+.scrollcue{display:flex;flex-direction:column;align-items:center;gap:6px;margin-top:34px;color:var(--dim);font-size:12px;letter-spacing:1.5px;text-transform:uppercase}
+.scrollcue i{width:24px;height:38px;border:2px solid rgba(255,255,255,.35);border-radius:14px;position:relative}
+.scrollcue i::after{content:"";position:absolute;left:50%;top:7px;width:4px;height:8px;margin-left:-2px;border-radius:2px;background:var(--accent);animation:cue 1.6s infinite}
+@keyframes cue{0%{opacity:0;transform:translateY(0)}30%{opacity:1}100%{opacity:0;transform:translateY(14px)}}
+/* reveal */
+.fx .rv{opacity:0;transition:opacity .8s ease,transform .8s cubic-bezier(.2,.7,.2,1),filter .8s ease;transition-delay:var(--d,0ms);will-change:transform,opacity}
+.fx .rv.in{opacity:1;transform:none!important;filter:none!important}
+
+
+/* ===== 9 · Скло ===== */
+.v9 #bg{background:#0a0b0d}
+.v9 #bg::after{content:"";position:absolute;inset:0;background:rgba(8,9,11,.42);pointer-events:none} /* затемнення орбів: текст завжди читається */
+.v9 .orb{position:absolute;border-radius:50%;filter:blur(40px);opacity:.4}
+.v9 .o1{width:46vw;height:46vw;left:-8vw;top:6vh;background:#ff5a3c;transform:translateY(calc(var(--syn)*-.18px))}
+.v9 .o2{width:38vw;height:38vw;right:-6vw;top:46vh;background:#7a4dff;transform:translateY(calc(var(--syn)*-.3px))}
+.v9 .o3{width:34vw;height:34vw;left:30vw;top:96vh;background:#14b8a6;transform:translateY(calc(var(--syn)*-.12px))}
+.v9 .card,.v9 .plan,.v9 details,.v9 .step{background:rgba(18,19,23,.74);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-color:rgba(255,255,255,.16)}
+@media(prefers-reduced-motion:reduce){.fx .rv{opacity:1!important;transform:none!important;filter:none!important;transition:none}.scrollcue i::after{animation:none}}
+.fx h1,.fx .sec-title,.fx .lead{text-shadow:0 2px 20px rgba(0,0,0,.5)}
+/* Анімація як у варіанта 6: поява з розмиття + колір фону плавно змінюється з прокруткою */
+.v9 .rv{transform:translateY(16px);filter:blur(10px)}
+.v9 #bg{filter:hue-rotate(calc(var(--p)*150deg))}

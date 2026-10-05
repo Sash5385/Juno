@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// Juno · Shared UI design system
+// DrivePad · Shared UI design system
 // Single source of truth for windows: panels, modals, fields, buttons.
 // Panel look = gradient SURF_HI→SURFACE. Coffee-correct via glow/shade/ink.
 // ═══════════════════════════════════════════════════════════════
@@ -76,10 +76,10 @@ export function UICss() {
 }
 
 // ── Card: the canonical panel (gradient) ───────────────────────
-export function Card({ children, style = {}, onClick, inset = false, className, ...rest }) {
+export function Card({ children, style = {}, onClick, inset = false, className }) {
   const { SURF_HI, SURFACE, BG_DEEP, BORDER, SO, SI } = useContext(ThemeContext);
   return (
-    <div onClick={onClick} className={className} {...rest} style={{
+    <div onClick={onClick} className={className} style={{
       background: inset ? BG_DEEP : panel(SURF_HI, SURFACE),
       borderRadius: RADIUS.card,
       border: `1px solid ${BORDER}`,

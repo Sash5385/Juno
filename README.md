@@ -1,18 +1,16 @@
-# Juno — адмінка (власник і майстер)
+# React + Vite
 
-Запис клієнтів для салонів краси, барбершопів і майстрів. React 19 + Vite, Firebase (Realtime Database, Auth, Functions, Hosting, FCM).
-Схема даних, ролі, функції й оплата: [docs/SALON-SCHEMA.md](docs/SALON-SCHEMA.md). Клієнтський застосунок — репозиторій Juno-client.
+This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
-```bash
-npm ci
-npm run dev          # http://localhost:5174/?demo=1 — демо з вигаданими даними, без Firebase
-npm run build
-```
+Currently, two official plugins are available:
 
-Новий Firebase-проєкт — крок за кроком: [docs/FIREBASE-SETUP.md](docs/FIREBASE-SETUP.md) (`scripts/setup-firebase.sh`). Вручну: скопіюйте `.env.example` у `.env.local`, заповніть `VITE_FIREBASE_*`; у `functions/.env.<project>` задайте `SALON_ADMIN_URL`, `SALON_CLIENT_URL`.
-Тести: [tests/README.md](tests/README.md). Деплой — вручну: GitHub Actions → «Deploy to Firebase».
+- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
+- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
 
-Гілка `main` містить повну копію DrivePad на момент створення Juno; розробка Juno — в інших гілках.
+## React Compiler
 
-Бренд: макет `assets/brand/juno-brand-source.jpg` (іконка Juno); усі PNG (іконки PWA, maskable, apple-touch, фавікон, превʼю для посилань) пересобираються
-`node scripts/make-brand-assets.mjs [макет.jpg] [шлях/до/Juno-client]`. Для різкіших іконок потрібен макет більшого розміру.
+The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+
+## Expanding the ESLint configuration
+
+If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.

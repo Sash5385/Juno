@@ -1,13 +1,13 @@
 name: Tests
 
-# Автотести: правила бази, функції салону, моніторинг помилок (на емуляторі Realtime Database)
+# Автотести: правила бази, платіжні вебхуки, моніторинг помилок (на емуляторі Realtime Database)
 # і смоук-тест адмінки в демо-режимі. Викликається з deploy.yml — деплой не йде, поки тести червоні.
 on:
   workflow_call:
   pull_request:
   push:
     branches:
-      - '**'
+      - claude/id4-drive-monetization-clone-bi2iw7
 
 jobs:
   database:
@@ -36,19 +36,13 @@ jobs:
           (cd tests/rules && npm install --no-audit --no-fund)
 
       - name: Database rules
-        run: npx --yes firebase-tools@13 emulators:exec --only database --project demo-rt "node tests/rules/salons.test.mjs && node tests/rules/salonApp.test.mjs && node tests/rules/salonClientApp.test.mjs && node tests/rules/salonPaths.test.mjs && node tests/unit/salonLogic.test.mjs && node tests/unit/salonTariffs.test.mjs"
+        run: npx --yes firebase-tools@13 emulators:exec --only database --project demo-rt "node tests/rules/rules.test.mjs"
 
-      - name: Subscription billing (tariffs, Monobank webhook, master limit)
-        run: npx --yes firebase-tools@13 emulators:exec --only database --project demo-billing "node functions/test/billing.e2e.js"
+      - name: Payment webhooks
+        run: npx --yes firebase-tools@13 emulators:exec --only database --project demo-pay "node functions/test/payments.e2e.js"
 
-      - name: Outreach, account deletion, backups
-        run: npx --yes firebase-tools@13 emulators:exec --only database --project demo-outreach "node functions/test/outreach.e2e.js"
-
-      - name: Error monitoring
+      - name: Error monitoring and disabled LiqPay
         run: npx --yes firebase-tools@13 emulators:exec --only database --project demo-mon "node functions/test/monitoring.e2e.js"
-
-      - name: Salon functions (bookings, payments, refunds)
-        run: npx --yes firebase-tools@13 emulators:exec --only database --project demo-salon "node functions/test/salon.e2e.js"
 
   smoke:
     runs-on: ubuntu-latest
@@ -75,6 +69,4 @@ jobs:
         run: |
           nohup npx vite preview --port 4173 --strictPort > preview.log 2>&1 &
           for i in $(seq 1 30); do curl -sf http://localhost:4173 > /dev/null && break; sleep 1; done
-          node tests/smoke/smoke.mjs http://localhost:4173
-          node tests/smoke/salon-flows.mjs http://localhost:4173
-          node tests/smoke/superadmin-flows.mjs http://localhost:4173
+          node tests/smoke/smoke.mjs admin http://localhost:4173

@@ -1,8 +1,10 @@
-// Тест моніторингу помилок на ЕМУЛЯТОРІ Realtime Database.
-// Запуск (з кореня Juno): npx firebase-tools emulators:exec --only database --project demo-mon "node functions/test/monitoring.e2e.js"
+// Тест моніторингу помилок і вимкненого LiqPay на ЕМУЛЯТОРІ Realtime Database.
+// Запуск (з кореня DrivePad): npx firebase-tools emulators:exec --only database --project demo-mon "node functions/test/monitoring.e2e.js"
 process.env.GCLOUD_PROJECT = "demo-mon";
 process.env.FIREBASE_DATABASE_EMULATOR_HOST = process.env.FIREBASE_DATABASE_EMULATOR_HOST || "127.0.0.1:9000";
 process.env.FIREBASE_AUTH_EMULATOR_HOST = "127.0.0.1:1"; // Auth-емулятора немає: пошук власника для push швидко падає, як і має
+process.env.LIQPAY_PRIVATE_KEY = "k"; process.env.LIQPAY_PUBLIC_KEY = "k"; process.env.MONOBANK_TOKEN = "k";
+delete process.env.LIQPAY_ENABLED;
 
 const admin = require("firebase-admin");
 const fns = require("../index.js");
@@ -54,6 +56,12 @@ const err = (over = {}) => ({ app: "admin", message: "TypeError: x is undefined"
   l = await log();
   check("entries older than 14 days removed, fresh kept", !l.old1 && !!l.new1);
   check("stale rate counters removed", !(await db.ref("system/errorRate/stale").get()).exists());
+
+  console.log("── LiqPay temporarily disabled");
+  r = await call(fns.createLiqPayOrder, { body: { plan: "month" } });
+  check("createLiqPayOrder → 503 while disabled", r.code === 503, `code=${r.code}`);
+  r = await call(fns.createLiqPayOrder, { method: "GET" });
+  check("createLiqPayOrder GET → 405", r.code === 405);
 
   console.log(failed ? `\n${failed} FAILED` : "\nALL PASS");
   process.exit(failed ? 1 : 0);
