@@ -727,7 +727,7 @@ select{color-scheme:${isKava?"light":"dark"}}
   useEffect(() => {
     get(iRef("admin_settings/profile/slug")).then(snap => setBookingSlug(snap.val() || "")).catch(() => {});
   }, []);
-  const bookingLink = bookingSlug ? `https://drivepad-client.web.app/i/${bookingSlug}` : "";
+  const bookingLink = bookingSlug ? `https://juno-booking-client.web.app/i/${bookingSlug}` : "";
   const copyBookingLink = () => {
     if (!bookingLink) return;
     navigator.clipboard?.writeText(bookingLink).catch(() => {});

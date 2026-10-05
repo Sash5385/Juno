@@ -1,6 +1,6 @@
 // Налаштування сайту. Заповніть порожні поля — вони з'являться на сторінках автоматично.
 window.DP_SITE = {
-  appUrl: "https://drivepad-admin.web.app",   // сюди ведуть кнопки "Спробувати" (реєстрація)
+  appUrl: "https://juno-booking-admin.web.app",   // сюди ведуть кнопки "Спробувати" (реєстрація)
   email: "",       // напр. "support@drivepad.xxx"
   phone: "",       // напр. "+380 XX XXX XX XX"
   telegram: "",    // напр. "https://t.me/ваш_нік"

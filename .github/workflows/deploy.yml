@@ -54,15 +54,15 @@ jobs:
         # зеленим. Тепер основні функції деплояться окремо і БЕЗ continue-on-error:
         # якщо вони не виїхали — CI червоніє, а не мовчить.
         env:
-          GCLOUD_PROJECT: drivepad-86fe1
-          FIREBASE_CONFIG: '{"projectId":"drivepad-86fe1","databaseURL":"https://drivepad-86fe1-default-rtdb.europe-west1.firebasedatabase.app"}'
+          GCLOUD_PROJECT: juno-booking
+          FIREBASE_CONFIG: '{"projectId":"juno-booking","databaseURL":"https://juno-booking-default-rtdb.europe-west1.firebasedatabase.app"}'
         run: |
           CORE=$(cd functions && node -e "console.log(Object.keys(require('./index.js')).filter(n=>!/^(createLiqPayOrder|liqpayCallback|createMonobankInvoice|monobankCallback)\$/.test(n)).map(n=>'functions:'+n).join(','))")
           echo "Deploying: $CORE"
           npx firebase-tools deploy --only "$CORE" --token "${{ secrets.FIREBASE_TOKEN }}"
 
       - name: Deploy Landing (публічний сайт)
-        # Окремо і з continue-on-error: лендинг (папка landing/, сайт drivepad-86fe1.web.app)
+        # Окремо і з continue-on-error: лендинг (папка landing/, сайт juno-booking.web.app)
         # не повинен валити критичний деплой адмінки. Іде ПІСЛЯ функцій, бо форма
         # зв'язку (/api/contact) перенаправляється на функцію submitContact.
         continue-on-error: true

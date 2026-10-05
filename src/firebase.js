@@ -13,18 +13,17 @@ export const getCurrentIid = () => _iid;
 export const iRef = (path) => ref(db, path ? `instructors/${_iid}/${path}` : `instructors/${_iid}`);
 
 const firebaseConfig = {
-  apiKey: "AIzaSyAJFqq9jMrc2RgkceappeGt9EJ2bM2xKBI",
-  authDomain: "drivepad-86fe1.firebaseapp.com",
-  databaseURL: "https://drivepad-86fe1-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "drivepad-86fe1",
-  storageBucket: "drivepad-86fe1.firebasestorage.app",
-  messagingSenderId: "221725287898",
-  appId: "1:221725287898:web:59ee63287a825801104ce3",
-  measurementId: "G-Y1ZTLEDMVK"
+  apiKey: "AIzaSyDu4tWzXFZWWlaJGuhlibDKz1U96Uk3Q74",
+  authDomain: "juno-booking.firebaseapp.com",
+  databaseURL: "https://juno-booking-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "juno-booking",
+  storageBucket: "juno-booking.firebasestorage.app",
+  messagingSenderId: "852885730629",
+  appId: "1:852885730629:web:9a8f34b87d2538541cba2c",
 };
 
 // VAPID-ключ навмисно НЕ задаємо: раніше тут стояв ключ іншого проєкту,
-// а DrivePad працює на іншому проєкті (drivepad-86fe1) — Firebase відхиляв getToken, токен
+// а цей застосунок працює на іншому проєкті (juno-booking) — Firebase відхиляв getToken, токен
 // ніколи не зберігався ("no tokens"), пуші не приходили. Без vapidKey SDK бере ключ за
 // замовчуванням, який працює для будь-якого проєкту.
 
