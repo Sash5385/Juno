@@ -437,6 +437,7 @@ const DEFAULT_SETTINGS = {
   calendarOpenDays: 30,     // how many days ahead visible to private-lesson students
   schoolCalendarOpenDays: 14, // how many days ahead visible to school (автошкола) students
   slotGenDays: 30,          // how many days ahead the "generate slots" button auto-fills
+  packageHours: 40,         // годин у пакеті стандартного клієнта (0 = без пакета)
   minBookingIntervalDays: 0, // min days between any two bookings (0 = disabled)
   // sticky time
   stickyTime: "both",       // before | after | both

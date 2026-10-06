@@ -48,17 +48,17 @@ function ActBtn({ icon, label, onClick, color, danger }) {
 }
 
 // ─── PROGRESS BAR ────────────────────────────────────────────────
-function Progress({ hours, offset }) {
+function Progress({ hours, offset, target = 40 }) {
   const { BG_DEEP, DIM, FAINT, ACCENT, ACC_HI, GREEN, BLUE, SI } = useContext(ThemeContext);
   const { glow } = useFX();
   const total = hours + (offset || 0);
-  const pct = Math.min((total / 40) * 100, 100);
+  const pct = Math.min((total / target) * 100, 100);
   const done = pct >= 100;
   return (
     <div>
       <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
         <span style={{fontSize:11,color:DIM}}>Прогрес пакета</span>
-        <span style={{fontSize:11,fontWeight:800,color:done?ACCENT:GREEN}}>{total}/40 год · {Math.round(pct)}%</span>
+        <span style={{fontSize:11,fontWeight:800,color:done?ACCENT:GREEN}}>{total}/{target} год · {Math.round(pct)}%</span>
       </div>
       <div style={{height:5,background:BG_DEEP,borderRadius:3,boxShadow:SI,overflow:"hidden"}}>
         {offset > 0 ? (
@@ -193,7 +193,7 @@ function StudentCard({ s, onSelect, settings }) {
 }
 
 // ─── STUDENT DETAIL SHEET ────────────────────────────────────────
-function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock, onRemoveBadge, autoOpenHistory, slotColor, autoColors, onColorChange }) {
+function StudentDetailSheet({ packageHours = 40, s, onClose, onUpdate, onDelete, onBlock, onRemoveBadge, autoOpenHistory, slotColor, autoColors, onColorChange }) {
   const { BG_DEEP, SURF_HI, SURFACE, BORDER, TEXT, DIM, FAINT, ACCENT, ACC_HI, GREEN, BLUE, GOLD, RED, SO, SI } = useContext(ThemeContext);
   const { shade, glow, ink } = useFX();
   const [closing,      setClosing]     = useState(false);
@@ -501,15 +501,15 @@ function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock, onRemoveB
 
                 {/* Type + progress */}
                 <div style={{background:glow(0.04),borderRadius:10,padding:"10px 12px",border:`1px solid ${BORDER}`}}>
-                  <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:s.type==="school"?9:0}}>
+                  <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:s.type==="school"&&packageHours>0?9:0}}>
                     <span style={{fontSize:11,fontWeight:800,color:typeColor}}>{typeLabel}</span>
-                    {s.type==="school" && <span style={{fontSize:10,color:FAINT}}>· {s.hours+(s.hoursOffset||0)}/40 год</span>}
+                    {s.type==="school" && packageHours>0 && <span style={{fontSize:10,color:FAINT}}>· {s.hours+(s.hoursOffset||0)}/{packageHours} год</span>}
                   </div>
-                  {s.type==="school" && <Progress hours={s.hours} offset={s.hoursOffset||0}/>}
+                  {s.type==="school" && packageHours>0 && <Progress hours={s.hours} offset={s.hoursOffset||0} target={packageHours}/>}
                 </div>
 
-                {/* Hours offset (school only) */}
-                {s.type==="school" && (
+                {/* Hours offset (пакетні клієнти) */}
+                {s.type==="school" && packageHours>0 && (
                   <div style={{background:glow(0.04),borderRadius:10,padding:"10px 12px",border:`1px solid ${BORDER}`}}>
                     <div style={{fontSize:9,color:FAINT,letterSpacing:1,textTransform:"uppercase",marginBottom:7}}>Додати години</div>
                     <div style={{display:"flex",alignItems:"center",gap:8}}>
@@ -519,7 +519,7 @@ function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock, onRemoveB
                         <span style={{fontSize:22,fontWeight:900,color:(s.hoursOffset||0)>0?GREEN:FAINT}}>{s.hoursOffset||0}</span>
                         <span style={{fontSize:11,color:FAINT,marginLeft:5}}>год</span>
                       </div>
-                      <button onClick={()=>onUpdate(s.id,{hoursOffset:Math.min(39,(s.hoursOffset||0)+1)})}
+                      <button onClick={()=>onUpdate(s.id,{hoursOffset:Math.min(packageHours-1,(s.hoursOffset||0)+1)})}
                         style={{width:32,height:32,borderRadius:9,border:"none",cursor:"pointer",flexShrink:0,background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,color:TEXT,fontSize:20,fontWeight:700,boxShadow:SO,display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1,fontFamily:"inherit"}}>+</button>
                     </div>
                   </div>
@@ -919,6 +919,7 @@ export default function StudentsView({ studentJump, onStudentJumpHandled, bookin
       {/* Student detail sheet */}
       {liveDetail && createPortal(
         <StudentDetailSheet
+          packageHours={settings?.packageHours ?? 40}
           s={liveDetail}
           onClose={()=>setDetailStudent(null)}
           onUpdate={updateStudent}

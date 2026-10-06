@@ -1089,6 +1089,9 @@ select{color-scheme:${isKava?"light":"dark"}}
           <Row compact label={t('set.restr.schoolCalendar')} hint={t('set.restr.schoolCalendar_h')}>
             <NumInput compact value={settings.schoolCalendarOpenDays ?? 14} onChange={v=>upd("schoolCalendarOpenDays",v)} min={1} max={365} suffix={` ${t('days')}`}/>
           </Row>
+          <Row compact label={t('set.pkg')} hint={t('set.pkg_h')}>
+            <NumInput compact value={settings.packageHours ?? 40} onChange={v=>upd("packageHours",v)} min={0} max={500} suffix={` ${t('hr')}`}/>
+          </Row>
           <Row compact label={lang==="en"?"Min interval between bookings":"Мінімальний інтервал між записами"} hint={lang==="en"?"Minimum days between any two bookings for one client. 0 — disabled.":"Мінімум днів між будь-якими двома записами клієнта. 0 — без обмеження."} last>
             <NumInput compact value={settings.minBookingIntervalDays ?? 0} onChange={v=>upd("minBookingIntervalDays",v)} min={0} max={30} suffix={` ${t('days')}`}/>
           </Row>
