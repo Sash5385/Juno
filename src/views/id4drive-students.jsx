@@ -67,7 +67,7 @@ function Progress({ hours, offset }) {
   return (
     <div>
       <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
-        <span style={{fontSize:11,color:DIM}}>Прогрес автошколи</span>
+        <span style={{fontSize:11,color:DIM}}>Прогрес пакета</span>
         <span style={{fontSize:11,fontWeight:800,color:done?ACCENT:GREEN}}>{total}/40 год · {Math.round(pct)}%</span>
       </div>
       <div style={{height:5,background:BG_DEEP,borderRadius:3,boxShadow:SI,overflow:"hidden"}}>
@@ -156,13 +156,13 @@ function StudentCard({ s, onSelect, settings }) {
   const { BG_DEEP, GREEN, GOLD, RED } = theme;
   const { shade, glow } = useFX();
   // Колір картки клієнта — той самий, що обраний для послуги цього типу
-  // (Автошкола/Приватний) на вкладці «Послуги», а не фіксований GREEN/GOLD.
+  // (Стандарт/Індивідуальний) на вкладці «Послуги», а не фіксований GREEN/GOLD.
   const PALETTE = makePalette(theme);
   const colorOf = id => PALETTE.find(p=>p.id===id)?.color || GREEN;
   const matchedSvc = (settings?.services || []).find(sv => sv.type === s.type && sv.active)
                    || (settings?.services || []).find(sv => sv.type === s.type);
   const typeColor = matchedSvc ? colorOf(matchedSvc.colorId) : (s.type === "school" ? GREEN : GOLD);
-  const typeLabel = s.type === "school" ? "Автошкола" : "Приватний";
+  const typeLabel = s.type === "school" ? "Стандарт" : "Індивідуальний";
   const ini       = s.name.split(" ").map(w=>w[0]).slice(0,2).join("");
   const barColor  = s.blocked ? RED : typeColor;
 
@@ -303,7 +303,7 @@ function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock, onRemoveB
   };
 
   const typeColor = s.type === "school" ? GREEN : GOLD;
-  const typeLabel = s.type === "school" ? "Автошкола" : "Приватний";
+  const typeLabel = s.type === "school" ? "Стандарт" : "Індивідуальний";
   const phone     = (s.phone||"").replace(/\D/g,"");
   const ini       = s.name.split(" ").map(w=>w[0]).slice(0,2).join("");
   const barColor  = s.blocked ? RED : typeColor;
@@ -888,7 +888,7 @@ export default function StudentsView({ studentJump, onStudentJumpHandled, bookin
         </div>
 
         <div style={{display:"flex",gap:7}}>
-          {[["all","Всі"],["school","Автошкола"],["private","Приватний"]].map(([k,l])=>(
+          {[["all","Всі"],["school","Стандарт"],["private","Індивідуальний"]].map(([k,l])=>(
             <button key={k} onClick={()=>setFilterType(k)} style={{
               flex:1,padding:"9px 4px",borderRadius:11,border:"none",cursor:"pointer",fontSize:11,fontWeight:700,fontFamily:"inherit",
               background:filterType===k?`linear-gradient(145deg,${ACC_HI},${ACCENT})`:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,

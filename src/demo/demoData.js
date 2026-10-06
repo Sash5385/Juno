@@ -19,7 +19,7 @@ function rng(seed) {
   };
 }
 
-// name, тип (school — автошкола, private — приватний), досвід, vip, знижка ₴/год, своя ціна ₴/год,
+// name, тип (school — стандарт, private — індивідуальний), досвід, vip, знижка ₴/год, своя ціна ₴/год,
 // firstDay — день першого запису відносно сьогодні (null — навчається давно)
 const STUDENTS = [
   { n: "Марія Шевчук",          t: "school",  exp: "no_license"  },
@@ -52,15 +52,15 @@ const STUDENTS = [
 }));
 
 const SERVICES = [
-  { id: "sv1", name: "Автошкола 1 год", type: "school",  duration: 60,  price: 600,  colorId: "green",  active: true, description: "Запис за програмою автошколи" },
-  { id: "sv2", name: "Автошкола 2 год", type: "school",  duration: 120, price: 1100, colorId: "green",  active: true, description: "Подвійний запис" },
-  { id: "sv3", name: "Приватний 1 год", type: "private", duration: 60,  price: 800,  colorId: "yellow", active: true, description: "Індивідуальний запис" },
-  { id: "sv5", name: "Приватний 1,5 год", type: "private", duration: 90, price: 1200, colorId: "purple", active: true, description: "Розширений запис" },
-  { id: "sv4", name: "Приватний 2 год", type: "private", duration: 120, price: 1500, colorId: "yellow", active: true, description: "Практика з маршрутом" },
+  { id: "sv1", name: "Стандарт 1 год", type: "school",  duration: 60,  price: 600,  colorId: "green",  active: true, description: "Стандартний запис" },
+  { id: "sv2", name: "Стандарт 2 год", type: "school",  duration: 120, price: 1100, colorId: "green",  active: true, description: "Подвійний запис" },
+  { id: "sv3", name: "Індивідуальний 1 год", type: "private", duration: 60,  price: 800,  colorId: "yellow", active: true, description: "Індивідуальний запис" },
+  { id: "sv5", name: "Індивідуальний 1,5 год", type: "private", duration: 90, price: 1200, colorId: "purple", active: true, description: "Розширений запис" },
+  { id: "sv4", name: "Індивідуальний 2 год", type: "private", duration: 120, price: 1500, colorId: "yellow", active: true, description: "Розширений запис із підготовкою" },
 ];
 
-const NOTES = ["Паркування задом", "Розворот у дворі", "Складний перехрест", "Нічна їзда", "Підйом на гірці", "Маршрут до іспиту"];
-const STUDENT_NOTES = ["Чи можна на 10 хв пізніше?", "Буду з навчальними правами", "Хочу відпрацювати паркування"];
+const NOTES = ["Уточнити побажання", "Повторний візит", "Підготувати матеріали", "Додаткові деталі в чаті", "Другий етап роботи", "Коригування за результатом"];
+const STUDENT_NOTES = ["Чи можна на 10 хв пізніше?", "Буду з другом", "Хочу обговорити деталі на місці"];
 
 // Шаблон дня: Пн–Пт 9–19 з обідом 13–14, Сб 10–16 без обіду, Нд вихідний
 function dayTemplate(date) {
@@ -147,7 +147,7 @@ export function buildDemoTree() {
     }
   }
 
-  // ручні мітки та борг для різноманіття у видимому вікні (іспит / перевірка / борг)
+  // ручні мітки та борг для різноманіття у видимому вікні (мітка / перевірка / борг)
   const manualTag = (fromDay, tag, privateOnly) => {
     for (let d = fromDay; d < fromDay + 7; d++) {
       const ds = ymd(addDays(today, d));
@@ -179,8 +179,8 @@ export function buildDemoTree() {
     (occ[dateStr] ||= []).push([start, start + durMin]);
     list.push({ uid: "personal", b: personal[id] });
   };
-  addPersonal(1, "Техогляд авто", 60, "СТО на Оболоні", 2);
-  addPersonal(4, "Заміна масла", 60, "", null);
+  addPersonal(1, "Зустріч із постачальником", 60, "Офіс на Оболоні", 2);
+  addPersonal(4, "Оплата рахунків", 60, "", null);
   bookings.personal = personal;
 
   // ── користувачі (клієнти) ───────────────────────────────────────
@@ -198,7 +198,7 @@ export function buildDemoTree() {
       },
       hours: Math.round(hoursByUid[s.uid] || 0), hoursOffset: 0,
       discount: s.discount || 0, customPrice: s.customPrice ?? null,
-      notes: i === 3 ? "Готується до іспиту в сервісному центрі" : "", blocked: false, isVip: !!s.vip, noIntervalLimit: false,
+      notes: i === 3 ? "Постійний клієнт, віддає перевагу ранковим годинам" : "", blocked: false, isVip: !!s.vip, noIntervalLimit: false,
       maneuverCounts: {}, maneuverSuccessCounts: {}, badges: {},
     };
   });
@@ -270,7 +270,7 @@ export function buildDemoTree() {
 
   // ── нотатки днів ─────────────────────────────────────────────
   const dayNotes = {
-    [ymd(addDays(today, 2))]: { notes: { 9: { startMin: 9 * 60, text: "Забрати розпечатані маршрутні листи", notify: true } }, updatedAt: nowTs },
+    [ymd(addDays(today, 2))]: { notes: { 9: { startMin: 9 * 60, text: "Підготувати матеріали на завтра", notify: true } }, updatedAt: nowTs },
     [ymd(addDays(today, 4))]: { notes: { 15: { startMin: 15 * 60 + 30, text: "Нагадати про оплату за місяць", notify: false } }, updatedAt: nowTs },
   };
 
@@ -285,16 +285,16 @@ export function buildDemoTree() {
   const dialogs = [
     [STUDENTS[0], [["student", "Доброго дня! Підкажіть, чи можна перенести завтрашній запис на годину пізніше?", 190], ["admin", "Добрий день, Маріє! Так, ставлю на 11:00 ✅", 170], ["student", "Дякую велике!", 160]], 0],
     [STUDENTS[7], [["student", "Андрію, я трохи запізнюсь, буду за 10 хвилин", 35]], 1],
-    [STUDENTS[3], [["admin", "Нагадую: завтра іспитний маршрут о 10:00", 600], ["student", "Прийняв, буду вчасно 👍", 540], ["student", "А документи брати з собою?", 30]], 1],
+    [STUDENTS[3], [["admin", "Нагадую: завтра запис о 10:00", 600], ["student", "Прийняв, буду вчасно 👍", 540], ["student", "А щось брати з собою?", 30]], 1],
     [STUDENTS[10], [["student", "Чи є вільні години на суботу?", 300], ["admin", "Так, на 11:00 та 12:00 вільно — записуйтесь у застосунку", 280]], 0],
-    [STUDENTS[2], [["admin", "Ірино, на п'ятницю з'явилось вікно о 16:00 — якщо хочете, запишіться в застосунку 🚗", 420], ["student", "Дякую! Вже записалась 😊", 380], ["admin", "Чудово, чекаю на вас!", 370]], 0],
-    [STUDENTS[15], [["student", "Дякую за запис! Сьогодні вперше впевнено запаркувався", 1400]], 0],
+    [STUDENTS[2], [["admin", "Ірино, на п'ятницю з'явилось вікно о 16:00 — якщо хочете, запишіться в застосунку", 420], ["student", "Дякую! Вже записалась 😊", 380], ["admin", "Чудово, чекаю на вас!", 370]], 0],
+    [STUDENTS[15], [["student", "Дякую за запис! Результат дуже сподобався", 1400]], 0],
   ];
   dialogs.forEach(([st, msgs, unread]) => {
     msgs.forEach(([from, text, ago], i) => { (chats[st.uid] ||= {})[`m${String(i).padStart(2, "0")}`] = mkMsg(from, text, ago); });
     chatMeta[st.uid] = { unreadForAdmin: unread };
   });
-  [["student", STUDENTS[2], "Всім привіт! Хтось їздить у вихідні?", 900], ["admin", null, "Привіт! У суботу є вільні години — пишіть у чат", 880]].forEach(([from, st, text, ago], i) => {
+  [["student", STUDENTS[2], "Всім привіт! Хтось записується на вихідні?", 900], ["admin", null, "Привіт! У суботу є вільні години — пишіть у чат", 880]].forEach(([from, st, text, ago], i) => {
     const m = mkMsg(from, text, ago);
     chats.general[`g${i}`] = from === "admin" ? { ...m, uid: "__admin__", name: "Майстер" } : { ...m, uid: st.uid, name: st.n };
   });
@@ -310,7 +310,7 @@ export function buildDemoTree() {
       return { type, title, body, date: `${pad(t.getDate())}.${pad(t.getMonth() + 1)}`, time: `${pad(t.getHours())}:${pad(t.getMinutes())}`, ts };
     };
     const n = (notifications[me.uid] = {});
-    n.n1 = mk("admin_message", "Повідомлення від майстра", "Ірино, на п'ятницю з'явилось вікно о 16:00 — якщо хочете, запишіться в застосунку 🚗", 420);
+    n.n1 = mk("admin_message", "Повідомлення від майстра", "Ірино, на п'ятницю з'явилось вікно о 16:00 — якщо хочете, запишіться в застосунку", 420);
     if (next[0]) n.n2 = mk("booking_confirmed", "Запис підтверджено ✅", `Запис ${dl(next[0].b.date)} о ${next[0].b.time} підтверджено майстром.`, 600);
     if (next[1]) n.n3 = mk("lesson_reminder_day", "Завтра запис 📅", `Нагадуємо: ${dl(next[1].b.date)} о ${next[1].b.time} у вас запис. До зустрічі!`, 1500);
     n.n4 = mk("queue_offer", "Звільнилось місце 🎉", "У черзі на 16:00 з'явилось вільне місце — встигніть забронювати.", 2900);
@@ -319,7 +319,7 @@ export function buildDemoTree() {
 
   // ── відгуки ──────────────────────────────────────────────────
   const reviews = {};
-  [[0, "Дуже терпляче пояснює, після трьох записів вже не боюсь міста. Рекомендую!", 5], [3, "Чітка підготовка до іспиту, склав з першого разу.", 5], [9, "Зручна система запису — все в телефоні.", 5]].forEach(([si, text, rating], i) => {
+  [[0, "Уважний майстер, пояснює кожен крок. Після трьох записів дуже задоволена. Рекомендую!", 5], [3, "Чітка робота й зрозумілі пояснення, результат з першого разу.", 5], [9, "Зручна система запису — все в телефоні.", 5]].forEach(([si, text, rating], i) => {
     const st = STUDENTS[si];
     (reviews[st.uid] ||= {})[`r${i}`] = { text, rating, name: st.n, createdAt: nowTs - 86400000 * (i + 2), status: "approved" };
   });

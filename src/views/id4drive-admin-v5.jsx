@@ -48,7 +48,7 @@ const STUDENT_PALETTE = Array.from({ length: 50 }, (_, i) => `hsl(${Math.round(i
 // і "debt" (коли вписана сума боргу); "check"/"exam" — тільки вручну (деталі запису → Мітка,
 // або при створенні запису). Автомітки діють лише поки майстер не чіпав мітку вручну.
 const TAG_PRESETS = [
-  { id:"exam",   icon:"🚨", label:"Іспит",     color: RED },
+  { id:"exam",   icon:"🚨", label:"Важливо",   color: RED },
   { id:"check",  icon:"🔍", label:"Перевірка", color: TEAL },
   { id:"first",  icon:"⭐", label:"1-й запис",  color: BLUE },
   { id:"debt",   icon:"💸", label:"Борг",      color: GOLD },
@@ -389,10 +389,10 @@ const getDayInfo = (offsetFromToday) => {
 const DEFAULT_SETTINGS = {
   // profile
   profile: {
-    name: "Олександр",
-    phone: "+380989225442",
-    address: "Київ, Верховинна 44",
-    experience: 8,
+    name: "Майстер",
+    phone: "",
+    address: "",
+    experience: 0,
     photo: null,
   },
   // schedule
@@ -455,8 +455,8 @@ const DEFAULT_SETTINGS = {
   surcharges: [],
   // services
   services: [
-    { id:"sv1", name:"Автошкола", type:"school",  duration:60, price:0, colorId:"green",  active:true, description:"" },
-    { id:"sv2", name:"Приватний", type:"private", duration:60, price:0, colorId:"yellow", active:true, description:"" },
+    { id:"sv1", name:"Стандарт", type:"school",  duration:60, price:0, colorId:"green",  active:true, description:"" },
+    { id:"sv2", name:"Індивідуальний", type:"private", duration:60, price:0, colorId:"yellow", active:true, description:"" },
   ],
   // categories
   categories: [
@@ -1706,9 +1706,9 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
     } else if (option === "surcharge_remove") {
       update(iRef( `timeslots/${dateStr}/${slotId}`), { surcharge: null }).catch(() => {});
     } else if (option && typeof option === "object" && option.fixedPrice != null) {
-      // Фіксована ціна повністю замінює тарифну — незалежна від VIP/Приватний слот,
+      // Фіксована ціна повністю замінює тарифну — незалежна від VIP/Індивідуальний слот,
       // тому не чіпаємо ці прапорці, лише available/adminBlocked за тим самим
-      // патерном, що й VIP/Приватний слот.
+      // патерном, що й VIP/Індивідуальний слот.
       if (isClosed) {
         update(iRef( `timeslots/${dateStr}/${slotId}`), { fixedPrice: option.fixedPrice }).catch(() => {});
       } else {
@@ -3831,7 +3831,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                         const si = a => `rgba(${INK === "255,255,255" ? "0,0,0" : INK},${a})`;
                         const priceColor = b.surcharge ? GOLD : si(0.9);
                         const priceText = price > 0 ? `${price}₴` : null;
-                        const typeLabel = b.type==="school" ? "Автошкола" : "Приватний";
+                        const typeLabel = b.type==="school" ? "Стандарт" : "Індивідуальний";
                         const allLines = [
                           { text: fName,     w: 800, c: si(0.95) },
                           ...(lName          ? [{ text: lName,     w: 700, c: si(0.80) }] : []),
@@ -4594,14 +4594,14 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                 <span>👑</span> VIP слот
                 {_so.slot?.vipOnly && <span style={{marginLeft:"auto",fontSize:11,color:"#c084fc",opacity:0.7}}>✓ активний</span>}
               </button>
-              {/* Приватний слот */}
+              {/* Індивідуальний слот */}
               <button onClick={()=>applySlotOption(_so.dateStr, fmtTime(_soSelMin), "private")} style={{
                 width:"100%",padding:"13px 14px",border:"none",cursor:"pointer",
                 background:"rgba(234,179,8,0.09)",borderRadius:12,
                 color:"#eab308",fontSize:15,fontWeight:700,
                 display:"flex",alignItems:"center",gap:10,
               }}>
-                <span>🚗</span> Приватний слот
+                <span>🚗</span> Індивідуальний слот
                 {_so.slot?.privateOnly && <span style={{marginLeft:"auto",fontSize:11,color:"#eab308",opacity:0.7}}>✓ активний</span>}
               </button>
               {/* Фіксована ціна — повністю замінює тарифну ціну послуги для цього слота */}
@@ -5373,7 +5373,7 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
     const idx = studentLessons.findIndex(x => x.id === booking.id);
     return idx >= 0 ? idx + 1 : studentLessons.length + 1;
   })();
-  const typeLabel = booking.type === "school" ? "🎓 Автошкола" : "🚗 Приватний";
+  const typeLabel = booking.type === "school" ? "📋 Стандарт" : "👤 Індивідуальний";
 
   const sameDayBookings = (bookings || []).filter(x =>
     x.id !== booking.id && x.status !== "cancelled" &&
@@ -5670,7 +5670,7 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
                   </div>
                 )}
                 <div style={{marginTop:8,fontSize:10.5,lineHeight:1.4,color:"rgba(255,255,255,.55)"}}>
-                  Позначка на картці запису в розкладі (1-й запис, іспит, борг тощо). Перший запис ставиться автоматично, решту — вручну («Змінити»).
+                  Позначка на картці запису в розкладі (1-й запис, важливо, борг тощо). Перший запис ставиться автоматично, решту — вручну («Змінити»).
                 </div>
               </div>
             );
@@ -6669,7 +6669,7 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
             }}
           />
 
-          {/* МІТКА — вручну: Перевірка / Іспит ("1-й запис" ставиться сама, борг — сумою вище) */}
+          {/* МІТКА — вручну: Перевірка / Важливо ("1-й запис" ставиться сама, борг — сумою вище) */}
           <div style={{display:"flex",gap:8}}>
             {TAG_PRESETS.filter(t => t.id === "check" || t.id === "exam").map(tp => {
               const on = newTag === tp.id;
@@ -6985,7 +6985,7 @@ function SettingsView({ settings, setSettings }) {
       <Card style={{padding:"20px"}}>
         <SectionTitle>Категорії клієнтів</SectionTitle>
         <div style={{fontSize:12,color:TEXT_DIM,marginBottom:12}}>
-          Категорії для приватних клієнтів. Допомагає відкривати спецслоти для VIP, давати знижки тощо.
+          Категорії для індивідуальних клієнтів. Допомагає відкривати спецслоти для VIP, давати знижки тощо.
         </div>
         {settings.categories.map(c=>(
           <div key={c.id} style={{

@@ -637,7 +637,7 @@ export default function StatsView() {
               const schoolPct = totalRatio ? Math.round((totalSchool/totalRatio)*100) : 0;
               return (
                 <div style={{display:"flex",flexDirection:"column",gap:5}}>
-                  {[[GREEN,"Автошкола",totalSchool,schoolPct],[GOLD,"Приватний",totalPrivate,100-schoolPct]].map(([c,l,v,pct])=>(
+                  {[[GREEN,"Стандарт",totalSchool,schoolPct],[GOLD,"Індивідуальний",totalPrivate,100-schoolPct]].map(([c,l,v,pct])=>(
                     <div key={l} style={{display:"flex",alignItems:"center",gap:5}}>
                       <i style={{width:7,height:7,borderRadius:2,background:c,flexShrink:0}}/>
                       <span style={{flex:1,fontSize:9.5,color:"rgba(255,255,255,0.7)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{l}</span>

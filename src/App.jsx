@@ -474,13 +474,13 @@ const CLEAN_START_SETTINGS = {
   dateOverrides: [],
   weekends: [],
   services: [
-    { id:"sv1", name:"Автошкола", type:"school",  duration:60, price:0, colorId:"green",  active:true, description:"" },
-    { id:"sv2", name:"Приватний", type:"private", duration:60, price:0, colorId:"yellow", active:true, description:"" },
+    { id:"sv1", name:"Стандарт", type:"school",  duration:60, price:0, colorId:"green",  active:true, description:"" },
+    { id:"sv2", name:"Індивідуальний", type:"private", duration:60, price:0, colorId:"yellow", active:true, description:"" },
   ],
 };
 
 const DEFAULT_SETTINGS = {
-  profile: { name:"Олександр", phone:"+380989225442", address:"Київ", experience:8, photo:null },
+  profile: { name:"Майстер", phone:"", address:"", experience:0, photo:null },
   workStart:7, workEnd:20, weekends:[6], daysShown:6, snapMin:30, slotCreateStep:30, hourHeightPx:60, autoHourHeight:false,
   lunchEnabled:true, lunchStart:12, lunchEnd:13, customBlocks:[], pendingEnabled:false, lockPastBookings:false, showHelpBtn:true,
   theme:"dark", language:"uk", queueAutoFifo:true, queueBroadcast:false, queueManual:false,
@@ -496,8 +496,8 @@ const DEFAULT_SETTINGS = {
   autoCancel:{enabled:true}, autoQueueOffer:{enabled:true},
   surcharges:[],
   services: [
-    { id:"sv1", name:"Автошкола", type:"school",  duration:60, price:0, colorId:"green",  active:true, description:"" },
-    { id:"sv2", name:"Приватний", type:"private", duration:60, price:0, colorId:"yellow", active:true, description:"" },
+    { id:"sv1", name:"Стандарт", type:"school",  duration:60, price:0, colorId:"green",  active:true, description:"" },
+    { id:"sv2", name:"Індивідуальний", type:"private", duration:60, price:0, colorId:"yellow", active:true, description:"" },
   ],
   categories: [
     { id:"cat-vip", name:"VIP",      colorId:"purple" },

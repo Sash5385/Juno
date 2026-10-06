@@ -5,10 +5,10 @@ import { ThemeContext } from "../theme.js";
 import { UICss, Section, useFX } from "../ui";
 
 const SERVICES = {
-  sv1:{ name:"Автошкола 1г", color:"#7ed957"  },
-  sv2:{ name:"Автошкола 2г", color:"#7ed957"  },
-  sv3:{ name:"Приватний 1г", color:"#f7c948"  },
-  sv4:{ name:"Приватний 2г", color:"#f7c948"  },
+  sv1:{ name:"Стандарт 1г", color:"#7ed957"  },
+  sv2:{ name:"Стандарт 2г", color:"#7ed957"  },
+  sv3:{ name:"Індивідуальний 1г", color:"#f7c948"  },
+  sv4:{ name:"Індивідуальний 2г", color:"#f7c948"  },
 };
 
 function fmtWait(ts) {
@@ -83,7 +83,7 @@ function QueueRow({ item, pos, onInvite, onBooked, onArchive, onDelete, dragHand
   const svc = (svcMap || SERVICES)[item.svcId] || {};
   const st  = STATUS_CFG[item.status] || STATUS_CFG.waiting;
   const hrs = getHours(item, svc);
-  const svcLabel = svc.name || (item.studentType && (item.studentType==="school"?"Автошкола":"Приватний"));
+  const svcLabel = svc.name || (item.studentType && (item.studentType==="school"?"Стандарт":"Індивідуальний"));
   const initials = (item.name||"?").split(" ").map(w=>w[0]).slice(0,2).join("").toUpperCase();
 
   return (

@@ -25,13 +25,13 @@ const makeCategories = ({TEXT, PURPLE, BLUE, TEAL}) => ({
   "cat-new": { name:"Новачок",  color:TEAL   },
 });
 
-// Стандартні послуги («Автошкола» і «Приватний») видаляти й архівувати не можна — лише вимикати.
+// Стандартні послуги («Стандарт» і «Індивідуальний») видаляти й архівувати не можна — лише вимикати.
 const PROTECTED_SERVICE_IDS = ["sv1","sv2"];
 const isProtectedService = svc => PROTECTED_SERVICE_IDS.includes(svc?.id);
 
 const INIT_SERVICES = [
-  { id:"sv1", name:"Автошкола", type:"school",  duration:60,  price:0,    colorId:"green",  active:true,  archived:false, description:"", accessCats:["cat-all"], lessons:0, income:0, instructions:"" },
-  { id:"sv2", name:"Приватний", type:"private", duration:60,  price:0,    colorId:"yellow", active:true,  archived:false, description:"", accessCats:["cat-all"], lessons:0, income:0, instructions:"" },
+  { id:"sv1", name:"Стандарт", type:"school",  duration:60,  price:0,    colorId:"green",  active:true,  archived:false, description:"", accessCats:["cat-all"], lessons:0, income:0, instructions:"" },
+  { id:"sv2", name:"Індивідуальний", type:"private", duration:60,  price:0,    colorId:"yellow", active:true,  archived:false, description:"", accessCats:["cat-all"], lessons:0, income:0, instructions:"" },
 ];
 
 const fmtDur = min => { const h=Math.floor(min/60),m=min%60; return m?`${h}г ${m}хв`:`${h} год`; };
@@ -127,8 +127,8 @@ function ServiceFormModal({ svc, onSave, onClose }) {
       <div style={{marginBottom:14}}>
         <div style={{fontSize:10,color:"rgba(255,255,255,0.55)",letterSpacing:1,marginBottom:8}}>ТИП</div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-          <Chip active={form.type==="school"}  color={theme.GREEN} onClick={()=>upd("type","school")}>🏫 Автошкола</Chip>
-          <Chip active={form.type==="private"} color={GOLD}        onClick={()=>upd("type","private")}>🚗 Приватний</Chip>
+          <Chip active={form.type==="school"}  color={theme.GREEN} onClick={()=>upd("type","school")}>📋 Стандарт</Chip>
+          <Chip active={form.type==="private"} color={GOLD}        onClick={()=>upd("type","private")}>👤 Індивідуальний</Chip>
         </div>
       </div>
 
@@ -259,7 +259,7 @@ function ServiceCard({ svc, isDragging, onEdit, onToggle, onDelete, dragHandlePr
         <div style={{flex:1,minWidth:0}}>
           <div style={{fontSize:15,fontWeight:800,color:TEXT,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",marginBottom:3}}>{svc.name}</div>
           <div style={{display:"flex",gap:5,alignItems:"center",flexWrap:"wrap"}}>
-            <Pill label={svc.type==="school"?"Автошкола":"Приватний"} color={svc.type==="school"?GREEN:GOLD} bg={svc.type==="school"?`${GREEN}1f`:`${GOLD}1f`}/>
+            <Pill label={svc.type==="school"?"Стандарт":"Індивідуальний"} color={svc.type==="school"?GREEN:GOLD} bg={svc.type==="school"?`${GREEN}1f`:`${GOLD}1f`}/>
             {!svc.active&&!svc.archived && <Pill label="Вимкнена" color={DIM} bg={`${DIM}1a`}/>}
             {svc.archived && <Pill label="Архів" color="#fb923c" bg="rgba(251,146,60,0.15)"/>}
           </div>
@@ -346,7 +346,7 @@ function ServiceRow({ svc, onEdit, onToggle, onDelete, dragHandleProps, isDraggi
           <div style={{minWidth:0}}>
             <div style={{fontSize:13.5,fontWeight:800,color:"#fff",textShadow:`0 1px 3px ${shade(0.5)}`,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{svc.name}</div>
             <div style={{fontSize:10,color:"rgba(255,255,255,0.78)",fontWeight:700,marginTop:1,display:"flex",gap:5,alignItems:"center",flexWrap:"wrap"}}>
-              <span>{svc.type==="school"?"🏫 Автошкола":"🚗 Приватний"}</span>
+              <span>{svc.type==="school"?"📋 Стандарт":"👤 Індивідуальний"}</span>
               {svc.archived && <Pill label="Архів" color="#fff" bg="rgba(0,0,0,0.28)"/>}
               {!svc.active && !svc.archived && <Pill label="Вимкнена" color="#fff" bg="rgba(0,0,0,0.28)"/>}
             </div>

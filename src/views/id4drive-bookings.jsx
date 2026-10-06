@@ -15,10 +15,10 @@ const PALETTE = [
 const colorOf = id => PALETTE.find(p=>p.id===id)?.color || "#7ed957";
 
 const SERVICES = {
-  sv1:{ name:"Автошкола 1г", color:"#7ed957", type:"school"  },
-  sv2:{ name:"Автошкола 2г", color:"#7ed957", type:"school"  },
-  sv3:{ name:"Приватний 1г", color:"#f7c948", type:"private" },
-  sv4:{ name:"Приватний 2г", color:"#f7c948", type:"private" },
+  sv1:{ name:"Стандарт 1г", color:"#7ed957", type:"school"  },
+  sv2:{ name:"Стандарт 2г", color:"#7ed957", type:"school"  },
+  sv3:{ name:"Індивідуальний 1г", color:"#f7c948", type:"private" },
+  sv4:{ name:"Індивідуальний 2г", color:"#f7c948", type:"private" },
 };
 
 // ─── QUEUE OFFER MODAL ──────────────────────────────────────────
