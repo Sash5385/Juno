@@ -13,16 +13,6 @@ const M = ["","Січ","Лют","Бер","Кві","Тра","Чер","Лип","С
 const fmtS = d => { if(!d) return "—"; const [,m,day]=d.split("-"); return `${parseInt(day)} ${M[parseInt(m)]}`; };
 const navTo = tab => window.dispatchEvent(new CustomEvent("id4drive-nav", {detail:tab}));
 
-// Мітки поля "Досвід водіння" — те саме, що клієнт бачить у себе в анкеті
-// (webID4client/src/pages/cabinet/ProfileTab.jsx), тут лише для показу адміну.
-const EXPERIENCE_LABELS = {
-  no_license: "Не маю посвідчення, збираюсь складати іспит",
-  has_license: "Маю посвідчення, не маю досвіду водіння",
-  novice: "Початківець",
-  basic: "Базовий",
-  licensed: "З правами",
-};
-
 const Svg = (d, s=18, c="white", w=2) => (
   <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth={w} strokeLinecap="round" strokeLinejoin="round">{d}</svg>
 );
@@ -203,8 +193,6 @@ function StudentCard({ s, onSelect, settings }) {
 }
 
 // ─── STUDENT DETAIL SHEET ────────────────────────────────────────
-const MANEUVER_LABELS = { rozvorot:"Розворот", parking90:"Паркування 90", parking45:"Паркування 45" };
-
 function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock, onRemoveBadge, autoOpenHistory, slotColor, autoColors, onColorChange }) {
   const { BG_DEEP, SURF_HI, SURFACE, BORDER, TEXT, DIM, FAINT, ACCENT, ACC_HI, GREEN, BLUE, GOLD, RED, SO, SI } = useContext(ThemeContext);
   const { shade, glow, ink } = useFX();
@@ -520,14 +508,6 @@ function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock, onRemoveB
                   {s.type==="school" && <Progress hours={s.hours} offset={s.hoursOffset||0}/>}
                 </div>
 
-                {/* Driving experience — заповнюється клієнтом в анкеті реєстрації */}
-                {s.experience && (
-                  <div style={{background:glow(0.04),borderRadius:10,padding:"9px 12px",border:`1px solid ${BORDER}`}}>
-                    <div style={{fontSize:9,color:FAINT,letterSpacing:1,textTransform:"uppercase",marginBottom:3}}>Досвід водіння</div>
-                    <div style={{fontSize:13,fontWeight:700,color:TEXT}}>{EXPERIENCE_LABELS[s.experience]||s.experience}</div>
-                  </div>
-                )}
-
                 {/* Hours offset (school only) */}
                 {s.type==="school" && (
                   <div style={{background:glow(0.04),borderRadius:10,padding:"10px 12px",border:`1px solid ${BORDER}`}}>
@@ -573,40 +553,6 @@ function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock, onRemoveB
                     <div style={{position:"absolute",top:2,left:s.isVip?18:2,width:16,height:16,borderRadius:8,background:"#fff",transition:"left .2s"}}/>
                   </div>
                 </div>
-
-                {/* Filming/video consent */}
-                <div style={{display:"flex",alignItems:"center",gap:10,borderRadius:10,padding:"10px 13px",background:glow(0.04),border:`1px solid ${BORDER}`}}>
-                  <span style={{fontSize:16,lineHeight:1}}>🎬</span>
-                  <div style={{flex:1}}>
-                    <div style={{fontSize:12,fontWeight:700,color:TEXT}}>Згода на зйомку відео/аудіо</div>
-                    <div style={{fontSize:10,color:FAINT,marginTop:2}}>Вказано клієнтом при реєстрації</div>
-                  </div>
-                  <span style={{
-                    fontSize:11,fontWeight:800,padding:"3px 9px",borderRadius:7,
-                    color:s.filmingConsent===undefined?FAINT:(s.filmingConsent?GREEN:RED),
-                    background:s.filmingConsent===undefined?glow(0.06):(s.filmingConsent?`${GREEN}1a`:`${RED}1a`),
-                  }}>{s.filmingConsent===undefined?"Не вказано":(s.filmingConsent?"Так":"Ні")}</span>
-                </div>
-
-                {/* Маневри — статистика спроб/успіху */}
-                {Object.keys(s.maneuverCounts||{}).length > 0 && (
-                  <div style={{background:glow(0.04),borderRadius:10,padding:"10px 12px",border:`1px solid ${BORDER}`}}>
-                    <div style={{fontSize:9,color:FAINT,letterSpacing:1,textTransform:"uppercase",marginBottom:8}}>🚗 Маневри</div>
-                    <div style={{display:"flex",flexDirection:"column",gap:6}}>
-                      {Object.entries(MANEUVER_LABELS).filter(([key])=>s.maneuverCounts[key]).map(([key,label])=>{
-                        const attempts = s.maneuverCounts[key] || 0;
-                        const success = s.maneuverSuccessCounts?.[key] || 0;
-                        const pct = attempts ? Math.round(success/attempts*100) : 0;
-                        return (
-                          <div key={key} style={{display:"flex",alignItems:"center",gap:8}}>
-                            <div style={{flex:1,fontSize:12,fontWeight:700,color:TEXT}}>{label}</div>
-                            <div style={{fontSize:11,fontWeight:800,color: pct>=70?GREEN:pct>=40?GOLD:RED}}>{success}/{attempts} ({pct}%)</div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
 
                 {/* Медалі — видаються за конкретний запис у модалці бронювання */}
                 <div style={{background:glow(0.04),borderRadius:10,padding:"10px 12px",border:`1px solid ${BORDER}`}}>
@@ -767,10 +713,7 @@ export default function StudentsView({ studentJump, onStudentJumpHandled, bookin
           hours:u.hours||0, hoursOffset:u.hoursOffset||0,
           discount:u.discount||0, customPrice:u.customPrice??null, notes:u.notes||"", blocked:u.blocked||false, isVip:u.isVip||false,
           noIntervalLimit:u.noIntervalLimit||false,
-          filmingConsent:p.filmingConsent,
-          experience:p.experience||u.experience||null,
           createdAt:p.createdAt||u.createdAt||null,
-          maneuverCounts:u.maneuverCounts||{}, maneuverSuccessCounts:u.maneuverSuccessCounts||{},
           badges:u.badges||{},
         };
       }));

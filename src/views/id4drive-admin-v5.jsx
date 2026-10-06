@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useLayoutEffect, useMemo, useContext } from "react";
 import { createPortal } from "react-dom";
-import { update, get, onValue, off, remove, push as fbPush, increment } from "firebase/database";
+import { update, get, onValue, off, remove, push as fbPush } from "firebase/database";
 import { iRef, auth } from "../firebase";
 import { blockRangeUpdates, restoreRangeUpdates } from "../slotRules";
 
@@ -62,10 +62,9 @@ const knownTag = (t) => (TAG_PRESETS.some(p => p.id === t) ? t : null);
 const BADGE_PRESETS = [
   { icon:"🏅", label:"Молодець" },
   { icon:"🥇", label:"Найкращий клієнт" },
-  { icon:"⭐", label:"Відмінна їзда" },
-  { icon:"🎯", label:"Точне паркування" },
-  { icon:"🚦", label:"Знавець ПДР" },
-  { icon:"🏆", label:"Готовий до іспиту" },
+  { icon:"⭐", label:"Відмінний результат" },
+  { icon:"🎯", label:"Точна робота" },
+  { icon:"🏆", label:"Рекомендую" },
 ];
 
 // ═══════════════════════════════════════════════════════════════
@@ -5238,21 +5237,11 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
   const [draftPrice, setDraftPrice] = useState("");
   const [draftDur, setDraftDur] = useState("");
   const [editRate, setEditRate] = useState(0);
-  const [maneuverState, setManeuverState] = useState({});
-  const [maneuverCounts, setManeuverCounts] = useState({});
-  const [maneuverResults, setManeuverResults] = useState({});
   const [allBadges, setAllBadges] = useState({});
   const [badgePickerOpen, setBadgePickerOpen] = useState(false);
   const [tagPickerOpen, setTagPickerOpen] = useState(false);
   const [debtInput, setDebtInput] = useState("");
   useEffect(() => { setDebtInput(booking?.debtAmount ? String(booking.debtAmount) : ""); }, [booking?.id]);
-  const [filmingConsent, setFilmingConsent] = useState(null);
-  useEffect(() => {
-    if (!booking || !booking.userId) { setFilmingConsent(null); return; }
-    const r = iRef( `users/${booking.userId}/profile/filmingConsent`);
-    const unsub = onValue(r, snap => setFilmingConsent(snap.exists() ? snap.val() : null));
-    return () => unsub();
-  }, [booking]);
   useEffect(() => {
     if (!booking) return;
     setClosing(false);
@@ -5276,42 +5265,16 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
     return () => unsub();
   }, [booking]);
 
-  // Маневри: залипаюча відмітка "відпрацьовано в цьому уроці" (на бронюванні) +
-  // накопичувальний лічильник за весь час (на профілі клієнта).
+  // Заохочення клієнта (медалі за запис) — підписка на users/{uid}/badges.
   useEffect(() => {
     if (!booking) return;
-    setManeuverState(booking.maneuvers || {});
-    setManeuverResults(booking.maneuverResults || {});
     setBadgePickerOpen(false);
     setTagPickerOpen(false);
-    if (!booking.userId) { setManeuverCounts({}); setAllBadges({}); return; }
-    const r = iRef( `users/${booking.userId}/maneuverCounts`);
-    const unsub = onValue(r, snap => setManeuverCounts(snap.val() || {}));
+    if (!booking.userId) { setAllBadges({}); return; }
     const rb = iRef( `users/${booking.userId}/badges`);
     const unsubB = onValue(rb, snap => setAllBadges(snap.val() || {}));
-    return () => { unsub(); unsubB(); };
+    return () => { unsubB(); };
   }, [booking]);
-
-  const toggleManeuver = (key) => {
-    if (!booking || maneuverState[key]) return;
-    setManeuverState(s => ({ ...s, [key]: true }));
-    setManeuverResults(s => ({ ...s, [key]: "success" }));
-    update(iRef( `bookings/${booking.userId}/${booking.id}/maneuvers`), { [key]: true }).catch(()=>{});
-    update(iRef( `bookings/${booking.userId}/${booking.id}/maneuverResults`), { [key]: "success" }).catch(()=>{});
-    update(iRef( `users/${booking.userId}/maneuverCounts`), { [key]: increment(1) }).catch(()=>{});
-    update(iRef( `users/${booking.userId}/maneuverSuccessCounts`), { [key]: increment(1) }).catch(()=>{});
-  };
-
-  // Перемикач "вдало/невдало" — доступний лише для вже відпрацьованого в
-  // цьому уроці маневру. За замовчуванням маневр рахується вдалим (щоб не
-  // додавати зайвий тап на типовий кейс); адмін може позначити невдалу спробу.
-  const toggleManeuverResult = (key) => {
-    if (!booking || !maneuverState[key]) return;
-    const next = (maneuverResults[key] || "success") === "success" ? "fail" : "success";
-    setManeuverResults(s => ({ ...s, [key]: next }));
-    update(iRef( `bookings/${booking.userId}/${booking.id}/maneuverResults`), { [key]: next }).catch(()=>{});
-    update(iRef( `users/${booking.userId}/maneuverSuccessCounts`), { [key]: increment(next === "success" ? 1 : -1) }).catch(()=>{});
-  };
 
   // Медаль за конкретний запис — прив'язана до booking.id, тому клієнт може
   // показати її саме біля цього завершеного запису, а не загальним списком.
@@ -5484,21 +5447,6 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
                 <div style={{fontSize:10,color:c,fontWeight:700,marginTop:1}}>{typeLabel}</div>
               </div>
             </div>
-            {filmingConsent != null && (
-              <div style={{
-                display:"flex", alignItems:"center", gap:6, marginTop:8,
-                background:`${filmingConsent ? GREEN : RED}1f`,
-                border:`1px solid ${filmingConsent ? GREEN : RED}44`,
-                borderRadius:8, padding:"5px 9px",
-              }}>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={filmingConsent ? GREEN : RED} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M3 8a2 2 0 0 1 2-2h2l1.5-2h7L17 6h2a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/>
-                  <circle cx="12" cy="13" r="3.2"/>
-                  {!filmingConsent && <line x1="2" y1="2" x2="22" y2="22"/>}
-                </svg>
-                <span style={{fontSize:10.5,fontWeight:700,color:filmingConsent ? GREEN : RED}}>{filmingConsent ? "Дозвіл на зйомку відео/аудіо" : "Зйомка заборонена"}</span>
-              </div>
-            )}
           </div>
 
           {/* Action buttons */}
@@ -5675,65 +5623,6 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
               </div>
             );
           })()}
-
-          {/* Маневри — фіолетова колірна картка */}
-          <div style={{
-            margin:"10px 14px 0",padding:"12px 14px",borderRadius:16,
-            background:`linear-gradient(155deg,color-mix(in srgb,${PURPLE} 38%,${BG_DEEP}) 0%,${BG_DEEP} 100%)`,
-            border:`1px solid color-mix(in srgb,${PURPLE} 36%,transparent)`,
-          }}>
-            <div style={{fontSize:9,fontWeight:700,letterSpacing:1,color:"rgba(255,255,255,.75)",textTransform:"uppercase",marginBottom:8}}>
-              🚗 Маневри
-            </div>
-            <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8}}>
-              {[
-                { key:"rozvorot",   label:"Розворот" },
-                { key:"parking90",  label:"Паркування 90" },
-                { key:"parking45",  label:"Паркування 45" },
-              ].map(m => {
-                const active = !!maneuverState[m.key];
-                const count = maneuverCounts[m.key] || 0;
-                const isSuccess = (maneuverResults[m.key] || "success") === "success";
-                return (
-                  <div key={m.key} style={{position:"relative"}}>
-                    <button onClick={() => toggleManeuver(m.key)} style={{
-                      width:"100%", fontFamily:"inherit",
-                      background: active ? "linear-gradient(155deg,#fff3,rgba(0,0,0,0.15))" : "rgba(0,0,0,0.22)",
-                      border: active ? "1.5px solid rgba(255,255,255,0.55)" : "1.5px solid rgba(255,255,255,0.15)",
-                      borderRadius:12, padding:"10px 4px",
-                      textAlign:"center", fontSize:10.5, fontWeight:700,
-                      color: "#fff",
-                      cursor: active ? "default" : "pointer",
-                      boxShadow: active ? "0 3px 12px rgba(0,0,0,0.3)" : "none",
-                    }}>
-                      {m.label}
-                    </button>
-                    <div style={{
-                      position:"absolute", top:-7, right:-6,
-                      background:GOLD, color:"#1a1200", fontSize:9, fontWeight:900,
-                      width:18, height:18, borderRadius:"50%",
-                      display:"flex", alignItems:"center", justifyContent:"center",
-                      border:"2px solid rgba(0,0,0,0.4)", pointerEvents:"none",
-                    }}>{count}</div>
-                    {active && (
-                      <div onClick={() => toggleManeuverResult(m.key)} style={{
-                        position:"absolute", bottom:-7, right:-6,
-                        background: isSuccess ? GREEN : RED, color:"#fff", fontSize:10, fontWeight:900,
-                        width:18, height:18, borderRadius:"50%",
-                        display:"flex", alignItems:"center", justifyContent:"center",
-                        border:"2px solid rgba(0,0,0,0.4)", cursor:"pointer",
-                      }} title={isSuccess ? "Вдало (тап — позначити невдало)" : "Невдало (тап — позначити вдало)"}>
-                        {isSuccess ? "✓" : "✕"}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-            <div style={{marginTop:10,fontSize:10.5,lineHeight:1.4,color:"rgba(255,255,255,.55)"}}>
-              Тап по маневру — відмітити, що його відпрацювали на цьому уроці. Золотий кружок — скільки разів клієнт відпрацював його за весь час. ✓ / ✕ — вдало чи невдало (тап — змінити).
-            </div>
-          </div>
 
           {/* Медаль за запис — золота колірна картка (прив'язана до цього booking, видно клієнту біля завершеного запису) */}
           <div style={{
