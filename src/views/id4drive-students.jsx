@@ -13,7 +13,7 @@ const M = ["","Січ","Лют","Бер","Кві","Тра","Чер","Лип","С
 const fmtS = d => { if(!d) return "—"; const [,m,day]=d.split("-"); return `${parseInt(day)} ${M[parseInt(m)]}`; };
 const navTo = tab => window.dispatchEvent(new CustomEvent("id4drive-nav", {detail:tab}));
 
-// Мітки поля "Досвід водіння" — те саме, що учень бачить у себе в анкеті
+// Мітки поля "Досвід водіння" — те саме, що клієнт бачить у себе в анкеті
 // (webID4client/src/pages/cabinet/ProfileTab.jsx), тут лише для показу адміну.
 const EXPERIENCE_LABELS = {
   no_license: "Не маю посвідчення, збираюсь складати іспит",
@@ -120,7 +120,7 @@ function StudentForm({ initial, onSave, onCancel, saveLabel="Зберегти" }
         border:d.isVip?"1px solid rgba(168,85,247,0.35)":`1px solid ${BORDER}`,
       }}>
         <div>
-          <div style={{fontSize:12,fontWeight:700,color:d.isVip?"#c084fc":TEXT}}>VIP учень</div>
+          <div style={{fontSize:12,fontWeight:700,color:d.isVip?"#c084fc":TEXT}}>VIP клієнт</div>
           <div style={{fontSize:10,color:FAINT,marginTop:2}}>{d.isVip?"Має доступ до VIP слотів":"Без доступу до VIP слотів"}</div>
         </div>
         <div style={{width:36,height:20,borderRadius:10,position:"relative",background:d.isVip?"linear-gradient(145deg,#a855f7,#7c3aed)":"rgba(255,255,255,0.08)",transition:"background .2s",flexShrink:0}}>
@@ -155,7 +155,7 @@ function StudentCard({ s, onSelect, settings }) {
   const theme = useContext(ThemeContext);
   const { BG_DEEP, GREEN, GOLD, RED } = theme;
   const { shade, glow } = useFX();
-  // Колір картки учня — той самий, що обраний для послуги цього типу
+  // Колір картки клієнта — той самий, що обраний для послуги цього типу
   // (Автошкола/Приватний) на вкладці «Послуги», а не фіксований GREEN/GOLD.
   const PALETTE = makePalette(theme);
   const colorOf = id => PALETTE.find(p=>p.id===id)?.color || GREEN;
@@ -260,15 +260,15 @@ function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock, onRemoveB
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoOpenHistory, s?.id]);
 
-  // Посилання-запрошення: учень переходить по ньому, реєструється сам —
+  // Посилання-запрошення: клієнт переходить по ньому, реєструється сам —
   // Cloud Function onNewStudentRegistered (webid4/functions/index.js)
   // зливає знижку/фікс.ціну/нотатки/години з цієї (створеної вручну)
-  // картки у щойно зареєстрований акаунт учня.
+  // картки у щойно зареєстрований акаунт клієнта.
   const generateInvite = async () => {
     if (inviteGenerating) return;
     setInviteGenerating(true); setInviteError(null);
     try {
-      // Адреса інструктора (slug) потрібна, щоб клієнт знав, до кого прив'язати учня (?i=slug)
+      // Адреса майстра (slug) потрібна, щоб клієнт знав, до кого прив'язати клієнта (?i=slug)
       const slug = (await get(iRef("admin_settings/profile/slug"))).val();
       if (!slug) { setInviteError("Спершу задайте адресу запису в Налаштуваннях"); return; }
       const inviteRef = await push(iRef( "invites"), { studentKey: s.id, createdAt: Date.now() });
@@ -281,8 +281,8 @@ function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock, onRemoveB
     }
   };
 
-  // Персональне повідомлення учню: пишемо запит у adminPush/{id}, cloud function onAdminPush
-  // читає токен учня й шле FCM (плюс внутрішнє сповіщення в NotifTab).
+  // Персональне повідомлення клієнту: пишемо запит у adminPush/{id}, cloud function onAdminPush
+  // читає токен клієнта й шле FCM (плюс внутрішнє сповіщення в NotifTab).
   const sendPushToStudent = async () => {
     if (!pushBody.trim() || pushSending) return;
     setPushSending(true); setPushError(null);
@@ -386,7 +386,7 @@ function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock, onRemoveB
               />
             ) : confirmDel ? (
               <div style={{background:"rgba(239,68,68,0.08)",border:"1px solid rgba(239,68,68,0.25)",borderRadius:12,padding:"14px 14px",display:"flex",flexDirection:"column",gap:9}}>
-                <div style={{fontSize:13,fontWeight:800,color:"#fca5a5"}}>Видалити учня назавжди?</div>
+                <div style={{fontSize:13,fontWeight:800,color:"#fca5a5"}}>Видалити клієнта назавжди?</div>
                 <div style={{fontSize:12,color:DIM}}>Цю дію не можна скасувати.</div>
                 <div style={{display:"flex",gap:7}}>
                   <button onClick={()=>{setPendingDelete(true);_close();}} style={{flex:1,padding:"10px",borderRadius:10,border:"none",cursor:"pointer",background:"linear-gradient(145deg,rgba(239,68,68,.5),rgba(185,28,28,.4))",color:"#fff",fontSize:13,fontWeight:700,boxShadow:SO,fontFamily:"inherit"}}>Так, видалити</button>
@@ -395,7 +395,7 @@ function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock, onRemoveB
               </div>
             ) : pushOpen ? (
               <div style={{display:"flex",flexDirection:"column",gap:10}}>
-                <div style={{fontSize:13,fontWeight:800,color:GOLD}}>📢 Повідомлення учню: {s.name}</div>
+                <div style={{fontSize:13,fontWeight:800,color:GOLD}}>📢 Повідомлення клієнту: {s.name}</div>
                 <input value={pushTitle} onChange={e=>{setPushTitle(e.target.value);setPushSent(false);}} placeholder="Заголовок"
                   style={{background:glow(0.04),border:`1px solid ${BORDER}`,outline:"none",color:TEXT,fontSize:13,padding:"9px 12px",borderRadius:10,boxShadow:SI,width:"100%",boxSizing:"border-box",fontFamily:"inherit"}}/>
                 <textarea value={pushBody} onChange={e=>{setPushBody(e.target.value);setPushSent(false);}} placeholder="Текст сповіщення" rows={3}
@@ -412,7 +412,7 @@ function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock, onRemoveB
             ) : inviteOpen ? (
               <div style={{display:"flex",flexDirection:"column",gap:10}}>
                 <div style={{fontSize:13,fontWeight:800,color:GOLD}}>🔗 Запросити: {s.name}</div>
-                <div style={{fontSize:11,color:DIM,lineHeight:1.5}}>Учень переходить за посиланням, сам реєструється — знижка/фікс.ціна/нотатки з цієї картки автоматично перенесуться на його акаунт.</div>
+                <div style={{fontSize:11,color:DIM,lineHeight:1.5}}>Клієнт переходить за посиланням, сам реєструється — знижка/фікс.ціна/нотатки з цієї картки автоматично перенесуться на його акаунт.</div>
                 <div style={{background:glow(0.04),border:`1px solid ${BORDER}`,borderRadius:10,padding:"9px 12px",fontSize:12,color:TEXT,wordBreak:"break-all"}}>{inviteLink}</div>
                 {inviteError && <div style={{fontSize:12,color:"#fca5a5"}}>{inviteError}</div>}
                 <div style={{display:"flex",gap:7}}>
@@ -440,7 +440,7 @@ function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock, onRemoveB
                   </div>
                 </div>
 
-                {/* Колір слота учня (діє, коли автокольори вимкнено в Налаштуваннях → Сітка) */}
+                {/* Колір слота клієнта (діє, коли автокольори вимкнено в Налаштуваннях → Сітка) */}
                 <div style={{background:glow(0.04),borderRadius:10,padding:"10px 12px",border:`1px solid ${BORDER}`}}>
                   <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10}}>
                     <div style={{fontSize:9,color:FAINT,letterSpacing:1,textTransform:"uppercase"}}>Колір слота</div>
@@ -457,7 +457,7 @@ function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock, onRemoveB
                   </div>
                   {autoColors && (
                     <div style={{fontSize:10,color:FAINT,marginTop:8,lineHeight:1.4}}>
-                      Зараз кольори розподіляються автоматично. Обраний колір діятиме після вимкнення «Автокольори учнів» в Налаштуваннях → Сітка.
+                      Зараз кольори розподіляються автоматично. Обраний колір діятиме після вимкнення «Автокольори клієнтів» в Налаштуваннях → Сітка.
                     </div>
                   )}
                 </div>
@@ -520,7 +520,7 @@ function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock, onRemoveB
                   {s.type==="school" && <Progress hours={s.hours} offset={s.hoursOffset||0}/>}
                 </div>
 
-                {/* Driving experience — заповнюється учнем в анкеті реєстрації */}
+                {/* Driving experience — заповнюється клієнтом в анкеті реєстрації */}
                 {s.experience && (
                   <div style={{background:glow(0.04),borderRadius:10,padding:"9px 12px",border:`1px solid ${BORDER}`}}>
                     <div style={{fontSize:9,color:FAINT,letterSpacing:1,textTransform:"uppercase",marginBottom:3}}>Досвід водіння</div>
@@ -566,7 +566,7 @@ function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock, onRemoveB
                 }}>
                   <span style={{fontSize:16,lineHeight:1}}>👑</span>
                   <div style={{flex:1}}>
-                    <div style={{fontSize:12,fontWeight:700,color:s.isVip?"#c084fc":TEXT}}>VIP учень</div>
+                    <div style={{fontSize:12,fontWeight:700,color:s.isVip?"#c084fc":TEXT}}>VIP клієнт</div>
                     <div style={{fontSize:10,color:FAINT,marginTop:2}}>{s.isVip?"Має доступ до VIP слотів":"Без доступу до VIP слотів"}</div>
                   </div>
                   <div style={{width:36,height:20,borderRadius:10,position:"relative",background:s.isVip?"linear-gradient(145deg,#a855f7,#7c3aed)":ink(0.08),transition:"background .2s",flexShrink:0}}>
@@ -579,7 +579,7 @@ function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock, onRemoveB
                   <span style={{fontSize:16,lineHeight:1}}>🎬</span>
                   <div style={{flex:1}}>
                     <div style={{fontSize:12,fontWeight:700,color:TEXT}}>Згода на зйомку відео/аудіо</div>
-                    <div style={{fontSize:10,color:FAINT,marginTop:2}}>Вказано учнем при реєстрації</div>
+                    <div style={{fontSize:10,color:FAINT,marginTop:2}}>Вказано клієнтом при реєстрації</div>
                   </div>
                   <span style={{
                     fontSize:11,fontWeight:800,padding:"3px 9px",borderRadius:7,
@@ -638,7 +638,7 @@ function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock, onRemoveB
                   width:"100%",padding:"11px",borderRadius:11,border:"1px solid rgba(239,68,68,0.25)",
                   cursor:"pointer",background:"rgba(239,68,68,0.08)",color:"#fca5a5",
                   fontSize:13,fontWeight:700,fontFamily:"inherit",marginTop:4,
-                }}>Видалити учня</button>
+                }}>Видалити клієнта</button>
               </>
             )}
           </div>
@@ -743,7 +743,7 @@ export default function StudentsView({ studentJump, onStudentJumpHandled, bookin
   useBackClose(showNew, () => setShowNew(false));
 
   // Перехід із модалки запису в розкладі ("Профіль"/"Історія") — відкриваємо
-  // картку учня, щойно список учнів завантажений
+  // картку клієнта, щойно список клієнтів завантажений
   useEffect(() => {
     if (!studentJump) return;
     const stu = students.find(x => x.id === studentJump.uid);
@@ -762,7 +762,7 @@ export default function StudentsView({ studentJump, onStudentJumpHandled, bookin
       setStudents(Object.entries(data).map(([uid, u]) => {
         const p = u.profile || {};
         return {
-          id:uid, name:p.name||u.name||"Учень", phone:p.phone||u.phone||"",
+          id:uid, name:p.name||u.name||"Клієнт", phone:p.phone||u.phone||"",
           type:p.type||u.type||"private",
           hours:u.hours||0, hoursOffset:u.hoursOffset||0,
           discount:u.discount||0, customPrice:u.customPrice??null, notes:u.notes||"", blocked:u.blocked||false, isVip:u.isVip||false,
@@ -785,7 +785,7 @@ export default function StudentsView({ studentJump, onStudentJumpHandled, bookin
     setStudents(ss=>ss.map(x=>x.id===id?{...x,blocked:next}:x));
     update(iRef(`users/${id}`),{blocked:next}).catch(()=>{});
     if (next) {
-      // Блокування — скасовуємо всі майбутні незавершені записи учня і
+      // Блокування — скасовуємо всі майбутні незавершені записи клієнта і
       // прибираємо його з активних черг, щоб він не отримав слот в обхід.
       const today = new Date(); today.setHours(0,0,0,0);
       const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
@@ -817,7 +817,7 @@ export default function StudentsView({ studentJump, onStudentJumpHandled, bookin
     setStudents(ss=>ss.map(x=>x.id===id?{...x,...patch}:x));
     update(iRef(`users/${id}`),patch).catch(()=>{});
   };
-  // Повне видалення учня на сервері: скасовує майбутні записи (слоти звільняються), прибирає записи, чат, сповіщення, черги
+  // Повне видалення клієнта на сервері: скасовує майбутні записи (слоти звільняються), прибирає записи, чат, сповіщення, черги
   const deleteStudent = id => {
     setStudents(ss=>ss.filter(x=>x.id!==id));
     deleteAccountRequest({ type:"student", iid:auth.currentUser.uid, uid:id })
@@ -877,7 +877,7 @@ export default function StudentsView({ studentJump, onStudentJumpHandled, bookin
       <div style={{display:"flex",flexDirection:"column",gap:8,fontFamily:"ui-sans-serif,-apple-system,system-ui,sans-serif",color:TEXT}}>
 
         <div style={{display:"flex",alignItems:"center",marginBottom:2}}>
-          <div style={{fontSize:15,fontWeight:800,color:TEXT}}>Учні</div>
+          <div style={{fontSize:15,fontWeight:800,color:TEXT}}>Клієнти</div>
         </div>
 
         <div style={{background:BG_DEEP,borderRadius:11,boxShadow:SI,padding:"3px 11px",display:"flex",alignItems:"center",gap:7}}>
@@ -920,13 +920,13 @@ export default function StudentsView({ studentJump, onStudentJumpHandled, bookin
         {!loading && list.length===0 && (
           <div style={{textAlign:"center",padding:"40px 20px"}}>
             <div style={{fontSize:36,opacity:.3,marginBottom:8}}>👥</div>
-            <div style={{fontSize:14,fontWeight:700,color:DIM}}>{search?"Нікого не знайдено":"Ще немає учнів"}</div>
+            <div style={{fontSize:14,fontWeight:700,color:DIM}}>{search?"Нікого не знайдено":"Ще немає клієнтів"}</div>
           </div>
         )}
       </div>
 
       {createPortal(
-        <button onClick={()=>setShowNew(true)} aria-label="Додати учня" style={{
+        <button onClick={()=>setShowNew(true)} aria-label="Додати клієнта" style={{
           position:"fixed",right:18,bottom:104,zIndex:45,
           display:"flex",alignItems:"center",gap:6,
           background:`linear-gradient(145deg,#5b9bff,#2563eb)`,
@@ -935,7 +935,7 @@ export default function StudentsView({ studentJump, onStudentJumpHandled, bookin
           boxShadow:`0 6px 20px rgba(37,99,235,0.55), 0 2px 8px rgba(0,0,0,0.4)`,
         }}>
           <span style={{fontSize:20,lineHeight:1,marginTop:-2}}>+</span>
-          Учень
+          Клієнт
         </button>,
         document.body
       )}
@@ -963,7 +963,7 @@ export default function StudentsView({ studentJump, onStudentJumpHandled, bookin
               fontSize:13,fontWeight:800,lineHeight:1,
             }}>✕</button>
             <div style={{width:38,height:4,borderRadius:2,background:ink(0.12),margin:"0 auto 14px"}}/>
-            <div style={{fontSize:14,fontWeight:800,color:TEXT,marginBottom:12}}>Новий учень</div>
+            <div style={{fontSize:14,fontWeight:800,color:TEXT,marginBottom:12}}>Новий клієнт</div>
             <StudentForm
               initial={{name:"",phone:"+380",discount:0,customPrice:"",notes:"",type:"private",isVip:false,noIntervalLimit:false}}
               onSave={createStudent} onCancel={()=>setShowNew(false)} saveLabel="Додати"

@@ -93,15 +93,15 @@ const mm = (t) => { const [h, m] = t.split(":").map(Number); return h * 60 + m; 
   await loginAs("a@t.dev"); await C.getUserProfile(UA);
   const pristine = clean(await day(D1));
 
-  console.log("── 1. Запис учня (1 год, сітка 30 хв)");
+  console.log("── 1. Запис клієнта (1 год, сітка 30 хв)");
   const bA = await book(UA, D1, "10:00", 1);
   let d = clean(await day(D1));
   check("запис створено, статус pending, ціна збережена", (await bk(UA, bA))?.status === "pending" && (await bk(UA, bA))?.price === 600);
   console.log("   слоти:", show(d));
-  check("зайняті рівно 10:00 і 10:30, власник = учень A", d.slot1000.available === false && d.slot1030.available === false && d.slot1000.bookedBy === UA && d.slot1030.bookedBy === UA && d.slot0930.available && d.slot1100.available);
+  check("зайняті рівно 10:00 і 10:30, власник = клієнт A", d.slot1000.available === false && d.slot1030.available === false && d.slot1000.bookedBy === UA && d.slot1030.bookedBy === UA && d.slot0930.available && d.slot1100.available);
   check("activeStudents виставлено сервером", (await adb.ref(`instructors/${IID}/activeStudents/${UA}`).get()).val() === true);
 
-  console.log("── 2. Другий учень на перекриття 09:30–10:30");
+  console.log("── 2. Другий клієнт на перекриття 09:30–10:30");
   await loginAs("b@t.dev"); await C.getUserProfile(UB);
   const okB = await C.claimSlot(D1, "09:30", 1, 30);
   d = clean(await day(D1));
@@ -109,7 +109,7 @@ const mm = (t) => { const [h, m] = t.split(":").map(Number); return h * 60 + m; 
   check("компенсація: 09:30 знову вільний без сліду bookedBy", d.slot0930.available === true && !d.slot0930.bookedBy && JSON.stringify(d.slot0930) === JSON.stringify(pristine.slot0930), JSON.stringify(d.slot0930));
   check("слоти A не зачеплено", d.slot1000.bookedBy === UA && d.slot1030.available === false);
 
-  console.log("── 3. Скасування учнем");
+  console.log("── 3. Скасування клієнтом");
   await loginAs("a@t.dev"); await C.getUserProfile(UA);
   await act(UA, bA, () => C.cancelBooking(UA, bA));
   d = clean(await day(D1));
@@ -127,7 +127,7 @@ const mm = (t) => { const [h, m] = t.split(":").map(Number); return h * 60 + m; 
   d = clean(await day(D2));
   check("після скасування phantom видалено, день як був", JSON.stringify(d) === JSON.stringify(pr2), JSON.stringify(d));
 
-  console.log("── 5. Перенесення уроку учнем (claim нового → cancel старого → новий запис)");
+  console.log("── 5. Перенесення уроку клієнтом (claim нового → cancel старого → новий запис)");
   const b1 = await book(UA, D1, "10:00", 1);
   // як BookingsTab: 1) claimSlot новий 2) cancelBooking(isReschedule) 3) createBooking(rescheduledFrom)
   const okNew = await C.claimSlot(D1, "12:00", 1, 30);
@@ -136,7 +136,7 @@ const mm = (t) => { const [h, m] = t.split(":").map(Number); return h * 60 + m; 
   await fire(UA, b2, null, await bk(UA, b2));
   d = clean(await day(D1));
   console.log("   слоти:", show(d));
-  check("новий час зайнято учнем A", okNew && d.slot1200.available === false && d.slot1230.available === false && d.slot1200.bookedBy === UA);
+  check("новий час зайнято клієнтом A", okNew && d.slot1200.available === false && d.slot1230.available === false && d.slot1200.bookedBy === UA);
   check("старий час 10:00–10:30 звільнено", d.slot1000.available === true && d.slot1030.available === true && !d.slot1000.bookedBy);
   check("старий запис cancelled/reschedule, новий pending з rescheduledFrom", (await bk(UA, b1)).cancelledBy === "reschedule" && (await bk(UA, b2)).rescheduledFrom === `${D1} 10:00`);
   // перенос на перекриття — має відмовити, а не зламати
@@ -179,7 +179,7 @@ const mm = (t) => { const [h, m] = t.split(":").map(Number); return h * 60 + m; 
   console.log("   D1:", show(d1), "| D3:", show(d3));
   check("D1 повністю вільний, D3 09:00–09:30 зайнято", JSON.stringify(d1) === JSON.stringify(pristine) && d3.slot0900.available === false && d3.slot0930.available === false);
 
-  console.log("── 8. Атака: учень A намагається звільнити слот, зайнятий адміном/іншим після його запису");
+  console.log("── 8. Атака: клієнт A намагається звільнити слот, зайнятий адміном/іншим після його запису");
   await seedDays();
   const b4 = await book(UA, D1, "11:00", 1);
   // адмін скасовує запис A і одразу ставить свій урок у цей час
@@ -217,7 +217,7 @@ const mm = (t) => { const [h, m] = t.split(":").map(Number); return h * 60 + m; 
   console.log("   слоти:", show(d));
   check("ПЕРЕНОС старого запису (без bookedBy): старе місце звільняється", okN && d.slot1000.available === true && d.slot1030.available === true, `старе місце лишилось зайнятим: ${show(d)}`);
 
-  console.log("── 10. Учень скасовує урок, який адмін раніше переніс");
+  console.log("── 10. Клієнт скасовує урок, який адмін раніше переніс");
   await seedDays();
   const b6 = await book(UA, D1, "10:00", 1);
   await act(UA, b6, async () => {
@@ -230,7 +230,7 @@ const mm = (t) => { const [h, m] = t.split(":").map(Number); return h * 60 + m; 
   try { await act(UA, b6, () => C.cancelBooking(UA, b6)); } catch { threw = true; }
   d = clean(await day(D1));
   console.log("   слоти:", show(d));
-  check("cancelBooking не кидає помилку учню, день як був (сервер звільнив нове місце)", !threw && JSON.stringify(d) === JSON.stringify(pristine), JSON.stringify([threw, show(d)]));
+  check("cancelBooking не кидає помилку клієнту, день як був (сервер звільнив нове місце)", !threw && JSON.stringify(d) === JSON.stringify(pristine), JSON.stringify([threw, show(d)]));
 
   console.log("── 11. «Накладка»: A створює запис на час, зайнятий B, і скасовує його");
   await seedDays();

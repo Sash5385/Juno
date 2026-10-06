@@ -86,7 +86,7 @@ function buildStudentEvents(data) {
     if (!u) return;
     const ts = u.profile?.createdAt || u.createdAt;
     if (!ts) return;
-    const name = u.profile?.name || u.name || "Новий учень";
+    const name = u.profile?.name || u.name || "Новий клієнт";
     const phone = u.profile?.phone || u.phone || "";
     evs.push({ id: `${uid}_reg`, type: "new_student", ts, name, slot: phone, by: "" });
   });
@@ -100,7 +100,7 @@ function buildEvents(data) {
     if (!userBkgs) return;
     Object.entries(userBkgs).forEach(([key, b]) => {
       if (!b) return;
-      // Особиста подія адміна — не урок, у журналі відвідувань учнів їй не місце.
+      // Особиста подія адміна — не урок, у журналі відвідувань клієнтів їй не місце.
       if (b.type === "personal") return;
       const name = b.studentName || b.name || "Без імені";
       const dateStr = b.date ? b.date.split("-").reverse().join(".") : "";
@@ -115,7 +115,7 @@ function buildEvents(data) {
   return evs.sort((a, b) => b.ts - a.ts);
 }
 
-const BY_LABEL = { admin: "інструктор", client: "учень" };
+const BY_LABEL = { admin: "майстер", client: "клієнт" };
 
 function EventDetailSheet({ ev, meta, onClose, theme }) {
   const [closing, setClosing] = useState(false);
@@ -221,7 +221,7 @@ export default function JournalView() {
     new:         { label: "Новий запис", color: theme.GREEN, icon: "📅" },
     cancel:      { label: "Скасовано",   color: theme.RED,   icon: "✗"  },
     reschedule:  { label: "Перенос",     color: theme.GOLD,  icon: "↔"  },
-    new_student: { label: "Новий учень", color: theme.BLUE,  icon: "🆕" },
+    new_student: { label: "Новий клієнт", color: theme.BLUE,  icon: "🆕" },
   };
 
   const [bookingEvents, setBookingEvents] = useState([]);
@@ -238,7 +238,7 @@ export default function JournalView() {
   const [keyPortalEl, setKeyPortalEl] = useState(null);
   // Лічильник, а не просто boolean — при кожному тапі на кнопку календар
   // монтується заново (key змінюється), навіть якщо попередній стан
-  // технічно ще "відкрито" (напр. учень прогорнув сторінку і календар
+  // технічно ще "відкрито" (напр. клієнт прогорнув сторінку і календар
   // візуально загубився). Тап завжди гарантовано відкриває свіжу шторку.
   const [calOpenKey, setCalOpenKey] = useState(0);
   const openMonthCal = () => { setCalOpenKey(k => k + 1); setShowMonthCal(true); };
@@ -308,7 +308,7 @@ export default function JournalView() {
       }}>
         {[
           ["all",   unreadCount > 0 ? `Всі записи · ${unreadCount}` : "Всі записи"],
-          ["admin", "Дії інструктора"],
+          ["admin", "Дії майстра"],
         ].map(([id, lbl]) => (
           <button key={id} onClick={() => setSection(id)} style={{
             flex:1,padding:"7px 10px",borderRadius:9,border:"none",
@@ -353,7 +353,7 @@ export default function JournalView() {
       {/* Empty state */}
       {groups.length === 0 && (
         <div style={{ textAlign:"center", color:DIM, fontSize:13, paddingTop:40 }}>
-          {section === "admin" ? "Немає дій інструктора" : "Журнал порожній"}
+          {section === "admin" ? "Немає дій майстра" : "Журнал порожній"}
         </div>
       )}
 

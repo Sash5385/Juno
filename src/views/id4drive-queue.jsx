@@ -273,7 +273,7 @@ export default function QueueView({ settings }) {
             <div style={{textAlign:"center",padding:"32px 20px",color:FAINT}}>
               <div style={{fontSize:32,marginBottom:8}}>⏳</div>
               <div style={{fontSize:14,fontWeight:700,color:DIM}}>Черга порожня</div>
-              <div style={{fontSize:12,marginTop:4}}>Додайте учнів нижче</div>
+              <div style={{fontSize:12,marginTop:4}}>Додайте клієнтів нижче</div>
             </div>
           ) : active.map((item, idx) => (
             <div key={item.id} data-drag-idx={idx}>

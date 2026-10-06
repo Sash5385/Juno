@@ -37,7 +37,7 @@ function bkIncome(b, svcs) {
   return b.price || 0;
 }
 
-// Сусідні (без розриву в часі) записи одного учня в один день адмінка
+// Сусідні (без розриву в часі) записи одного клієнта в один день адмінка
 // показує ОДНІЄЮ карткою в розкладі — тут так само рахуємо їх ОДНИМ уроком,
 // а не по кожному окремому Firebase-запису (інакше 2-годинний урок,
 // збережений як два сусідні 1-годинні записи, рахувався як "2 уроки").
@@ -710,7 +710,7 @@ export default function StatsView() {
         {topStudents.length > 0 && (
           <Card className="fu" style={{padding:"12px 13px 8px"}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-              <div style={{fontSize:9,color:FAINT,letterSpacing:1,textTransform:"uppercase",fontWeight:700}}>Топ-5 учнів</div>
+              <div style={{fontSize:9,color:FAINT,letterSpacing:1,textTransform:"uppercase",fontWeight:700}}>Топ-5 клієнтів</div>
               <div style={{display:"flex",gap:5}}>
                 {[["paid","₴"],["lessons","год"]].map(([k,l])=>(
                   <button key={k} onClick={()=>setTopBy(k)} style={{

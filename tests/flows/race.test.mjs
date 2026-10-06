@@ -1,4 +1,4 @@
-// Гонка за слоти: кілька учнів ОДНОЧАСНО займають той самий / перекривний час реальним клієнтським db.js
+// Гонка за слоти: кілька клієнтів ОДНОЧАСНО займають той самий / перекривний час реальним клієнтським db.js
 // (кожен — власний екземпляр бандла зі своїм Firebase-застосунком і користувачем) проти реальних правил БД.
 // Запуск: bash tests/flows/run.sh race
 import { createRequire } from "node:module";
@@ -121,7 +121,7 @@ const race = async (plan) => Promise.all(plan.map((p, i) => clients[i].M.claimSl
   }
   check(`на одну годину завжди рівно один запис (проблемних раундів: ${bad})`, bad === 0);
 
-  console.log("── 5. Один учень двічі підряд тисне «Записатись» (double-click) на той самий час");
+  console.log("── 5. Один клієнт двічі підряд тисне «Записатись» (double-click) на той самий час");
   await seedDay();
   const c0 = clients[0]; const dbl = await Promise.all([c0.M.claimSlot(D, "09:00", 1, 30), c0.M.claimSlot(D, "09:00", 1, 30)]);
   check("другий клік не отримує слот вдруге (рівно один true)", dbl.filter((x) => x === true).length === 1, JSON.stringify(dbl));

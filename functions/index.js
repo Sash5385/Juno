@@ -28,7 +28,7 @@ function kyivLocalToMs(dateStr, timeStr) {
   return guessMs - offsetMs;
 }
 
-// Хелпер: корінь дерева конкретного інструктора
+// Хелпер: корінь дерева конкретного майстра
 function iRef(iid, path) {
   return db.ref(path ? `instructors/${iid}/${path}` : `instructors/${iid}`);
 }
@@ -85,7 +85,7 @@ async function pushStudent(iid, uid, title, body, data = {}) {
 
 // Хелпер: запросити наступного в черзі для слота.
 // freedDurationHours — тривалість щойно скасованого уроку: якщо відома,
-// саме на неї треба записати учня з черги, а не на його власний вибір при
+// саме на неї треба записати клієнта з черги, а не на його власний вибір при
 // вступі в чергу (інакше 2-годинний урок звільняється, а бронюється лише 1 год).
 async function inviteNextInQueue(iid, slotKey, excludeUids = [], freedDurationHours = null) {
   const entriesSnap = await iRef(iid, `queue/${slotKey}/entries`).get();
@@ -177,7 +177,7 @@ function renderTemplateBody(body, vars = {}) {
   });
 }
 
-// Хелпер: ім'я інструктора для {інструктор} у шаблонах
+// Хелпер: ім'я майстра для {інструктор} у шаблонах
 async function getInstructorName(iid) {
   const snap = await iRef(iid, "admin_settings/profile/name").get().catch(() => null);
   return snap?.val() || "";
@@ -191,7 +191,7 @@ function matchesReminderBucket(tpl, targetHours) {
   return targetHours === 24 ? hours >= 12 : hours > 0 && hours < 12;
 }
 
-// Хелпер: надіслати учню ВСІ активні шаблони заданого тригера — чат-
+// Хелпер: надіслати клієнту ВСІ активні шаблони заданого тригера — чат-
 // повідомлення (як ручна відправка з вкладки "Шаблони") + push. Повертає
 // true лише якщо хоч одне повідомлення РЕАЛЬНО дійшло (чат-запис або push) —
 // а не просто "знайдено активний шаблон". Виклик використовує це, щоб
@@ -233,9 +233,9 @@ async function sendActiveTemplates(iid, uid, triggerId, vars = {}, filterFn = nu
 
 // Хелпер: для масових розсилок (auto_queue) — СИРИЙ (без підстановки) текст
 // першого активного шаблону, БЕЗ запису в чат (уникаємо спаму чату при
-// broadcast на всіх учнів). Підстановка робиться окремо для кожного учня —
+// broadcast на всіх клієнтів). Підстановка робиться окремо для кожного клієнта —
 // {ім'я} тут не рендериться навмисно, інакше усі отримали б однаковий текст
-// з іменем ПЕРШОГО підставленого учня (або взагалі невідому змінну "як є").
+// з іменем ПЕРШОГО підставленого клієнта (або взагалі невідому змінну "як є").
 async function getActiveTemplateRaw(iid, triggerId) {
   const snap = await iRef(iid, "admin_data/templates").get();
   const list = snap.val();
@@ -274,7 +274,7 @@ async function buildSlotUpdates(iid, bookingData, available, uid = null) {
   const day = await readSlotDay(iid, r.date);
   const prefix = `timeslots/${r.date}/`;
   if (!available) return blockRangeUpdates(day, prefix, r.start, r.dur);
-  // Слот, який зайняв (bookedBy) інший учень, не звільняємо: запис-«накладка» на чужий час
+  // Слот, який зайняв (bookedBy) інший клієнт, не звільняємо: запис-«накладка» на чужий час
   // не повинен відкривати чужий слот при скасуванні. bookedBy знімаємо зі звільнених.
   const mine = uid ? Object.fromEntries(Object.entries(day).filter(([, n]) => !n?.bookedBy || n.bookedBy === uid)) : day;
   return restoreRangeUpdates(mine, prefix, r.start, r.dur, { extra: { bookedBy: null } });
@@ -309,14 +309,14 @@ exports.onBookingChanged = onValueWritten(
     const before     = event.data.before.val();
     const after      = event.data.after.val();
     const { iid, uid, bookingId } = event.params;
-    const name       = (after || before)?.studentName || "Учень";
+    const name       = (after || before)?.studentName || "Клієнт";
     const date       = (after || before)?.date || "—";
     const time       = (after || before)?.time || "—";
     const adminLink  = () => buildAdminLink("https://juno-booking-admin.web.app", { date, time, uid, bookingId });
 
     // Новий запис (before = null) — блокуємо слоти
     if (before === null && after) {
-      // Режим читання (підписку не оплачено): учні не можуть записуватись. Клієнт
+      // Режим читання (підписку не оплачено): клієнти не можуть записуватись. Клієнт
       // це вже не дозволяє, але застарілий кеш/прямий запит теж відсікаємо тут:
       // скасовуємо запис і повертаємо слоти. Записи адміна, особисті події та перенесення (старий запис уже скасовано) не чіпаємо.
       if (after.createdBy !== "admin" && after.status !== "personal" && uid !== "admin" && !after.rescheduledFrom) {
@@ -326,7 +326,7 @@ exports.onBookingChanged = onValueWritten(
           await iRef(iid, `bookings/${uid}/${bookingId}`).update({ status: "cancelled", cancelledBy: "license" }).catch(() => {});
           const freeUpd = await buildSlotUpdates(iid, after, true, uid);
           if (Object.keys(freeUpd).length) await iRef(iid).update(freeUpd).catch(() => {});
-          await pushStudent(iid, uid, "⚠️ Запис недоступний", "Інструктор тимчасово не приймає нові записи.", {
+          await pushStudent(iid, uid, "⚠️ Запис недоступний", "Майстер тимчасово не приймає нові записи.", {
             url: "https://juno-booking-client.web.app/cabinet/bookings",
           }).catch(() => {});
           return;
@@ -337,19 +337,19 @@ exports.onBookingChanged = onValueWritten(
       await iRef(iid, `activeStudents/${uid}`).set(true).catch(() => {});
       await iRef(iid, `recentStudents/${uid}`).set(Date.now()).catch(() => {});
       if (after.createdBy === "admin" && uid !== "admin") {
-        // Адмін вручну записав учня — сповіщаємо учня
+        // Адмін вручну записав клієнта — сповіщаємо клієнта
         console.log(`onBookingChanged: admin manual booking iid=${iid} uid=${uid}`);
         await pushStudent(iid, uid, "📋 Урок заплановано", `${date} о ${time}`, {
           url: "https://juno-booking-client.web.app/cabinet/bookings",
         });
         await saveNotification(iid, uid, "📋 Урок заплановано", `${date} о ${time}`, "booking_confirmed");
       } else if (after.createdBy !== "admin" && after.status !== "personal") {
-        // Учень записався сам — сповіщаємо адміна
+        // Клієнт записався сам — сповіщаємо адміна
         // (особисті події адміна не мають генерувати цей пуш — у них є власне
         // нагадування-будильник через sendPersonalEventReminders)
         console.log(`onBookingChanged: new booking iid=${iid} uid=${uid}`);
         if (after.rescheduledFrom) {
-          // Учень переніс урок (старий запис скасовано з cancelledBy="reschedule", новий створено
+          // Клієнт переніс урок (старий запис скасовано з cancelledBy="reschedule", новий створено
           // з rescheduledFrom) — це не новий запис, а перенесення: кажемо з якого дня на який.
           await pushAdmin(iid, "🔁 Урок перенесено", buildRescheduleBody(after, name, date, time), { url: adminLink() });
         } else {
@@ -361,7 +361,7 @@ exports.onBookingChanged = onValueWritten(
 
     if (!before || !after) return;
 
-    // Учень скасував — звільняємо слоти
+    // Клієнт скасував — звільняємо слоти
     if (after.cancelledBy === "student" && before.cancelledBy !== "student") {
       console.log(`onBookingChanged: student cancel iid=${iid} uid=${uid}`);
       const slotUpd = await buildSlotUpdates(iid, before, true, uid);
@@ -416,7 +416,7 @@ exports.onBookingChanged = onValueWritten(
       return;
     }
 
-    // Учень переносить урок: клієнт спершу займає нове місце, потім скасовує старий запис (cancelledBy "reschedule")
+    // Клієнт переносить урок: клієнт спершу займає нове місце, потім скасовує старий запис (cancelledBy "reschedule")
     // і сам звільняє старі слоти. Якщо правила БД його не пустили (слоти заброньовано до появи bookedBy) —
     // звільняємо тут. Слоти, зайняті вже кимось іншим (bookedBy), buildSlotUpdates не чіпає.
     if (after.cancelledBy === "reschedule" && before.cancelledBy !== "reschedule") {
@@ -448,7 +448,7 @@ exports.onBookingChanged = onValueWritten(
       return;
     }
 
-    // Учень додав/змінив нотатку до уроку (вкладка "Записи") — сповіщаємо адміна.
+    // Клієнт додав/змінив нотатку до уроку (вкладка "Записи") — сповіщаємо адміна.
     // Очищення нотатки пуш не шле; перенесення вже оброблено вище.
     const noteBefore = String(before.studentNote || "").trim();
     const noteAfter = String(after.studentNote || "").trim();
@@ -464,8 +464,8 @@ function normPhone(p) {
   return (p || "").replace(/\D/g, "");
 }
 
-// Учень, доданий вручну адміном (картка учня без .profile), запросив
-// себе через посилання ("🔗 Запросити" в картці учня) або просто
+// Клієнт, доданий вручну адміном (картка клієнта без .profile), запросив
+// себе через посилання ("🔗 Запросити" в картці клієнта) або просто
 // самостійно зареєструвався з тим самим номером телефону — зливаємо
 // операційні поля (знижку/фікс.ціну/нотатки/години/VIP/медалі) в щойно
 // зареєстрований акаунт. Історію записів/чатів навмисно НЕ переносимо —
@@ -512,17 +512,17 @@ async function mergeInvitedStudentRecord(iid, uid, profile) {
   }
 }
 
-// Новий учень зареєструвався (заповнив анкету) — сповіщаємо адміна
+// Новий клієнт зареєструвався (заповнив анкету) — сповіщаємо адміна
 exports.onNewStudentRegistered = onValueCreated(
   { ref: "instructors/{iid}/users/{uid}/profile", region: "europe-west1" },
   async (event) => {
     const profile = event.data.val();
     const { iid, uid } = event.params;
     await mergeInvitedStudentRecord(iid, uid, profile);
-    const name  = profile?.name  || "Новий учень";
+    const name  = profile?.name  || "Новий клієнт";
     const phone = profile?.phone || "";
     console.log(`onNewStudentRegistered: iid=${iid} uid=${uid} name="${name}"`);
-    await pushAdmin(iid, "🎉 Новий учень", phone ? `${name} · ${phone}` : name, {
+    await pushAdmin(iid, "🎉 Новий клієнт", phone ? `${name} · ${phone}` : name, {
       url: buildAdminLink("https://juno-booking-admin.web.app", { uid }),
     });
     await sendActiveTemplates(iid, uid, "auto_welcome", { "ім'я": name }).catch(() => {});
@@ -786,9 +786,9 @@ exports.flushSlotFreedQueue = onSchedule(
 
         const slotDate = new Date(date + "T00:00:00");
         const dateFormatted = slotDate.toLocaleDateString("uk", { day: "numeric", month: "long", weekday: "short" });
-        // Broadcast на всіх учнів — беремо СИРИЙ текст першого активного
+        // Broadcast на всіх клієнтів — беремо СИРИЙ текст першого активного
         // шаблону auto_queue (без запису в чат, щоб не заспамити чат усіх
-        // учнів), а {ім'я} підставляємо нижче окремо для кожного учня.
+        // клієнтів), а {ім'я} підставляємо нижче окремо для кожного клієнта.
         const tpl = await getActiveTemplateRaw(iid, "auto_queue").catch(() => null);
         const rawTitle = tpl?.title || "🚗 Звільнився слот!";
         const rawBody  = tpl?.body  || `${dateFormatted} о ${time} — є вільне місце`;
@@ -797,7 +797,7 @@ exports.flushSlotFreedQueue = onSchedule(
         for (const uid of notifyUids) {
           if (lastNotifData[uid] && now - lastNotifData[uid] < RATE_LIMIT_MS) continue;
           const profileSnap = await iRef(iid, `users/${uid}/profile`).get().catch(() => null);
-          const vars = { "дата": dateFormatted, "час": time, "ім'я": profileSnap?.val()?.name || "Учень", "інструктор": inst?.admin_settings?.profile?.name || "" };
+          const vars = { "дата": dateFormatted, "час": time, "ім'я": profileSnap?.val()?.name || "Клієнт", "інструктор": inst?.admin_settings?.profile?.name || "" };
           const title = renderTemplateBody(rawTitle, vars);
           const body  = renderTemplateBody(rawBody, vars);
           const sent = await pushStudent(iid, uid, title, body, { url, date, time }).catch(() => false);
@@ -863,11 +863,11 @@ exports.onStudentMessage = onValueCreated(
 );
 
 // Адмін надіслав повідомлення (ручний чат, розсилка, ручна відправка
-// шаблону з вкладки "Шаблони") → пуш учню. Раніше такого тригера не було
+// шаблону з вкладки "Шаблони") → пуш клієнту. Раніше такого тригера не було
 // взагалі — ці повідомлення лише записувались у chats/{uid}, а push
 // студенту ніколи не йшов. auto:true пропускаємо — ті повідомлення вже
 // отримали власний push з sendActiveTemplates (auto_confirm/auto_cancel),
-// інакше учень отримав би два пуші на одне й те саме повідомлення.
+// інакше клієнт отримав би два пуші на одне й те саме повідомлення.
 exports.onInstructorMessage = onValueCreated(
   { ref: "instructors/{iid}/chats/{uid}/{msgId}", region: "europe-west1" },
   async (event) => {
@@ -880,13 +880,13 @@ exports.onInstructorMessage = onValueCreated(
     const text = msg.text || "";
     if (!text) return;
     const name = await getInstructorName(iid);
-    await pushStudent(iid, uid, `💬 ${name || "Інструктор"}`, text.length > 100 ? text.slice(0, 100) + "…" : text, {
+    await pushStudent(iid, uid, `💬 ${name || "Майстер"}`, text.length > 100 ? text.slice(0, 100) + "…" : text, {
       url: "https://juno-booking-client.web.app/cabinet/chat",
     });
   }
 );
 
-// Інструктор видав медаль за урок (users/{uid}/badges/{id}) → push учню + запис у його сповіщення.
+// Майстер видав медаль за урок (users/{uid}/badges/{id}) → push клієнту + запис у його сповіщення.
 exports.onBadgeAwarded = onValueCreated(
   { ref: "instructors/{iid}/users/{uid}/badges/{badgeId}", region: "europe-west1" },
   async (event) => {
@@ -900,7 +900,7 @@ exports.onBadgeAwarded = onValueCreated(
   }
 );
 
-// Ручна відправка шаблону з каналом "push" (вкладка "Шаблони") — учень
+// Ручна відправка шаблону з каналом "push" (вкладка "Шаблони") — клієнт
 // отримує лише push-сповіщення, без запису повідомлення в чат. Клієнт
 // пише в цей тимчасовий вузол, функція шле push і одразу прибирає запис.
 exports.onTemplatePush = onValueCreated(
@@ -970,7 +970,7 @@ exports.sendLessonReminders = onSchedule(
             day: "numeric", month: "long", weekday: "short",
           });
 
-          const reminderVars = { "ім'я": b.studentName || "Учень", "дата": dateFmt, "час": b.time };
+          const reminderVars = { "ім'я": b.studentName || "Клієнт", "дата": dateFmt, "час": b.time };
 
           // 24г нагадування (вікно 23–24г, не в тихі години)
           if (!sent.r24 && !(kyivHour >= 23 || kyivHour < 6)
@@ -1062,7 +1062,7 @@ exports.sendPersonalEventReminders = onSchedule(
   }
 );
 
-// Ручна розсилка адміна → пуш УСІМ учням з увімкненими сповіщеннями
+// Ручна розсилка адміна → пуш УСІМ клієнтам з увімкненими сповіщеннями
 // (раніше — лише активним за останні 30 днів; обмеження прибрано за
 // прямим запитом: розсилка про вільний слот має йти всім).
 exports.onPushTask = onValueCreated(
@@ -1152,8 +1152,8 @@ exports.flushDayNoteReminders = onSchedule(
 
 // ─── Ліцензія: стани та режим "лише читання" ─────────────────────
 // Після завершення терміну є 1 пільгова доба (все працює, але адмінка просить
-// оплатити), далі — режим читання: інструктор бачить свої дані, але нічого не
-// змінює, а учні не можуть записуватись (свої записи бачать).
+// оплатити), далі — режим читання: майстер бачить свої дані, але нічого не
+// змінює, а клієнти не можуть записуватись (свої записи бачать).
 const LICENSE_GRACE_MS = 24 * 3600 * 1000;
 const LICENSE_WARN_MS  = 3 * 24 * 3600 * 1000;
 
@@ -1161,7 +1161,7 @@ function licenseUntilTs(l) {
   return l ? (l.status === "trial" ? l.trialEndsAt : l.expiresAt) : null;
 }
 // true — призупинено вручну/системою АБО термін + пільгова доба минули.
-// Немає вузла license — фіча вимкнена для цього інструктора (false).
+// Немає вузла license — фіча вимкнена для цього майстра (false).
 function isLicenseReadonly(l) {
   if (!l) return false;
   if (l.status === "suspended") return true;
@@ -1243,7 +1243,7 @@ exports.submitContact = onRequest({ region: "europe-west1", cors: true }, async 
   }
 });
 
-// ─── Моніторинг помилок (адмінка і застосунок учня → /api/report-error) ──────
+// ─── Моніторинг помилок (адмінка і застосунок клієнта → /api/report-error) ──────
 // Публічний POST без авторизації (помилка може статись до входу). Захист: ліміт 20 запитів/хв
 // за хешем IP, обрізання довжин, групування за відбитком (повтор лише збільшує лічильник).
 // Дані — system/errorLog/{відбиток} (читає лише суперадмін, вкладка "Помилки"). Про НОВУ
@@ -1285,7 +1285,7 @@ exports.reportError = onRequest({ region: "europe-west1", cors: true }, async (r
     const push = await db.ref("system/errorLogMeta/lastPush").transaction(cur => (cur && now - cur < 600000 ? undefined : now));
     if (!push.committed) return;
     const owner = await admin.auth().getUserByEmail(VENDOR_EMAIL).catch(() => null);
-    if (owner) await pushAdmin(owner.uid, `🐞 Нова помилка (${app === "client" ? "учень" : "адмінка"} ${version})`, message.slice(0, 120), {}).catch(() => {});
+    if (owner) await pushAdmin(owner.uid, `🐞 Нова помилка (${app === "client" ? "клієнт" : "адмінка"} ${version})`, message.slice(0, 120), {}).catch(() => {});
   } catch (e) {
     console.error("reportError error:", e);
     if (!res.headersSent) res.status(500).json({ ok: false });
@@ -1305,9 +1305,9 @@ exports.cleanupErrorLog = onSchedule({ schedule: "every 24 hours", region: "euro
 
 // ─── Видалення акаунтів ──────────────────────────────────────────────
 // POST /api/delete-account (Bearer ID-токен). Тіло: {type:"instructor", iid} або {type:"student", iid, uid}.
-//  • інструктор: може сам інструктор (uid === iid) або суперадмін;
-//  • учень: сам учень (uid === токен), його інструктор або суперадмін.
-// Перед видаленням інструктора повний архів його даних кладеться в Storage:
+//  • майстер: може сам майстер (uid === iid) або суперадмін;
+//  • клієнт: сам клієнт (uid === токен), його майстер або суперадмін.
+// Перед видаленням майстра повний архів його даних кладеться в Storage:
 // backups/deleted/{iid}-{ts}.json (це не чіпає щоденне очищення 30-денних копій).
 const VENDOR_EMAIL = "sash5385@gmail.com";
 const STUDENT_NODES = ["bookings", "chats", "chatMeta", "notifications", "userQueue", "users"];
@@ -1321,7 +1321,7 @@ async function deleteStudentData(iid, uid) {
     const upd = await buildSlotUpdates(iid, b, true, uid).catch(() => ({}));
     if (Object.keys(upd).length) await iRef(iid).update(upd).catch(() => {});
   }
-  // 2) видаляємо вузли учня
+  // 2) видаляємо вузли клієнта
   const updates = {};
   STUDENT_NODES.forEach((n) => { updates[n + "/" + uid] = null; });
   updates[`activeStudents/${uid}`] = null;
@@ -1366,7 +1366,7 @@ exports.deleteAccount = onRequest({ region: "europe-west1", cors: true, timeoutS
       if (slug) upd[`slugs/${slug}`] = null;
       upd[`payment_test/${iid}`] = null;
       await db.ref().update(upd);
-      // файли Storage інструктора (фото, галерея)
+      // файли Storage майстра (фото, галерея)
       try { await admin.storage().bucket(BACKUP_BUCKET).deleteFiles({ prefix: `instructors/${iid}/` }); } catch (e) { console.warn("deleteAccount: storage", e.message); }
       // сам обліковий запис
       try { await admin.auth().deleteUser(iid); } catch (e) { console.warn("deleteAccount: auth", e.code); }
@@ -1380,7 +1380,7 @@ exports.deleteAccount = onRequest({ region: "europe-west1", cors: true, timeoutS
       const self = caller.uid === target;
       if (!self && !isVendor && caller.uid !== iid) { res.status(403).json({ error: "forbidden" }); return; }
       if (self) {
-        // самовидалення: прибираємо дані в усіх інструкторів, де є цей учень, і сам обліковий запис
+        // самовидалення: прибираємо дані в усіх майстрів, де є цей клієнт, і сам обліковий запис
         const idx = Object.keys((await db.ref("instructor_index").get()).val() || {});
         for (const id of idx) {
           if ((await iRef(id, `users/${target}`).get()).exists() || (await iRef(id, `bookings/${target}`).get()).exists()) {
@@ -1402,7 +1402,7 @@ exports.deleteAccount = onRequest({ region: "europe-west1", cors: true, timeoutS
 });
 
 // ─── Резервна копія записів ──────────────────────────────────────────
-// Щоночі (03:00 за Києвом) складає JSON-копію даних кожного інструктора в Cloud Storage:
+// Щоночі (03:00 за Києвом) складає JSON-копію даних кожного майстра в Cloud Storage:
 // backups/{YYYY-MM-DD}/{iid}.json. Працює ЛИШЕ коли суперадмін увімкнув тумблер
 // (system/backupEnabled = true у суперадмінці). Зберігає 30 днів, старіші видаляє.
 // Не копіюються: чати, timeslots (відновлюються генерацією), сповіщення, push-токени.
@@ -1472,7 +1472,7 @@ exports.manualBackup = onValueWritten(
 // LiqPay action:"subscribe" — справжнє автосписання щомісяця (вебхук сам
 // продовжує ліцензію, без участі вендора). Monobank Acquiring — рахунок
 // (invoice), не підписка: автосписання карткою Monobank Acquiring не дає,
-// тому інструктору доведеться раз на місяць самому натиснути оплату —
+// тому майстру доведеться раз на місяць самому натиснути оплату —
 // але вендору (нам) все одно нічого перемикати вручну, вебхук робить усе сам.
 
 const LIQPAY_PUBLIC_KEY  = defineSecret("LIQPAY_PUBLIC_KEY");
@@ -1489,7 +1489,7 @@ function liqpaySign(privateKey, data) {
   return crypto.createHash("sha1").update(privateKey + data + privateKey, "utf8").digest("base64");
 }
 
-// Продовжує ліцензію конкретного інструктора на місяць від сьогодні, а якщо
+// Продовжує ліцензію конкретного майстра на місяць від сьогодні, а якщо
 // вона ще активна — від дати закінчення поточного періоду (щоб оплата
 // заздалегідь не "згоряла").
 // dedupeKey — унікальний ID саме цієї транзакції (LiqPay payment_id,
@@ -1566,7 +1566,7 @@ async function reverseLicense(iid, provider, dedupeKey) {
   return true;
 }
 
-// order_id/reference провайдера несе iid інструктора, щоб вебхук (без
+// order_id/reference провайдера несе iid майстра, щоб вебхук (без
 // Firebase Auth контексту) знав, кому продовжувати ліцензію. UID Firebase
 // Auth ніколи не містить дефіс, тож розбір безпечний.
 // Річний тариф кодується як "-y-" (старі посилання без плану = місяць).
@@ -1581,7 +1581,7 @@ function parsePaymentRef(ref) {
 // Тестова оплата 1₴: сума береться на СЕРВЕРІ, якщо в БД є payment_test/{iid} = true.
 // Вузол payment_test закритий правилами (за замовчуванням — заборона для клієнтів),
 // тож вмикається лише вручну в Firebase Console (Realtime Database) для тестового
-// інструктора — інструктор сам собі знижку виставити не може. Тариф/термін не
+// майстра — майстер сам собі знижку виставити не може. Тариф/термін не
 // змінюються: тестова оплата "рік" все одно продовжує ліцензію на рік.
 async function isTestPayment(iid) {
   try { return (await db.ref(`payment_test/${iid}`).get()).val() === true; }

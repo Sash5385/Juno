@@ -56,13 +56,13 @@ const INIT_TEMPLATES = [
   { id:"t1", catId:"reminder", title:"Нагадування за 24 год", channel:"chat", trigger:"auto_reminder", reminderHours:24, active:true,
     body:"Привіт, {ім'я}! 🔔 Нагадуємо про урок завтра {дата} о {час}. Чекаємо на тебе! Якщо потрібно перенести — напиши нам." },
   { id:"t2", catId:"reminder", title:"Нагадування за 2 год",  channel:"chat", trigger:"auto_reminder", reminderHours:2, active:true,
-    body:"🔔 Нагадуємо: урок сьогодні о {час}. Адреса: Верховинна 44. Інструктор: {інструктор}" },
+    body:"🔔 Нагадуємо: урок сьогодні о {час}. Адреса: Верховинна 44. Майстер: {інструктор}" },
   { id:"t3", catId:"confirm",  title:"Підтвердження запису",  channel:"chat", trigger:"auto_confirm",  active:true,
     body:"✅ {ім'я}, твій урок підтверджено!\n📅 {дата} о {час}\n🚗 {послуга} — {ціна} ₴\nЧекаємо!" },
   { id:"t4", catId:"cancel",   title:"Скасування запису",     channel:"chat", trigger:"auto_cancel",   active:true,
     body:"❌ {ім'я}, на жаль урок {дата} о {час} скасовано. Якщо хочеш записатись на інший час — напиши нам або відкрий додаток." },
-  { id:"t5", catId:"welcome",  title:"Вітання нового учня",   channel:"chat", trigger:"auto_welcome",  active:true,
-    body:"👋 Привіт, {ім'я}! Раді бачити тебе в Juno!\nЯ — {інструктор}, твій інструктор.\nЗаписуйся на перший урок і побачимось на дорозі! 🚗" },
+  { id:"t5", catId:"welcome",  title:"Вітання нового клієнта",   channel:"chat", trigger:"auto_welcome",  active:true,
+    body:"👋 Привіт, {ім'я}! Раді бачити тебе в Juno!\nЯ — {інструктор}, твій майстер.\nЗаписуйся на перший урок і побачимось на дорозі! 🚗" },
   { id:"t6", catId:"queue",    title:"Пропозиція вільного слоту", channel:"chat", trigger:"auto_queue", active:true,
     body:"⏳ {ім'я}, з'явився вільний урок {дата} о {час}! Підтвердити запис → відкрий додаток." },
   { id:"t7", catId:"custom",   title:"Прохання про відгук",   channel:"chat", trigger:"manual",        active:true,
@@ -71,7 +71,7 @@ const INIT_TEMPLATES = [
     body:"Привіт! Для тебе діє спеціальна пропозиція: {послуга} за {ціна} ₴. Діє тільки цього тижня!" },
 ];
 
-const old2 = "ID4Drive: урок сьогодні о {час}. Адреса: Верховинна 44. Інструктор: {інструктор}";
+const old2 = "ID4Drive: урок сьогодні о {час}. Адреса: Верховинна 44. Майстер: {інструктор}";
 const new2 = INIT_TEMPLATES.find(t => t.id === "t2").body;
 const OLD_T5 = INIT_TEMPLATES.find(t => t.id === "t5").body.replace("в Juno!", "в ID4Drive!");
 const DP_T5 = INIT_TEMPLATES.find(t => t.id === "t5").body.replace("в Juno!", "в DrivePad!"); // попередня назва: стандартний текст оновлюємо
@@ -79,18 +79,18 @@ const DP_T5 = INIT_TEMPLATES.find(t => t.id === "t5").body.replace("в Juno!", "
 // ─── ПРОСТИЙ РЕЖИМ: стандартні шаблони t1–t7 показуємо як «ситуації» ───
 const STD_IDS = ["t1","t2","t3","t4","t5","t6","t7"];
 const STD_INFO = {
-  t3: { emoji:"✅", title:"Підтвердження запису",  hint:"Коли ви підтвердили запис учня",  color:GREEN  },
+  t3: { emoji:"✅", title:"Підтвердження запису",  hint:"Коли ви підтвердили запис клієнта",  color:GREEN  },
   t4: { emoji:"❌", title:"Скасування запису",      hint:"Коли запис скасовано",            color:RED    },
-  t5: { emoji:"👋", title:"Вітання нового учня",    hint:"Після реєстрації учня в застосунку", color:TEAL },
+  t5: { emoji:"👋", title:"Вітання нового клієнта",    hint:"Після реєстрації клієнта в застосунку", color:TEAL },
   t6: { emoji:"⏳", title:"Вільний слот із черги",  hint:"Коли слот звільнився і хтось чекає в черзі", color:PURPLE },
   t7: { emoji:"⭐", title:"Прохання про відгук",    hint:"Надсилаєте вручну після уроку",   color:BLUE   },
 };
 const VAR_LABELS = [
-  { v:"{ім'я}", label:"Ім'я учня" }, { v:"{дата}", label:"Дата" }, { v:"{час}", label:"Час" },
-  { v:"{послуга}", label:"Послуга" }, { v:"{ціна}", label:"Ціна" }, { v:"{інструктор}", label:"Інструктор" },
+  { v:"{ім'я}", label:"Ім'я клієнта" }, { v:"{дата}", label:"Дата" }, { v:"{час}", label:"Час" },
+  { v:"{послуга}", label:"Послуга" }, { v:"{ціна}", label:"Ціна" }, { v:"{інструктор}", label:"Майстер" },
 ];
 // приклад для попереднього перегляду
-const SAMPLE_VARS = { "ім'я":"Олексій", "дата":"5 жовтня, пн", "час":"14:00", "послуга":"Автошкола", "ціна":"900", "інструктор":"Ваш інструктор" };
+const SAMPLE_VARS = { "ім'я":"Олексій", "дата":"5 жовтня, пн", "час":"14:00", "послуга":"Автошкола", "ціна":"900", "інструктор":"Ваш майстер" };
 
 // Hardcoded list removed — students are loaded from Firebase in SendModal
 
@@ -111,7 +111,7 @@ function renderVars(body, vars={}) {
   });
 }
 
-// найближчий активний (не скасований, у майбутньому) запис учня — для
+// найближчий активний (не скасований, у майбутньому) запис клієнта — для
 // автопідстановки {дата}/{час}/{послуга}/{ціна} при ручній відправці шаблону
 async function nextBookingVars(uid) {
   try {
@@ -168,7 +168,7 @@ function SendModal({ tpl, onClose }) {
       const d = snap.val() || {};
       const list = Object.entries(d).map(([uid, u]) => ({
         uid,
-        name: u.profile?.name || "Учень",
+        name: u.profile?.name || "Клієнт",
       }));
       setStudents(list);
     }).catch(() => {});
@@ -190,7 +190,7 @@ function SendModal({ tpl, onClose }) {
     const ts   = Date.now();
     await Promise.all(selected.map(async uid => {
       const student = students.find(s=>s.uid===uid);
-      const vars = { "ім'я": student?.name || "Учень", "інструктор": instructorName, ...(await nextBookingVars(uid)) };
+      const vars = { "ім'я": student?.name || "Клієнт", "інструктор": instructorName, ...(await nextBookingVars(uid)) };
       const text = renderVars(preview, vars);
       if (tpl.channel === "push") {
         // Лише push, без запису в чат — onTemplatePush на бекенді відправить
@@ -220,9 +220,9 @@ function SendModal({ tpl, onClose }) {
       <div style={{fontSize:10,color:FAINT,letterSpacing:1,marginBottom:8}}>КОМУ НАДІСЛАТИ</div>
       <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:16}}>
         {students.length === 0
-          ? <span style={{fontSize:11,color:FAINT}}>Завантаження учнів…</span>
+          ? <span style={{fontSize:11,color:FAINT}}>Завантаження клієнтів…</span>
           : <>
-            <button onClick={()=>setSelected(allIds)} style={selBtn(selected.length===students.length&&students.length>0, ACCENT)}>Всі учні</button>
+            <button onClick={()=>setSelected(allIds)} style={selBtn(selected.length===students.length&&students.length>0, ACCENT)}>Всі клієнти</button>
             {students.map(s=>(
               <button key={s.uid} onClick={()=>toggleSel(s.uid)} style={selBtn(selected.includes(s.uid), BLUE)}>{s.name}</button>
             ))}
@@ -300,7 +300,7 @@ function EditModal({ tpl, onSave, onClose }) {
           ))}
         </div>
         <div style={{fontSize:10,color:"rgba(255,255,255,0.5)",marginTop:6}}>
-          {(form.channel||"chat")==="push" ? "Лише сповіщення, без запису в чат" : "Повідомлення в чат (учень також отримає push)"}
+          {(form.channel||"chat")==="push" ? "Лише сповіщення, без запису в чат" : "Повідомлення в чат (клієнт також отримає push)"}
         </div>
       </div>
 
@@ -607,7 +607,7 @@ export default function TemplatesView() {
 
         {/* ── ПРОСТИЙ РЕЖИМ: що і коли надсилається ── */}
         <div style={{fontSize:12,color:FAINT,padding:"0 2px 2px"}}>
-          Що і коли надсилається учням. Вимкніть непотрібне або натисніть, щоб змінити текст.
+          Що і коли надсилається клієнтам. Вимкніть непотрібне або натисніть, щоб змінити текст.
         </div>
         <div style={{display:"flex",flexDirection:"column",gap:8}}>
           {reminders.length > 0 && (

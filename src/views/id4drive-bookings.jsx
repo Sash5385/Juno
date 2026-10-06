@@ -38,7 +38,7 @@ function QueueOfferModal({ cancelledBk, waiting, queueMode, onInvite, onClose, s
         </Btn>
       </>}>
       <div style={{fontSize:12,color:DIM,marginTop:-12,marginBottom:16}}>
-        Є <b style={{color:PURPLE}}>{waiting.length}</b> {waiting.length===1?"учень":"учнів"} в черзі.
+        Є <b style={{color:PURPLE}}>{waiting.length}</b> {waiting.length===1?"клієнт":"клієнтів"} в черзі.
         Режим: <b style={{color:GOLD}}>{queueMode==="fifo"?"FIFO":queueMode==="broadcast"?"Broadcast":"Ручний"}</b>
       </div>
       <div style={{display:"flex",flexDirection:"column",gap:6}}>
@@ -69,7 +69,7 @@ function statusInfo(status, C) {
   return { text: status || "—", color: C.DIM };
 }
 
-// ─── CARDS (стиль застосунку: кольорові градієнтні картки, як у «Учні» / «Послуги») ─────
+// ─── CARDS (стиль застосунку: кольорові градієнтні картки, як у «Клієнти» / «Послуги») ─────
 const MON = ["січ","лют","бер","кві","тра","чер","лип","сер","вер","жов","лис","гру"];
 const initialsOf = n => (n||"?").split(" ").map(w=>w[0]).slice(0,2).join("").toUpperCase();
 
@@ -355,7 +355,7 @@ textarea{color-scheme:dark}
                 <div style={{textAlign:"center",padding:"22px 0 12px",color:FAINT}}>
                   <div style={{fontSize:30,marginBottom:6}}>⏳</div>
                   <div style={{fontSize:14,fontWeight:700,color:DIM}}>Черга порожня</div>
-                  <div style={{fontSize:12,marginTop:4}}>Учні стають у чергу самі в застосунку</div>
+                  <div style={{fontSize:12,marginTop:4}}>Клієнти стають у чергу самі в застосунку</div>
                 </div>
               ) : activeQueue.map((q,i)=>(
                 <QCard key={q.id} q={q} pos={i+1} now={now} svc={(svcsMap||SERVICES)[q.svcId]||{}}

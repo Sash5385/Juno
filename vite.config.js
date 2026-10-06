@@ -107,7 +107,7 @@ export default defineConfig({
       manifest: {
         name: 'Juno',
         short_name: 'Juno',
-        description: 'Адмінпанель інструктора Juno',
+        description: 'Адмінпанель майстра Juno',
         theme_color: '#0f0f14',
         background_color: '#0f0f14',
         display: 'standalone',

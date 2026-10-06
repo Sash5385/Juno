@@ -6,11 +6,11 @@ import { buildDemoTree } from "./demoData.js";
 import { DEMO_UID } from "./demoMode.js";
 
 let root = buildDemoTree();
-// ?demo=1&fresh=1 — «щойно зареєстрований інструктор»: лише профіль і ліцензія, жодних налаштувань, слотів і записів
+// ?demo=1&fresh=1 — «щойно зареєстрований майстер»: лише профіль і ліцензія, жодних налаштувань, слотів і записів
 try {
   if (new URLSearchParams(window.location.search).get("fresh") === "1") {
     const inst = root.instructors?.[DEMO_UID] || {};
-    root.instructors = { [DEMO_UID]: { license: inst.license, admin_settings: { profile: inst.admin_settings?.profile || { name: "Новий інструктор" } } } };
+    root.instructors = { [DEMO_UID]: { license: inst.license, admin_settings: { profile: inst.admin_settings?.profile || { name: "Новий майстер" } } } };
   }
 } catch { /* без window */ }
 const listeners = new Set();

@@ -39,21 +39,21 @@ const PALETTE = [
   { id:"lime",   name:"Лайм",      color:"#a3e635" },
 ];
 
-// 50 рівномірно розподілених відтінків для кольорів учнів (по колу відтінків,
+// 50 рівномірно розподілених відтінків для кольорів клієнтів (по колу відтінків,
 // фіксовані насиченість/яскравість під темну тему) — з таким запасом кольори
-// НЕ повторюються, поки одночасно активних учнів менше 50.
+// НЕ повторюються, поки одночасно активних клієнтів менше 50.
 const STUDENT_PALETTE = Array.from({ length: 50 }, (_, i) => `hsl(${Math.round(i * 360 / 50)},68%,56%)`);
 
-// Мітки на записі — фіксований список. Автоматично ставиться лише "first" (1-й урок учня)
+// Мітки на записі — фіксований список. Автоматично ставиться лише "first" (1-й урок клієнта)
 // і "debt" (коли вписана сума боргу); "check"/"exam" — тільки вручну (деталі запису → Мітка,
-// або при створенні запису). Автомітки діють лише поки інструктор не чіпав мітку вручну.
+// або при створенні запису). Автомітки діють лише поки майстер не чіпав мітку вручну.
 const TAG_PRESETS = [
   { id:"exam",   icon:"🚨", label:"Іспит",     color: RED },
   { id:"check",  icon:"🔍", label:"Перевірка", color: TEAL },
   { id:"first",  icon:"⭐", label:"1-й урок",  color: BLUE },
   { id:"debt",   icon:"💸", label:"Борг",      color: GOLD },
 ];
-// Автотег за порядковим номером запису учня (серед усіх нескасованих, включно з майбутніми)
+// Автотег за порядковим номером запису клієнта (серед усіх нескасованих, включно з майбутніми)
 const AUTO_TAG_BY_ORDER = { 1: "first" };
 // Прибрані мітки (напр. старий "repeat") у вже збережених записах не показуються
 const knownTag = (t) => (TAG_PRESETS.some(p => p.id === t) ? t : null);
@@ -61,7 +61,7 @@ const knownTag = (t) => (TAG_PRESETS.some(p => p.id === t) ? t : null);
 // Медалі за урок — присвоюються прямо в модалці бронювання (прив'язані до booking.id)
 const BADGE_PRESETS = [
   { icon:"🏅", label:"Молодець" },
-  { icon:"🥇", label:"Найкращий учень" },
+  { icon:"🥇", label:"Найкращий клієнт" },
   { icon:"⭐", label:"Відмінна їзда" },
   { icon:"🎯", label:"Точне паркування" },
   { icon:"🚦", label:"Знавець ПДР" },
@@ -116,7 +116,7 @@ body, html, #root { margin:0; padding:0; }
   50%     { box-shadow: 4px 4px 9px rgba(${SHADE},0.5), -3px -3px 8px rgba(${GLOW},0.28), 0 0 0 6px rgba(255,90,60,0); }
 }
 
-/* легке «дихання» жовтого куточка (коментар учня до запису) і значка нотатки дня — щоб їх було помітно */
+/* легке «дихання» жовтого куточка (коментар клієнта до запису) і значка нотатки дня — щоб їх було помітно */
 @keyframes note-corner-glow {
   0%,100% { filter: drop-shadow(-1px -1px 2px rgba(0,0,0,0.35)) drop-shadow(0 0 0 rgba(247,201,72,0)); }
   50%     { filter: drop-shadow(-1px -1px 2px rgba(0,0,0,0.35)) drop-shadow(0 0 2px rgba(247,201,72,1)) drop-shadow(0 0 4.5px rgba(247,201,72,0.9)) drop-shadow(0 0 8px rgba(247,201,72,0.7)); }
@@ -430,7 +430,7 @@ const DEFAULT_SETTINGS = {
   queueBroadcast: false,
   queueManual: false,
   // push
-  slotFreedPushEnabled: true, // пуш усім учням, коли слот у найближчі 10 днів звільняється
+  slotFreedPushEnabled: true, // пуш усім клієнтам, коли слот у найближчі 10 днів звільняється
   // restrictions
   studentCanReschedule: true,
   studentCanCancel: true,
@@ -523,7 +523,7 @@ const fmtDur = (m) => { const h=Math.floor(m/60),min=m%60; return h===0?`${min}�
 const colorOf = (id) => PALETTE.find(p=>p.id===id)?.color || GREEN;
 
 // ═══════════════════════════════════════════════════════════════
-// BROADCAST MODAL — ручна розсилка повідомлень учням
+// BROADCAST MODAL — ручна розсилка повідомлень клієнтам
 // ═══════════════════════════════════════════════════════════════
 function BroadcastModal({ initialDate, initialSlot, onClose }) {
   const { BG_DEEP, SURFACE, SURF_LO, BORDER, TEXT, DIM, FAINT, ACCENT, ACC_HI, SO, SI, GLOW, SHADE, INK } = useContext(ThemeContext);
@@ -608,7 +608,7 @@ function BroadcastModal({ initialDate, initialSlot, onClose }) {
             borderRadius:"24px 24px 0 0",
           }}>
             <div style={{width:36,height:4,borderRadius:2,background:"rgba(192,132,252,0.4)",margin:"0 auto 12px"}}/>
-            <div style={{fontSize:17,fontWeight:800,color:"#c084fc"}}>📣 Розсилка учням</div>
+            <div style={{fontSize:17,fontWeight:800,color:"#c084fc"}}>📣 Розсилка клієнтам</div>
           </div>
 
           <div style={{padding:"16px 18px 32px"}}>
@@ -616,7 +616,7 @@ function BroadcastModal({ initialDate, initialSlot, onClose }) {
               <div style={{ textAlign:"center", padding:"20px 0" }}>
                 <div style={{ fontSize:40, marginBottom:8 }}>✅</div>
                 <div style={{ fontSize:16, fontWeight:800, color:TEXT }}>Надіслано!</div>
-                <div style={{ fontSize:12, color:DIM, marginTop:6 }}>Сповіщення отримають активні учні</div>
+                <div style={{ fontSize:12, color:DIM, marginTop:6 }}>Сповіщення отримають активні клієнти</div>
                 <button onClick={_close} style={{ marginTop:20, background:"rgba(192,132,252,0.15)", color:"#c084fc", border:"none", borderRadius:12, padding:"10px 28px", fontSize:13, fontWeight:700, cursor:"pointer" }}>Закрити</button>
               </div>
             ) : (
@@ -1160,7 +1160,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   const [showMonthCal, setShowMonthCal] = useState(false);
   // Лічильник, а не просто boolean — при кожному тапі на кнопку календар
   // монтується заново (key змінюється), навіть якщо попередній стан
-  // технічно ще "відкрито" (напр. учень прогорнув сторінку і календар
+  // технічно ще "відкрито" (напр. клієнт прогорнув сторінку і календар
   // візуально загубився). Тап завжди гарантовано відкриває свіжу шторку.
   const [calOpenKey, setCalOpenKey] = useState(0);
   const openMonthCal = () => { setCalOpenKey(k => k + 1); setShowMonthCal(true); };
@@ -1211,7 +1211,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   };
   const rawSlotIdsRef = useRef({}); // { date: Set<slotId> } — усі реально існуючі документи
   const cancelTimers = useRef({});
-  // Кумулятивні години учня на момент кожного уроку (для кружечка № уроку в слоті)
+  // Кумулятивні години клієнта на момент кожного уроку (для кружечка № уроку в слоті)
   const cumulativeHoursMap = useMemo(() => {
     const byUser = {};
     for (const b of bookings) {
@@ -1230,7 +1230,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
     });
     return map;
   }, [bookings]);
-  // Порядковий номер запису учня серед УСІХ його нескасованих записів (включно
+  // Порядковий номер запису клієнта серед УСІХ його нескасованих записів (включно
   // з майбутніми) — основа для автоматичних міток (1-й урок / перевірка / іспит).
   const studentOrderMap = useMemo(() => {
     const byStudent = {};
@@ -1266,14 +1266,14 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
     byDay.forEach(l => l.sort((a, c) => a.startMin - c.startMin));
     return { bookingsByDay: byDay, bookingsByDate: byDate };
   }, [bookings]);
-  // Автоматична мітка — лише поки інструктор жодного разу не чіпав мітку цього
+  // Автоматична мітка — лише поки майстер жодного разу не чіпав мітку цього
   // запису вручну (booking.tagManual); ручний вибір/зняття завжди має пріоритет.
   const getAutoTag = (b) => {
     if (b.debtAmount > 0) return "debt";
     return AUTO_TAG_BY_ORDER[studentOrderMap[b.id]] || null;
   };
   const effectiveTag = (b) => knownTag(b.tagManual ? (b.tag || null) : (b.tag || getAutoTag(b)));
-  // Сусідні записи одного учня раніше об'єднувались в одну картку — вимкнено
+  // Сусідні записи одного клієнта раніше об'єднувались в одну картку — вимкнено
   // на прямий запит: кожен запис тепер своя окрема картка (можна тягати й
   // ресайзити кожну годину окремо). Дані в Firebase й завжди були окремими
   // записами, тут міняється лише відображення.
@@ -2321,7 +2321,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
           update(iRef( `bookings/personal/${key}`), { date: newDateStr, time: `${hh}:${mm}`, startMin: finalB.startMin, reminderSent: false }).catch(() => {});
         } else if (finalB && finalB.type !== "personal" &&
                    !(draggedMeta.mergedIds && draggedMeta.mergedIds.length)) {
-          // Реальний одиночний запис учня (НЕ злитий merged-блок з кількох
+          // Реальний одиночний запис клієнта (НЕ злитий merged-блок з кількох
           // записів — для тих поки лишаємо стару поведінку, див. нижче чому) —
           // перетягування раніше міняло лише локальний React-стан і НІЧОГО не
           // писало в Firebase, тому onBookingChanged на бекенді (пуш студенту
@@ -2330,7 +2330,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
           // нові date/time/startMin.
           //
           // Merged-блок (кілька окремих бронювань, злитих візуально в одну
-          // картку — напр. учень бронював 3 окремі години поспіль) свідомо
+          // картку — напр. клієнт бронював 3 окремі години поспіль) свідомо
           // НЕ зберігаємо тут: запис одразу в кілька bookingId одночасно
           // запускає onBookingChanged кілька разів паралельно, і в проді це
           // одного разу залишило по собі купу сирітських заблокованих
@@ -2652,10 +2652,10 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   const hours = [];
   for (let h = settings.workStart; h <= settings.workEnd; h++) hours.push(h);
 
-  // Колір картки — стабільний за учнем, і РІЗНІ учні гарантовано отримують
+  // Колір картки — стабільний за клієнтом, і РІЗНІ клієнти гарантовано отримують
   // РІЗНІ кольори (поки їх < 50): порядок призначення визначається часом
-  // першого запису учня (createdAt), а не хешем — хеш у 10-кольоровій палітрі
-  // неминуче колізив уже на кількох учнях.
+  // першого запису клієнта (createdAt), а не хешем — хеш у 10-кольоровій палітрі
+  // неминуче колізив уже на кількох клієнтах.
   const studentColorMap = useMemo(() => {
     const firstSeen = new Map();
     for (const b of bookings) {
@@ -2670,7 +2670,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
     keys.forEach((k, i) => { map[k] = STUDENT_PALETTE[i % STUDENT_PALETTE.length]; });
     return map;
   }, [bookings]);
-  // Ручний режим (тумблер "Автокольори учнів" вимкнено): колір бере з картки учня
+  // Ручний режим (тумблер "Автокольори клієнтів" вимкнено): колір бере з картки клієнта
   // (studentColors/{uid}); без призначеного — нейтральний.
   const [manualStudentColors, setManualStudentColors] = useState({});
   useEffect(() => {
@@ -2743,7 +2743,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
     if (action === "setTag") {
       // Ручний вибір/зняття мітки — позначаємо tagManual, щоб автоматична
       // логіка (порядок уроку/борг) більше НІКОЛИ не перезаписувала цей запис.
-      // debtAmount передається лише коли інструктор явно вписав/змінив суму
+      // debtAmount передається лише коли майстер явно вписав/змінив суму
       // боргу вручну — інакше залишаємо попереднє значення в Firebase як є.
       const patch = { tag: b.tag || null, tagManual: true };
       if (b.debtAmount !== undefined) patch.debtAmount = b.debtAmount || null;
@@ -2796,7 +2796,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   const blockPersonalSlots = (dateStr, startMin, durMin) => {
     // personal:true — зайнятість від особистої події адміна, а не уроку:
     // клієнтський календар (classifyDay) виключає такі слоти з підрахунку,
-    // щоб особиста подія не "підсвічувала" день як зайнятий учням.
+    // щоб особиста подія не "підсвічувала" день як зайнятий клієнтам.
     return blockSlotRange(dateStr, startMin, durMin, { bookingStart: true, extra: { personal: true } }).catch(() => {});
   };
   const unblockPersonalSlots = (dateStr, startMin, durMin) => {
@@ -3624,7 +3624,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
               {/* Bookings */}
               {(bookingsByDay.get(absDay) || EMPTY_LIST).map(origB=>{
                 if (origB.status === "cancelled") return null;
-                // Сусідній (без розриву) запис того ж учня — "поглинутий" сусідньою карткою, не рендеримо окремо.
+                // Сусідній (без розриву) запис того ж клієнта — "поглинутий" сусідньою карткою, не рендеримо окремо.
                 const mi = mergeInfoMap[origB.id];
                 if (mi?.hidden) return null;
                 // Для першого запису об'єднаної групи — синтетична копія лише для геометрії/ціни картки
@@ -3873,7 +3873,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                           </div>
                         );
                       })()}
-                      {/* № уроку — кумулятивні години учня на момент цього уроку */}
+                      {/* № уроку — кумулятивні години клієнта на момент цього уроку */}
                       {!isBlock && !isVipSlot && !isPersonal && cumulativeHoursMap[b.id] != null && height >= 20 && (
                         <div style={{
                           position:"absolute", top:2, left:2, zIndex:4,
@@ -3927,7 +3927,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                           <span style={{fontSize:7, fontWeight:800, color:GOLD, lineHeight:1}}>{queueCount}</span>
                         </div>
                       )}
-                      {/* Кутик "є нотатка від учня" — низ-право, єдиний вільний
+                      {/* Кутик "є нотатка від клієнта" — низ-право, єдиний вільний
                           кут картки (верхній зайнятий часом/лічильником/короною,
                           нижньо-лівий — бейджем черги) */}
                       {b.studentNote && !isBlock && !isVipSlot && !isPersonal && height >= 14 && (
@@ -4283,7 +4283,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
             background:`linear-gradient(165deg,#f59e0b,#d97706)`,
             color:"#fff",fontSize:12,fontWeight:800,
             boxShadow:`0 4px 12px rgba(245,158,11,0.4)`,
-          }}>👤 Записати учня</button>
+          }}>👤 Записати клієнта</button>
           <button onClick={()=>{
             const sh = String(Math.floor(bubbleData.startMin/60)).padStart(2,'0');
             const sn = String(bubbleData.startMin%60).padStart(2,'0');
@@ -4572,7 +4572,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
               }}>
                 <span>📌</span> Особиста подія
               </button>
-              {/* Розіслати учням */}
+              {/* Розіслати клієнтам */}
               <button onClick={()=>{
                 setBroadcastInit({ date: _so.dateStr, slot: fmtTime(_soSelMin) });
                 setSlotOptions(null);
@@ -4582,7 +4582,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                 color:"#818cf8",fontSize:15,fontWeight:700,
                 display:"flex",alignItems:"center",gap:10,
               }}>
-                <span>📣</span> Розіслати учням
+                <span>📣</span> Розіслати клієнтам
               </button>
               {/* VIP слот */}
               <button onClick={()=>applySlotOption(_so.dateStr, fmtTime(_soSelMin), "vip")} style={{
@@ -4770,7 +4770,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                       {getDayInfo(vipSlotModal.day).fullLabel} · {fmtTime(vipSlotModal.startMin)} · {fmtDur(vipSlotModal.durMin)}
                     </div>
                     <div style={{fontSize:11,color:TEXT_FAINT,marginTop:4}}>
-                      Тільки для учнів категорії VIP
+                      Тільки для клієнтів категорії VIP
                     </div>
                   </div>
                 </div>
@@ -4824,8 +4824,8 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
             const phone = (b.phone || '').replace(/\D/g, '');
             if (phone) {
               update(iRef( `bookings/guest_${phone}/${b.id}`), fbData).catch(()=>{});
-              // Дзеркалимо у users/, звідки читається вкладка "Учні" — інакше
-              // гість видно тільки в розкладі/бронюваннях, а не в списку учнів.
+              // Дзеркалимо у users/, звідки читається вкладка "Клієнти" — інакше
+              // гість видно тільки в розкладі/бронюваннях, а не в списку клієнтів.
               const studentRef = iRef( `users/guest_${phone}`);
               get(studentRef).then(s => {
                 if (s.exists()) {
@@ -5203,8 +5203,8 @@ function computeBookingPrice(b, services) {
   // джерело істини, поки тривалість не змінилась після запису.
   const _hrs = b.durationHours != null ? b.durationHours : b.durMin / 60;
   if (typeof b.price === "number" && b.price > 0 && Math.round(_hrs * 60) === b.durMin) return b.price;
-  // Індивідуальна фікс. ціна учня (₴/год у картці учня) — виставляється
-  // адміном вручну і діє на всі уроки цього учня замість тарифу послуги;
+  // Індивідуальна фікс. ціна клієнта (₴/год у картці клієнта) — виставляється
+  // адміном вручну і діє на всі уроки цього клієнта замість тарифу послуги;
   // знижка при цьому не застосовується (ціна вже персональна).
   if (b.customPrice != null) {
     const base = Math.round((b.customPrice / 60) * b.durMin);
@@ -5221,7 +5221,7 @@ function computeBookingPrice(b, services) {
     : b.price && b.durationHours
       ? Math.round((b.price / (b.durationHours * 60)) * b.durMin)
       : (b.price || 0);
-  // Знижка учня (грн/год, фіксована сума) — діє на годину, тож масштабується
+  // Знижка клієнта (грн/год, фіксована сума) — діє на годину, тож масштабується
   // на тривалість запису (2 год = знижка ×2). Не застосовується там, де ціну
   // виставлено вручну (manualPrice — свідомий override адміна).
   const discount = (b.discount || 0) * (b.durMin / 60);
@@ -5277,7 +5277,7 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
   }, [booking]);
 
   // Маневри: залипаюча відмітка "відпрацьовано в цьому уроці" (на бронюванні) +
-  // накопичувальний лічильник за весь час (на профілі учня).
+  // накопичувальний лічильник за весь час (на профілі клієнта).
   useEffect(() => {
     if (!booking) return;
     setManeuverState(booking.maneuvers || {});
@@ -5356,14 +5356,14 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
   const day = booking.date
     ? (() => { const d = new Date(booking.date + "T12:00:00"); const dow = (d.getDay()+6)%7; return { num:d.getDate(), month:_MLABELS[d.getMonth()], label:_DLABELS[dow], fullLabel:_DLABELS_FULL[dow], wk:dow>=5 }; })()
     : getDayInfo(booking.day);
-  // Сусідні записи цього учня об'єднані на картці розкладу — тут показуємо
+  // Сусідні записи цього клієнта об'єднані на картці розкладу — тут показуємо
   // сумарну ціну й тривалість (booking сам лишається одним "чесним" записом
   // для дій: скасувати/неявка/повтор/редагування діють лише на нього).
   const durMinDisplay = mergeInfo ? mergeInfo.durMin : booking.durMin;
   const discountAmtDisplay = (booking.discount && booking.customPrice == null) ? Math.round(booking.discount * booking.durMin / 60) : 0;
   const price = mergeInfo ? mergeInfo.price : computeBookingPrice(booking, settings.services);
   const ini   = booking.name.trim().split(" ").slice(0, 2).map(w => w[0]).join("");
-  // Порядковий номер цього уроку серед усіх уроків учня (без особистих подій
+  // Порядковий номер цього уроку серед усіх уроків клієнта (без особистих подій
   // і скасованих) — бейдж у шапці картки запису.
   const lessonNumber = (() => {
     if (booking.type === "personal") return null;
@@ -5402,7 +5402,7 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
   const saveEdit = () => {
     const p = Math.max(0, parseInt(draftPrice, 10) || 0);
     const d = Math.min(maxDurMin, Math.max(15, parseInt(draftDur, 10) || booking.durMin));
-    // Ручну ціну фіксуємо лише якщо інструктор справді змінив суму; збіглася з розрахунковою (тариф, надбавка, знижка) — лишаємо авто,
+    // Ручну ціну фіксуємо лише якщо майстер справді змінив суму; збіглася з розрахунковою (тариф, надбавка, знижка) — лишаємо авто,
     // щоб ціна далі сама відстежувала знижку/зміну тарифу.
     const autoP = computeBookingPrice({ ...booking, manualPrice: null, durMin: d }, settings.services);
     onAction("editBooking", { ...booking, manualPrice: (p === autoP && d === booking.durMin) ? null : p, durMin: d, durationHours: d / 60 });
@@ -5533,7 +5533,7 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
               margin:"12px 14px 0",padding:"10px 14px",borderRadius:14,
               background:`${GOLD}14`,border:`1px solid ${GOLD}4d`,
             }}>
-              <div style={{fontSize:10,fontWeight:700,letterSpacing:.5,color:GOLD,marginBottom:3}}>💬 Коментар учня</div>
+              <div style={{fontSize:10,fontWeight:700,letterSpacing:.5,color:GOLD,marginBottom:3}}>💬 Коментар клієнта</div>
               <div style={{fontSize:13,color:TEXT,lineHeight:1.4,whiteSpace:"pre-wrap",wordBreak:"break-word"}}>{booking.studentNote}</div>
             </div>
           )}
@@ -5731,11 +5731,11 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
               })}
             </div>
             <div style={{marginTop:10,fontSize:10.5,lineHeight:1.4,color:"rgba(255,255,255,.55)"}}>
-              Тап по маневру — відмітити, що його відпрацювали на цьому уроці. Золотий кружок — скільки разів учень відпрацював його за весь час. ✓ / ✕ — вдало чи невдало (тап — змінити).
+              Тап по маневру — відмітити, що його відпрацювали на цьому уроці. Золотий кружок — скільки разів клієнт відпрацював його за весь час. ✓ / ✕ — вдало чи невдало (тап — змінити).
             </div>
           </div>
 
-          {/* Медаль за урок — золота колірна картка (прив'язана до цього booking, видно учню біля завершеного запису) */}
+          {/* Медаль за урок — золота колірна картка (прив'язана до цього booking, видно клієнту біля завершеного запису) */}
           <div style={{
             margin:"10px 14px 0",padding:"12px 14px",borderRadius:16,
             background:`linear-gradient(155deg,color-mix(in srgb,${GOLD} 38%,${BG_DEEP}) 0%,${BG_DEEP} 100%)`,
@@ -5778,7 +5778,7 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
               </div>
             )}
             <div style={{marginTop:8,fontSize:10.5,lineHeight:1.4,color:"rgba(255,255,255,.55)"}}>
-              Нагорода учню за цей урок. Учень побачить її у профілі в розділі «Мої заохочення» і отримає сповіщення. Тап по значку — прибрати.
+              Нагорода клієнту за цей урок. Клієнт побачить її у профілі в розділі «Мої заохочення» і отримає сповіщення. Тап по значку — прибрати.
             </div>
           </div>
 
@@ -6242,18 +6242,18 @@ function ScheduleHelp({ onClose, onPick }) {
     { title: "Сітка розкладу", items: [
       { ico: <HelpChip bg="#ef4444" w={34}>14:51</HelpChip>, h: "nowline", t: "Червона мітка з часом", d: "Поточний час." },
       { ico: <span style={{ fontSize:18 }}>👆</span>, t: "Утримати порожнє місце", d: "Меню: додати запис, особиста подія, вільний слот, закрити день." },
-      { ico: <div style={{ display:"flex", gap:3, fontSize:16 }}><span>🚗</span><span>👑</span></div>, h: "freeicons", t: "Вільний слот: 🚗 · 👑", d: "🚗 — слот лише для приватних учнів, 👑 — лише для VIP. Стрічка «900₴» — фіксована ціна слота, «+100₴» — надбавка." },
+      { ico: <div style={{ display:"flex", gap:3, fontSize:16 }}><span>🚗</span><span>👑</span></div>, h: "freeicons", t: "Вільний слот: 🚗 · 👑", d: "🚗 — слот лише для приватних клієнтів, 👑 — лише для VIP. Стрічка «900₴» — фіксована ціна слота, «+100₴» — надбавка." },
       { ico: <HelpChip bg="rgba(91,155,255,0.18)" color="#93c5fd" w={44}>ОБІД</HelpChip>, t: "ОБІД", d: "Перерва за налаштуваннями графіка — записів на цей час немає." },
-      { ico: <span style={{ fontSize:20 }}>👁</span>, h: "eye", t: "👁 Слот зараз переглядають", d: "Учень саме відкрив цей вільний слот у своєму застосунку й обирає час. Позначка зникає, коли він закриє слот або запишеться." },
+      { ico: <span style={{ fontSize:20 }}>👁</span>, h: "eye", t: "👁 Слот зараз переглядають", d: "Клієнт саме відкрив цей вільний слот у своєму застосунку й обирає час. Позначка зникає, коли він закриє слот або запишеться." },
       { ico: <div style={{ width:36, height:11, borderRadius:7, background:"rgba(126,217,87,0.45)", border:"1px solid rgba(126,217,87,0.75)" }}/>, t: "Зелена ручка внизу слота", d: "Змінює тривалість вільного слота: утримайте ручку 0,6 с і потягніть вгору або вниз. Є лише на вільних слотах майбутніх днів." },
     ] },
     { title: "Картка уроку", items: [
-      { ico: <div style={{ display:"flex", gap:3 }}><div style={{ width:11, height:20, borderRadius:4, background:"hsl(140,68%,50%)" }}/><div style={{ width:11, height:20, borderRadius:4, background:"hsl(45,68%,52%)" }}/><div style={{ width:11, height:20, borderRadius:4, background:"hsl(5,68%,56%)" }}/></div>, t: "Колір картки = колір учня", d: "Кожен учень має свій колір, тож розклад читається з одного погляду. У налаштуваннях можна вимкнути «Автокольори» й призначити кольори вручну в картці учня." },
-      { ico: <HelpDot bg="rgba(0,0,0,0.55)" color="#fff">16</HelpDot>, t: "Число в кружку", d: "Порядковий номер уроку цього учня." },
+      { ico: <div style={{ display:"flex", gap:3 }}><div style={{ width:11, height:20, borderRadius:4, background:"hsl(140,68%,50%)" }}/><div style={{ width:11, height:20, borderRadius:4, background:"hsl(45,68%,52%)" }}/><div style={{ width:11, height:20, borderRadius:4, background:"hsl(5,68%,56%)" }}/></div>, t: "Колір картки = колір клієнта", d: "Кожен клієнт має свій колір, тож розклад читається з одного погляду. У налаштуваннях можна вимкнути «Автокольори» й призначити кольори вручну в картці клієнта." },
+      { ico: <HelpDot bg="rgba(0,0,0,0.55)" color="#fff">16</HelpDot>, t: "Число в кружку", d: "Порядковий номер уроку цього клієнта." },
       { ico: <div style={{ display:"grid", gridTemplateColumns:"auto auto", gap:"2px 6px", fontSize:16, lineHeight:1.2 }}><span>⭐</span><span>🔍</span><span>🚨</span><span>💸</span></div>, t: "Мітки уроку: ⭐ 🔍 🚨 💸", d: "⭐ «1-й урок» ставиться автоматично. 🔍 «Перевірка», 🚨 «Іспит» і 💸 «Борг» — вручну: деталі запису → «Мітка» або під час створення запису. Для боргу можна вписати суму." },
-      { ico: <span style={{ fontSize:20 }}>👑</span>, h: "crown", t: "Корона", d: "VIP-учень." },
-      { ico: <div style={{ display:"flex", alignItems:"center", gap:2, fontSize:12, fontWeight:800, color:GOLD }}>👤<span>2</span></div>, h: "queue", t: "👤 + число", d: "Скільки учнів стоять у черзі на цей час. Якщо урок скасують, слот автоматично запропонують наступному." },
-      { ico: <div style={{ width:22, height:22, borderRadius:5, background:"rgba(255,255,255,0.12)", position:"relative", overflow:"hidden", flexShrink:0 }}><div style={{ position:"absolute", right:0, bottom:0, width:0, height:0, borderLeft:"10px solid transparent", borderBottom:`10px solid ${GOLD}` }}/></div>, t: "Жовтий куточок", d: "Учень залишив нотатку до уроку для інструктора. Відкрийте картку, щоб прочитати." },
+      { ico: <span style={{ fontSize:20 }}>👑</span>, h: "crown", t: "Корона", d: "VIP-клієнт." },
+      { ico: <div style={{ display:"flex", alignItems:"center", gap:2, fontSize:12, fontWeight:800, color:GOLD }}>👤<span>2</span></div>, h: "queue", t: "👤 + число", d: "Скільки клієнтів стоять у черзі на цей час. Якщо урок скасують, слот автоматично запропонують наступному." },
+      { ico: <div style={{ width:22, height:22, borderRadius:5, background:"rgba(255,255,255,0.12)", position:"relative", overflow:"hidden", flexShrink:0 }}><div style={{ position:"absolute", right:0, bottom:0, width:0, height:0, borderLeft:"10px solid transparent", borderBottom:`10px solid ${GOLD}` }}/></div>, t: "Жовтий куточок", d: "Клієнт залишив нотатку до уроку для майстра. Відкрийте картку, щоб прочитати." },
     ] },
     { title: "Кнопки по краях", items: [
       { ico: <div style={{ display:"flex", gap:3 }}><HelpSq c={GREEN} deep={BG_DEEP}>{keySvg}</HelpSq><HelpSq c={RED} deep={BG_DEEP}>{keySvg}</HelpSq></div>, h: "key", t: "Ключик ▦ (угорі зліва)", s: 0.95, d: "Створює слоти за графіком на найближчі дні або знімає їх усі. Зелений — слотів немає (натискання створить), червоний — слоти вже є (натискання зніме)." },
@@ -6262,7 +6262,7 @@ function ScheduleHelp({ onClose, onPick }) {
       { ico: <HelpChip bg="rgba(126,217,87,0.15)" color={GREEN} w={44}>6 000₴</HelpChip>, h: "daysum", t: "Сума внизу колонки", d: "Скільки заробляєте за цей день за записами." },
     ] },
     { title: "Нижнє меню", items: [
-      { ico: <div style={{ position:"relative", width:24, height:24, fontSize:18, lineHeight:"24px", textAlign:"center" }}>📒<span style={{ position:"absolute", top:-4, right:-8, background:ACCENT, color:"#fff", borderRadius:10, padding:"0 5px", fontSize:9, fontWeight:800, lineHeight:"14px" }}>14</span></div>, h: "navbadge", t: "Червоне число на «Журнал» / «Чати»", d: "Журнал — непрочитані події (нові записи, скасування, перенесення). Чати — непрочитані повідомлення від учнів." },
+      { ico: <div style={{ position:"relative", width:24, height:24, fontSize:18, lineHeight:"24px", textAlign:"center" }}>📒<span style={{ position:"absolute", top:-4, right:-8, background:ACCENT, color:"#fff", borderRadius:10, padding:"0 5px", fontSize:9, fontWeight:800, lineHeight:"14px" }}>14</span></div>, h: "navbadge", t: "Червоне число на «Журнал» / «Чати»", d: "Журнал — непрочитані події (нові записи, скасування, перенесення). Чати — непрочитані повідомлення від клієнтів." },
     ] },
   ];
   return createPortal(
@@ -6342,8 +6342,8 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
       const d = snap.val() || {};
       setStudents(Object.entries(d).map(([uid, u]) => {
         const p = u.profile || {};
-        return { id:uid, name:p.name||u.name||"Учень", phone:p.phone||u.phone||"" };
-      }).filter(s=>s.name!=="Учень"||s.phone));
+        return { id:uid, name:p.name||u.name||"Клієнт", phone:p.phone||u.phone||"" };
+      }).filter(s=>s.name!=="Клієнт"||s.phone));
     });
     return () => off(r, "value", handler);
   }, []);
@@ -6471,13 +6471,13 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
 
           {/* УЧЕНЬ */}
           <div>
-            <SL>Учень</SL>
+            <SL>Клієнт</SL>
             {isNewStudent ? (
               <div style={{display:"flex",flexDirection:"column",gap:7}}>
                 <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",
                   padding:"7px 12px",borderRadius:11,
                   background:`${GREEN}18`,border:`1.5px solid ${GREEN}44`}}>
-                  <div style={{fontSize:12,fontWeight:700,color:GREEN}}>Новий учень</div>
+                  <div style={{fontSize:12,fontWeight:700,color:GREEN}}>Новий клієнт</div>
                   <button onClick={()=>{setSelStudent(null);setNewName("");setNewPhone("");}}
                     style={{background:"none",border:"none",cursor:"pointer",color:TEXT_FAINT,fontSize:20,padding:0,lineHeight:1}}>×</button>
                 </div>
@@ -6522,7 +6522,7 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
                         background:`${GREEN}33`,border:`1.5px solid ${GREEN}55`,
                         display:"flex",alignItems:"center",justifyContent:"center",
                         fontSize:14,color:GREEN,fontWeight:800,lineHeight:1}}>+</div>
-                      <div style={{fontSize:13,fontWeight:700,color:GREEN}}>Новий учень</div>
+                      <div style={{fontSize:13,fontWeight:700,color:GREEN}}>Новий клієнт</div>
                     </div>
                   )}
                   {filtered.map(s=>(
@@ -6687,7 +6687,7 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
 
           {missingPhone && (
             <div style={{fontSize:12,color:ACCENT,textAlign:"center",marginTop:-4}}>
-              Вкажіть телефон учня, щоб зберегти запис
+              Вкажіть телефон клієнта, щоб зберегти запис
             </div>
           )}
 
@@ -6775,7 +6775,7 @@ function SettingsView({ settings, setSettings }) {
 
       {/* ── PROFILE ── */}
       <Card style={{padding:"20px"}}>
-        <SectionTitle>Профіль інструктора</SectionTitle>
+        <SectionTitle>Профіль майстра</SectionTitle>
         <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:16}}>
           <div className="icon3d" style={{
             width:80,height:80,borderRadius:40,
@@ -6890,12 +6890,12 @@ function SettingsView({ settings, setSettings }) {
       <Card style={{padding:"20px"}}>
         <SectionTitle>Прилипання вільних слотів</SectionTitle>
         <div style={{fontSize:12,color:TEXT_DIM,marginBottom:14}}>
-          Якщо є запис на 12:00–14:00, які слоти показувати учневі для 1-годинного уроку?
+          Якщо є запис на 12:00–14:00, які слоти показувати клієнтові для 1-годинного уроку?
         </div>
         {[
           {k:"before",l:"Тільки попередні (11:00)"},
           {k:"after", l:"Тільки наступні (14:00)"},
-          {k:"both",  l:"Обидва (11:00 і 14:00) — вибір учня"},
+          {k:"both",  l:"Обидва (11:00 і 14:00) — вибір клієнта"},
         ].map(o=>(
           <Row key={o.k} label={o.l}>
             <div onClick={()=>upd("stickyTime",o.k)} style={{
@@ -6910,17 +6910,17 @@ function SettingsView({ settings, setSettings }) {
 
       {/* ── RESTRICTIONS ── */}
       <Card style={{padding:"20px"}}>
-        <SectionTitle>Обмеження для учнів</SectionTitle>
-        <Row label="Учень може переносити свої записи">
+        <SectionTitle>Обмеження для клієнтів</SectionTitle>
+        <Row label="Клієнт може переносити свої записи">
           <Toggle on={settings.studentCanReschedule} onChange={v=>upd("studentCanReschedule",v)}/>
         </Row>
-        <Row label="Учень може скасовувати записи">
+        <Row label="Клієнт може скасовувати записи">
           <Toggle on={settings.studentCanCancel} onChange={v=>upd("studentCanCancel",v)}/>
         </Row>
-        <Row label="Заборона запису" hint="За скільки годин до слоту учень не може записатись">
+        <Row label="Заборона запису" hint="За скільки годин до слоту клієнт не може записатись">
           <NumInput value={settings.bookCutoffHours} onChange={v=>upd("bookCutoffHours",v)} min={0} max={48} suffix="год"/>
         </Row>
-        <Row label="Календар наперед" hint="На скільки днів учень бачить вільні слоти">
+        <Row label="Календар наперед" hint="На скільки днів клієнт бачить вільні слоти">
           <NumInput value={settings.calendarOpenDays} onChange={v=>upd("calendarOpenDays",v)} min={1} max={365} suffix="дн"/>
         </Row>
       </Card>
@@ -6983,9 +6983,9 @@ function SettingsView({ settings, setSettings }) {
 
       {/* ── CATEGORIES ── */}
       <Card style={{padding:"20px"}}>
-        <SectionTitle>Категорії учнів</SectionTitle>
+        <SectionTitle>Категорії клієнтів</SectionTitle>
         <div style={{fontSize:12,color:TEXT_DIM,marginBottom:12}}>
-          Категорії для приватних учнів. Допомагає відкривати спецслоти для VIP, давати знижки тощо.
+          Категорії для приватних клієнтів. Допомагає відкривати спецслоти для VIP, давати знижки тощо.
         </div>
         {settings.categories.map(c=>(
           <div key={c.id} style={{
@@ -7055,7 +7055,7 @@ function SettingsView({ settings, setSettings }) {
             <Toggle on={!!settings.autoReminder?.enabled} onChange={v=>updNested("autoReminder","enabled",v)}/>
           </div>
         </Row>
-        <Row label="Вітання при реєстрації нового учня">
+        <Row label="Вітання при реєстрації нового клієнта">
           <Toggle on={!!settings.autoWelcome?.enabled} onChange={v=>updNested("autoWelcome","enabled",v)}/>
         </Row>
         <Row label="Повідомлення про підтвердження запису">
@@ -7073,7 +7073,7 @@ function SettingsView({ settings, setSettings }) {
       <Card style={{padding:"20px"}}>
         <SectionTitle>Черга очікування — режим роботи</SectionTitle>
         <div style={{fontSize:12,color:TEXT_DIM,marginBottom:14}}>
-          Коли учень скасовує запис, як пропонувати слот тим, хто в черзі?
+          Коли клієнт скасовує запис, як пропонувати слот тим, хто в черзі?
         </div>
         <Row label="FIFO" hint="Автоматично записати першого в черзі (без підтвердження)">
           <Toggle on={settings.queueAutoFifo} onChange={v=>upd("queueAutoFifo",v)}/>
@@ -7081,7 +7081,7 @@ function SettingsView({ settings, setSettings }) {
         <Row label="Broadcast" hint="Розіслати всім, хто перший підтвердив — той записаний">
           <Toggle on={settings.queueBroadcast} onChange={v=>upd("queueBroadcast",v)}/>
         </Row>
-        <Row label="Ручний" hint="Інструктор сам обирає кого запросити">
+        <Row label="Ручний" hint="Майстер сам обирає кого запросити">
           <Toggle on={settings.queueManual} onChange={v=>upd("queueManual",v)}/>
         </Row>
       </Card>
@@ -7122,7 +7122,7 @@ function SettingsView({ settings, setSettings }) {
         {[
           {k:"topbar",l:"У верхньому барі (іконка дзвіночка)"},
           {k:"tab",l:"Окрема вкладка в меню"},
-          {k:"profile",l:"У профілі інструктора"},
+          {k:"profile",l:"У профілі майстра"},
         ].map(o=>(
           <Row key={o.k} label={o.l}>
             <div onClick={()=>upd("notifLocation",o.k)} style={{
@@ -7137,10 +7137,10 @@ function SettingsView({ settings, setSettings }) {
 
       {/* ── BROADCAST PUSH ── */}
       <Card style={{padding:"20px"}}>
-        <SectionTitle>Сповіщення учням</SectionTitle>
-        <div style={{fontSize:12,color:DIM,marginBottom:14}}>Ручна розсилка повідомлень активним учням про вільний слот</div>
+        <SectionTitle>Сповіщення клієнтам</SectionTitle>
+        <div style={{fontSize:12,color:DIM,marginBottom:14}}>Ручна розсилка повідомлень активним клієнтам про вільний слот</div>
         <button onClick={()=>setBroadcastOpen(true)} style={{width:"100%",background:`linear-gradient(135deg,${ACCENT},${ACC_HI})`,color:"#fff",border:"none",borderRadius:14,padding:"13px 0",fontSize:14,fontWeight:800,cursor:"pointer"}}>
-          📣 Надіслати сповіщення учням
+          📣 Надіслати сповіщення клієнтам
         </button>
         {broadcastOpen && <BroadcastModal onClose={()=>setBroadcastOpen(false)}/>}
       </Card>
@@ -7152,7 +7152,7 @@ function SettingsView({ settings, setSettings }) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// STUDENTS VIEW — список учнів з редагуванням даних
+// STUDENTS VIEW — список клієнтів з редагуванням даних
 // ═══════════════════════════════════════════════════════════════
 function StudentsView() {
   const { BG_DEEP, SURF_LO, BORDER, TEXT, DIM, FAINT, ACCENT, ACC_HI, SO, SI, GLOW, SHADE, INK } = useContext(ThemeContext);
@@ -7173,8 +7173,8 @@ function StudentsView() {
       const d = snap.val() || {};
       setStudents(Object.entries(d).map(([uid, u]) => {
         const p = u.profile || {};
-        return { uid, name: p.name||u.name||"Учень", phone: p.phone||u.phone||"", blocked: !!u.blocked };
-      }).filter(s => s.name !== "Учень" || s.phone));
+        return { uid, name: p.name||u.name||"Клієнт", phone: p.phone||u.phone||"", blocked: !!u.blocked };
+      }).filter(s => s.name !== "Клієнт" || s.phone));
     });
     return () => off(r, "value", unsub);
   }, []);
@@ -7253,7 +7253,7 @@ function StudentsView() {
           style={{background:"none",border:"none",cursor:"pointer",color:FT,fontSize:18,padding:0,lineHeight:1}}>×</button>}
       </div>
 
-      <div style={{fontSize:11,color:FT,paddingLeft:4,marginBottom:2}}>{filtered.length} учнів</div>
+      <div style={{fontSize:11,color:FT,paddingLeft:4,marginBottom:2}}>{filtered.length} клієнтів</div>
 
       {filtered.map(s => {
         const isEditing = editing?.uid === s.uid;
@@ -7306,7 +7306,7 @@ function StudentsView() {
 
       {filtered.length===0 && (
         <div style={{textAlign:"center",padding:"30px 0",color:FT,fontSize:13}}>
-          {search?"Не знайдено":"Учнів поки немає"}
+          {search?"Не знайдено":"Клієнтів поки немає"}
         </div>
       )}
     </div>
@@ -7491,7 +7491,7 @@ function TemplatesView() {
             </div>
             <div style={{fontSize:11,color:DM,flexShrink:0,textAlign:"right"}}>
               {TYPE_LABELS[item.type]||item.type}
-              {item.recipients>1 && <div style={{fontSize:10,color:FT}}>{item.recipients} учнів</div>}
+              {item.recipients>1 && <div style={{fontSize:10,color:FT}}>{item.recipients} клієнтів</div>}
               {item.status && item.status!=="sent" && (
                 <div style={{fontSize:10,color:"#ef4444",fontWeight:700}}>
                   ⚠ {item.status==="no_token" ? "немає токена" : "не надіслано"}
@@ -7522,7 +7522,7 @@ function StubView({ title }) {
 const TABS = [
   {id:"schedule",  label:"Записи",     icon:ICONS.calendar},
   {id:"bookings",  label:"Букінги",    icon:ICONS.list},
-  {id:"students",  label:"Учні",       icon:ICONS.users},
+  {id:"students",  label:"Клієнти",       icon:ICONS.users},
   {id:"services",  label:"Послуги",    icon:ICONS.car},
   {id:"chats",     label:"Чати",       icon:ICONS.chat},
   {id:"templates", label:"Шаблони",    icon:ICONS.bell},
@@ -7530,7 +7530,7 @@ const TABS = [
   {id:"settings",  label:"Налашт.",    icon:ICONS.settings},
 ];
 const TITLES = {
-  schedule:"Розклад", bookings:"Букінги", students:"Учні",
+  schedule:"Розклад", bookings:"Букінги", students:"Клієнти",
   services:"Послуги", chats:"Чати", templates:"Шаблони",
   stats:"Статистика", settings:"Налаштування"
 };
@@ -7587,7 +7587,7 @@ export default function App() {
           date:     dateStr,
           startMin: raw.startMin ?? (hh * 60 + mm),
           durMin:   raw.durMin ?? (raw.durationHours ? raw.durationHours * 60 : 60),
-          name:     raw.studentName || raw.name || "Учень",
+          name:     raw.studentName || raw.name || "Клієнт",
           phone:    raw.phone || "",
           type:     raw.serviceType || raw.type || "private",
           status:   raw.status || "confirmed",

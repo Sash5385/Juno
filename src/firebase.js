@@ -5,8 +5,8 @@ import { getMessaging, getToken, onMessage } from "firebase/messaging";
 import { getStorage, ref as storageRef } from "firebase/storage";
 import { DEMO } from "./demo/demoMode.js";
 
-// Multi-tenant: iid — це uid інструктора, що зараз залогінений. Кожен
-// інструктор бачить і пише тільки у свій instructors/{iid}/... (rules).
+// Multi-tenant: iid — це uid майстра, що зараз залогінений. Кожен
+// майстер бачить і пише тільки у свій instructors/{iid}/... (rules).
 let _iid = null;
 export const setCurrentIid = (id) => { _iid = id; };
 export const getCurrentIid = () => _iid;
@@ -32,7 +32,7 @@ export const auth = getAuth(app);
 export const db = getDatabase(app);
 if (DEMO) goOffline(db); // демо: жодних з'єднань зі справжньою базою
 export const storage = getStorage(app);
-// Фото інструктора: instructors/{iid}/profile.jpg (одне фото на інструктора,
+// Фото майстра: instructors/{iid}/profile.jpg (одне фото на майстра,
 // перезаписується при новому завантаженні — без сміття зі старих версій).
 export const iStorageRef = () => storageRef(storage, `instructors/${getCurrentIid()}/profile.jpg`);
 // Фотоколаж лендингу: до 10 фото, кожне — свій файл (на відміну від

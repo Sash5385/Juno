@@ -9,7 +9,7 @@
     "instructors": {
       "$iid": {
         ".read": "auth != null && auth.uid === $iid",
-        // Інструктор пише в свій вузол, але НЕ може видалити license чи її ключові поля
+        // Майстер пише в свій вузол, але НЕ може видалити license чи її ключові поля
         // (status/expiresAt/trialEndsAt): без них клієнт вважає ліцензію відсутньою, тобто доступ вільним,
         // а видалення + повторне створення дало б новий пробний період. Змінювати ліцензію може власник
         // (license/.write нижче) і Cloud Functions (admin SDK обходить правила).
@@ -25,7 +25,7 @@
           ".read": true,
           "$date": {
             "$slotId": {
-              // Інструктор — усе. Учень лише свого інструктора (є users/{uid}):
+              // Майстер — усе. Клієнт лише свого майстра (є users/{uid}):
               //  • адмінські поля слота (adminBlocked/vipOnly/privateOnly/surcharge/fixedPrice/lunchOverride/durMin/personal) незмінні й не видаляються;
               //  • новий слот — лише як зайнятий (phantom); видалити можна тільки власний phantom (bookedBy);
               //  • ЗАЙНЯТИЙ слот чіпає лише той, хто його зайняв (bookedBy === uid): чужий слот не звільнити і не перезаписати;
@@ -33,7 +33,7 @@
               // Звільнення слотів при скасуванні і так робить сервер (onBookingChanged, admin SDK).
               ".write": "auth != null && (auth.uid === $iid || (root.child('instructors/'+$iid+'/users/'+auth.uid).exists() && (data.exists() || newData.child('available').val() === false) && (newData.exists() || (data.child('phantom').val() === true && data.child('bookedBy').val() === auth.uid)) && (data.child('available').val() !== false || data.child('bookedBy').val() === auth.uid) && (newData.child('bookedBy').val() === data.child('bookedBy').val() || newData.child('bookedBy').val() === auth.uid || newData.child('bookedBy').val() === null) && (!data.child('reservedFor').exists() || data.child('reservedFor').val() === auth.uid || data.child('reservedUntil').val() < now) && newData.child('adminBlocked').val() === data.child('adminBlocked').val() && newData.child('vipOnly').val() === data.child('vipOnly').val() && newData.child('privateOnly').val() === data.child('privateOnly').val() && newData.child('surcharge').val() === data.child('surcharge').val() && newData.child('fixedPrice').val() === data.child('fixedPrice').val() && newData.child('lunchOverride').val() === data.child('lunchOverride').val() && newData.child('durMin').val() === data.child('durMin').val() && newData.child('personal').val() === data.child('personal').val()))",
               "viewing":   { "$uid": { ".write": "auth != null && auth.uid === $uid" } },
-              // Гілки черги: учень прибирає лише СВОЇ маркери (пропозиція/резерв), коли забирає або відхиляє слот
+              // Гілки черги: клієнт прибирає лише СВОЇ маркери (пропозиція/резерв), коли забирає або відхиляє слот
               "offeredTo": { "$uid": { ".write": "auth != null && auth.uid === $uid" } },
               "reservedFor":   { ".write": "auth != null && data.val() === auth.uid" },
               "reservedUntil": { ".write": "auth != null && root.child('instructors/'+$iid+'/timeslots/'+$date+'/'+$slotId+'/reservedFor').val() === auth.uid" },
@@ -52,7 +52,7 @@
           "$uid": {
             ".read": "auth != null && (auth.uid === $uid || auth.uid === $iid)",
             ".write": "auth != null && auth.uid === $iid",
-            // Учень: створює запис (лише status "pending", без службових полів) і далі змінює тільки
+            // Клієнт: створює запис (лише status "pending", без службових полів) і далі змінює тільки
             // studentConfirmed/rating/goals/studentNote або скасовує (status "cancelled"). Ціна, борг,
             // мітки, дата/час тощо після створення незмінні, видалити запис чи ці поля теж не можна.
             "$bookingId": {
@@ -88,8 +88,8 @@
         "users": {
           "$uid": {
             ".read": "auth != null && (auth.uid === $uid || auth.uid === $iid)",
-            // Учень НЕ може змінювати isVip/discount/hoursOffset/lessonBalance/blocked/customPrice/notes/badges…
-            // — лише власну анкету й службові гілки нижче. Інструктор (auth.uid === $iid) пише все.
+            // Клієнт НЕ може змінювати isVip/discount/hoursOffset/lessonBalance/blocked/customPrice/notes/badges…
+            // — лише власну анкету й службові гілки нижче. Майстер (auth.uid === $iid) пише все.
             ".write": "auth != null && auth.uid === $iid",
             "profile":       { ".write": "auth != null && auth.uid === $uid" },
             "welcomeSent":   { ".write": "auth != null && auth.uid === $uid" },

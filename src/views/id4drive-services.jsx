@@ -19,7 +19,7 @@ export const makePalette = ({GREEN, GOLD, BLUE, PURPLE, ACCENT, TEAL}) => [
 ];
 
 const makeCategories = ({TEXT, PURPLE, BLUE, TEAL}) => ({
-  "cat-all": { name:"Всі учні", color:TEXT   },
+  "cat-all": { name:"Всі клієнти", color:TEXT   },
   "cat-vip": { name:"VIP",      color:PURPLE },
   "cat-std": { name:"Стандарт", color:BLUE   },
   "cat-new": { name:"Новачок",  color:TEAL   },

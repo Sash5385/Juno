@@ -69,7 +69,7 @@ function Conversation({ contact, messages, onSend, isBroadcast }) {
       {isBroadcast && (
         <div style={{padding:"8px 12px",background:"rgba(168,85,247,0.06)",borderBottom:`1px solid ${borderCol}`}}>
           <div style={{fontSize:11,color:"rgba(168,85,247,0.9)",fontWeight:700,letterSpacing:0.3}}>
-            📢 Повідомлення отримають усі учні
+            📢 Повідомлення отримають усі клієнти
           </div>
         </div>
       )}
@@ -113,7 +113,7 @@ function Conversation({ contact, messages, onSend, isBroadcast }) {
         <div style={{flex:1,background:BG_DEEP,borderRadius:11,boxShadow:SI,padding:"8px 12px",display:"flex",alignItems:"flex-end",gap:8}}>
           <textarea ref={taRef} className="msg-input" value={text} onChange={e=>setText(e.target.value)}
             onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send();}}}
-            placeholder={isBroadcast?"Повідомлення всім учням…":"Повідомлення…"} rows={1}/>
+            placeholder={isBroadcast?"Повідомлення всім клієнтам…":"Повідомлення…"} rows={1}/>
           <button onClick={send} disabled={!text.trim()} style={{
             width:32,height:32,borderRadius:8,border:"none",flexShrink:0,
             cursor:text.trim()?"pointer":"default",
@@ -297,7 +297,7 @@ export default function ChatsView() {
         update(iRef(`chatMeta/${c.id}`),{unreadForStudent:increment(1),lastMsg:text,lastTs:ts}).catch(()=>{});
       });
     } else if (contactId === GENERAL_ID) {
-      push(iRef("chats/general"),{from:"admin",uid:"__admin__",name:"Інструктор",text,time,ts}).catch(()=>{});
+      push(iRef("chats/general"),{from:"admin",uid:"__admin__",name:"Майстер",text,time,ts}).catch(()=>{});
     } else {
       push(iRef(`chats/${contactId}`),msg).catch(()=>{});
       update(iRef(`chatMeta/${contactId}`),{unreadForStudent:increment(1),lastMsg:text,lastTs:ts}).catch(()=>{});
@@ -340,7 +340,7 @@ export default function ChatsView() {
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={FAINT} strokeWidth="2.2" strokeLinecap="round">
               <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
             </svg>
-            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Пошук учня…"
+            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Пошук клієнта…"
               style={{flex:1,background:"transparent",border:"none",outline:"none",color:TEXT,padding:"8px 0",fontSize:13,fontFamily:"inherit"}}/>
             {search && <button onClick={()=>setSearch("")} style={{background:"none",border:"none",cursor:"pointer",color:FAINT,fontSize:16,padding:0,lineHeight:1}}>×</button>}
           </div>
@@ -365,10 +365,10 @@ export default function ChatsView() {
                   <span style={{fontSize:13,fontWeight:800,color:"#fff"}}>📢 Загальний</span>
                   <span style={{fontSize:9,color:"rgba(255,255,255,0.75)",fontWeight:700,letterSpacing:0.3}}>BROADCAST</span>
                 </div>
-                <div style={{fontSize:11,color:"rgba(255,255,255,0.8)"}}>Надіслати повідомлення всім учням</div>
+                <div style={{fontSize:11,color:"rgba(255,255,255,0.8)"}}>Надіслати повідомлення всім клієнтам</div>
               </div>
               <div style={{flexShrink:0,textAlign:"right"}}>
-                <div style={{fontSize:9,color:"rgba(255,255,255,0.7)",fontWeight:700}}>{contacts.length} учнів</div>
+                <div style={{fontSize:9,color:"rgba(255,255,255,0.7)",fontWeight:700}}>{contacts.length} клієнтів</div>
               </div>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.65)" strokeWidth="2.2" strokeLinecap="round"
                 style={{flexShrink:0,transform:broadcastOpen?"rotate(180deg)":"none",transition:"transform .22s"}}>
@@ -399,7 +399,7 @@ export default function ChatsView() {
                   <span style={{fontSize:9,color:"rgba(255,255,255,0.75)",fontWeight:700,letterSpacing:0.3}}>ГРУПП. ЧАТ</span>
                 </div>
                 <div style={{fontSize:11,color:"rgba(255,255,255,0.8)"}}>
-                  {generalMsgs.length > 0 ? generalMsgs[generalMsgs.length-1].text : "Чат учнів між собою"}
+                  {generalMsgs.length > 0 ? generalMsgs[generalMsgs.length-1].text : "Чат клієнтів між собою"}
                 </div>
               </div>
               <div style={{flexShrink:0,textAlign:"right"}}>
@@ -424,7 +424,7 @@ export default function ChatsView() {
           <div style={{textAlign:"center",padding:"40px",color:FAINT,fontSize:13}}>
             <div style={{width:24,height:24,border:`2px solid ${BORDER}`,borderTopColor:ACCENT,borderRadius:"50%",
               animation:"spin .8s linear infinite",margin:"0 auto 10px"}}/>
-            Завантаження учнів…
+            Завантаження клієнтів…
           </div>
         )}
 
@@ -491,9 +491,9 @@ export default function ChatsView() {
             <div style={{textAlign:"center",padding:"40px 20px"}}>
               <div style={{fontSize:36,opacity:.3,marginBottom:8}}>💬</div>
               <div style={{fontSize:14,fontWeight:700,color:DIM}}>
-                {search ? "Нікого не знайдено" : "Немає учнів в системі"}
+                {search ? "Нікого не знайдено" : "Немає клієнтів в системі"}
               </div>
-              <div style={{fontSize:12,color:FAINT,marginTop:6}}>Учні з'являться після реєстрації в застосунку</div>
+              <div style={{fontSize:12,color:FAINT,marginTop:6}}>Клієнти з'являться після реєстрації в застосунку</div>
             </div>
           )}
         </div>

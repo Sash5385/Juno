@@ -504,7 +504,7 @@ function PhotoCropModal({ file, round, outSize, title, onCancel, onDone }) {
     <div style={{ position:"fixed", inset:0, zIndex:9700, background:"rgba(0,0,0,0.88)", display:"flex", alignItems:"center", justifyContent:"center", padding:16, boxSizing:"border-box" }}>
       <div style={{ width:"100%", maxWidth:400, background:BG_DEEP, borderRadius:20, border:`1px solid ${BORDER}`, padding:"16px 16px 18px", boxSizing:"border-box", maxHeight:"96dvh", overflowY:"auto" }}>
         <div style={{ fontSize:16, fontWeight:800, color:TEXT, textAlign:"center", marginBottom:4 }}>{title}</div>
-        <div style={{ fontSize:12.5, color:DIM, textAlign:"center", marginBottom:14, lineHeight:1.4 }}>Перетягніть фото і збільште двома пальцями — що в рамці, те й побачать учні</div>
+        <div style={{ fontSize:12.5, color:DIM, textAlign:"center", marginBottom:14, lineHeight:1.4 }}>Перетягніть фото і збільште двома пальцями — що в рамці, те й побачать клієнти</div>
         {err ? (
           <div style={{ color:"#fca5a5", fontSize:13, textAlign:"center", padding:"30px 0" }}>Не вдалося відкрити фото. Спробуйте інший файл.</div>
         ) : (
@@ -658,7 +658,7 @@ function PhotoViewer({ photos, index, onClose }) {
 }
 
 // ─── MAIN ────────────────────────────────────────────────────────
-// Вузли instructors/{iid}, що стираються при повному скиданні. НЕ чіпаємо: license, users (зв'язок з учнями), fcmTokens, invites.
+// Вузли instructors/{iid}, що стираються при повному скиданні. НЕ чіпаємо: license, users (зв'язок з клієнтами), fcmTokens, invites.
 const RESET_PATHS = ["bookings","bookings_by_phone","timeslots","slotBookings","queue","admin_settings","admin_data","chats","chatMeta","dayNotes","studentColors","reviews","pushTemplates","adminPush","templatePush","push_tasks","pushLog"];
 
 export default function SettingsView({ settings, setSettings }) {
@@ -714,7 +714,7 @@ select{color-scheme:${isKava?"light":"dark"}}
   const switchSection = (id) => { setActive(id); setShowHint(false); };
   const license = useLicense(auth.currentUser?.uid);
 
-  // slug для посилання-запису учнів (задається один раз при онбордингу,
+  // slug для посилання-запису клієнтів (задається один раз при онбордингу,
   // AdminAuth.jsx → InstructorSetupScreen) — тут лише читаємо для показу
   const [bookingSlug, setBookingSlug] = useState(null);
   const [delOpen, setDelOpen] = useState(false);
@@ -736,7 +736,7 @@ select{color-scheme:${isKava?"light":"dark"}}
   };
 
 
-  // ── відгуки учнів ────────────────────────────────────────────
+  // ── відгуки клієнтів ────────────────────────────────────────────
   const [reviews, setReviews] = useState([]);
   useEffect(() => {
     const r = iRef( "reviews");
@@ -755,7 +755,7 @@ select{color-scheme:${isKava?"light":"dark"}}
     update(iRef( `reviews/${review.uid}/${review.id}`), { status: review.status === "hidden" ? "approved" : "hidden" }).catch(() => {});
   };
 
-  // ── профіль інструктора (фото, умови, telegram, точка зустрічі) ──
+  // ── профіль майстра (фото, умови, telegram, точка зустрічі) ──
   // На відміну від `settings` (автозберігається дебаунсом вище), тут окрема
   // локальна копія admin_settings/profile — вантажимо раз, зберігаємо кнопкою.
   const [profile, setProfile] = useState(null);
@@ -970,8 +970,8 @@ select{color-scheme:${isKava?"light":"dark"}}
     { id:"sticky",     icon:"📌", color:PURPLE, title:t('set.sticky.title'),   label:uk?"Слоти":"Slots"  },
     { id:"surcharges", icon:"💰", color:GOLD,   title:"Надбавки",              label:uk?"Збори":"Fees"   },
     { id:"push",       icon:"🔔", color:GREEN,  title:"Сповіщення",            label:"Сповіщення"        },
-    { id:"reviews",    icon:"⭐", color:GOLD,   title:"Відгуки учнів",         label:"Відгуки"           },
-    { id:"profile",    icon:"👤", color:BLUE,   title:"Профіль інструктора",   label:"Профіль"           },
+    { id:"reviews",    icon:"⭐", color:GOLD,   title:"Відгуки клієнтів",         label:"Відгуки"           },
+    { id:"profile",    icon:"👤", color:BLUE,   title:"Профіль майстра",   label:"Профіль"           },
   ];
 
   function renderSection(id) {
@@ -1046,8 +1046,8 @@ select{color-scheme:${isKava?"light":"dark"}}
           </div>
           <div style={{borderRadius:10,padding:"10px",marginTop:5,background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,boxShadow:SO,display:"flex",alignItems:"center",justifyContent:"space-between",gap:10}}>
             <div style={{minWidth:0}}>
-              <div style={{fontSize:12,color:DIM}}>Автокольори учнів</div>
-              <div style={{fontSize:10,color:DIM,opacity:0.7,marginTop:2}}>Увімкнено — кольори слотів розподіляються автоматично. Вимкнено — колір задається вручну в картці учня</div>
+              <div style={{fontSize:12,color:DIM}}>Автокольори клієнтів</div>
+              <div style={{fontSize:10,color:DIM,opacity:0.7,marginTop:2}}>Увімкнено — кольори слотів розподіляються автоматично. Вимкнено — колір задається вручну в картці клієнта</div>
             </div>
             <Toggle color={svColor(settings.autoStudentColors !== false)} on={settings.autoStudentColors !== false} onChange={v=>upd("autoStudentColors",v)}/>
           </div>
@@ -1089,7 +1089,7 @@ select{color-scheme:${isKava?"light":"dark"}}
           <Row compact label={t('set.restr.schoolCalendar')} hint={t('set.restr.schoolCalendar_h')}>
             <NumInput compact value={settings.schoolCalendarOpenDays ?? 14} onChange={v=>upd("schoolCalendarOpenDays",v)} min={1} max={365} suffix={` ${t('days')}`}/>
           </Row>
-          <Row compact label={lang==="en"?"Min interval between bookings":"Мінімальний інтервал між записами"} hint={lang==="en"?"Minimum days between any two bookings for one student. 0 — disabled.":"Мінімум днів між будь-якими двома записами учня. 0 — без обмеження."} last>
+          <Row compact label={lang==="en"?"Min interval between bookings":"Мінімальний інтервал між записами"} hint={lang==="en"?"Minimum days between any two bookings for one student. 0 — disabled.":"Мінімум днів між будь-якими двома записами клієнта. 0 — без обмеження."} last>
             <NumInput compact value={settings.minBookingIntervalDays ?? 0} onChange={v=>upd("minBookingIntervalDays",v)} min={0} max={30} suffix={` ${t('days')}`}/>
           </Row>
         </div>
@@ -1141,7 +1141,7 @@ select{color-scheme:${isKava?"light":"dark"}}
             title={lang==="en"?"Surcharges":"Надбавки"}
             text={lang==="en"
               ? "A surcharge is an extra paid option for a lesson, for example «driving range trip» or «harder route».\n\n• Each surcharge is a fixed amount in UAH. Add as many options as you need; remove one with the «×» button.\n• How to use: open the slot menu in the schedule and add the surcharge to a booking.\n• The student immediately sees the total price including the surcharge."
-              : "Надбавка — це додаткова платна опція до уроку. Наприклад, «виїзд на автодром» або «складніший маршрут».\n\n• Кожна надбавка — це фіксована сума в гривнях. Додайте стільки варіантів, скільки потрібно; зайвий можна видалити кнопкою «×».\n• Як користуватись: у розкладі відкрийте меню слота й додайте потрібну надбавку до запису.\n• Учень одразу бачить підсумкову ціну вже з надбавкою."}
+              : "Надбавка — це додаткова платна опція до уроку. Наприклад, «виїзд на автодром» або «складніший маршрут».\n\n• Кожна надбавка — це фіксована сума в гривнях. Додайте стільки варіантів, скільки потрібно; зайвий можна видалити кнопкою «×».\n• Як користуватись: у розкладі відкрийте меню слота й додайте потрібну надбавку до запису.\n• Клієнт одразу бачить підсумкову ціну вже з надбавкою."}
           />}
           <div style={{fontSize:12,color:FAINT,marginBottom:12}}>
             Суми відображаються в меню слота при виборі надбавки.
@@ -1180,10 +1180,10 @@ select{color-scheme:${isKava?"light":"dark"}}
       case "push": return (
         <div>
           {showHint && <Info color={GREEN}
-            title={lang==="en"?"Student notifications":"Сповіщення учням"}
+            title={lang==="en"?"Student notifications":"Сповіщення клієнтам"}
             text={lang==="en"
               ? "These are messages the system sends to students by itself, without you. You can change the texts on the «Templates» tab.\n\n• Reminders — how many hours before a lesson the student gets a reminder. You can set up to three, for example 24 and 2 hours. The switch on the left turns each one on or off. Reminders reduce missed lessons.\n• Cancellation message — the student gets a message if their booking was cancelled.\n• Queue offer — when a place frees up, a student from the queue automatically gets an offer to book (the first one or everyone, depending on the queue mode).\n• Slot freed notification — when a place frees up in the next 10 days, all students find out at once."
-              : "Це повідомлення, які система надсилає учням сама, без вашої участі. Самі тексти повідомлень можна змінити на вкладці «Шаблони».\n\n• Нагадування — за скільки годин до уроку учень отримає нагадування. Можна задати до трьох, наприклад за 24 і за 2 години. Перемикач зліва вмикає або вимикає кожне окремо. Нагадування зменшують кількість пропущених уроків.\n• Повідомлення про скасування — учень отримає повідомлення, якщо його запис скасували.\n• Пропозиція з черги — коли звільняється місце, учень із черги автоматично отримує пропозицію записатись (першому або всім, залежно від режиму черги).\n• Сповіщення при звільненні слоту — коли в найближчі 10 днів звільняється місце, про це одразу дізнаються всі учні."}
+              : "Це повідомлення, які система надсилає клієнтам сама, без вашої участі. Самі тексти повідомлень можна змінити на вкладці «Шаблони».\n\n• Нагадування — за скільки годин до уроку клієнт отримає нагадування. Можна задати до трьох, наприклад за 24 і за 2 години. Перемикач зліва вмикає або вимикає кожне окремо. Нагадування зменшують кількість пропущених уроків.\n• Повідомлення про скасування — клієнт отримає повідомлення, якщо його запис скасували.\n• Пропозиція з черги — коли звільняється місце, клієнт із черги автоматично отримує пропозицію записатись (першому або всім, залежно від режиму черги).\n• Сповіщення при звільненні слоту — коли в найближчі 10 днів звільняється місце, про це одразу дізнаються всі клієнти."}
           />}
           <div style={{paddingTop:10,display:"flex",flexDirection:"column",gap:5}}>
             <div style={{fontSize:9,color:"#fff",letterSpacing:1,textTransform:"uppercase",marginBottom:2,textAlign:"center"}}>{t('set.auto.reminder')}</div>
@@ -1209,7 +1209,7 @@ select{color-scheme:${isKava?"light":"dark"}}
           <Row color={svColor(!!settings.autoQueueOffer?.enabled)} label={t('set.auto.queue')}>
             <Toggle color={svColor(!!settings.autoQueueOffer?.enabled)} on={!!settings.autoQueueOffer?.enabled} onChange={v=>setSettings(s=>({...s,autoQueueOffer:{...(s.autoQueueOffer||{}),enabled:v}}))}/>
           </Row>
-          <Row color={svColor(settings.slotFreedPushEnabled !== false)} label={lang==="en"?"Notify on freed slot":"Сповіщення при звільненні слоту"} hint={lang==="en"?"Notify all students when a slot within the next 10 days becomes free":"Сповіщення усім учням, коли в найближчі 10 днів звільняється слот"} last>
+          <Row color={svColor(settings.slotFreedPushEnabled !== false)} label={lang==="en"?"Notify on freed slot":"Сповіщення при звільненні слоту"} hint={lang==="en"?"Notify all students when a slot within the next 10 days becomes free":"Сповіщення усім клієнтам, коли в найближчі 10 днів звільняється слот"} last>
             <Toggle color={svColor(settings.slotFreedPushEnabled !== false)} on={settings.slotFreedPushEnabled !== false} onChange={v=>upd("slotFreedPushEnabled",v)}/>
           </Row>
         </div>
@@ -1217,7 +1217,7 @@ select{color-scheme:${isKava?"light":"dark"}}
 
       case "reviews": return (
         <div>
-          {showHint && <Info color={GOLD} title="Відгуки учнів" text={"Учні лишають відгук самі після завершеного уроку. Відгук одразу з’являється на вашій сторінці запису, його бачать усі відвідувачі.\n\nВидалити або змінити відгук не можна. Але його можна сховати кнопкою «Сховати» — тоді його не буде видно на сайті. Передумали — натисніть «Показати»."}/>}
+          {showHint && <Info color={GOLD} title="Відгуки клієнтів" text={"Клієнти лишають відгук самі після завершеного уроку. Відгук одразу з’являється на вашій сторінці запису, його бачать усі відвідувачі.\n\nВидалити або змінити відгук не можна. Але його можна сховати кнопкою «Сховати» — тоді його не буде видно на сайті. Передумали — натисніть «Показати»."}/>}
           {reviews.length === 0 ? (
             <div style={{textAlign:"center",padding:"24px 12px",color:DIM,fontSize:12}}>Поки що немає відгуків</div>
           ) : reviews.map(rv => (
@@ -1226,7 +1226,7 @@ select{color-scheme:${isKava?"light":"dark"}}
               background:SURF_LO,boxShadow:SI,opacity:rv.status==="hidden"?0.5:1,
             }}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
-                <div style={{fontSize:13,fontWeight:800,color:TEXT}}>{rv.studentName || "Учень"}</div>
+                <div style={{fontSize:13,fontWeight:800,color:TEXT}}>{rv.studentName || "Клієнт"}</div>
                 <div style={{color:GOLD,fontSize:12,letterSpacing:1}}>{"★".repeat(rv.rating||0)}{"☆".repeat(5-(rv.rating||0))}</div>
               </div>
               {rv.text && <div style={{fontSize:12,color:DIM,lineHeight:1.5,marginBottom:6}}>{rv.text}</div>}
@@ -1245,7 +1245,7 @@ select{color-scheme:${isKava?"light":"dark"}}
 
       case "profile": return (
         <div>
-          {showHint && <Info color={BLUE} title="Профіль інструктора" text={"Це ваша візитка. Усе, що тут заповнено, учні бачать на сторінці запису.\n\n• Фото профілю — ваше фото (JPG або PNG, до 5 МБ).\n• Портфоліо — розповідь про себе та свої переваги (до 1500 символів). Показується угорі сторінки запису, довгий текст згортається кнопкою «Читати далі».\n• Фотоколаж — до 9 фото (учні за кермом, з іспиту, з авто). На сторінці запису вони змінюються одне за одним у колажі.\n• Телефон — на нього працюють кнопки дзвінка, Viber, WhatsApp і Telegram на сторінці запису. Вводьте номер у форматі +380XXXXXXXXX.\n• Умови відвідування — ваші правила (наприклад, про скасування, запізнення, документи). Порожнє поле — блок на сайті просто не показується.\n• Локація на карті — знайдіть адресу або поставте мітку на карті: учні побачать, де вас знайти.\n• Посилання для запису — надішліть його учням, щоб вони записувались самі. Кнопка «Встановити додаток» додає DrivePad на головний екран телефону."}/>}
+          {showHint && <Info color={BLUE} title="Профіль майстра" text={"Це ваша візитка. Усе, що тут заповнено, клієнти бачать на сторінці запису.\n\n• Фото профілю — ваше фото (JPG або PNG, до 5 МБ).\n• Портфоліо — розповідь про себе та свої переваги (до 1500 символів). Показується угорі сторінки запису, довгий текст згортається кнопкою «Читати далі».\n• Фотоколаж — до 9 фото (клієнти за кермом, з іспиту, з авто). На сторінці запису вони змінюються одне за одним у колажі.\n• Телефон — на нього працюють кнопки дзвінка, Viber, WhatsApp і Telegram на сторінці запису. Вводьте номер у форматі +380XXXXXXXXX.\n• Умови відвідування — ваші правила (наприклад, про скасування, запізнення, документи). Порожнє поле — блок на сайті просто не показується.\n• Локація на карті — знайдіть адресу або поставте мітку на карті: клієнти побачать, де вас знайти.\n• Посилання для запису — надішліть його клієнтам, щоб вони записувались самі. Кнопка «Встановити додаток» додає DrivePad на головний екран телефону."}/>}
 
           <ProfileCard color={ACCENT} icon="🧑‍🏫" title="ФОТО ПРОФІЛЮ">
             {/* PHOTO */}
@@ -1264,7 +1264,7 @@ select{color-scheme:${isKava?"light":"dark"}}
                   background:`linear-gradient(145deg,${ACC_HI},${ACCENT})`,color:"#fff",boxShadow:SO,opacity:photoUploading?0.6:1,
                 }}>{photoUploading?"Завантаження…":"Завантажити фото"}</button>
                 <input ref={photoInputRef} type="file" accept="image/*" onChange={handlePhotoChange} style={{display:"none"}}/>
-                <div style={{fontSize:10,color:"rgba(255,255,255,0.55)",marginTop:6}}>JPG/PNG, до 5 МБ — покажеться учням на сторінці запису</div>
+                <div style={{fontSize:10,color:"rgba(255,255,255,0.55)",marginTop:6}}>JPG/PNG, до 5 МБ — покажеться клієнтам на сторінці запису</div>
                 {photoError && <div style={{fontSize:11,color:RED,marginTop:4}}>{photoError}</div>}
               </div>
             </div>
@@ -1292,7 +1292,7 @@ select{color-scheme:${isKava?"light":"dark"}}
               )}
               <input ref={galleryInputRef} type="file" accept="image/*" onChange={handleGalleryAdd} style={{display:"none"}}/>
             </div>
-            <div style={{fontSize:10,color:"rgba(255,255,255,0.55)"}}>Фото учнів за кермом, з іспиту, з авто — на сторінці запису вони показуються анімованим колажем.</div>
+            <div style={{fontSize:10,color:"rgba(255,255,255,0.55)"}}>Фото клієнтів за кермом, з іспиту, з авто — на сторінці запису вони показуються анімованим колажем.</div>
             {galleryError && <div style={{fontSize:11,color:RED,marginTop:6}}>{galleryError}</div>}
           </ProfileCard>
 
@@ -1307,7 +1307,7 @@ select{color-scheme:${isKava?"light":"dark"}}
               style={{width:"100%",boxSizing:"border-box",background:BG_DEEP,border:"none",outline:"none",color:TEXT,fontSize:12,padding:"10px 12px",borderRadius:10,boxShadow:SI,resize:"vertical",fontFamily:"inherit",lineHeight:1.5,marginBottom:6}}
             />
             <div style={{display:"flex",justifyContent:"space-between",gap:10,fontSize:10,color:"rgba(255,255,255,0.55)"}}>
-              <span>Це бачать учні угорі сторінки запису. Довгий текст згортається кнопкою «Читати далі». Порожнє поле — блок не показується.</span>
+              <span>Це бачать клієнти угорі сторінки запису. Довгий текст згортається кнопкою «Читати далі». Порожнє поле — блок не показується.</span>
               <span style={{flexShrink:0}}>{(profile?.about ?? "").length}/1500</span>
             </div>
           </ProfileCard>
@@ -1389,7 +1389,7 @@ select{color-scheme:${isKava?"light":"dark"}}
               )}
             </div>
             {addressError && <div style={{fontSize:10,color:RED,marginTop:8}}>{addressError}</div>}
-            <div style={{fontSize:10,color:"rgba(255,255,255,0.55)",marginTop:8}}>Знайдіть адресу нижче, клікніть на карту або перетягніть мітку — учні побачать саме цю точку і адресу на сторінці запису.</div>
+            <div style={{fontSize:10,color:"rgba(255,255,255,0.55)",marginTop:8}}>Знайдіть адресу нижче, клікніть на карту або перетягніть мітку — клієнти побачать саме цю точку і адресу на сторінці запису.</div>
           </ProfileCard>
 
           <button onClick={saveProfile} disabled={profileSaving} style={{
@@ -1616,7 +1616,7 @@ select{color-scheme:${isKava?"light":"dark"}}
               <div style={{padding:"14px",borderRadius:14,border:"1px solid rgba(239,68,68,0.4)",background:"rgba(239,68,68,0.08)",textAlign:"left"}}>
                 <div style={{fontSize:13,fontWeight:800,color:"#f87171",marginBottom:6}}>Скинути все до початкового стану?</div>
                 <div style={{fontSize:12,color:"rgba(255,255,255,0.65)",lineHeight:1.5,marginBottom:10}}>
-                  Буде видалено розклад і слоти, усі записи, чергу, чати, нотатки, налаштування та послуги. Акаунт, підписка і зв'язок з учнями залишаються. Після скидання все як у нового інструктора. Щоб підтвердити, введіть слово <b style={{color:"#fff"}}>СКИНУТИ</b>.
+                  Буде видалено розклад і слоти, усі записи, чергу, чати, нотатки, налаштування та послуги. Акаунт, підписка і зв'язок з клієнтами залишаються. Після скидання все як у нового майстра. Щоб підтвердити, введіть слово <b style={{color:"#fff"}}>СКИНУТИ</b>.
                 </div>
                 <input value={rstText} onChange={e=>setRstText(e.target.value)} placeholder="СКИНУТИ"
                   style={{width:"100%",boxSizing:"border-box",padding:"10px 12px",borderRadius:10,border:"1px solid rgba(255,255,255,0.18)",background:"rgba(0,0,0,0.3)",color:"#fff",fontSize:14,outline:"none",marginBottom:10}}/>
@@ -1642,7 +1642,7 @@ select{color-scheme:${isKava?"light":"dark"}}
               <div style={{padding:"14px",borderRadius:14,border:"1px solid rgba(239,68,68,0.4)",background:"rgba(239,68,68,0.08)",textAlign:"left"}}>
                 <div style={{fontSize:13,fontWeight:800,color:"#f87171",marginBottom:6}}>Видалити акаунт назавжди?</div>
                 <div style={{fontSize:12,color:"rgba(255,255,255,0.65)",lineHeight:1.5,marginBottom:10}}>
-                  Буде видалено ваш профіль, розклад, усіх учнів, записи, чати та сторінку запису. Оплачена підписка не повертається, а автосписання LiqPay (якщо є) потрібно скасувати окремо. Неможливо скасувати.
+                  Буде видалено ваш профіль, розклад, усіх клієнтів, записи, чати та сторінку запису. Оплачена підписка не повертається, а автосписання LiqPay (якщо є) потрібно скасувати окремо. Неможливо скасувати.
                   Щоб підтвердити, введіть слово <b style={{color:"#fff"}}>ВИДАЛИТИ</b>.
                 </div>
                 <input value={delText} onChange={e=>setDelText(e.target.value)} placeholder="ВИДАЛИТИ"

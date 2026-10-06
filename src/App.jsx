@@ -198,7 +198,7 @@ const TAB_IDS = [
 ];
 
 const TAB_TITLES = {
-  schedule:"Розклад", bookings:"Букінги", queue:"Черга", students:"Учні",
+  schedule:"Розклад", bookings:"Букінги", queue:"Черга", students:"Клієнти",
   services:"Послуги", chats:"Чати", templates:"Шаблони",
   stats:"Статистика", journal:"Журнал", settings:"Налаштування"
 };
@@ -319,14 +319,14 @@ function QueueStrip({ tab, onChange }) {
 
 // ─── TAB INSTRUCTIONS ───────────────────────────────────────────
 const INSTRUCTIONS = {
-  schedule: "Розклад уроків. Клік на порожнє місце — записати учня, VIP-слот або заблокувати час. Утримати слот — видалити.",
-  bookings: "Список записів учнів. Натисніть на картку — деталі, телефон, кнопки дій. Черга авто-відкривається якщо є очікуючі.",
+  schedule: "Розклад уроків. Клік на порожнє місце — записати клієнта, VIP-слот або заблокувати час. Утримати слот — видалити.",
+  bookings: "Список записів клієнтів. Натисніть на картку — деталі, телефон, кнопки дій. Черга авто-відкривається якщо є очікуючі.",
   queue:    "Черга очікування. Перетягуй ⠿ для зміни пріоритету. Запросити → статус «Запрошено». Архів зберігає історію.",
-  students: "Список учнів. Клік на картку — телефон, знижка, прогрес, записи. Пошук і фільтр за типом.",
+  students: "Список клієнтів. Клік на картку — телефон, знижка, прогрес, записи. Пошук і фільтр за типом.",
   services: "Типи уроків з ціною і тривалістю. Перемикач — вкл/вимк. ☰ — порядок. ✏️ — редагувати.",
-  chats:    "Листування з учнями. Клік на контакт — розгортає чат. ⚡ — швидкі відповіді.",
+  chats:    "Листування з клієнтами. Клік на контакт — розгортає чат. ⚡ — швидкі відповіді.",
   templates:"Шаблони повідомлень. ➤ надіслати · ✏️ редагувати · 🗑 видалити.",
-  stats:    "Статистика уроків, доходу і учнів за обраний період.",
+  stats:    "Статистика уроків, доходу і клієнтів за обраний період.",
   journal:  "Журнал змін графіку. Нові записи, скасування, перенесення — з датою та часом події.",
   settings: "Налаштування розкладу, послуг, черги та автоматичних повідомлень.",
 };
@@ -464,7 +464,7 @@ function TopBar({ tab, onChange, settings, setSettings }) {
 
 const INITIAL_BOOKINGS = [];
 
-// Новий інструктор починає з чистого аркуша: ні обіду, ні робочих днів, ні слотів — усе виставляє сам
+// Новий майстер починає з чистого аркуша: ні обіду, ні робочих днів, ні слотів — усе виставляє сам
 // (Налаштування → Робочий графік, потім «ключик» створює слоти). Застосовується лише до акаунта, який ще
 // жодного разу не синхронізував налаштування (workStart у базі з'являється після першого входу).
 const EMPTY_WEEK_DAY = { enabled:false, start:9, end:18, lunchEnabled:false, lunchStart:12, lunchEnd:13 };
@@ -555,7 +555,7 @@ export default function App() {
   const [profileReady, setProfileReady] = useState(null); // null=перевіряємо, false=потрібне налаштування, true=готово
   const { needRefresh, updateServiceWorker, isUpdating } = useAppUpdate()
 
-  // Multi-tenant: iid інструктора = його ж auth.uid. Встановлюємо його одразу
+  // Multi-tenant: iid майстра = його ж auth.uid. Встановлюємо його одразу
   // при вході (до будь-яких інших ефектів, що читають instructors/{iid}/...),
   // і перевіряємо чи вже заповнений профіль (перший вхід → анкета налаштування).
   // Вендор (ви) не має власного тенанта — бачить SuperAdminScreen замість цього.
@@ -574,7 +574,7 @@ export default function App() {
     if (!date) return null;
     return { date, time: p.get("time") || null, uid: p.get("uid") || null, bookingId: p.get("bookingId") || null };
   });
-  // Deep-link з пушу "Новий учень" (?uid=... без date) — одразу відкриваємо картку учня
+  // Deep-link з пушу "Новий клієнт" (?uid=... без date) — одразу відкриваємо картку клієнта
   const [studentJump, setStudentJump] = useState(() => {
     if (jumpTarget) return null;
     const p = new URLSearchParams(window.location.search);
@@ -596,7 +596,7 @@ export default function App() {
   const [newBookingData,   setNewBookingData]    = useState(null);
   const [chatUnread,    setChatUnread]    = useState(0);
   // Розділено на дві частини — записи-події (bookings) і нові реєстрації
-  // учнів (users) — бо це два незалежні onValue-слухачі, і кожен рахує
+  // клієнтів (users) — бо це два незалежні onValue-слухачі, і кожен рахує
   // свою частину бейджа окремо, а бейдж — їхня сума.
   const [journalUnreadBookings, setJournalUnreadBookings] = useState(0);
   const [journalUnreadStudents, setJournalUnreadStudents] = useState(0);
@@ -614,7 +614,7 @@ export default function App() {
     if (t === 'journal') { setJournalUnreadBookings(0); setJournalUnreadStudents(0); }
   };
 
-  // Профіль/Історія з модалки запису → відкрити картку учня на вкладці "Учні"
+  // Профіль/Історія з модалки запису → відкрити картку клієнта на вкладці "Клієнти"
   const onViewStudent = (uid, openHistory) => {
     if (!uid) return;
     setStudentJump({ uid, openHistory: !!openHistory, ts: Date.now() });
@@ -898,8 +898,8 @@ export default function App() {
     });
   }, [adminUser, processBookingsSnap]);
 
-  // Нові реєстрації учнів — окремий лічильник бейджа "Журнал", щоб адмін
-  // одразу бачив, коли прийшла нова людина (не поточний учень, а саме
+  // Нові реєстрації клієнтів — окремий лічильник бейджа "Журнал", щоб адмін
+  // одразу бачив, коли прийшла нова людина (не поточний клієнт, а саме
   // новий запис у users з createdAt пізніше за останній перегляд журналу).
   useEffect(() => {
     if (!adminUser || vendor) return;
@@ -968,7 +968,7 @@ const pendingDeletesRef = React.useRef(new Set());
           if (!existsForDate?.has(`${h}:${m}`)) upd[`${key}/phantom`] = true;
           upd[`${key}/available`] = false;
           upd[`${key}/time`] = `${h}:${m}`;
-          upd[`${key}/bookedBy`] = null; // слот займає інструктор: чужий bookedBy (учня) не лишаємо
+          upd[`${key}/bookedBy`] = null; // слот займає майстер: чужий bookedBy (клієнта) не лишаємо
           upd[`${key}/lastChangedBy`] = auditBy;
           upd[`${key}/lastChangedAt`] = now;
         }
@@ -998,7 +998,7 @@ const pendingDeletesRef = React.useRef(new Set());
           // випадкові вільні слоти.
           if (existsForDate?.has(`${h}:${m}`)) {
             upd[`${key}/available`] = true;
-            upd[`${key}/bookedBy`] = null; // правила БД: власник зайнятого слота (учень) знімається
+            upd[`${key}/bookedBy`] = null; // правила БД: власник зайнятого слота (клієнт) знімається
             upd[`${key}/lastChangedBy`] = auditBy;
             upd[`${key}/lastChangedAt`] = now;
           } else {
@@ -1094,7 +1094,7 @@ const pendingDeletesRef = React.useRef(new Set());
               const sm = String(slotMin % 60).padStart(2, "0");
               newSurcharge += newSlotsForDate[`${sh}:${sm}`]?.surcharge || 0;
             }
-            // Знижка учня — фіксована сума ₴/год (b.discount, з картки учня), а не відсотки;
+            // Знижка клієнта — фіксована сума ₴/год (b.discount, з картки клієнта), а не відсотки;
             // індивідуальна ціна (b.customPrice, ₴/год) замінює тарифну і знижку.
             const hasCustomPrice = b.customPrice > 0;
             const discountRub = hasCustomPrice ? 0 : (b.discount || 0) * (b.durMin / 60);

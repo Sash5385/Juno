@@ -94,7 +94,7 @@ export function buildDemoTree() {
       ...(st.vip ? { isVipOnly: true, categoryId: "cat-vip" } : {}),
       ...extra,
     };
-    if (b.status === "pending") delete b.createdBy; // запис створив сам учень
+    if (b.status === "pending") delete b.createdBy; // запис створив сам клієнт
     (bookings[st.uid] ||= {})[id] = b;
     (occ[date] ||= []).push([startMin, startMin + durMin]);
     list.push({ uid: st.uid, b });
@@ -136,7 +136,7 @@ export function buildDemoTree() {
         else if (rnd() < 0.5) extra.rating = rnd() < 0.7 ? 5 : 4;
         if (d > -12 && rnd() < 0.035) extra.debtAmount = 300;
       } else if (d >= 2 && rnd() < 0.14) {
-        // запис учня, що чекає підтвердження
+        // запис клієнта, що чекає підтвердження
         extra.status = "pending";
         extra.studentNote = STUDENT_NOTES[Math.floor(rnd() * STUDENT_NOTES.length)];
       }
@@ -183,7 +183,7 @@ export function buildDemoTree() {
   addPersonal(4, "Заміна масла", 60, "", null);
   bookings.personal = personal;
 
-  // ── користувачі (учні) ───────────────────────────────────────
+  // ── користувачі (клієнти) ───────────────────────────────────────
   const hoursByUid = {};
   list.forEach(({ uid, b }) => {
     if (uid === "personal") return;
@@ -239,7 +239,7 @@ export function buildDemoTree() {
     }
     timeslots[dateStr] = day;
   }
-  // один слот, який зараз «дивиться» учень (👁)
+  // один слот, який зараз «дивиться» клієнт (👁)
   const viewDate = ymd(addDays(today, 2));
   const vd = timeslots[viewDate];
   const vId = vd && Object.keys(vd).find((id) => vd[id].available === true && !vd[id].vipOnly && !vd[id].privateOnly && !vd[id].surcharge && !vd[id].fixedPrice);
@@ -261,7 +261,7 @@ export function buildDemoTree() {
     });
   });
 
-  // учениця, очима якої показано клієнтський застосунок, теж стоїть у черзі на один зайнятий слот
+  // клієнтка, очима якої показано клієнтський застосунок, теж стоїть у черзі на один зайнятий слот
   {
     const me = STUDENTS[2];
     const qk = Object.keys(queue).find((k) => !queue[k].entries[me.uid] && !list.some((x) => x.uid === me.uid && `${x.b.date}_${x.b.time}` === k));
@@ -296,10 +296,10 @@ export function buildDemoTree() {
   });
   [["student", STUDENTS[2], "Всім привіт! Хтось їздить у вихідні?", 900], ["admin", null, "Привіт! У суботу є вільні години — пишіть у чат", 880]].forEach(([from, st, text, ago], i) => {
     const m = mkMsg(from, text, ago);
-    chats.general[`g${i}`] = from === "admin" ? { ...m, uid: "__admin__", name: "Інструктор" } : { ...m, uid: st.uid, name: st.n };
+    chats.general[`g${i}`] = from === "admin" ? { ...m, uid: "__admin__", name: "Майстер" } : { ...m, uid: st.uid, name: st.n };
   });
 
-  // ── сповіщення учня (кабінет клієнта в демо — це Ірина Бондаренко) ──
+  // ── сповіщення клієнта (кабінет клієнта в демо — це Ірина Бондаренко) ──
   const notifications = {};
   {
     const me = STUDENTS[2];
@@ -310,8 +310,8 @@ export function buildDemoTree() {
       return { type, title, body, date: `${pad(t.getDate())}.${pad(t.getMonth() + 1)}`, time: `${pad(t.getHours())}:${pad(t.getMinutes())}`, ts };
     };
     const n = (notifications[me.uid] = {});
-    n.n1 = mk("admin_message", "Повідомлення від інструктора", "Ірино, на п'ятницю з'явилось вікно о 16:00 — якщо хочете, запишіться в застосунку 🚗", 420);
-    if (next[0]) n.n2 = mk("booking_confirmed", "Запис підтверджено ✅", `Урок ${dl(next[0].b.date)} о ${next[0].b.time} підтверджено інструктором.`, 600);
+    n.n1 = mk("admin_message", "Повідомлення від майстра", "Ірино, на п'ятницю з'явилось вікно о 16:00 — якщо хочете, запишіться в застосунку 🚗", 420);
+    if (next[0]) n.n2 = mk("booking_confirmed", "Запис підтверджено ✅", `Урок ${dl(next[0].b.date)} о ${next[0].b.time} підтверджено майстром.`, 600);
     if (next[1]) n.n3 = mk("lesson_reminder_day", "Завтра урок 📅", `Нагадуємо: ${dl(next[1].b.date)} о ${next[1].b.time} у вас заняття. До зустрічі!`, 1500);
     n.n4 = mk("queue_offer", "Звільнилось місце 🎉", "У черзі на 16:00 з'явилось вільне місце — встигніть забронювати.", 2900);
     n.n5 = mk("system", "Вітаємо! 🎉", "Ваш профіль підключено. Забронюйте урок у вкладці «Запис».", 60 * 24 * 40);
@@ -324,7 +324,7 @@ export function buildDemoTree() {
     (reviews[st.uid] ||= {})[`r${i}`] = { text, rating, name: st.n, createdAt: nowTs - 86400000 * (i + 2), status: "approved" };
   });
 
-  // ── налаштування інструктора ─────────────────────────────────
+  // ── налаштування майстра ─────────────────────────────────
   const weekday = { enabled: true, start: 9, end: 19, lunchEnabled: true, lunchStart: 13, lunchEnd: 14 };
   const admin_settings = {
     profile: { name: "Андрій Мельник", phone: "+380990000000", address: "Київ, Оболонь", experience: 12, photo: null, slug: "demo", city: "Київ" },

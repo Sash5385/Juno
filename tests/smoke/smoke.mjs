@@ -6,7 +6,7 @@ import { chromium } from "playwright";
 const kind = process.argv[2];
 const base = (process.argv[3] || "http://localhost:4173").replace(/\/$/, "");
 const TABS = {
-  admin: ["Записи", "Журнал", "Учні", "Черга", "Послуги", "Чати", "Шаблони", "Статист.", "Налашт."],
+  admin: ["Записи", "Журнал", "Клієнти", "Черга", "Послуги", "Чати", "Шаблони", "Статист.", "Налашт."],
   client: ["Записи", "Черга", "Чат", "Сповіщення"],
 };
 if (!TABS[kind]) { console.error("usage: smoke.mjs <admin|client> [BASE_URL]"); process.exit(2); }
