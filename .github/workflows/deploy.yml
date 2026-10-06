@@ -3,7 +3,8 @@ name: Deploy to Firebase
 on:
   push:
     branches:
-      - claude/optimistic-bardeen-o4gf7w
+      - ccr-0afc4178-9t5dvx
+  workflow_dispatch:
 
 jobs:
   tests:
