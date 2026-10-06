@@ -177,7 +177,7 @@ function renderTemplateBody(body, vars = {}) {
   });
 }
 
-// Хелпер: ім'я майстра для {інструктор} у шаблонах
+// Хелпер: ім'я майстра для {майстер} у шаблонах ({інструктор} — стара назва, лишається для збережених шаблонів)
 async function getInstructorName(iid) {
   const snap = await iRef(iid, "admin_settings/profile/name").get().catch(() => null);
   return snap?.val() || "";
@@ -207,7 +207,8 @@ async function sendActiveTemplates(iid, uid, triggerId, vars = {}, filterFn = nu
   if (filterFn) matches = matches.filter(filterFn);
   if (!matches.length) return false;
 
-  const fullVars = { ...vars, "інструктор": await getInstructorName(iid) };
+  const masterName = await getInstructorName(iid);
+  const fullVars = { ...vars, "майстер": masterName, "інструктор": masterName };
   let delivered = false;
   for (const tpl of matches) {
     const text = renderTemplateBody(tpl.body, fullVars);
@@ -797,7 +798,7 @@ exports.flushSlotFreedQueue = onSchedule(
         for (const uid of notifyUids) {
           if (lastNotifData[uid] && now - lastNotifData[uid] < RATE_LIMIT_MS) continue;
           const profileSnap = await iRef(iid, `users/${uid}/profile`).get().catch(() => null);
-          const vars = { "дата": dateFormatted, "час": time, "ім'я": profileSnap?.val()?.name || "Клієнт", "інструктор": inst?.admin_settings?.profile?.name || "" };
+          const vars = { "дата": dateFormatted, "час": time, "ім'я": profileSnap?.val()?.name || "Клієнт", "майстер": inst?.admin_settings?.profile?.name || "", "інструктор": inst?.admin_settings?.profile?.name || "" };
           const title = renderTemplateBody(rawTitle, vars);
           const body  = renderTemplateBody(rawBody, vars);
           const sent = await pushStudent(iid, uid, title, body, { url, date, time }).catch(() => false);

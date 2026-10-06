@@ -50,19 +50,19 @@ const TRIGGERS = [
   { id:"manual",         label:"Ручна відправка" },
 ];
 
-const VARS = ["{ім'я}","{дата}","{час}","{послуга}","{ціна}","{інструктор}"];
+const VARS = ["{ім'я}","{дата}","{час}","{послуга}","{ціна}","{майстер}"];
 
 const INIT_TEMPLATES = [
   { id:"t1", catId:"reminder", title:"Нагадування за 24 год", channel:"chat", trigger:"auto_reminder", reminderHours:24, active:true,
     body:"Привіт, {ім'я}! 🔔 Нагадуємо про урок завтра {дата} о {час}. Чекаємо на тебе! Якщо потрібно перенести — напиши нам." },
   { id:"t2", catId:"reminder", title:"Нагадування за 2 год",  channel:"chat", trigger:"auto_reminder", reminderHours:2, active:true,
-    body:"🔔 Нагадуємо: урок сьогодні о {час}. Адреса: Верховинна 44. Майстер: {інструктор}" },
+    body:"🔔 Нагадуємо: урок сьогодні о {час}. Адреса: Верховинна 44. Майстер: {майстер}" },
   { id:"t3", catId:"confirm",  title:"Підтвердження запису",  channel:"chat", trigger:"auto_confirm",  active:true,
     body:"✅ {ім'я}, твій урок підтверджено!\n📅 {дата} о {час}\n🚗 {послуга} — {ціна} ₴\nЧекаємо!" },
   { id:"t4", catId:"cancel",   title:"Скасування запису",     channel:"chat", trigger:"auto_cancel",   active:true,
     body:"❌ {ім'я}, на жаль урок {дата} о {час} скасовано. Якщо хочеш записатись на інший час — напиши нам або відкрий додаток." },
   { id:"t5", catId:"welcome",  title:"Вітання нового клієнта",   channel:"chat", trigger:"auto_welcome",  active:true,
-    body:"👋 Привіт, {ім'я}! Раді бачити тебе в Juno!\nЯ — {інструктор}, твій майстер.\nЗаписуйся на перший урок і побачимось на дорозі! 🚗" },
+    body:"👋 Привіт, {ім'я}! Раді бачити тебе в Juno!\nЯ — {майстер}, твій майстер.\nЗаписуйся на перший урок і побачимось на дорозі! 🚗" },
   { id:"t6", catId:"queue",    title:"Пропозиція вільного слоту", channel:"chat", trigger:"auto_queue", active:true,
     body:"⏳ {ім'я}, з'явився вільний урок {дата} о {час}! Підтвердити запис → відкрий додаток." },
   { id:"t7", catId:"custom",   title:"Прохання про відгук",   channel:"chat", trigger:"manual",        active:true,
@@ -87,10 +87,10 @@ const STD_INFO = {
 };
 const VAR_LABELS = [
   { v:"{ім'я}", label:"Ім'я клієнта" }, { v:"{дата}", label:"Дата" }, { v:"{час}", label:"Час" },
-  { v:"{послуга}", label:"Послуга" }, { v:"{ціна}", label:"Ціна" }, { v:"{інструктор}", label:"Майстер" },
+  { v:"{послуга}", label:"Послуга" }, { v:"{ціна}", label:"Ціна" }, { v:"{майстер}", label:"Майстер" },
 ];
 // приклад для попереднього перегляду
-const SAMPLE_VARS = { "ім'я":"Олексій", "дата":"5 жовтня, пн", "час":"14:00", "послуга":"Автошкола", "ціна":"900", "інструктор":"Ваш майстер" };
+const SAMPLE_VARS = { "ім'я":"Олексій", "дата":"5 жовтня, пн", "час":"14:00", "послуга":"Автошкола", "ціна":"900", "майстер":"Ваш майстер", "інструктор":"Ваш майстер" };
 
 // Hardcoded list removed — students are loaded from Firebase in SendModal
 
@@ -190,7 +190,7 @@ function SendModal({ tpl, onClose }) {
     const ts   = Date.now();
     await Promise.all(selected.map(async uid => {
       const student = students.find(s=>s.uid===uid);
-      const vars = { "ім'я": student?.name || "Клієнт", "інструктор": instructorName, ...(await nextBookingVars(uid)) };
+      const vars = { "ім'я": student?.name || "Клієнт", "майстер": instructorName, "інструктор": instructorName, ...(await nextBookingVars(uid)) };
       const text = renderVars(preview, vars);
       if (tpl.channel === "push") {
         // Лише push, без запису в чат — onTemplatePush на бекенді відправить

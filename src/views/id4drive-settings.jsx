@@ -1089,7 +1089,7 @@ select{color-scheme:${isKava?"light":"dark"}}
           <Row compact label={t('set.restr.schoolCalendar')} hint={t('set.restr.schoolCalendar_h')}>
             <NumInput compact value={settings.schoolCalendarOpenDays ?? 14} onChange={v=>upd("schoolCalendarOpenDays",v)} min={1} max={365} suffix={` ${t('days')}`}/>
           </Row>
-          <Row compact label={lang==="en"?"Min interval between bookings":"Мінімальний інтервал між записами"} hint={lang==="en"?"Minimum days between any two bookings for one student. 0 — disabled.":"Мінімум днів між будь-якими двома записами клієнта. 0 — без обмеження."} last>
+          <Row compact label={lang==="en"?"Min interval between bookings":"Мінімальний інтервал між записами"} hint={lang==="en"?"Minimum days between any two bookings for one client. 0 — disabled.":"Мінімум днів між будь-якими двома записами клієнта. 0 — без обмеження."} last>
             <NumInput compact value={settings.minBookingIntervalDays ?? 0} onChange={v=>upd("minBookingIntervalDays",v)} min={0} max={30} suffix={` ${t('days')}`}/>
           </Row>
         </div>
@@ -1140,7 +1140,7 @@ select{color-scheme:${isKava?"light":"dark"}}
           {showHint && <Info color={GOLD}
             title={lang==="en"?"Surcharges":"Надбавки"}
             text={lang==="en"
-              ? "A surcharge is an extra paid option for a lesson, for example «driving range trip» or «harder route».\n\n• Each surcharge is a fixed amount in UAH. Add as many options as you need; remove one with the «×» button.\n• How to use: open the slot menu in the schedule and add the surcharge to a booking.\n• The student immediately sees the total price including the surcharge."
+              ? "A surcharge is an extra paid option for a lesson, for example «driving range trip» or «harder route».\n\n• Each surcharge is a fixed amount in UAH. Add as many options as you need; remove one with the «×» button.\n• How to use: open the slot menu in the schedule and add the surcharge to a booking.\n• The client immediately sees the total price including the surcharge."
               : "Надбавка — це додаткова платна опція до уроку. Наприклад, «виїзд на автодром» або «складніший маршрут».\n\n• Кожна надбавка — це фіксована сума в гривнях. Додайте стільки варіантів, скільки потрібно; зайвий можна видалити кнопкою «×».\n• Як користуватись: у розкладі відкрийте меню слота й додайте потрібну надбавку до запису.\n• Клієнт одразу бачить підсумкову ціну вже з надбавкою."}
           />}
           <div style={{fontSize:12,color:FAINT,marginBottom:12}}>
@@ -1180,9 +1180,9 @@ select{color-scheme:${isKava?"light":"dark"}}
       case "push": return (
         <div>
           {showHint && <Info color={GREEN}
-            title={lang==="en"?"Student notifications":"Сповіщення клієнтам"}
+            title={lang==="en"?"Client notifications":"Сповіщення клієнтам"}
             text={lang==="en"
-              ? "These are messages the system sends to students by itself, without you. You can change the texts on the «Templates» tab.\n\n• Reminders — how many hours before a lesson the student gets a reminder. You can set up to three, for example 24 and 2 hours. The switch on the left turns each one on or off. Reminders reduce missed lessons.\n• Cancellation message — the student gets a message if their booking was cancelled.\n• Queue offer — when a place frees up, a student from the queue automatically gets an offer to book (the first one or everyone, depending on the queue mode).\n• Slot freed notification — when a place frees up in the next 10 days, all students find out at once."
+              ? "These are messages the system sends to clients by itself, without you. You can change the texts on the «Templates» tab.\n\n• Reminders — how many hours before a lesson the client gets a reminder. You can set up to three, for example 24 and 2 hours. The switch on the left turns each one on or off. Reminders reduce missed lessons.\n• Cancellation message — the client gets a message if their booking was cancelled.\n• Queue offer — when a place frees up, a client from the queue automatically gets an offer to book (the first one or everyone, depending on the queue mode).\n• Slot freed notification — when a place frees up in the next 10 days, all clients find out at once."
               : "Це повідомлення, які система надсилає клієнтам сама, без вашої участі. Самі тексти повідомлень можна змінити на вкладці «Шаблони».\n\n• Нагадування — за скільки годин до уроку клієнт отримає нагадування. Можна задати до трьох, наприклад за 24 і за 2 години. Перемикач зліва вмикає або вимикає кожне окремо. Нагадування зменшують кількість пропущених уроків.\n• Повідомлення про скасування — клієнт отримає повідомлення, якщо його запис скасували.\n• Пропозиція з черги — коли звільняється місце, клієнт із черги автоматично отримує пропозицію записатись (першому або всім, залежно від режиму черги).\n• Сповіщення при звільненні слоту — коли в найближчі 10 днів звільняється місце, про це одразу дізнаються всі клієнти."}
           />}
           <div style={{paddingTop:10,display:"flex",flexDirection:"column",gap:5}}>
@@ -1209,7 +1209,7 @@ select{color-scheme:${isKava?"light":"dark"}}
           <Row color={svColor(!!settings.autoQueueOffer?.enabled)} label={t('set.auto.queue')}>
             <Toggle color={svColor(!!settings.autoQueueOffer?.enabled)} on={!!settings.autoQueueOffer?.enabled} onChange={v=>setSettings(s=>({...s,autoQueueOffer:{...(s.autoQueueOffer||{}),enabled:v}}))}/>
           </Row>
-          <Row color={svColor(settings.slotFreedPushEnabled !== false)} label={lang==="en"?"Notify on freed slot":"Сповіщення при звільненні слоту"} hint={lang==="en"?"Notify all students when a slot within the next 10 days becomes free":"Сповіщення усім клієнтам, коли в найближчі 10 днів звільняється слот"} last>
+          <Row color={svColor(settings.slotFreedPushEnabled !== false)} label={lang==="en"?"Notify on freed slot":"Сповіщення при звільненні слоту"} hint={lang==="en"?"Notify all clients when a slot within the next 10 days becomes free":"Сповіщення усім клієнтам, коли в найближчі 10 днів звільняється слот"} last>
             <Toggle color={svColor(settings.slotFreedPushEnabled !== false)} on={settings.slotFreedPushEnabled !== false} onChange={v=>upd("slotFreedPushEnabled",v)}/>
           </Row>
         </div>
