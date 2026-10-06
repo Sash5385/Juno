@@ -20,7 +20,7 @@ function rng(seed) {
 }
 
 // name, тип (school — автошкола, private — приватний), досвід, vip, знижка ₴/год, своя ціна ₴/год,
-// firstDay — день першого уроку відносно сьогодні (null — навчається давно)
+// firstDay — день першого запису відносно сьогодні (null — навчається давно)
 const STUDENTS = [
   { n: "Марія Шевчук",          t: "school",  exp: "no_license"  },
   { n: "Олексій Коваленко",     t: "private", exp: "novice" },
@@ -52,10 +52,10 @@ const STUDENTS = [
 }));
 
 const SERVICES = [
-  { id: "sv1", name: "Автошкола 1 год", type: "school",  duration: 60,  price: 600,  colorId: "green",  active: true, description: "Урок за програмою автошколи" },
-  { id: "sv2", name: "Автошкола 2 год", type: "school",  duration: 120, price: 1100, colorId: "green",  active: true, description: "Подвійний урок" },
-  { id: "sv3", name: "Приватний 1 год", type: "private", duration: 60,  price: 800,  colorId: "yellow", active: true, description: "Індивідуальне заняття" },
-  { id: "sv5", name: "Приватний 1,5 год", type: "private", duration: 90, price: 1200, colorId: "purple", active: true, description: "Розширений урок" },
+  { id: "sv1", name: "Автошкола 1 год", type: "school",  duration: 60,  price: 600,  colorId: "green",  active: true, description: "Запис за програмою автошколи" },
+  { id: "sv2", name: "Автошкола 2 год", type: "school",  duration: 120, price: 1100, colorId: "green",  active: true, description: "Подвійний запис" },
+  { id: "sv3", name: "Приватний 1 год", type: "private", duration: 60,  price: 800,  colorId: "yellow", active: true, description: "Індивідуальний запис" },
+  { id: "sv5", name: "Приватний 1,5 год", type: "private", duration: 90, price: 1200, colorId: "purple", active: true, description: "Розширений запис" },
   { id: "sv4", name: "Приватний 2 год", type: "private", duration: 120, price: 1500, colorId: "yellow", active: true, description: "Практика з маршрутом" },
 ];
 
@@ -101,7 +101,7 @@ export function buildDemoTree() {
     return b;
   };
 
-  // ── уроки: 60 днів історії + 21 день уперед ──────────────────
+  // ── записи: 60 днів історії + 21 день уперед ──────────────────
   const pickFrom = (eligible) => eligible[Math.floor(rnd() * eligible.length)];
   for (let d = -60; d <= 21; d++) {
     const date = addDays(today, d);
@@ -283,12 +283,12 @@ export function buildDemoTree() {
     return { from, text, time: `${pad(t.getHours())}:${pad(t.getMinutes())}`, ts };
   };
   const dialogs = [
-    [STUDENTS[0], [["student", "Доброго дня! Підкажіть, чи можна перенести завтрашній урок на годину пізніше?", 190], ["admin", "Добрий день, Маріє! Так, ставлю на 11:00 ✅", 170], ["student", "Дякую велике!", 160]], 0],
+    [STUDENTS[0], [["student", "Доброго дня! Підкажіть, чи можна перенести завтрашній запис на годину пізніше?", 190], ["admin", "Добрий день, Маріє! Так, ставлю на 11:00 ✅", 170], ["student", "Дякую велике!", 160]], 0],
     [STUDENTS[7], [["student", "Андрію, я трохи запізнюсь, буду за 10 хвилин", 35]], 1],
     [STUDENTS[3], [["admin", "Нагадую: завтра іспитний маршрут о 10:00", 600], ["student", "Прийняв, буду вчасно 👍", 540], ["student", "А документи брати з собою?", 30]], 1],
     [STUDENTS[10], [["student", "Чи є вільні години на суботу?", 300], ["admin", "Так, на 11:00 та 12:00 вільно — записуйтесь у застосунку", 280]], 0],
     [STUDENTS[2], [["admin", "Ірино, на п'ятницю з'явилось вікно о 16:00 — якщо хочете, запишіться в застосунку 🚗", 420], ["student", "Дякую! Вже записалась 😊", 380], ["admin", "Чудово, чекаю на вас!", 370]], 0],
-    [STUDENTS[15], [["student", "Дякую за урок! Сьогодні вперше впевнено запаркувався", 1400]], 0],
+    [STUDENTS[15], [["student", "Дякую за запис! Сьогодні вперше впевнено запаркувався", 1400]], 0],
   ];
   dialogs.forEach(([st, msgs, unread]) => {
     msgs.forEach(([from, text, ago], i) => { (chats[st.uid] ||= {})[`m${String(i).padStart(2, "0")}`] = mkMsg(from, text, ago); });
@@ -311,15 +311,15 @@ export function buildDemoTree() {
     };
     const n = (notifications[me.uid] = {});
     n.n1 = mk("admin_message", "Повідомлення від майстра", "Ірино, на п'ятницю з'явилось вікно о 16:00 — якщо хочете, запишіться в застосунку 🚗", 420);
-    if (next[0]) n.n2 = mk("booking_confirmed", "Запис підтверджено ✅", `Урок ${dl(next[0].b.date)} о ${next[0].b.time} підтверджено майстром.`, 600);
-    if (next[1]) n.n3 = mk("lesson_reminder_day", "Завтра урок 📅", `Нагадуємо: ${dl(next[1].b.date)} о ${next[1].b.time} у вас заняття. До зустрічі!`, 1500);
+    if (next[0]) n.n2 = mk("booking_confirmed", "Запис підтверджено ✅", `Запис ${dl(next[0].b.date)} о ${next[0].b.time} підтверджено майстром.`, 600);
+    if (next[1]) n.n3 = mk("lesson_reminder_day", "Завтра запис 📅", `Нагадуємо: ${dl(next[1].b.date)} о ${next[1].b.time} у вас запис. До зустрічі!`, 1500);
     n.n4 = mk("queue_offer", "Звільнилось місце 🎉", "У черзі на 16:00 з'явилось вільне місце — встигніть забронювати.", 2900);
-    n.n5 = mk("system", "Вітаємо! 🎉", "Ваш профіль підключено. Забронюйте урок у вкладці «Запис».", 60 * 24 * 40);
+    n.n5 = mk("system", "Вітаємо! 🎉", "Ваш профіль підключено. Забронюйте запис у вкладці «Запис».", 60 * 24 * 40);
   }
 
   // ── відгуки ──────────────────────────────────────────────────
   const reviews = {};
-  [[0, "Дуже терпляче пояснює, після трьох занять вже не боюсь міста. Рекомендую!", 5], [3, "Чітка підготовка до іспиту, склав з першого разу.", 5], [9, "Зручна система запису — все в телефоні.", 5]].forEach(([si, text, rating], i) => {
+  [[0, "Дуже терпляче пояснює, після трьох записів вже не боюсь міста. Рекомендую!", 5], [3, "Чітка підготовка до іспиту, склав з першого разу.", 5], [9, "Зручна система запису — все в телефоні.", 5]].forEach(([si, text, rating], i) => {
     const st = STUDENTS[si];
     (reviews[st.uid] ||= {})[`r${i}`] = { text, rating, name: st.n, createdAt: nowTs - 86400000 * (i + 2), status: "approved" };
   });

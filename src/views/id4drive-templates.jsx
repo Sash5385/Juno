@@ -42,7 +42,7 @@ const CHANNELS = [
 ];
 
 const TRIGGERS = [
-  { id:"auto_reminder",  label:"Авто: за N год до уроку" },
+  { id:"auto_reminder",  label:"Авто: за N год до запису" },
   { id:"auto_confirm",   label:"Авто: після підтвердження" },
   { id:"auto_cancel",    label:"Авто: після скасування" },
   { id:"auto_welcome",   label:"Авто: при реєстрації" },
@@ -54,24 +54,24 @@ const VARS = ["{ім'я}","{дата}","{час}","{послуга}","{ціна}
 
 const INIT_TEMPLATES = [
   { id:"t1", catId:"reminder", title:"Нагадування за 24 год", channel:"chat", trigger:"auto_reminder", reminderHours:24, active:true,
-    body:"Привіт, {ім'я}! 🔔 Нагадуємо про урок завтра {дата} о {час}. Чекаємо на тебе! Якщо потрібно перенести — напиши нам." },
+    body:"Привіт, {ім'я}! 🔔 Нагадуємо про запис завтра {дата} о {час}. Чекаємо на тебе! Якщо потрібно перенести — напиши нам." },
   { id:"t2", catId:"reminder", title:"Нагадування за 2 год",  channel:"chat", trigger:"auto_reminder", reminderHours:2, active:true,
-    body:"🔔 Нагадуємо: урок сьогодні о {час}. Адреса: Верховинна 44. Майстер: {майстер}" },
+    body:"🔔 Нагадуємо: запис сьогодні о {час}. Адреса: Верховинна 44. Майстер: {майстер}" },
   { id:"t3", catId:"confirm",  title:"Підтвердження запису",  channel:"chat", trigger:"auto_confirm",  active:true,
-    body:"✅ {ім'я}, твій урок підтверджено!\n📅 {дата} о {час}\n🚗 {послуга} — {ціна} ₴\nЧекаємо!" },
+    body:"✅ {ім'я}, твій запис підтверджено!\n📅 {дата} о {час}\n🚗 {послуга} — {ціна} ₴\nЧекаємо!" },
   { id:"t4", catId:"cancel",   title:"Скасування запису",     channel:"chat", trigger:"auto_cancel",   active:true,
-    body:"❌ {ім'я}, на жаль урок {дата} о {час} скасовано. Якщо хочеш записатись на інший час — напиши нам або відкрий додаток." },
+    body:"❌ {ім'я}, на жаль запис {дата} о {час} скасовано. Якщо хочеш записатись на інший час — напиши нам або відкрий додаток." },
   { id:"t5", catId:"welcome",  title:"Вітання нового клієнта",   channel:"chat", trigger:"auto_welcome",  active:true,
-    body:"👋 Привіт, {ім'я}! Раді бачити тебе в Juno!\nЯ — {майстер}, твій майстер.\nЗаписуйся на перший урок і побачимось на дорозі! 🚗" },
+    body:"👋 Привіт, {ім'я}! Раді бачити тебе в Juno!\nЯ — {майстер}, твій майстер.\nЗаписуйся на перший запис і побачимось на дорозі! 🚗" },
   { id:"t6", catId:"queue",    title:"Пропозиція вільного слоту", channel:"chat", trigger:"auto_queue", active:true,
-    body:"⏳ {ім'я}, з'явився вільний урок {дата} о {час}! Підтвердити запис → відкрий додаток." },
+    body:"⏳ {ім'я}, з'явився вільний запис {дата} о {час}! Підтвердити запис → відкрий додаток." },
   { id:"t7", catId:"custom",   title:"Прохання про відгук",   channel:"chat", trigger:"manual",        active:true,
-    body:"Привіт, {ім'я}! Як пройшов урок {дата}? Буду вдячний за відгук 🙏" },
+    body:"Привіт, {ім'я}! Як пройшов запис {дата}? Буду вдячний за відгук 🙏" },
   { id:"t8", catId:"custom",   title:"Особливі умови",        channel:"chat", trigger:"manual",        active:false,
     body:"Привіт! Для тебе діє спеціальна пропозиція: {послуга} за {ціна} ₴. Діє тільки цього тижня!" },
 ];
 
-const old2 = "ID4Drive: урок сьогодні о {час}. Адреса: Верховинна 44. Майстер: {інструктор}";
+const old2 = "ID4Drive: запис сьогодні о {час}. Адреса: Верховинна 44. Майстер: {інструктор}";
 const new2 = INIT_TEMPLATES.find(t => t.id === "t2").body;
 const OLD_T5 = INIT_TEMPLATES.find(t => t.id === "t5").body.replace("в Juno!", "в ID4Drive!");
 const DP_T5 = INIT_TEMPLATES.find(t => t.id === "t5").body.replace("в Juno!", "в DrivePad!"); // попередня назва: стандартний текст оновлюємо
@@ -83,7 +83,7 @@ const STD_INFO = {
   t4: { emoji:"❌", title:"Скасування запису",      hint:"Коли запис скасовано",            color:RED    },
   t5: { emoji:"👋", title:"Вітання нового клієнта",    hint:"Після реєстрації клієнта в застосунку", color:TEAL },
   t6: { emoji:"⏳", title:"Вільний слот із черги",  hint:"Коли слот звільнився і хтось чекає в черзі", color:PURPLE },
-  t7: { emoji:"⭐", title:"Прохання про відгук",    hint:"Надсилаєте вручну після уроку",   color:BLUE   },
+  t7: { emoji:"⭐", title:"Прохання про відгук",    hint:"Надсилаєте вручну після запису",   color:BLUE   },
 };
 const VAR_LABELS = [
   { v:"{ім'я}", label:"Ім'я клієнта" }, { v:"{дата}", label:"Дата" }, { v:"{час}", label:"Час" },
@@ -437,7 +437,7 @@ function SimpleEditModal({ tpl, onSave, onClose }) {
   const taRef = useRef(null);
   const isReminder = tpl.trigger === "auto_reminder";
   const std = INIT_TEMPLATES.find(x => x.id === tpl.id);
-  const title = isReminder ? "Нагадування перед уроком" : (STD_INFO[tpl.id]?.title || tpl.title);
+  const title = isReminder ? "Нагадування перед записом" : (STD_INFO[tpl.id]?.title || tpl.title);
   const accent = isReminder ? GOLD : (STD_INFO[tpl.id]?.color || BLUE);
 
   const insertVar = v => {
@@ -611,8 +611,8 @@ export default function TemplatesView() {
         </div>
         <div style={{display:"flex",flexDirection:"column",gap:8}}>
           {reminders.length > 0 && (
-            <SimpleRow emoji="🔔" title="Нагадування перед уроком" color={GOLD}
-              hint="Надсилається автоматично перед кожним уроком"
+            <SimpleRow emoji="🔔" title="Нагадування перед записом" color={GOLD}
+              hint="Надсилається автоматично перед кожним записом"
               onEdit={()=>setSimpleTpl(reminders[0])}>
               <div style={{display:"flex",flexDirection:"column",gap:6,marginTop:9}} onClick={e=>e.stopPropagation()}>
                 {reminders.map(r=>(
@@ -621,7 +621,7 @@ export default function TemplatesView() {
                     background:"rgba(0,0,0,0.22)",opacity:r.active?1:0.55,
                   }}>
                     <div style={{flex:1,minWidth:0}}>
-                      <div style={{fontSize:12.5,fontWeight:800,color:"#fff"}}>За {r.reminderHours ?? 24} год до уроку</div>
+                      <div style={{fontSize:12.5,fontWeight:800,color:"#fff"}}>За {r.reminderHours ?? 24} год до запису</div>
                       <div style={{fontSize:11,color:"rgba(255,255,255,0.6)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{snip(r)}</div>
                     </div>
                     <div onClick={e=>e.stopPropagation()}><Toggle on={r.active} onChange={v=>onToggle(r.id,v)}/></div>

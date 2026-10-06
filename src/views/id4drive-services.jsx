@@ -184,7 +184,7 @@ function ServiceFormModal({ svc, onSave, onClose }) {
         </div>
         {form.nextPrice != null && form.nextPriceFrom && (
           <div style={{fontSize:10,color:"rgba(255,255,255,0.55)",marginTop:6}}>
-            З {form.nextPriceFrom} ціна автоматично стане {form.nextPrice}₴ для записів на уроки з цією датою й пізніше.
+            З {form.nextPriceFrom} ціна автоматично стане {form.nextPrice}₴ для записів з цією датою й пізніше.
           </div>
         )}
       </div>
@@ -217,7 +217,7 @@ function DeleteConfirm({ svc, onConfirm, onArchive, onClose }) {
       <div style={{textAlign:"center",marginBottom:20}}>
         <div style={{fontSize:32,marginBottom:8}}>⚠️</div>
         <div style={{fontSize:16,fontWeight:800,color:TEXT,marginBottom:6}}>Видалити «{svc.name}»?</div>
-        <div style={{fontSize:13,color:DIM}}>Послуга має {svc.lessons} проведених уроків. Вибери дію:</div>
+        <div style={{fontSize:13,color:DIM}}>Послуга має {svc.lessons} проведених записів. Вибери дію:</div>
       </div>
       <div style={{display:"flex",flexDirection:"column",gap:10}}>
         <button onClick={()=>{onArchive(svc.id);onClose();}} style={{
@@ -270,7 +270,7 @@ function ServiceCard({ svc, isDragging, onEdit, onToggle, onDelete, dragHandlePr
 
       {/* ROW 2: metrics */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",borderTop:`1px solid ${BORDER}`,borderBottom:`1px solid ${BORDER}`}}>
-        {[{val:fmtDur(svc.duration),label:"Тривалість",c:BLUE},{val:`${svc.price} ₴`,label:"Ціна",c:GOLD},{val:svc.lessons,label:"Уроків",c:TEXT},{val:`${(svc.income/1000).toFixed(0)}к ₴`,label:"Дохід",c:GREEN}]
+        {[{val:fmtDur(svc.duration),label:"Тривалість",c:BLUE},{val:`${svc.price} ₴`,label:"Ціна",c:GOLD},{val:svc.lessons,label:"Записів",c:TEXT},{val:`${(svc.income/1000).toFixed(0)}к ₴`,label:"Дохід",c:GREEN}]
           .map((m,i,arr)=>(
           <div key={m.label} style={{padding:"10px 0",textAlign:"center",borderRight:i<arr.length-1?`1px solid ${BORDER}`:"none"}}>
             <div style={{fontSize:13,fontWeight:800,color:m.c}}>{m.val}</div>
@@ -356,7 +356,7 @@ function ServiceRow({ svc, onEdit, onToggle, onDelete, dragHandleProps, isDraggi
       </div>
 
       <div style={{position:"relative",zIndex:2,display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:6}}>
-        <div style={{fontSize:10.5,color:"rgba(255,255,255,0.85)",fontWeight:700}}>{fmtDur(svc.duration)} · {svc.lessons} уроків</div>
+        <div style={{fontSize:10.5,color:"rgba(255,255,255,0.85)",fontWeight:700}}>{fmtDur(svc.duration)} · {svc.lessons} записів</div>
         <div onClick={stop}><Toggle on={svc.active&&!svc.archived} onChange={v=>onToggle(svc.id,v)}/></div>
       </div>
 

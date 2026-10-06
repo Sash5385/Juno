@@ -405,7 +405,7 @@ function WeekScheduleEditor({ weekSchedule, updDay, setWeek }) {
               ))}
             </div>
             {gaps.map((g, i) => (
-              <div key={i} style={{fontSize:11,color:GOLD,marginTop:6}}>⚠ {fmt(g[0]/60)}–{fmt(g[1]/60)} без слота (не вміщається урок 1 год)</div>
+              <div key={i} style={{fontSize:11,color:GOLD,marginTop:6}}>⚠ {fmt(g[0]/60)}–{fmt(g[1]/60)} без слота (не вміщається запис 1 год)</div>
             ))}
           </div>
         </>)}
@@ -1141,7 +1141,7 @@ select{color-scheme:${isKava?"light":"dark"}}
             title={lang==="en"?"Surcharges":"Надбавки"}
             text={lang==="en"
               ? "A surcharge is an extra paid option for a lesson, for example «driving range trip» or «harder route».\n\n• Each surcharge is a fixed amount in UAH. Add as many options as you need; remove one with the «×» button.\n• How to use: open the slot menu in the schedule and add the surcharge to a booking.\n• The client immediately sees the total price including the surcharge."
-              : "Надбавка — це додаткова платна опція до уроку. Наприклад, «виїзд на автодром» або «складніший маршрут».\n\n• Кожна надбавка — це фіксована сума в гривнях. Додайте стільки варіантів, скільки потрібно; зайвий можна видалити кнопкою «×».\n• Як користуватись: у розкладі відкрийте меню слота й додайте потрібну надбавку до запису.\n• Клієнт одразу бачить підсумкову ціну вже з надбавкою."}
+              : "Надбавка — це додаткова платна опція до запису. Наприклад, «виїзд на автодром» або «складніший маршрут».\n\n• Кожна надбавка — це фіксована сума в гривнях. Додайте стільки варіантів, скільки потрібно; зайвий можна видалити кнопкою «×».\n• Як користуватись: у розкладі відкрийте меню слота й додайте потрібну надбавку до запису.\n• Клієнт одразу бачить підсумкову ціну вже з надбавкою."}
           />}
           <div style={{fontSize:12,color:FAINT,marginBottom:12}}>
             Суми відображаються в меню слота при виборі надбавки.
@@ -1183,7 +1183,7 @@ select{color-scheme:${isKava?"light":"dark"}}
             title={lang==="en"?"Client notifications":"Сповіщення клієнтам"}
             text={lang==="en"
               ? "These are messages the system sends to clients by itself, without you. You can change the texts on the «Templates» tab.\n\n• Reminders — how many hours before a lesson the client gets a reminder. You can set up to three, for example 24 and 2 hours. The switch on the left turns each one on or off. Reminders reduce missed lessons.\n• Cancellation message — the client gets a message if their booking was cancelled.\n• Queue offer — when a place frees up, a client from the queue automatically gets an offer to book (the first one or everyone, depending on the queue mode).\n• Slot freed notification — when a place frees up in the next 10 days, all clients find out at once."
-              : "Це повідомлення, які система надсилає клієнтам сама, без вашої участі. Самі тексти повідомлень можна змінити на вкладці «Шаблони».\n\n• Нагадування — за скільки годин до уроку клієнт отримає нагадування. Можна задати до трьох, наприклад за 24 і за 2 години. Перемикач зліва вмикає або вимикає кожне окремо. Нагадування зменшують кількість пропущених уроків.\n• Повідомлення про скасування — клієнт отримає повідомлення, якщо його запис скасували.\n• Пропозиція з черги — коли звільняється місце, клієнт із черги автоматично отримує пропозицію записатись (першому або всім, залежно від режиму черги).\n• Сповіщення при звільненні слоту — коли в найближчі 10 днів звільняється місце, про це одразу дізнаються всі клієнти."}
+              : "Це повідомлення, які система надсилає клієнтам сама, без вашої участі. Самі тексти повідомлень можна змінити на вкладці «Шаблони».\n\n• Нагадування — за скільки годин до запису клієнт отримає нагадування. Можна задати до трьох, наприклад за 24 і за 2 години. Перемикач зліва вмикає або вимикає кожне окремо. Нагадування зменшують кількість пропущених записів.\n• Повідомлення про скасування — клієнт отримає повідомлення, якщо його запис скасували.\n• Пропозиція з черги — коли звільняється місце, клієнт із черги автоматично отримує пропозицію записатись (першому або всім, залежно від режиму черги).\n• Сповіщення при звільненні слоту — коли в найближчі 10 днів звільняється місце, про це одразу дізнаються всі клієнти."}
           />}
           <div style={{paddingTop:10,display:"flex",flexDirection:"column",gap:5}}>
             <div style={{fontSize:9,color:"#fff",letterSpacing:1,textTransform:"uppercase",marginBottom:2,textAlign:"center"}}>{t('set.auto.reminder')}</div>
@@ -1217,7 +1217,7 @@ select{color-scheme:${isKava?"light":"dark"}}
 
       case "reviews": return (
         <div>
-          {showHint && <Info color={GOLD} title="Відгуки клієнтів" text={"Клієнти лишають відгук самі після завершеного уроку. Відгук одразу з’являється на вашій сторінці запису, його бачать усі відвідувачі.\n\nВидалити або змінити відгук не можна. Але його можна сховати кнопкою «Сховати» — тоді його не буде видно на сайті. Передумали — натисніть «Показати»."}/>}
+          {showHint && <Info color={GOLD} title="Відгуки клієнтів" text={"Клієнти лишають відгук самі після завершеного запису. Відгук одразу з’являється на вашій сторінці запису, його бачать усі відвідувачі.\n\nВидалити або змінити відгук не можна. Але його можна сховати кнопкою «Сховати» — тоді його не буде видно на сайті. Передумали — натисніть «Показати»."}/>}
           {reviews.length === 0 ? (
             <div style={{textAlign:"center",padding:"24px 12px",color:DIM,fontSize:12}}>Поки що немає відгуків</div>
           ) : reviews.map(rv => (
@@ -1331,7 +1331,7 @@ select{color-scheme:${isKava?"light":"dark"}}
               value={profile?.terms ?? ""}
               onChange={e=>updProfile("terms", e.target.value)}
               rows={7}
-              placeholder="Наприклад: скасування пізніше ніж за 24 год оплачується повністю; запізнення не продовжує заняття; при собі мати документ, що посвідчує особу…"
+              placeholder="Наприклад: скасування пізніше ніж за 24 год оплачується повністю; запізнення не продовжує запис; при собі мати документ, що посвідчує особу…"
               style={{width:"100%",boxSizing:"border-box",background:BG_DEEP,border:"none",outline:"none",color:TEXT,fontSize:12,padding:"10px 12px",borderRadius:10,boxShadow:SI,resize:"vertical",fontFamily:"inherit",lineHeight:1.5,marginBottom:6}}
             />
             <div style={{fontSize:10,color:"rgba(255,255,255,0.55)"}}>Порожнє поле — блок «Умови відвідування» просто не покажеться на сайті.</div>

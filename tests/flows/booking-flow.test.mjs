@@ -127,7 +127,7 @@ const mm = (t) => { const [h, m] = t.split(":").map(Number); return h * 60 + m; 
   d = clean(await day(D2));
   check("після скасування phantom видалено, день як був", JSON.stringify(d) === JSON.stringify(pr2), JSON.stringify(d));
 
-  console.log("── 5. Перенесення уроку клієнтом (claim нового → cancel старого → новий запис)");
+  console.log("── 5. Перенесення запису клієнтом (claim нового → cancel старого → новий запис)");
   const b1 = await book(UA, D1, "10:00", 1);
   // як BookingsTab: 1) claimSlot новий 2) cancelBooking(isReschedule) 3) createBooking(rescheduledFrom)
   const okNew = await C.claimSlot(D1, "12:00", 1, 30);
@@ -182,7 +182,7 @@ const mm = (t) => { const [h, m] = t.split(":").map(Number); return h * 60 + m; 
   console.log("── 8. Атака: клієнт A намагається звільнити слот, зайнятий адміном/іншим після його запису");
   await seedDays();
   const b4 = await book(UA, D1, "11:00", 1);
-  // адмін скасовує запис A і одразу ставить свій урок у цей час
+  // адмін скасовує запис A і одразу ставить свій запис у цей час
   await act(UA, b4, async () => {
     const ex = await adminCtx(D1); const upd = {};
     aFree(upd, D1, mm("11:00"), 60, ex);
@@ -217,7 +217,7 @@ const mm = (t) => { const [h, m] = t.split(":").map(Number); return h * 60 + m; 
   console.log("   слоти:", show(d));
   check("ПЕРЕНОС старого запису (без bookedBy): старе місце звільняється", okN && d.slot1000.available === true && d.slot1030.available === true, `старе місце лишилось зайнятим: ${show(d)}`);
 
-  console.log("── 10. Клієнт скасовує урок, який адмін раніше переніс");
+  console.log("── 10. Клієнт скасовує запис, який адмін раніше переніс");
   await seedDays();
   const b6 = await book(UA, D1, "10:00", 1);
   await act(UA, b6, async () => {

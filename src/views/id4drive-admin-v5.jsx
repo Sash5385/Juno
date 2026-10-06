@@ -44,13 +44,13 @@ const PALETTE = [
 // НЕ повторюються, поки одночасно активних клієнтів менше 50.
 const STUDENT_PALETTE = Array.from({ length: 50 }, (_, i) => `hsl(${Math.round(i * 360 / 50)},68%,56%)`);
 
-// Мітки на записі — фіксований список. Автоматично ставиться лише "first" (1-й урок клієнта)
+// Мітки на записі — фіксований список. Автоматично ставиться лише "first" (1-й запис клієнта)
 // і "debt" (коли вписана сума боргу); "check"/"exam" — тільки вручну (деталі запису → Мітка,
 // або при створенні запису). Автомітки діють лише поки майстер не чіпав мітку вручну.
 const TAG_PRESETS = [
   { id:"exam",   icon:"🚨", label:"Іспит",     color: RED },
   { id:"check",  icon:"🔍", label:"Перевірка", color: TEAL },
-  { id:"first",  icon:"⭐", label:"1-й урок",  color: BLUE },
+  { id:"first",  icon:"⭐", label:"1-й запис",  color: BLUE },
   { id:"debt",   icon:"💸", label:"Борг",      color: GOLD },
 ];
 // Автотег за порядковим номером запису клієнта (серед усіх нескасованих, включно з майбутніми)
@@ -58,7 +58,7 @@ const AUTO_TAG_BY_ORDER = { 1: "first" };
 // Прибрані мітки (напр. старий "repeat") у вже збережених записах не показуються
 const knownTag = (t) => (TAG_PRESETS.some(p => p.id === t) ? t : null);
 
-// Медалі за урок — присвоюються прямо в модалці бронювання (прив'язані до booking.id)
+// Медалі за запис — присвоюються прямо в модалці бронювання (прив'язані до booking.id)
 const BADGE_PRESETS = [
   { icon:"🏅", label:"Молодець" },
   { icon:"🥇", label:"Найкращий клієнт" },
@@ -690,8 +690,8 @@ function MonthCalendarSheet({ bookings, onClose, onPickDate }) {
     closeTimerRef.current = setTimeout(onClose, 320);
   };
 
-  // Мапа день → сумарні хвилини уроків (не кількість записів — щоб два
-  // двогодинні уроки рахувались як 4 год, а не як "2").
+  // Мапа день → сумарні хвилини записів (не кількість записів — щоб два
+  // двогодинні записи рахувались як 4 год, а не як "2").
   const counts = useMemo(() => {
     const map = {};
     for (const b of bookings) {
@@ -1211,7 +1211,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   };
   const rawSlotIdsRef = useRef({}); // { date: Set<slotId> } — усі реально існуючі документи
   const cancelTimers = useRef({});
-  // Кумулятивні години клієнта на момент кожного уроку (для кружечка № уроку в слоті)
+  // Кумулятивні години клієнта на момент кожного запису (для кружечка № запису в слоті)
   const cumulativeHoursMap = useMemo(() => {
     const byUser = {};
     for (const b of bookings) {
@@ -1231,7 +1231,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
     return map;
   }, [bookings]);
   // Порядковий номер запису клієнта серед УСІХ його нескасованих записів (включно
-  // з майбутніми) — основа для автоматичних міток (1-й урок / перевірка / іспит).
+  // з майбутніми) — основа для автоматичних міток (1-й запис / перевірка / іспит).
   const studentOrderMap = useMemo(() => {
     const byStudent = {};
     for (const b of bookings) {
@@ -1510,7 +1510,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
     const lunchEnabled = ov?.lunchEnabled ?? ws.lunchEnabled ?? settings.lunchEnabled ?? true;
     const lunchStart   = ov?.lunchStart   ?? ws.lunchStart   ?? settings.lunchStart  ?? 12;
     const lunchEnd     = ov?.lunchEnd     ?? ws.lunchEnd     ?? settings.lunchEnd    ?? 13;
-    // Крок сітки — 1 година від старту робочого дня (мінімум годинний урок).
+    // Крок сітки — 1 година від старту робочого дня (мінімум годинний запис).
     // Якщо день починається на :30 (напр. 17:30), слоти йдуть 17:30, 18:30...
     // без проміжного 18:00 — тільки старти, розведені рівно на годину.
     const step = 60;
@@ -2074,7 +2074,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
       if (swipeRef.current) {
         // Швидкість пальця (px/ms, згладжена) — щоб на pointerup "докрутити" сітку
         // за інерцією замість миттєвої зупинки. Порожнє місце скролиться нативно
-        // (браузер сам додає інерцію); картки уроків мають touch-action:none і
+        // (браузер сам додає інерцію); картки записів мають touch-action:none і
         // скролляться вручну через scrollLeft/scrollTop нижче — без цього трекінгу
         // ручний скрол зупинявся різко, на відміну від нативного.
         const _now = performance.now();
@@ -2742,7 +2742,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
     if (action === "telegram") window.location.href=`https://t.me/${b.phone.replace(/\D/g,"")}`;
     if (action === "setTag") {
       // Ручний вибір/зняття мітки — позначаємо tagManual, щоб автоматична
-      // логіка (порядок уроку/борг) більше НІКОЛИ не перезаписувала цей запис.
+      // логіка (порядок запису/борг) більше НІКОЛИ не перезаписувала цей запис.
       // debtAmount передається лише коли майстер явно вписав/змінив суму
       // боргу вручну — інакше залишаємо попереднє значення в Firebase як є.
       const patch = { tag: b.tag || null, tagManual: true };
@@ -2794,7 +2794,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   // Блокуємо/звільняємо timeslots під особистою подією — так само, як для
   // звичайного бронювання, щоб студент не міг записатись на цей час.
   const blockPersonalSlots = (dateStr, startMin, durMin) => {
-    // personal:true — зайнятість від особистої події адміна, а не уроку:
+    // personal:true — зайнятість від особистої події адміна, а не запису:
     // клієнтський календар (classifyDay) виключає такі слоти з підрахунку,
     // щоб особиста подія не "підсвічувала" день як зайнятий клієнтам.
     return blockSlotRange(dateStr, startMin, durMin, { bookingStart: true, extra: { personal: true } }).catch(() => {});
@@ -3657,7 +3657,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                 const isDimmed = !isBlock && !isVipSlot && !isPersonal && (b.status==="noshow" || isCancelling || isLockedPast);
                 const price = b._mergedPrice != null ? b._mergedPrice : computeBookingPrice(b, settings.services);
                 // Геометрія верху картки: бейдж-мітка → час → текст. Час стоїть ПІД бейджем,
-                // а текст починається ПІД часом — раніше на картках з міткою ("1-й урок",
+                // а текст починається ПІД часом — раніше на картках з міткою ("1-й запис",
                 // "Борг"...) час перекривав першу строку імені. Висоти рахуємо з тих самих
                 // розмірів, що й у бейджа (tagFs/відступи), тож на широких колонках теж без накладання.
                 const _hasTag = !isBlock && !isVipSlot && !isPersonal && height >= 14 && !!effectiveTag(b);
@@ -3681,9 +3681,9 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                     background: BG_DEEP,
                     borderRadius: 8,
                   }}>
-                    {/* Мітка (іспит/перевірка/1-й урок/борг/повтор) — бейдж-пігулка у
+                    {/* Мітка (іспит/перевірка/1-й запис/борг/повтор) — бейдж-пігулка у
                         верхньому правому куті картки, під кутом (як цінник на маркерах карт).
-                        Автоматична (за порядком уроку/сумою боргу), поки не змінена вручну.
+                        Автоматична (за порядком запису/сумою боргу), поки не змінена вручну.
                         Розмір шрифту/відступів і сама наявність тексту (проти лише іконки)
                         масштабуються під ширину колонки, щоб охайно виглядало і на
                         вузьких мобільних колонках, і на широких десктопних. */}
@@ -3838,7 +3838,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                           { text: typeLabel, w: 600, c: si(0.58) },
                           ...(priceText      ? [{ text: priceText, w: 900, c: priceColor, shadow: !!b.surcharge }] : []),
                         ];
-                        // Верхні 9px зарезервовані під час старту уроку (праворуч зверху) —
+                        // Верхні 9px зарезервовані під час старту запису (праворуч зверху) —
                         // інакше прізвище/ім'я могли заходити під нього при малому зумі.
                         const availH = height - textTop - 4;
                         const availW = COL_W - 8;
@@ -3873,7 +3873,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                           </div>
                         );
                       })()}
-                      {/* № уроку — кумулятивні години клієнта на момент цього уроку */}
+                      {/* № запису — кумулятивні години клієнта на момент цього запису */}
                       {!isBlock && !isVipSlot && !isPersonal && cumulativeHoursMap[b.id] != null && height >= 20 && (
                         <div style={{
                           position:"absolute", top:2, left:2, zIndex:4,
@@ -3885,7 +3885,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                           pointerEvents:"none",
                         }}>{cumulativeHoursMap[b.id]}</div>
                       )}
-                      {/* Час початку уроку — праворуч зверху. Опущено нижче, якщо на картці
+                      {/* Час початку запису — праворуч зверху. Опущено нижче, якщо на картці
                           є мітка (бейдж-пігулка), щоб час не перекривався нею. */}
                       {!isBlock && !isVipSlot && !isPersonal && height >= 14 && showTime && (
                         <div style={{
@@ -3897,7 +3897,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                         }}>{b.time || fmtTime(b.startMin)}</div>
                       )}
                       {/* VIP crown badge for regular bookings marked as VIP — ліворуч зверху,
-                          трохи правіше кружечка з к-стю уроків, щоб не перекривались */}
+                          трохи правіше кружечка з к-стю записів, щоб не перекривались */}
                       {b.isVipOnly && !isVipSlot && height >= 14 && (
                         <div data-help="crown" style={{
                           position:"absolute", top:1, left: cumulativeHoursMap[b.id] != null && height >= 20 ? 13 : 2, zIndex:4,
@@ -5187,8 +5187,8 @@ function CreateSlotSheet({ data, settings, onClose }) {
 // ═══════════════════════════════════════════════════════════════
 // BOOKING DETAIL MODAL
 // ═══════════════════════════════════════════════════════════════
-// Ціна послуги на конкретну дату уроку: якщо задано nextPrice/nextPriceFrom
-// і дата уроку вже досягла nextPriceFrom — використовуємо нову ціну.
+// Ціна послуги на конкретну дату запису: якщо задано nextPrice/nextPriceFrom
+// і дата запису вже досягла nextPriceFrom — використовуємо нову ціну.
 function effectivePrice(svc, dateStr) {
   if (!svc) return 0;
   if (svc.nextPrice != null && svc.nextPriceFrom && dateStr && dateStr >= svc.nextPriceFrom) {
@@ -5204,7 +5204,7 @@ function computeBookingPrice(b, services) {
   const _hrs = b.durationHours != null ? b.durationHours : b.durMin / 60;
   if (typeof b.price === "number" && b.price > 0 && Math.round(_hrs * 60) === b.durMin) return b.price;
   // Індивідуальна фікс. ціна клієнта (₴/год у картці клієнта) — виставляється
-  // адміном вручну і діє на всі уроки цього клієнта замість тарифу послуги;
+  // адміном вручну і діє на всі записи цього клієнта замість тарифу послуги;
   // знижка при цьому не застосовується (ціна вже персональна).
   if (b.customPrice != null) {
     const base = Math.round((b.customPrice / 60) * b.durMin);
@@ -5313,7 +5313,7 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
     update(iRef( `users/${booking.userId}/maneuverSuccessCounts`), { [key]: increment(next === "success" ? 1 : -1) }).catch(()=>{});
   };
 
-  // Медаль за конкретний урок — прив'язана до booking.id, тому клієнт може
+  // Медаль за конкретний запис — прив'язана до booking.id, тому клієнт може
   // показати її саме біля цього завершеного запису, а не загальним списком.
   const awardBookingBadge = (icon, label) => {
     if (!booking) return;
@@ -5363,7 +5363,7 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
   const discountAmtDisplay = (booking.discount && booking.customPrice == null) ? Math.round(booking.discount * booking.durMin / 60) : 0;
   const price = mergeInfo ? mergeInfo.price : computeBookingPrice(booking, settings.services);
   const ini   = booking.name.trim().split(" ").slice(0, 2).map(w => w[0]).join("");
-  // Порядковий номер цього уроку серед усіх уроків клієнта (без особистих подій
+  // Порядковий номер цього запису серед усіх записів клієнта (без особистих подій
   // і скасованих) — бейдж у шапці картки запису.
   const lessonNumber = (() => {
     if (booking.type === "personal") return null;
@@ -5478,7 +5478,7 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
                     <span style={{
                       fontSize:9,fontWeight:800,padding:"2px 7px",borderRadius:99,flexShrink:0,
                       background:`${BLUE}1f`,color:BLUE,
-                    }}>🚗 {lessonNumber}-й урок</span>
+                    }}>🚗 {lessonNumber}-й запис</span>
                   )}
                 </div>
                 <div style={{fontSize:10,color:c,fontWeight:700,marginTop:1}}>{typeLabel}</div>
@@ -5601,7 +5601,7 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
           </div>
 
           {/* Мітка — booking.tag/tagManual, якщо ручна; інакше показуємо автотег
-              (за порядком уроку/сумою боргу), рахований у батьківському компоненті. */}
+              (за порядком запису/сумою боргу), рахований у батьківському компоненті. */}
           {(() => {
             const displayTag = knownTag(booking.tagManual ? (booking.tag || null) : (booking.tag || autoTag || null));
             const isAuto = !booking.tagManual && !booking.tag && !!autoTag;
@@ -5670,7 +5670,7 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
                   </div>
                 )}
                 <div style={{marginTop:8,fontSize:10.5,lineHeight:1.4,color:"rgba(255,255,255,.55)"}}>
-                  Позначка на картці запису в розкладі (1-й урок, іспит, борг тощо). Перший урок ставиться автоматично, решту — вручну («Змінити»).
+                  Позначка на картці запису в розкладі (1-й запис, іспит, борг тощо). Перший запис ставиться автоматично, решту — вручну («Змінити»).
                 </div>
               </div>
             );
@@ -5735,7 +5735,7 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
             </div>
           </div>
 
-          {/* Медаль за урок — золота колірна картка (прив'язана до цього booking, видно клієнту біля завершеного запису) */}
+          {/* Медаль за запис — золота колірна картка (прив'язана до цього booking, видно клієнту біля завершеного запису) */}
           <div style={{
             margin:"10px 14px 0",padding:"12px 14px",borderRadius:16,
             background:`linear-gradient(155deg,color-mix(in srgb,${GOLD} 38%,${BG_DEEP}) 0%,${BG_DEEP} 100%)`,
@@ -5743,7 +5743,7 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
           }}>
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
               <div style={{fontSize:9,fontWeight:700,letterSpacing:1,color:"rgba(255,255,255,.8)",textTransform:"uppercase"}}>
-                🏅 Заохочення за урок
+                🏅 Заохочення за запис
               </div>
               <div onClick={() => setBadgePickerOpen(o => !o)} style={{
                 fontSize:11,fontWeight:800,color:"#fff",cursor:"pointer",padding:"2px 8px",
@@ -5778,7 +5778,7 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
               </div>
             )}
             <div style={{marginTop:8,fontSize:10.5,lineHeight:1.4,color:"rgba(255,255,255,.55)"}}>
-              Нагорода клієнту за цей урок. Клієнт побачить її у профілі в розділі «Мої заохочення» і отримає сповіщення. Тап по значку — прибрати.
+              Нагорода клієнту за цей запис. Клієнт побачить її у профілі в розділі «Мої заохочення» і отримає сповіщення. Тап по значку — прибрати.
             </div>
           </div>
 
@@ -6247,13 +6247,13 @@ function ScheduleHelp({ onClose, onPick }) {
       { ico: <span style={{ fontSize:20 }}>👁</span>, h: "eye", t: "👁 Слот зараз переглядають", d: "Клієнт саме відкрив цей вільний слот у своєму застосунку й обирає час. Позначка зникає, коли він закриє слот або запишеться." },
       { ico: <div style={{ width:36, height:11, borderRadius:7, background:"rgba(126,217,87,0.45)", border:"1px solid rgba(126,217,87,0.75)" }}/>, t: "Зелена ручка внизу слота", d: "Змінює тривалість вільного слота: утримайте ручку 0,6 с і потягніть вгору або вниз. Є лише на вільних слотах майбутніх днів." },
     ] },
-    { title: "Картка уроку", items: [
+    { title: "Картка запису", items: [
       { ico: <div style={{ display:"flex", gap:3 }}><div style={{ width:11, height:20, borderRadius:4, background:"hsl(140,68%,50%)" }}/><div style={{ width:11, height:20, borderRadius:4, background:"hsl(45,68%,52%)" }}/><div style={{ width:11, height:20, borderRadius:4, background:"hsl(5,68%,56%)" }}/></div>, t: "Колір картки = колір клієнта", d: "Кожен клієнт має свій колір, тож розклад читається з одного погляду. У налаштуваннях можна вимкнути «Автокольори» й призначити кольори вручну в картці клієнта." },
-      { ico: <HelpDot bg="rgba(0,0,0,0.55)" color="#fff">16</HelpDot>, t: "Число в кружку", d: "Порядковий номер уроку цього клієнта." },
-      { ico: <div style={{ display:"grid", gridTemplateColumns:"auto auto", gap:"2px 6px", fontSize:16, lineHeight:1.2 }}><span>⭐</span><span>🔍</span><span>🚨</span><span>💸</span></div>, t: "Мітки уроку: ⭐ 🔍 🚨 💸", d: "⭐ «1-й урок» ставиться автоматично. 🔍 «Перевірка», 🚨 «Іспит» і 💸 «Борг» — вручну: деталі запису → «Мітка» або під час створення запису. Для боргу можна вписати суму." },
+      { ico: <HelpDot bg="rgba(0,0,0,0.55)" color="#fff">16</HelpDot>, t: "Число в кружку", d: "Порядковий номер запису цього клієнта." },
+      { ico: <div style={{ display:"grid", gridTemplateColumns:"auto auto", gap:"2px 6px", fontSize:16, lineHeight:1.2 }}><span>⭐</span><span>🔍</span><span>🚨</span><span>💸</span></div>, t: "Мітки запису: ⭐ 🔍 🚨 💸", d: "⭐ «1-й запис» ставиться автоматично. 🔍 «Перевірка», 🚨 «Іспит» і 💸 «Борг» — вручну: деталі запису → «Мітка» або під час створення запису. Для боргу можна вписати суму." },
       { ico: <span style={{ fontSize:20 }}>👑</span>, h: "crown", t: "Корона", d: "VIP-клієнт." },
-      { ico: <div style={{ display:"flex", alignItems:"center", gap:2, fontSize:12, fontWeight:800, color:GOLD }}>👤<span>2</span></div>, h: "queue", t: "👤 + число", d: "Скільки клієнтів стоять у черзі на цей час. Якщо урок скасують, слот автоматично запропонують наступному." },
-      { ico: <div style={{ width:22, height:22, borderRadius:5, background:"rgba(255,255,255,0.12)", position:"relative", overflow:"hidden", flexShrink:0 }}><div style={{ position:"absolute", right:0, bottom:0, width:0, height:0, borderLeft:"10px solid transparent", borderBottom:`10px solid ${GOLD}` }}/></div>, t: "Жовтий куточок", d: "Клієнт залишив нотатку до уроку для майстра. Відкрийте картку, щоб прочитати." },
+      { ico: <div style={{ display:"flex", alignItems:"center", gap:2, fontSize:12, fontWeight:800, color:GOLD }}>👤<span>2</span></div>, h: "queue", t: "👤 + число", d: "Скільки клієнтів стоять у черзі на цей час. Якщо запис скасують, слот автоматично запропонують наступному." },
+      { ico: <div style={{ width:22, height:22, borderRadius:5, background:"rgba(255,255,255,0.12)", position:"relative", overflow:"hidden", flexShrink:0 }}><div style={{ position:"absolute", right:0, bottom:0, width:0, height:0, borderLeft:"10px solid transparent", borderBottom:`10px solid ${GOLD}` }}/></div>, t: "Жовтий куточок", d: "Клієнт залишив нотатку до запису для майстра. Відкрийте картку, щоб прочитати." },
     ] },
     { title: "Кнопки по краях", items: [
       { ico: <div style={{ display:"flex", gap:3 }}><HelpSq c={GREEN} deep={BG_DEEP}>{keySvg}</HelpSq><HelpSq c={RED} deep={BG_DEEP}>{keySvg}</HelpSq></div>, h: "key", t: "Ключик ▦ (угорі зліва)", s: 0.95, d: "Створює слоти за графіком на найближчі дні або знімає їх усі. Зелений — слотів немає (натискання створить), червоний — слоти вже є (натискання зніме)." },
@@ -6669,7 +6669,7 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
             }}
           />
 
-          {/* МІТКА — вручну: Перевірка / Іспит ("1-й урок" ставиться сама, борг — сумою вище) */}
+          {/* МІТКА — вручну: Перевірка / Іспит ("1-й запис" ставиться сама, борг — сумою вище) */}
           <div style={{display:"flex",gap:8}}>
             {TAG_PRESETS.filter(t => t.id === "check" || t.id === "exam").map(tp => {
               const on = newTag === tp.id;
@@ -6890,7 +6890,7 @@ function SettingsView({ settings, setSettings }) {
       <Card style={{padding:"20px"}}>
         <SectionTitle>Прилипання вільних слотів</SectionTitle>
         <div style={{fontSize:12,color:TEXT_DIM,marginBottom:14}}>
-          Якщо є запис на 12:00–14:00, які слоти показувати клієнтові для 1-годинного уроку?
+          Якщо є запис на 12:00–14:00, які слоти показувати клієнтові для 1-годинного запису?
         </div>
         {[
           {k:"before",l:"Тільки попередні (11:00)"},
@@ -7045,7 +7045,7 @@ function SettingsView({ settings, setSettings }) {
       {/* ── AUTO MESSAGES ── */}
       <Card style={{padding:"20px"}}>
         <SectionTitle>Автоматичні повідомлення</SectionTitle>
-        <Row label="Нагадування за N годин до уроку">
+        <Row label="Нагадування за N годин до запису">
           <div style={{display:"flex",alignItems:"center",gap:8}}>
             {settings.autoReminder?.enabled && (
               <NumInput value={settings.autoReminder?.hoursBefore ?? 24}
@@ -7329,7 +7329,7 @@ function TemplatesView() {
   const DEFAULTS = {
     booking_confirmed: { title:"✅ Запис підтверджено", body:"{name}, чекаємо тебе {daySlot} 🎯" },
     booking_cancelled: { title:"❌ Запис скасовано",   body:"Запис {dateLabel} о {time} відмінено. Оберіть інший час ↩️" },
-    lesson_reminder:   { title:"⏰ Нагадування про урок", body:"{name}, завтра урок о {time} 🚗 Чекаємо!" },
+    lesson_reminder:   { title:"⏰ Нагадування про запис", body:"{name}, завтра запис о {time} 🚗 Чекаємо!" },
   };
   const TMETA = [
     { type:"booking_confirmed", label:"✅ Підтвердження запису",
@@ -7338,7 +7338,7 @@ function TemplatesView() {
     { type:"booking_cancelled", label:"❌ Скасування запису",
       vars:["{name}","{dateLabel}","{time}","{date}"],
       sample:{ name:"Маргарита", daySlot:"понеділок 7 липня о 14:00", time:"14:00", date:"2025-07-07", dateLabel:"7 липня" } },
-    { type:"lesson_reminder",   label:"⏰ Нагадування про урок",
+    { type:"lesson_reminder",   label:"⏰ Нагадування про запис",
       vars:["{name}","{time}","{date}"],
       sample:{ name:"Маргарита", daySlot:"завтра о 10:00", time:"10:00", date:"2025-07-07", dateLabel:"7 липня" } },
   ];

@@ -84,9 +84,9 @@ async function pushStudent(iid, uid, title, body, data = {}) {
 }
 
 // Хелпер: запросити наступного в черзі для слота.
-// freedDurationHours — тривалість щойно скасованого уроку: якщо відома,
+// freedDurationHours — тривалість щойно скасованого запису: якщо відома,
 // саме на неї треба записати клієнта з черги, а не на його власний вибір при
-// вступі в чергу (інакше 2-годинний урок звільняється, а бронюється лише 1 год).
+// вступі в чергу (інакше 2-годинний запис звільняється, а бронюється лише 1 год).
 async function inviteNextInQueue(iid, slotKey, excludeUids = [], freedDurationHours = null) {
   const entriesSnap = await iRef(iid, `queue/${slotKey}/entries`).get();
   if (!entriesSnap.exists()) return;
@@ -113,7 +113,7 @@ function buildAdminLink(base, { date, time, uid, bookingId } = {}) {
   return qs ? `${base}/?${qs}` : `${base}/`;
 }
 
-// Формат тексту пуша "Урок перенесено": ім'я · послуга тривалість / з дати на дату
+// Формат тексту пуша "Запис перенесено": ім'я · послуга тривалість / з дати на дату
 function buildRescheduleBody(after, name, date, time) {
   const svc = after.serviceName || after.service || "";
   const durH = after.durationHours || (after.durMin ? after.durMin / 60 : 1);
@@ -340,19 +340,19 @@ exports.onBookingChanged = onValueWritten(
       if (after.createdBy === "admin" && uid !== "admin") {
         // Адмін вручну записав клієнта — сповіщаємо клієнта
         console.log(`onBookingChanged: admin manual booking iid=${iid} uid=${uid}`);
-        await pushStudent(iid, uid, "📋 Урок заплановано", `${date} о ${time}`, {
+        await pushStudent(iid, uid, "📋 Запис заплановано", `${date} о ${time}`, {
           url: "https://juno-booking-client.web.app/cabinet/bookings",
         });
-        await saveNotification(iid, uid, "📋 Урок заплановано", `${date} о ${time}`, "booking_confirmed");
+        await saveNotification(iid, uid, "📋 Запис заплановано", `${date} о ${time}`, "booking_confirmed");
       } else if (after.createdBy !== "admin" && after.status !== "personal") {
         // Клієнт записався сам — сповіщаємо адміна
         // (особисті події адміна не мають генерувати цей пуш — у них є власне
         // нагадування-будильник через sendPersonalEventReminders)
         console.log(`onBookingChanged: new booking iid=${iid} uid=${uid}`);
         if (after.rescheduledFrom) {
-          // Клієнт переніс урок (старий запис скасовано з cancelledBy="reschedule", новий створено
+          // Клієнт переніс запис (старий запис скасовано з cancelledBy="reschedule", новий створено
           // з rescheduledFrom) — це не новий запис, а перенесення: кажемо з якого дня на який.
-          await pushAdmin(iid, "🔁 Урок перенесено", buildRescheduleBody(after, name, date, time), { url: adminLink() });
+          await pushAdmin(iid, "🔁 Запис перенесено", buildRescheduleBody(after, name, date, time), { url: adminLink() });
         } else {
           await pushAdmin(iid, "📋 Новий запис", buildNewBookingBody(after, name, date, time), { url: adminLink() });
         }
@@ -367,7 +367,7 @@ exports.onBookingChanged = onValueWritten(
       console.log(`onBookingChanged: student cancel iid=${iid} uid=${uid}`);
       const slotUpd = await buildSlotUpdates(iid, before, true, uid);
       if (Object.keys(slotUpd).length) await iRef(iid).update(slotUpd).catch(() => {});
-      await pushAdmin(iid, "❌ Урок скасовано", `${name} · ${date} о ${time}`, { url: adminLink() });
+      await pushAdmin(iid, "❌ Запис скасовано", `${name} · ${date} о ${time}`, { url: adminLink() });
       if (date !== "—" && time !== "—") {
         const freedDurationHours = before.durationHours || (before.durMin ? before.durMin / 60 : 1);
         await inviteNextInQueue(iid, `${date}_${time}`, [], freedDurationHours).catch(() => {});
@@ -381,10 +381,10 @@ exports.onBookingChanged = onValueWritten(
       const vars = { "ім'я": name, "дата": date, "час": time, "послуга": after.serviceName || after.service || "", "ціна": after.price != null ? String(after.price) : "" };
       const usedTpl = await sendActiveTemplates(iid, uid, "auto_confirm", vars).catch(() => false);
       if (!usedTpl) {
-        await pushStudent(iid, uid, "✅ Урок підтверджено", `${date} о ${time}`, {
+        await pushStudent(iid, uid, "✅ Запис підтверджено", `${date} о ${time}`, {
           url: "https://juno-booking-client.web.app/cabinet/bookings",
         });
-        await saveNotification(iid, uid, "✅ Урок підтверджено", `${date} о ${time}`, "booking_confirmed");
+        await saveNotification(iid, uid, "✅ Запис підтверджено", `${date} о ${time}`, "booking_confirmed");
       }
       return;
     }
@@ -405,10 +405,10 @@ exports.onBookingChanged = onValueWritten(
       const cancelVars = { "ім'я": name, "дата": date, "час": time };
       const usedCancelTpl = await sendActiveTemplates(iid, uid, "auto_cancel", cancelVars).catch(() => false);
       if (!usedCancelTpl) {
-        await pushStudent(iid, uid, "❌ Урок скасовано", `${date} о ${time}`, {
+        await pushStudent(iid, uid, "❌ Запис скасовано", `${date} о ${time}`, {
           url: "https://juno-booking-client.web.app/cabinet/bookings",
         });
-        await saveNotification(iid, uid, "❌ Урок скасовано", `${date} о ${time}`, "booking_cancelled");
+        await saveNotification(iid, uid, "❌ Запис скасовано", `${date} о ${time}`, "booking_cancelled");
       }
       if (date !== "—" && time !== "—") {
         const freedDurationHours = before.durationHours || (before.durMin ? before.durMin / 60 : 1);
@@ -417,7 +417,7 @@ exports.onBookingChanged = onValueWritten(
       return;
     }
 
-    // Клієнт переносить урок: клієнт спершу займає нове місце, потім скасовує старий запис (cancelledBy "reschedule")
+    // Клієнт переносить запис: клієнт спершу займає нове місце, потім скасовує старий запис (cancelledBy "reschedule")
     // і сам звільняє старі слоти. Якщо правила БД його не пустили (слоти заброньовано до появи bookedBy) —
     // звільняємо тут. Слоти, зайняті вже кимось іншим (bookedBy), buildSlotUpdates не чіпає.
     if (after.cancelledBy === "reschedule" && before.cancelledBy !== "reschedule") {
@@ -449,13 +449,13 @@ exports.onBookingChanged = onValueWritten(
       return;
     }
 
-    // Клієнт додав/змінив нотатку до уроку (вкладка "Записи") — сповіщаємо адміна.
+    // Клієнт додав/змінив нотатку до запису (вкладка "Записи") — сповіщаємо адміна.
     // Очищення нотатки пуш не шле; перенесення вже оброблено вище.
     const noteBefore = String(before.studentNote || "").trim();
     const noteAfter = String(after.studentNote || "").trim();
     if (noteAfter && noteAfter !== noteBefore && after.status !== "cancelled" && after.createdBy !== "admin") {
       console.log(`onBookingChanged: student note changed iid=${iid} uid=${uid}`);
-      await pushAdmin(iid, "💬 Коментар до уроку", `${name} · ${date} о ${time}\n${noteAfter}`, { url: adminLink() });
+      await pushAdmin(iid, "💬 Коментар до запису", `${name} · ${date} о ${time}\n${noteAfter}`, { url: adminLink() });
     }
   }
 );
@@ -471,7 +471,7 @@ function normPhone(p) {
 // операційні поля (знижку/фікс.ціну/нотатки/години/VIP/медалі) в щойно
 // зареєстрований акаунт. Історію записів/чатів навмисно НЕ переносимо —
 // це критичний модуль, ризик вищий за користь для типового кейсу
-// (запрошення надсилають ДО першого уроку).
+// (запрошення надсилають ДО першого запису).
 async function mergeInvitedStudentRecord(iid, uid, profile) {
   try {
     let oldKey = null;
@@ -551,7 +551,7 @@ exports.onQueueInvite = onValueUpdated(
     await iRef(iid, `timeslots/${date}/${slotId}/offeredTo/${uid}`).set({ until }).catch(() => {});
 
     // In-app сповіщення: клієнт підписаний на цей шлях. Якщо запрошення
-    // прийшло від скасування конкретного уроку — offerDurationHours несе
+    // прийшло від скасування конкретного запису — offerDurationHours несе
     // його тривалість, щоб бронювання з черги зайняло стільки ж часу.
     await iRef(iid, `users/${uid}/queueOffers/${slotKey}`).set({
       date, time, until, slotKey,
@@ -812,7 +812,7 @@ exports.flushSlotFreedQueue = onSchedule(
   }
 );
 
-// Відправляє відкладені повідомлення про перенос уроку (дебаунс 1 хвилина)
+// Відправляє відкладені повідомлення про перенос запису (дебаунс 1 хвилина)
 exports.flushRescheduleQueue = onSchedule(
   { schedule: "every 1 minutes", region: "europe-west1" },
   async () => {
@@ -833,8 +833,8 @@ exports.flushRescheduleQueue = onSchedule(
         }
       }
       await Promise.all(tasks.map(async ({ uid, bookingId, body }) => {
-        await pushStudent(iid, uid, "🔄 Урок перенесено", body, { url: "https://juno-booking-client.web.app/cabinet/bookings" });
-        await saveNotification(iid, uid, "🔄 Урок перенесено", body, "booking_rescheduled");
+        await pushStudent(iid, uid, "🔄 Запис перенесено", body, { url: "https://juno-booking-client.web.app/cabinet/bookings" });
+        await saveNotification(iid, uid, "🔄 Запис перенесено", body, "booking_rescheduled");
         await iRef(iid, `rescheduleQueue/${uid}/${bookingId}`).remove();
         console.log(`flushRescheduleQueue: sent to iid=${iid} uid=${uid} bookingId=${bookingId}`);
       }));
@@ -887,7 +887,7 @@ exports.onInstructorMessage = onValueCreated(
   }
 );
 
-// Майстер видав медаль за урок (users/{uid}/badges/{id}) → push клієнту + запис у його сповіщення.
+// Майстер видав медаль за запис (users/{uid}/badges/{id}) → push клієнту + запис у його сповіщення.
 exports.onBadgeAwarded = onValueCreated(
   { ref: "instructors/{iid}/users/{uid}/badges/{badgeId}", region: "europe-west1" },
   async (event) => {
@@ -917,9 +917,9 @@ exports.onTemplatePush = onValueCreated(
   }
 );
 
-// Кожні 5 хв: нагадування за 24 год і за 2 год до уроку. Раніше запуск був раз на годину з
-// вікном ±30 хв — тому "за 2 год" могло прийти за 2г25хв до уроку. Тепер вікна вузькі:
-// надсилаємо, щойно до уроку лишилось ≤24г / ≤2г (і не раніше ніж 23г / 1г45хв).
+// Кожні 5 хв: нагадування за 24 год і за 2 год до запису. Раніше запуск був раз на годину з
+// вікном ±30 хв — тому "за 2 год" могло прийти за 2г25хв до запису. Тепер вікна вузькі:
+// надсилаємо, щойно до запису лишилось ≤24г / ≤2г (і не раніше ніж 23г / 1г45хв).
 exports.sendLessonReminders = onSchedule(
   { schedule: "every 5 minutes", region: "europe-west1" },
   async () => {
@@ -983,11 +983,11 @@ exports.sendLessonReminders = onSchedule(
             if (usedTpl24) {
               updates[`sentReminders/${uid}/${bookingId}/r24`] = true;
             } else {
-              const pushed = await pushStudent(iid, uid, "🚗 Нагадування про урок", `Завтра о ${b.time} — ${dateFmt}`, {
+              const pushed = await pushStudent(iid, uid, "🚗 Нагадування про запис", `Завтра о ${b.time} — ${dateFmt}`, {
                 url: "https://juno-booking-client.web.app/cabinet/bookings",
               }).catch(() => false);
               if (pushed) {
-                await saveNotification(iid, uid, "🚗 Нагадування про урок", `Завтра о ${b.time} — ${dateFmt}`, "reminder");
+                await saveNotification(iid, uid, "🚗 Нагадування про запис", `Завтра о ${b.time} — ${dateFmt}`, "reminder");
                 updates[`sentReminders/${uid}/${bookingId}/r24`] = true;
               }
             }
@@ -999,11 +999,11 @@ exports.sendLessonReminders = onSchedule(
             if (usedTpl2) {
               updates[`sentReminders/${uid}/${bookingId}/r2`] = true;
             } else {
-              const pushed = await pushStudent(iid, uid, "⏰ Урок через 2 години", `о ${b.time} — ${dateFmt}`, {
+              const pushed = await pushStudent(iid, uid, "⏰ Запис через 2 години", `о ${b.time} — ${dateFmt}`, {
                 url: "https://juno-booking-client.web.app/cabinet/bookings",
               }).catch(() => false);
               if (pushed) {
-                await saveNotification(iid, uid, "⏰ Урок через 2 години", `о ${b.time} — ${dateFmt}`, "reminder");
+                await saveNotification(iid, uid, "⏰ Запис через 2 години", `о ${b.time} — ${dateFmt}`, "reminder");
                 updates[`sentReminders/${uid}/${bookingId}/r2`] = true;
               }
             }

@@ -608,7 +608,7 @@ function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock, onRemoveB
                   </div>
                 )}
 
-                {/* Медалі — видаються за конкретний урок у модалці бронювання */}
+                {/* Медалі — видаються за конкретний запис у модалці бронювання */}
                 <div style={{background:glow(0.04),borderRadius:10,padding:"10px 12px",border:`1px solid ${BORDER}`}}>
                   <div style={{fontSize:9,color:FAINT,letterSpacing:1,textTransform:"uppercase",marginBottom:8}}>🏅 Заохочення</div>
                   {Object.keys(s.badges||{}).length === 0 ? (
@@ -645,7 +645,7 @@ function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock, onRemoveB
         </div>
       </div>
 
-      {/* Історія занять — окрема модалка (таймлайн з тривалістю і сумою годин) */}
+      {/* Історія записів — окрема модалка (таймлайн з тривалістю і сумою годин) */}
       {historyOpen && createPortal(
         <div onClick={()=>setHistoryOpen(false)} style={{
           position:"fixed",inset:0,zIndex:260,
@@ -663,7 +663,7 @@ function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock, onRemoveB
           }}>
             <div style={{width:36,height:4,borderRadius:2,background:glow(0.15),margin:"0 auto 14px"}}/>
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
-              <div style={{fontSize:14,fontWeight:800,color:TEXT}}>Історія занять</div>
+              <div style={{fontSize:14,fontWeight:800,color:TEXT}}>Історія записів</div>
               <div onClick={()=>setHistoryOpen(false)} style={{
                 width:26,height:26,borderRadius:8,background:"rgba(239,68,68,0.18)",
                 display:"flex",alignItems:"center",justifyContent:"center",
@@ -682,7 +682,7 @@ function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock, onRemoveB
                   </div>
                   <div style={{flex:1,borderRadius:12,padding:"10px 8px",textAlign:"center",background:`linear-gradient(155deg,color-mix(in srgb,${BLUE} 30%,${BG_DEEP}),${BG_DEEP})`}}>
                     <div style={{fontSize:19,fontWeight:900,color:BLUE}}>{historyStats.count}</div>
-                    <div style={{fontSize:8.5,color:DIM,fontWeight:700,marginTop:2}}>занять відвідано</div>
+                    <div style={{fontSize:8.5,color:DIM,fontWeight:700,marginTop:2}}>записів відвідано</div>
                   </div>
                 </div>
 
@@ -898,7 +898,7 @@ export default function StudentsView({ studentJump, onStudentJumpHandled, bookin
         </div>
 
         <div style={{display:"flex",gap:6,overflowX:"auto",paddingBottom:2}}>
-          {[["name","Алфавіт"],["lastBooking","Останні записи"],["createdAt","Реєстрація"],["lessons","К-сть уроків"]].map(([k,l])=>(
+          {[["name","Алфавіт"],["lastBooking","Останні записи"],["createdAt","Реєстрація"],["lessons","К-сть записів"]].map(([k,l])=>(
             <button key={k} onClick={()=>setSortMode(k)} style={{
               flexShrink:0,padding:"8px 12px",borderRadius:11,border:"none",cursor:"pointer",fontSize:11,fontWeight:700,fontFamily:"inherit",whiteSpace:"nowrap",
               background:sortMode===k?`linear-gradient(145deg,${ACC_HI},${ACCENT})`:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,

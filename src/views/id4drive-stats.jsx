@@ -18,8 +18,8 @@ function getDateStr(d) {
 }
 
 function bkType(b) { return b.serviceType || b.type || "private"; }
-// Ціна послуги на дату уроку: якщо задано nextPrice/nextPriceFrom і дата
-// уроку вже досягла nextPriceFrom — використовуємо нову ціну (див. id4drive-admin-v5.jsx).
+// Ціна послуги на дату запису: якщо задано nextPrice/nextPriceFrom і дата
+// запису вже досягла nextPriceFrom — використовуємо нову ціну (див. id4drive-admin-v5.jsx).
 function effectivePrice(svc, dateStr) {
   if (!svc) return 0;
   if (svc.nextPrice != null && svc.nextPriceFrom && dateStr && dateStr >= svc.nextPriceFrom) {
@@ -38,9 +38,9 @@ function bkIncome(b, svcs) {
 }
 
 // Сусідні (без розриву в часі) записи одного клієнта в один день адмінка
-// показує ОДНІЄЮ карткою в розкладі — тут так само рахуємо їх ОДНИМ уроком,
-// а не по кожному окремому Firebase-запису (інакше 2-годинний урок,
-// збережений як два сусідні 1-годинні записи, рахувався як "2 уроки").
+// показує ОДНІЄЮ карткою в розкладі — тут так само рахуємо їх ОДНИМ записом,
+// а не по кожному окремому Firebase-запису (інакше 2-годинний запис,
+// збережений як два сусідні 1-годинні записи, рахувався як "2 записи").
 function markMergedContinuations(bookings) {
   const byGroup = {};
   bookings.forEach(b => {
@@ -68,7 +68,7 @@ function aggregateBuckets(buckets, bookings, getKey, svcs) {
     const st = b.status || "confirmed";
     if (st === "confirmed" || st === "pending") {
       map[k].income += bkIncome(b, svcs);
-      // Годин рахуємо по КОЖНОМУ запису (не по злитих уроках) — урок може
+      // Годин рахуємо по КОЖНОМУ запису (не по злитих записах) — запис може
       // тривати 2-3 години і складатись з кількох сусідніх записів.
       map[k].hours += (b.durMin || (b.durationHours ? b.durationHours*60 : 60)) / 60;
       if (!continuations.has(b._key)) {
@@ -520,7 +520,7 @@ export default function StatsView() {
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:7}}>
           {[
             {label:"Дохід",        value:fmtK(totalIncome),               color:GOLD,  trend:trendPct(cur.income,  prev.income)},
-            {label:"Уроків",       value:totalLessons,                    color:BLUE,  trend:trendPct(cur.lessons, prev.lessons)},
+            {label:"Записів",       value:totalLessons,                    color:BLUE,  trend:trendPct(cur.lessons, prev.lessons)},
             {label:"Години",       value:totalHours,                      color:GREEN, trend:trendPct(totalHours, prevHours)},
           ].map((k, i) => (
             <Card key={i} className="fu" style={{

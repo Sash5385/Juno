@@ -418,7 +418,7 @@ function bookingPrice(b, services) {
 
 const DAY_MS = 86400000;
 const dayKey = (ts) => new Date(ts).toLocaleDateString("sv-SE");
-// Коли запис створено: createdAt або (запасний варіант) дата уроку
+// Коли запис створено: createdAt або (запасний варіант) дата запису
 const bookingCreatedTs = (b) => b.createdAt || (b.date ? new Date(`${b.date}T12:00:00`).getTime() : 0);
 const INACTIVE_DAYS = 14;
 
@@ -586,7 +586,7 @@ function InstructorDetail({ loading, data, iid, onStudentDeleted }) {
           <div onClick={e => e.stopPropagation()} style={{ width:"100%", maxWidth:360, padding:18, borderRadius:16, background:SURFACE, border:"1px solid rgba(239,68,68,0.4)" }}>
             <div style={{ fontSize:15, fontWeight:800, color:"#f87171", marginBottom:8 }}>Видалити клієнта?</div>
             <div style={{ fontSize:13, color:TEXT, marginBottom:6 }}>{delStudent.name}</div>
-            <div style={{ fontSize:12, color:DIM, lineHeight:1.5, marginBottom:14 }}>Будуть видалені профіль, записи, чат і сповіщення клієнта в цього майстра; майбутні заняття скасовуються, слоти звільняються. Неможливо скасувати.</div>
+            <div style={{ fontSize:12, color:DIM, lineHeight:1.5, marginBottom:14 }}>Будуть видалені профіль, записи, чат і сповіщення клієнта в цього майстра; майбутні записи скасовуються, слоти звільняються. Неможливо скасувати.</div>
             <div style={{ display:"flex", gap:8 }}>
               <button disabled={delBusy} onClick={async () => {
                 setDelBusy(true);

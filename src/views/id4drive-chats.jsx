@@ -6,7 +6,7 @@ import { LangContext } from "../App";
 import { ThemeContext } from "../theme.js";
 import { UICss, useFX } from "../ui";
 
-const QUICK = ["Підтверджую урок ✅","Урок скасовано ❌","Нагадую: завтра","Будь ласка, підтвердіть","До зустрічі 👋"];
+const QUICK = ["Підтверджую запис ✅","Запис скасовано ❌","Нагадую: завтра","Будь ласка, підтвердіть","До зустрічі 👋"];
 const HUES = [160, 220, 30, 280, 340, 200, 40, 300, 100, 180];
 const hueForUid = (uid) => HUES[(uid || "").charCodeAt(0) % HUES.length];
 const nowTime = () => new Date().toLocaleTimeString("uk", {hour:"2-digit", minute:"2-digit"});
