@@ -105,9 +105,9 @@ export default defineConfig({
       registerType: 'prompt',
       includeAssets: ['icon-192.png', 'icon-512.png'],
       manifest: {
-        name: 'DrivePad Admin',
-        short_name: 'DrivePad',
-        description: 'Адмінпанель інструктора DrivePad',
+        name: 'Juno',
+        short_name: 'Juno',
+        description: 'Адмінпанель інструктора Juno',
         theme_color: '#0f0f14',
         background_color: '#0f0f14',
         display: 'standalone',

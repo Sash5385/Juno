@@ -436,7 +436,7 @@ function TopBar({ tab, onChange, settings, setSettings }) {
           </>
         ) : (
           <div style={{display:"flex",alignItems:"center",gap:6,flex:1}}>
-            <img src="/icon-192.png" alt="DrivePad" style={{width:22,height:22,borderRadius:"50%",flexShrink:0,boxShadow:"-2px 3px 8px rgba(0,0,0,0.45)"}}/>
+            <img src="/icon-192.png" alt="Juno" style={{width:22,height:22,borderRadius:"50%",flexShrink:0,boxShadow:"-2px 3px 8px rgba(0,0,0,0.45)"}}/>
             <div style={{fontSize:13,fontWeight:800,letterSpacing:-0.3,color:theme.TEXT,flex:1}}>{tabLabel}</div>
             {tab==="settings" && (
               <div onClick={forceUpdate} style={{fontSize:11,fontWeight:700,color:btnInactiveColor,cursor:"pointer",flexShrink:0}}>{APP_VERSION}</div>
@@ -708,7 +708,7 @@ export default function App() {
     if (!adminUser || vendor) return;
     return onAdminForegroundMessage((payload) => {
       // Data-only push — див. firebase-messaging-sw.js чому без "notification"
-      const title = payload.data?.title || "DrivePad";
+      const title = payload.data?.title || "Juno";
       const body  = payload.data?.body  || "";
       const isAlarm = payload.data?.alarm === "1";
       if (Notification.permission === "granted" && "serviceWorker" in navigator) {

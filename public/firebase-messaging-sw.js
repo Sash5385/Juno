@@ -19,14 +19,14 @@ const messaging = firebase.messaging()
 messaging.onBackgroundMessage((payload) => {
   // Data-only push (без top-level/webpush "notification") — payload.notification
   // тут завжди undefined, тому title/body й досі бралися з нього ніколи не
-  // існуюче поле, і фонове сповіщення завжди показувалось порожнім ("DrivePad"
+  // існуюче поле, і фонове сповіщення завжди показувалось порожнім ("Juno"
   // без тексту) — саме тому пуші виглядали як "нічого не прийшло".
-  const title = payload.data?.title || 'DrivePad'
+  const title = payload.data?.title || 'Juno'
   const isAlarm = payload.data?.alarm === '1'
   const options = {
     body: payload.data?.body || '',
     // favicon.svg — це фіолетова блискавка: Android малював її значком праворуч у сповіщенні.
-    // Велика іконка — логотип DrivePad; маленький монохромний значок у шторці/рядку стану — «DP».
+    // Велика іконка — логотип Juno; маленький монохромний значок у шторці/рядку стану — «DP».
     icon: '/icon-192.png',
     badge: '/badge-dp.png',
     // Без унікального tag кожне наступне сповіщення з тим самим tag (напр.

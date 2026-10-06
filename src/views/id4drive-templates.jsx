@@ -62,7 +62,7 @@ const INIT_TEMPLATES = [
   { id:"t4", catId:"cancel",   title:"Скасування запису",     channel:"chat", trigger:"auto_cancel",   active:true,
     body:"❌ {ім'я}, на жаль урок {дата} о {час} скасовано. Якщо хочеш записатись на інший час — напиши нам або відкрий додаток." },
   { id:"t5", catId:"welcome",  title:"Вітання нового учня",   channel:"chat", trigger:"auto_welcome",  active:true,
-    body:"👋 Привіт, {ім'я}! Раді бачити тебе в DrivePad!\nЯ — {інструктор}, твій інструктор.\nЗаписуйся на перший урок і побачимось на дорозі! 🚗" },
+    body:"👋 Привіт, {ім'я}! Раді бачити тебе в Juno!\nЯ — {інструктор}, твій інструктор.\nЗаписуйся на перший урок і побачимось на дорозі! 🚗" },
   { id:"t6", catId:"queue",    title:"Пропозиція вільного слоту", channel:"chat", trigger:"auto_queue", active:true,
     body:"⏳ {ім'я}, з'явився вільний урок {дата} о {час}! Підтвердити запис → відкрий додаток." },
   { id:"t7", catId:"custom",   title:"Прохання про відгук",   channel:"chat", trigger:"manual",        active:true,
@@ -73,7 +73,8 @@ const INIT_TEMPLATES = [
 
 const old2 = "ID4Drive: урок сьогодні о {час}. Адреса: Верховинна 44. Інструктор: {інструктор}";
 const new2 = INIT_TEMPLATES.find(t => t.id === "t2").body;
-const OLD_T5 = INIT_TEMPLATES.find(t => t.id === "t5").body.replace("в DrivePad!", "в ID4Drive!");
+const OLD_T5 = INIT_TEMPLATES.find(t => t.id === "t5").body.replace("в Juno!", "в ID4Drive!");
+const DP_T5 = INIT_TEMPLATES.find(t => t.id === "t5").body.replace("в Juno!", "в DrivePad!"); // попередня назва: стандартний текст оновлюємо
 
 // ─── ПРОСТИЙ РЕЖИМ: стандартні шаблони t1–t7 показуємо як «ситуації» ───
 const STD_IDS = ["t1","t2","t3","t4","t5","t6","t7"];
@@ -560,7 +561,7 @@ export default function TemplatesView() {
         if (!x || typeof x.body !== "string") return x;
         // прибираємо стару назву з незмінених стандартних текстів
         if (x.id === "t2" && x.body === old2) return { ...x, body: new2 };
-        if (x.id === "t5" && x.body === OLD_T5) return { ...x, body: INIT_TEMPLATES.find(t => t.id === "t5").body };
+        if (x.id === "t5" && (x.body === OLD_T5 || x.body === DP_T5)) return { ...x, body: INIT_TEMPLATES.find(t => t.id === "t5").body };
         return x;
       }));
       setLoaded(true);

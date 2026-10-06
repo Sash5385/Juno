@@ -1617,7 +1617,7 @@ exports.createLiqPayOrder = onRequest(
         action: "subscribe",
         amount: testPay ? 1 : (plan === "year" ? YEARLY_PRICE_UAH : MONTHLY_PRICE_UAH),
         currency: "UAH",
-        description: (plan === "year" ? "DrivePad — річна підписка" : "DrivePad — місячна підписка") + (testPay ? " (ТЕСТ 1₴)" : ""),
+        description: (plan === "year" ? "Juno — річна підписка" : "Juno — місячна підписка") + (testPay ? " (ТЕСТ 1₴)" : ""),
         order_id: buildPaymentRef(iid, plan),
         subscribe: 1,
         subscribe_date_start: subscribeDateStart,
@@ -1664,11 +1664,11 @@ exports.liqpayCallback = onRequest(
       if (payload.status === "reversed") {
         const key = payload.payment_id != null ? String(payload.payment_id) : payload.order_id;
         const done = await reverseLicense(iid, "liqpay", key);
-        if (done) await pushAdmin(iid, "↩️ Платіж повернено (LiqPay)", "Кошти повернено — підписку DrivePad знято.", {}).catch(() => {});
+        if (done) await pushAdmin(iid, "↩️ Платіж повернено (LiqPay)", "Кошти повернено — підписку Juno знято.", {}).catch(() => {});
       } else if (["subscribed", "success", "sandbox"].includes(payload.status)) {
         const dedupeKey = payload.payment_id != null ? String(payload.payment_id) : payload.order_id;
         await extendLicense(iid, "liqpay", dedupeKey, { liqpayOrderId: payload.order_id }, parsed.plan);
-        await pushAdmin(iid, "✅ Оплата отримана (LiqPay)", `Підписку DrivePad продовжено на ${parsed.plan === "year" ? "рік" : "місяць"}.`, {}).catch(() => {});
+        await pushAdmin(iid, "✅ Оплата отримана (LiqPay)", `Підписку Juno продовжено на ${parsed.plan === "year" ? "рік" : "місяць"}.`, {}).catch(() => {});
       } else {
         console.warn(`liqpayCallback: non-success status "${payload.status}" for order=${payload.order_id}`);
       }
@@ -1714,7 +1714,7 @@ exports.createMonobankInvoice = onRequest(
           ccy: 980,
           merchantPaymInfo: {
             reference: buildPaymentRef(iid, plan),
-            destination: (plan === "year" ? "DrivePad — річна підписка" : "DrivePad — місячна підписка") + (testPay ? " (ТЕСТ 1₴)" : ""),
+            destination: (plan === "year" ? "Juno — річна підписка" : "Juno — місячна підписка") + (testPay ? " (ТЕСТ 1₴)" : ""),
           },
           redirectUrl: "https://juno-booking-admin.web.app/",
           webHookUrl: "https://europe-west1-juno-booking.cloudfunctions.net/monobankCallback",
@@ -1770,11 +1770,11 @@ exports.monobankCallback = onRequest(
       }
       if (payload.status === "reversed") {
         const done = await reverseLicense(iid, "monobank", payload.invoiceId);
-        if (done) await pushAdmin(iid, "↩️ Платіж повернено (Monobank)", "Кошти повернено — підписку DrivePad знято.", {}).catch(() => {});
+        if (done) await pushAdmin(iid, "↩️ Платіж повернено (Monobank)", "Кошти повернено — підписку Juno знято.", {}).catch(() => {});
       }
       if (payload.status === "success") {
         await extendLicense(iid, "monobank", payload.invoiceId, { monobankInvoiceId: payload.invoiceId }, parsed.plan);
-        await pushAdmin(iid, "✅ Оплата отримана (Monobank)", `Підписку DrivePad продовжено на ${parsed.plan === "year" ? "рік" : "місяць"}.`, {}).catch(() => {});
+        await pushAdmin(iid, "✅ Оплата отримана (Monobank)", `Підписку Juno продовжено на ${parsed.plan === "year" ? "рік" : "місяць"}.`, {}).catch(() => {});
       }
       res.status(200).send("ok");
     } catch (e) {
