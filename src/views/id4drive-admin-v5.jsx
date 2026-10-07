@@ -2053,6 +2053,43 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
     // Блоки: жодного hold-таймера — drag активується одразу при русі >4px в onMove
   };
 
+  // Нативне гортання по порожньому місці — пан по обох осях одразу, тому вертикальний свайп із
+  // невеликим боковим зсувом тягнув розклад убік. Фіксуємо вісь за перші ~8px руху: поза віссю
+  // повертаємо scrollLeft/scrollTop до значення на початку жесту (інерцію не чіпаємо).
+  useEffect(() => {
+    const el = gridRef.current;
+    if (!el) return;
+    let g = null, unlockT = 0;
+    const onStart = (e) => {
+      clearTimeout(unlockT);
+      g = e.touches.length === 1 ? { x: e.touches[0].clientX, y: e.touches[0].clientY, sl: el.scrollLeft, st: el.scrollTop, axis: null } : null;
+    };
+    const onMoveT = (e) => {
+      if (!g || e.touches.length !== 1) { g = null; return; }
+      if (!g.axis) {
+        const dx = Math.abs(e.touches[0].clientX - g.x), dy = Math.abs(e.touches[0].clientY - g.y);
+        if (Math.hypot(dx, dy) > 8) g.axis = dx > dy * 1.15 ? "x" : "y";
+      }
+    };
+    const onEnd = () => { clearTimeout(unlockT); unlockT = setTimeout(() => { g = null; }, 700); };
+    const onScrollLock = () => {
+      if (!g || !g.axis || swipeRef.current?.manualScroll) return;
+      if (g.axis === "x") { if (el.scrollTop !== g.st) el.scrollTop = g.st; }
+      else if (el.scrollLeft !== g.sl) el.scrollLeft = g.sl;
+    };
+    el.addEventListener("touchstart", onStart, { passive: true });
+    el.addEventListener("touchmove", onMoveT, { passive: true });
+    el.addEventListener("touchend", onEnd, { passive: true });
+    el.addEventListener("touchcancel", onEnd, { passive: true });
+    el.addEventListener("scroll", onScrollLock, { passive: true });
+    return () => {
+      clearTimeout(unlockT);
+      el.removeEventListener("touchstart", onStart); el.removeEventListener("touchmove", onMoveT);
+      el.removeEventListener("touchend", onEnd); el.removeEventListener("touchcancel", onEnd);
+      el.removeEventListener("scroll", onScrollLock);
+    };
+  }, []);
+
   // Listeners always attached — dragRef gives instant access without useEffect re-fire
   useEffect(() => {
     const onMove = (e) => {
@@ -3211,16 +3248,6 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                   }, 480);
                 }}
                 onPointerMove={e=>{
-                  // Дотик по порожньому місцю: гортання веде JS з фіксацією осі (як по слотах і
-                  // записах), а не нативний 2D-пан — інакше вертикальний свайп з невеликим
-                  // боковим зсувом тягнув розклад убік і майже не скролив угору-вниз.
-                  const sw = swipeRef.current;
-                  if (e.pointerType === "touch" && sw && !sw.manualScroll && !dragRef.current && !pendingDragRef.current
-                      && Math.hypot(e.clientX - sw.startX, e.clientY - sw.startY) > 8) {
-                    sw.manualScroll = true;
-                    clearTimeout(emptyHoldTimerRef.current);
-                    emptyHoldPosRef.current = null;
-                  }
                   if (!emptyHoldPosRef.current) return;
                   if (Math.abs(e.clientY - emptyHoldPosRef.current.startY) > 8) {
                     clearTimeout(emptyHoldTimerRef.current);
@@ -3243,7 +3270,6 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                   background: isLight ? `linear-gradient(135deg,${SURF_LO},${BG_DEEP})` : `linear-gradient(135deg,color-mix(in srgb,${BG_DEEP} 50%,transparent),rgba(0,0,0,0.275))`,
                   borderRadius:14, boxShadow:SHADOW_IN, cursor: isPastDay ? "default" : "cell",
                   userSelect:"none", WebkitUserSelect:"none", WebkitTouchCallout:"none",
-                  touchAction:"none",
                   opacity: isPastDay ? 0.38 : 1,
                 }}>
 
@@ -6042,7 +6068,24 @@ function highlightHelp(key) {
     });
   }, 250);
 }
+
+// ТИМЧАСОВО: 10 варіантів прозорого вікна підказок для вибору (?helpstyle=1..10)
+const BLUR = (px, sat) => ({ backdropFilter:`blur(${px}px)${sat?` saturate(${sat})`:""}`, WebkitBackdropFilter:`blur(${px}px)${sat?` saturate(${sat})`:""}` });
+const HELP_STYLES = {
+  1:  { name:"Скло легке",           ov:{ background:"rgba(0,0,0,0.18)", ...BLUR(4) },  panel:{ background:"rgba(20,22,26,0.55)", ...BLUR(22), border:"1px solid rgba(255,255,255,0.14)" }, item:{ background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.10)" }, ico:{ background:"rgba(0,0,0,0.25)" } },
+  2:  { name:"Максимально прозоре",  ov:{ background:"rgba(0,0,0,0)" },                  panel:{ background:"rgba(16,18,22,0.36)", ...BLUR(26,1.4), border:"1px solid rgba(255,255,255,0.16)" }, item:{ background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.12)" }, ico:{ background:"rgba(0,0,0,0.2)" } },
+  3:  { name:"Матове скло",          ov:{ background:"rgba(0,0,0,0.30)", ...BLUR(10) }, panel:{ background:"rgba(30,32,38,0.62)", ...BLUR(34), border:"1px solid rgba(255,255,255,0.12)" }, item:{ background:"rgba(255,255,255,0.06)", border:"1px solid rgba(255,255,255,0.09)" }, ico:{ background:"rgba(0,0,0,0.28)" } },
+  4:  { name:"Золоте сяйво",         ov:{ background:"rgba(0,0,0,0.25)", ...BLUR(6) },  panel:{ background:"rgba(18,18,22,0.46)", ...BLUR(20), border:"1px solid rgba(247,201,72,0.5)", boxShadow:"0 -8px 40px rgba(247,201,72,0.22), inset 0 1px 0 rgba(255,255,255,0.12)" }, item:{ background:"rgba(247,201,72,0.06)", border:"1px solid rgba(247,201,72,0.22)" }, ico:{ background:"rgba(0,0,0,0.25)" } },
+  5:  { name:"Коралово-фіолетовий",  ov:{ background:"rgba(0,0,0,0.2)", ...BLUR(6) },   panel:{ background:"linear-gradient(160deg,rgba(255,90,60,0.26),rgba(122,77,255,0.26))", ...BLUR(24), border:"1px solid rgba(255,255,255,0.18)" }, item:{ background:"rgba(0,0,0,0.20)", border:"1px solid rgba(255,255,255,0.12)" }, ico:{ background:"rgba(0,0,0,0.30)" } },
+  6:  { name:"Плаваюча картка",      ov:{ background:"rgba(0,0,0,0.22)", ...BLUR(5), alignItems:"center", padding:12 }, panel:{ background:"rgba(20,22,26,0.5)", ...BLUR(24), border:"1px solid rgba(255,255,255,0.16)", borderRadius:26, maxHeight:"84dvh", boxShadow:"0 20px 60px rgba(0,0,0,0.5)" }, item:{ background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.10)" }, ico:{ background:"rgba(0,0,0,0.25)" } },
+  7:  { name:"Темне скло + бірюза",  ov:{ background:"rgba(0,0,0,0.35)", ...BLUR(8) },  panel:{ background:"rgba(8,8,12,0.5)", ...BLUR(26), border:"1px solid rgba(45,212,191,0.35)" }, item:{ background:"rgba(255,255,255,0.07)", border:"1px solid rgba(45,212,191,0.25)" }, ico:{ background:"rgba(45,212,191,0.10)" } },
+  8:  { name:"Світле скло",          ov:{ background:"rgba(255,255,255,0.05)", ...BLUR(12) }, panel:{ background:"rgba(255,255,255,0.15)", ...BLUR(30,1.5), border:"1px solid rgba(255,255,255,0.32)" }, item:{ background:"rgba(255,255,255,0.12)", border:"1px solid rgba(255,255,255,0.22)" }, ico:{ background:"rgba(0,0,0,0.22)" } },
+  9:  { name:"Окремі скляні картки", ov:{ background:"rgba(0,0,0,0.38)", ...BLUR(14) }, panel:{ background:"transparent", border:"none" }, item:{ background:"rgba(20,22,26,0.50)", ...BLUR(16), border:"1px solid rgba(255,255,255,0.14)" }, ico:{ background:"rgba(0,0,0,0.25)" } },
+  10: { name:"Як нижнє меню",        ov:{ background:"rgba(0,0,0,0.25)", ...BLUR(4) },  panel:{ background:"rgba(0,0,0,0.52)", ...BLUR(20), border:"1px solid rgba(255,255,255,0.12)", borderRadius:"26px 26px 0 0", boxShadow:"0 12px 40px rgba(0,0,0,0.65), 0 4px 16px rgba(0,0,0,0.4), 0 -1px 0 rgba(255,255,255,0.05)" }, item:{ background:"linear-gradient(145deg,rgba(255,255,255,0.07),rgba(255,255,255,0.02))", border:"1px solid rgba(255,255,255,0.09)", boxShadow:"inset 0 2px 6px rgba(0,0,0,0.35)" }, ico:{ background:"rgba(0,0,0,0.35)" } },
+};
+const helpVariant = () => { try { return HELP_STYLES[Number(new URLSearchParams(window.location.search).get("helpstyle"))] || null; } catch { return null; } };
 function ScheduleHelp({ onClose, onPick }) {
+  const hv = helpVariant();
   const { BG_DEEP, SURFACE, SURF_HI, BORDER, TEXT, DIM } = useContext(ThemeContext);
   const keySvg = <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.2"/><rect x="14" y="3" width="7" height="7" rx="1.2"/><rect x="3" y="14" width="7" height="7" rx="1.2"/></svg>;
   const lockSvg = <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>;
@@ -6084,11 +6127,12 @@ function ScheduleHelp({ onClose, onPick }) {
     ] },
   ];
   return createPortal(
-    <div onClick={onClose} style={{ position:"fixed", inset:0, zIndex:9000, background:"rgba(0,0,0,0.62)", display:"flex", alignItems:"flex-end", justifyContent:"center" }}>
+    <div onClick={onClose} style={{ position:"fixed", inset:0, zIndex:9000, background:"rgba(0,0,0,0.62)", display:"flex", alignItems:"flex-end", justifyContent:"center", ...(hv?.ov||{}) }}>
       <div onClick={e => e.stopPropagation()} style={{
         width:"100%", maxWidth:680, maxHeight:"92dvh", display:"flex", flexDirection:"column",
         borderRadius:"22px 22px 0 0", border:`1px solid ${BORDER}`, borderBottom:"none",
         background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`, color:TEXT,
+        ...(hv?.panel||{}),
       }}>
         <div style={{ position:"relative", textAlign:"center", padding:"16px 48px 12px", flexShrink:0 }}>
           <div style={{ fontSize:17, fontWeight:800 }}>❓ Підказки по розкладу</div>
@@ -6105,8 +6149,8 @@ function ScheduleHelp({ onClose, onPick }) {
               </div>
               <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(min(100%,290px),1fr))", gap:10 }}>
                 {sec.items.map((it, i) => (
-                  <div key={i} role="button" tabIndex={0} onClick={() => onPick?.(it.h)} style={{ cursor:"pointer", display:"grid", gridTemplateColumns:"72px 1fr", gap:12, alignItems:"center", padding:"11px 12px", borderRadius:16, background:"rgba(255,255,255,0.04)", border:`1px solid ${BORDER}`, gridColumn: (sec.items.length % 2 === 1 && i === sec.items.length - 1) ? "1 / -1" : undefined }}>
-                    <div style={{ height:58, borderRadius:13, background:"rgba(0,0,0,0.22)", border:`1px solid ${BORDER}`, display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", padding:"0 4px" }}><div style={{ transform:`scale(${it.s ?? 1.2})`, display:"flex", alignItems:"center", justifyContent:"center" }}>{it.ico}</div></div>
+                  <div key={i} role="button" tabIndex={0} onClick={() => onPick?.(it.h)} style={{ cursor:"pointer", display:"grid", gridTemplateColumns:"72px 1fr", gap:12, alignItems:"center", padding:"11px 12px", borderRadius:16, background:"rgba(255,255,255,0.04)", border:`1px solid ${BORDER}`, ...(hv?.item||{}), gridColumn: (sec.items.length % 2 === 1 && i === sec.items.length - 1) ? "1 / -1" : undefined }}>
+                    <div style={{ height:58, borderRadius:13, background:"rgba(0,0,0,0.22)", border:`1px solid ${BORDER}`, ...(hv?.ico||{}), display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", padding:"0 4px" }}><div style={{ transform:`scale(${it.s ?? 1.2})`, display:"flex", alignItems:"center", justifyContent:"center" }}>{it.ico}</div></div>
                     <div style={{ minWidth:0 }}>
                       <div style={{ fontSize:14, fontWeight:800, color:TEXT, lineHeight:1.25 }}>{it.t}</div>
                       <div style={{ fontSize:12.5, lineHeight:1.45, color:DIM, marginTop:3 }}>{it.d}</div>
