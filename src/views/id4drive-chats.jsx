@@ -133,7 +133,6 @@ function Conversation({ contact, messages, onSend, isBroadcast }) {
 
 // ─── MAIN ────────────────────────────────────────────────────────
 const BROADCAST_ID = "__broadcast__";
-const GENERAL_ID   = "__general__";
 
 export default function ChatsView() {
   const { BG, BG_DEEP, SURFACE, SURF_HI, SURF_LO, BORDER, TEXT, DIM, FAINT, ACCENT, SO, SI } = useContext(ThemeContext);
@@ -175,7 +174,6 @@ export default function ChatsView() {
 
   const [contacts,      setContacts]      = useState([]);
   const [messages,      setMessages]      = useState({});
-  const [generalMsgs,   setGeneralMsgs]   = useState([]);
   const [broadcastMsgs, setBroadcastMsgs] = useState([]);
   const [openId,        setOpenId]        = useState(null);
   const [search,      setSearch]      = useState("");
@@ -243,15 +241,6 @@ export default function ChatsView() {
 
   useEffect(() => () => Object.values(msgUnsubs.current).forEach(u=>u?.()), []);
 
-  // ── General chat ──────────────────────────────────────────────
-  useEffect(() => {
-    const unsub = onValue(iRef( "chats/general"), snap => {
-      const msgs = Object.entries(snap.val()||{}).map(([id,m])=>({...m,id})).sort((a,b)=>(a.ts||0)-(b.ts||0)||(a.id>b.id?1:-1));
-      setGeneralMsgs(msgs);
-    });
-    return unsub;
-  }, []);
-
   // ── Broadcast history ─────────────────────────────────────────
   useEffect(() => {
     const unsub = onValue(iRef( "chats/__broadcast__"), snap => {
@@ -281,7 +270,7 @@ export default function ChatsView() {
   const toggle = id => {
     if (deletingId) { setDeletingId(null); return; }
     setOpenId(prev => prev===id ? null : id);
-    if (id !== BROADCAST_ID && id !== GENERAL_ID) {
+    if (id !== BROADCAST_ID) {
       setUnreadMeta(m => ({...m, [id]:0}));
       set(iRef( `chatMeta/${id}/unreadForAdmin`), 0).catch(()=>{});
     }
@@ -296,8 +285,6 @@ export default function ChatsView() {
         push(iRef(`chats/${c.id}`),{...msg,broadcast:true}).catch(()=>{});
         update(iRef(`chatMeta/${c.id}`),{unreadForStudent:increment(1),lastMsg:text,lastTs:ts}).catch(()=>{});
       });
-    } else if (contactId === GENERAL_ID) {
-      push(iRef("chats/general"),{from:"admin",uid:"__admin__",name:"Майстер",text,time,ts}).catch(()=>{});
     } else {
       push(iRef(`chats/${contactId}`),msg).catch(()=>{});
       update(iRef(`chatMeta/${contactId}`),{unreadForStudent:increment(1),lastMsg:text,lastTs:ts}).catch(()=>{});
@@ -326,7 +313,6 @@ export default function ChatsView() {
     .sort((a,b) => ((unreadMeta[b.id]||0)>0)-((unreadMeta[a.id]||0)>0) || (b.lastTs||0)-(a.lastTs||0));
   const totalUnread   = contacts.reduce((s,c)=>s+(unreadMeta[c.id]||0), 0);
   const broadcastOpen = openId === BROADCAST_ID;
-  const generalOpen   = openId === GENERAL_ID;
 
   return (
     <>
@@ -359,10 +345,10 @@ export default function ChatsView() {
             border:`1px solid color-mix(in srgb,#a855f7 ${broadcastOpen?55:38}%,transparent)`}}>
             <div className={`chat-row${broadcastOpen?" broadcast-open":""}`} onClick={()=>toggle(BROADCAST_ID)}
               style={{display:"flex",alignItems:"center",gap:9,padding:"9px 12px"}}>
-              <Ava name="Загальний" hue={270} size={36} isBroadcast/>
+              <Ava name="Розсилка" hue={270} size={36} isBroadcast/>
               <div style={{flex:1,minWidth:0}}>
                 <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:2}}>
-                  <span style={{fontSize:13,fontWeight:800,color:"#fff"}}>📢 Загальний</span>
+                  <span style={{fontSize:13,fontWeight:800,color:"#fff"}}>📢 Розсилка</span>
                   <span style={{fontSize:9,color:"rgba(255,255,255,0.75)",fontWeight:700,letterSpacing:0.3}}>BROADCAST</span>
                 </div>
                 <div style={{fontSize:11,color:"rgba(255,255,255,0.8)"}}>Надіслати повідомлення всім клієнтам</div>
@@ -377,44 +363,8 @@ export default function ChatsView() {
             </div>
             {broadcastOpen && (
               <Conversation key={BROADCAST_ID}
-                contact={{id:BROADCAST_ID,name:"Загальний",messages:broadcastMsgs}}
+                contact={{id:BROADCAST_ID,name:"Розсилка",messages:broadcastMsgs}}
                 messages={broadcastMsgs} onSend={handleSend} isBroadcast/>
-            )}
-          </div>
-        )}
-
-        {/* ── GENERAL CHAT ── */}
-        {!search && (
-          <div style={{
-            background:`linear-gradient(155deg,color-mix(in srgb,#5b9bff 50%,${BG_DEEP}) 0%,color-mix(in srgb,#5b9bff 18%,${BG_DEEP}) 100%)`,
-            borderRadius:14,overflow:"hidden",marginBottom:6,boxShadow:SO,
-            border:`1px solid color-mix(in srgb,#5b9bff ${generalOpen?55:38}%,transparent)`}}>
-            <div className={`chat-row${generalOpen?" open":""}`} onClick={()=>toggle(GENERAL_ID)}
-              style={{display:"flex",alignItems:"center",gap:9,padding:"9px 12px"}}>
-              <div style={{width:36,height:36,borderRadius:18,background:"rgba(0,0,0,0.2)",
-                display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>👥</div>
-              <div style={{flex:1,minWidth:0}}>
-                <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:2}}>
-                  <span style={{fontSize:13,fontWeight:800,color:"#fff"}}>👥 Загальний чат</span>
-                  <span style={{fontSize:9,color:"rgba(255,255,255,0.75)",fontWeight:700,letterSpacing:0.3}}>ГРУПП. ЧАТ</span>
-                </div>
-                <div style={{fontSize:11,color:"rgba(255,255,255,0.8)"}}>
-                  {generalMsgs.length > 0 ? generalMsgs[generalMsgs.length-1].text : "Чат клієнтів між собою"}
-                </div>
-              </div>
-              <div style={{flexShrink:0,textAlign:"right"}}>
-                <div style={{fontSize:9,color:"rgba(255,255,255,0.7)",fontWeight:700}}>{generalMsgs.length} повід.</div>
-              </div>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.65)" strokeWidth="2.2" strokeLinecap="round"
-                style={{flexShrink:0,transform:generalOpen?"rotate(180deg)":"none",transition:"transform .22s"}}>
-                <polyline points="6 9 12 15 18 9"/>
-              </svg>
-            </div>
-            {generalOpen && (
-              <Conversation key={GENERAL_ID}
-                contact={{id:GENERAL_ID,name:"Загальний чат"}}
-                messages={generalMsgs.map(m=>({...m,from:m.uid==="__admin__"?"admin":"student",text:m.uid==="__admin__"?m.text:`${m.name}: ${m.text}`}))}
-                onSend={handleSend}/>
             )}
           </div>
         )}

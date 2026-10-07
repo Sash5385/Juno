@@ -186,7 +186,7 @@ function EventDetailSheet({ ev, meta, onClose, theme }) {
           </div>
 
           <div style={{padding:"14px 20px 28px",display:"flex",flexDirection:"column",gap:8}}>
-            <InfoRow label="УЧЕНЬ" value={ev.name} valueStyle={{fontSize:16,fontWeight:800,color:theme.TEXT}} theme={theme} />
+            <InfoRow label="КЛІЄНТ" value={ev.name} valueStyle={{fontSize:16,fontWeight:800,color:theme.TEXT}} theme={theme} />
             {ev.slot && <InfoRow label={ev.type === "new_student" ? "ТЕЛЕФОН" : "ЗАНЯТТЯ"} value={ev.slot} theme={theme} />}
             {byLabel && <InfoRow label="ДІЯ ВІД" value={byLabel} theme={theme} />}
           </div>
@@ -329,7 +329,7 @@ export default function JournalView() {
           ["new",         "✓ НОВИЙ",     theme.GREEN],
           ["cancel",      "✕ СКАСОВАНО", theme.RED  ],
           ["reschedule",  "↻ ПЕРЕНОС",   theme.GOLD ],
-          ["new_student", "🆕 УЧЕНЬ",    theme.BLUE ],
+          ["new_student", "🆕 КЛІЄНТ",    theme.BLUE ],
         ].map(([id, lbl, color]) => {
           const active = typeFilter === id;
           const count  = bySection.filter(e => e.type === id).length;

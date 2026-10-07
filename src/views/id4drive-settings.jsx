@@ -1530,7 +1530,7 @@ select{color-scheme:${isKava?"light":"dark"}}
         }}>
           <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
             <span style={{fontSize:15}}>🔗</span>
-            <span style={{fontSize:12, fontWeight:800, color:"#fff"}}>ПОСИЛАННЯ ДЛЯ ЗАПИСУ УЧНІВ</span>
+            <span style={{fontSize:12, fontWeight:800, color:"#fff"}}>ПОСИЛАННЯ ДЛЯ ЗАПИСУ КЛІЄНТІВ</span>
           </div>
           <div style={{background:BG_DEEP, border:`1px solid ${BORDER}`, borderRadius:10, padding:"9px 12px", fontSize:12, color:TEXT, wordBreak:"break-all"}}>{bookingLink}</div>
           <button onClick={copyBookingLink} style={{

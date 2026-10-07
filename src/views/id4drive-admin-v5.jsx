@@ -6359,7 +6359,7 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
 
           <div style={{padding:"16px 16px 0",display:"flex",flexDirection:"column",gap:16}}>
 
-          {/* УЧЕНЬ */}
+          {/* КЛІЄНТ */}
           <div>
             <SL>Клієнт</SL>
             {isNewStudent ? (

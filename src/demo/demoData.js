@@ -275,7 +275,7 @@ export function buildDemoTree() {
   };
 
   // ── чати: кілька живих діалогів ──────────────────────────────
-  const chats = { general: {}, __broadcast__: {} };
+  const chats = { __broadcast__: {} };
   const chatMeta = {};
   const mkMsg = (from, text, minsAgo) => {
     const ts = nowTs - minsAgo * 60000;
@@ -293,10 +293,6 @@ export function buildDemoTree() {
   dialogs.forEach(([st, msgs, unread]) => {
     msgs.forEach(([from, text, ago], i) => { (chats[st.uid] ||= {})[`m${String(i).padStart(2, "0")}`] = mkMsg(from, text, ago); });
     chatMeta[st.uid] = { unreadForAdmin: unread };
-  });
-  [["student", STUDENTS[2], "Всім привіт! Хтось записується на вихідні?", 900], ["admin", null, "Привіт! У суботу є вільні години — пишіть у чат", 880]].forEach(([from, st, text, ago], i) => {
-    const m = mkMsg(from, text, ago);
-    chats.general[`g${i}`] = from === "admin" ? { ...m, uid: "__admin__", name: "Майстер" } : { ...m, uid: st.uid, name: st.n };
   });
 
   // ── сповіщення клієнта (кабінет клієнта в демо — це Ірина Бондаренко) ──

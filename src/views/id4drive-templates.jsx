@@ -492,7 +492,7 @@ function SimpleEditModal({ tpl, onSave, onClose }) {
 
         {body.trim() && (
           <div style={{marginBottom:14}}>
-            <div style={{...label,marginBottom:6}}>ТАК ПОБАЧИТЬ УЧЕНЬ (приклад)</div>
+            <div style={{...label,marginBottom:6}}>ТАК ПОБАЧИТЬ КЛІЄНТ (приклад)</div>
             <div className="bubble-preview" style={{whiteSpace:"pre-wrap"}}>{renderVars(body, SAMPLE_VARS)}</div>
           </div>
         )}
