@@ -91,7 +91,8 @@
             // Клієнт НЕ може змінювати isVip/discount/hoursOffset/lessonBalance/blocked/customPrice/notes/badges…
             // — лише власну анкету й службові гілки нижче. Майстер (auth.uid === $iid) пише все.
             ".write": "auth != null && auth.uid === $iid",
-            "profile":       { ".write": "auth != null && auth.uid === $uid" },
+            "profile":       { ".write": "auth != null && auth.uid === $uid",
+                             "photo": { ".validate": "newData.val() === null || (newData.isString() && newData.val().length < 30000 && newData.val().beginsWith('data:image/'))" } },
             "welcomeSent":   { ".write": "auth != null && auth.uid === $uid" },
             "queueOffers":   { ".write": "auth != null && auth.uid === $uid" },
             "fcmTokens":     { ".write": "auth != null && auth.uid === $uid" },

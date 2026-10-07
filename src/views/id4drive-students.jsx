@@ -141,7 +141,7 @@ function StudentCard({ s, onSelect, settings }) {
 
       <div style={{position:"relative",zIndex:2,width:34,height:34,borderRadius:11,flexShrink:0,
         background:"rgba(0,0,0,0.25)",display:"flex",alignItems:"center",justifyContent:"center",
-        fontSize:12,fontWeight:900,color:"#fff"}}>{ini}</div>
+        overflow:"hidden",fontSize:12,fontWeight:900,color:"#fff"}}>{s.photo ? <img src={s.photo} alt="" style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}/> : ini}</div>
 
       <div style={{position:"relative",zIndex:2,flex:1,minWidth:0}}>
         <div style={{fontSize:12.5,fontWeight:800,color:"#fff",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
@@ -313,8 +313,8 @@ function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock, autoOpenH
             <div className="icon3d" style={{
               width:42,height:42,borderRadius:13,flexShrink:0,
               background:`linear-gradient(145deg,${barColor}44,${barColor}18)`,
-              fontSize:15,fontWeight:900,color:barColor,
-            }}>{ini}</div>
+              overflow:"hidden",fontSize:15,fontWeight:900,color:barColor,
+            }}>{s.photo ? <img src={s.photo} alt="" style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}/> : ini}</div>
             <div style={{flex:1,minWidth:0}}>
               <div style={{fontSize:15,fontWeight:800,color:s.blocked?DIM:TEXT,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
                 {s.name}{s.blocked && <span style={{fontSize:10,color:RED,marginLeft:6}}>🚫</span>}
@@ -642,6 +642,7 @@ export default function StudentsView({ studentJump, onStudentJumpHandled, bookin
           hours:u.hours||0,
           discount:u.discount||0, customPrice:u.customPrice??null, notes:u.notes||"", blocked:u.blocked||false, isVip:u.isVip||false,
           noIntervalLimit:u.noIntervalLimit||false,
+          photo:p.photo||null,
           createdAt:p.createdAt||u.createdAt||null,
         };
       }));
