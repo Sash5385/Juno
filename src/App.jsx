@@ -10,6 +10,7 @@ import { setGlobalLang, createT } from "./lang";
 import { ThemeContext, getTheme } from "./theme.js";
 import { useMosaicSwitch, MosaicOverlay } from "./mosaic";
 import { APP_VERSION } from "./version.js";
+import { setTags } from "./tags";
 
 export const LangContext = createContext('uk');
 
@@ -590,6 +591,7 @@ export default function App() {
   const [tabVisits,  setTabVisits]= useState({});
   const [openInfos,  setOpenInfos]= useState({});
   const [settings,   setSettings] = useState(DEFAULT_SETTINGS);
+  setTags(settings.tags); // живий список міток для всіх вкладок (Налаштування → Мітки)
   const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [bookings,   setBookings] = useState(INITIAL_BOOKINGS);
   const [selectedBooking,  setSelectedBooking]  = useState(null);
@@ -824,6 +826,7 @@ export default function App() {
         autoStudentColors:    settings.autoStudentColors    ?? true,
         stickyTimeEnabled:    settings.stickyTimeEnabled    ?? false,
         minBookingIntervalDays: settings.minBookingIntervalDays ?? 0,
+        tags: settings.tags ?? null,
         slotFreedPushEnabled: settings.slotFreedPushEnabled ?? true,
         lockPastBookings: settings.lockPastBookings ?? false,
         showHelpBtn: settings.showHelpBtn ?? true,

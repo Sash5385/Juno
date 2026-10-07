@@ -18,8 +18,9 @@ const blockSlotRange = async (dateStr, startMin, durMin, opts) => {
   if (Object.keys(upd).length) await update(iRef("/"), upd);
 };
 
-import { ThemeContext, GREEN, BLUE, PURPLE, GOLD, RED, TEAL, ACCENT, ACC_HI, SURFACE, SURF_HI, TEXT } from "../theme.js";
+import { ThemeContext, GREEN, BLUE, PURPLE, GOLD, RED, ACCENT, ACC_HI, SURFACE, SURF_HI, TEXT } from "../theme.js";
 import { useFX } from "../ui";
+import { TAG_PRESETS, AUTO_TAG_IDS } from "../tags";
 import { MANUAL_DEFAULT_COLOR } from "../studentColors";
 // module-level aliases for vars used in ICONS (arrow fns, cannot use hooks)
 const ACCENT_HI  = ACC_HI;
@@ -47,12 +48,6 @@ const STUDENT_PALETTE = Array.from({ length: 50 }, (_, i) => `hsl(${Math.round(i
 // Мітки на записі — фіксований список. Автоматично ставиться лише "first" (1-й запис клієнта)
 // і "debt" (коли вписана сума боргу); "check"/"exam" — тільки вручну (деталі запису → Мітка,
 // або при створенні запису). Автомітки діють лише поки майстер не чіпав мітку вручну.
-const TAG_PRESETS = [
-  { id:"exam",   icon:"🚨", label:"Важливо",   color: RED },
-  { id:"check",  icon:"🔍", label:"Перевірка", color: TEAL },
-  { id:"first",  icon:"⭐", label:"1-й запис",  color: BLUE },
-  { id:"debt",   icon:"💸", label:"Борг",      color: GOLD },
-];
 // Автотег за порядковим номером запису клієнта (серед усіх нескасованих, включно з майбутніми)
 const AUTO_TAG_BY_ORDER = { 1: "first" };
 // Прибрані мітки (напр. старий "repeat") у вже збережених записах не показуються
@@ -3216,6 +3211,16 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                   }, 480);
                 }}
                 onPointerMove={e=>{
+                  // Дотик по порожньому місцю: гортання веде JS з фіксацією осі (як по слотах і
+                  // записах), а не нативний 2D-пан — інакше вертикальний свайп з невеликим
+                  // боковим зсувом тягнув розклад убік і майже не скролив угору-вниз.
+                  const sw = swipeRef.current;
+                  if (e.pointerType === "touch" && sw && !sw.manualScroll && !dragRef.current && !pendingDragRef.current
+                      && Math.hypot(e.clientX - sw.startX, e.clientY - sw.startY) > 8) {
+                    sw.manualScroll = true;
+                    clearTimeout(emptyHoldTimerRef.current);
+                    emptyHoldPosRef.current = null;
+                  }
                   if (!emptyHoldPosRef.current) return;
                   if (Math.abs(e.clientY - emptyHoldPosRef.current.startY) > 8) {
                     clearTimeout(emptyHoldTimerRef.current);
@@ -3238,6 +3243,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                   background: isLight ? `linear-gradient(135deg,${SURF_LO},${BG_DEEP})` : `linear-gradient(135deg,color-mix(in srgb,${BG_DEEP} 50%,transparent),rgba(0,0,0,0.275))`,
                   borderRadius:14, boxShadow:SHADOW_IN, cursor: isPastDay ? "default" : "cell",
                   userSelect:"none", WebkitUserSelect:"none", WebkitTouchCallout:"none",
+                  touchAction:"none",
                   opacity: isPastDay ? 0.38 : 1,
                 }}>
 
@@ -6144,7 +6150,7 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
   const [svcId,      setSvcId]      = useState(null);
   const [note,       setNote]       = useState("");
   const [debtAmount, setDebtAmount] = useState("");
-  const [newTag,     setNewTag]     = useState(null); // ручна мітка: "check" | "exam"
+  const [newTag,     setNewTag]     = useState(null); // ручна мітка: id довільної мітки
   const [students,   setStudents]   = useState([]);
   const [closing,    setClosing]    = useState(false);
 
@@ -6482,8 +6488,8 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
           />
 
           {/* МІТКА — вручну: Перевірка / Важливо ("1-й запис" ставиться сама, борг — сумою вище) */}
-          <div style={{display:"flex",gap:8}}>
-            {TAG_PRESETS.filter(t => t.id === "check" || t.id === "exam").map(tp => {
+          <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+            {TAG_PRESETS.filter(t => !AUTO_TAG_IDS.includes(t.id)).map(tp => {
               const on = newTag === tp.id;
               return (
                 <button key={tp.id} type="button" onClick={()=>setNewTag(on ? null : tp.id)} style={{

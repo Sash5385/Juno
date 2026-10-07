@@ -1,4 +1,5 @@
 import { useState, useContext, useEffect, useRef } from "react";
+import { TAG_COLORS, TAG_ICONS, DEFAULT_TAGS, AUTO_TAG_IDS, normalizeTags } from "../tags";
 import { createPortal } from "react-dom";
 import { get, update, onValue, off } from "firebase/database";
 import { uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
@@ -28,6 +29,7 @@ const SEC_ICON_SVG = {
   queue:      <><circle cx="12" cy="12" r="9"/><path d="M7.5 12.5l3 3 6-6.5"/></>,
   sticky:     <><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.3"/></>,
   auto:       <><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></>,
+  tags: <><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8Z"/><circle cx="7.5" cy="7.5" r="1.4"/></>,
   surcharges: <><circle cx="12" cy="12" r="9"/><path d="M12 7.5v9M15 9.7c0-1.1-1.2-2-3-2s-3 .9-3 1.9 1.3 1.5 3 1.8c1.7.3 3 .8 3 1.9s-1.2 1.9-3 1.9-3-.9-3-2"/></>,
   push:       <><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></>,
   reviews:    <><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></>,
@@ -962,6 +964,7 @@ select{color-scheme:${isKava?"light":"dark"}}
   }, [active]);
 
   const uk = lang !== "en";
+  const [tagIconOpen, setTagIconOpen] = useState(null);
   const SECTIONS = [
     { id:"schedule",   icon:"🕐", color:BLUE,   title:t('set.schedule.title'), label:uk?"Графік":"Sched." },
     { id:"snap",       icon:"⏱",  color:TEAL,   title:t('set.snap.title'),     label:uk?"Сітка":"Grid"   },
@@ -969,6 +972,7 @@ select{color-scheme:${isKava?"light":"dark"}}
     { id:"queue",      icon:"✅", color:GREEN,  title:t('set.queue.title'),    label:uk?"Черга":"Queue"  },
     { id:"sticky",     icon:"📌", color:PURPLE, title:t('set.sticky.title'),   label:uk?"Слоти":"Slots"  },
     { id:"surcharges", icon:"💰", color:GOLD,   title:"Надбавки",              label:uk?"Збори":"Fees"   },
+    { id:"tags",       icon:"🏷️", color:TEAL,   title:uk?"Мітки записів":"Booking tags", label:uk?"Мітки":"Tags" },
     { id:"push",       icon:"🔔", color:GREEN,  title:"Сповіщення",            label:"Сповіщення"        },
     { id:"reviews",    icon:"⭐", color:GOLD,   title:"Відгуки клієнтів",         label:"Відгуки"           },
     { id:"profile",    icon:"👤", color:BLUE,   title:"Профіль майстра",   label:"Профіль"           },
@@ -1176,6 +1180,49 @@ select{color-scheme:${isKava?"light":"dark"}}
           )}
         </div>
       );
+
+      case "tags": {
+        const tags = normalizeTags(settings.tags);
+        const setTagList = (list) => upd("tags", list);
+        const patch = (id, p) => setTagList(tags.map(t => t.id === id ? { ...t, ...p } : t));
+        return (
+          <div>
+            <div style={{fontSize:12,color:FAINT,marginBottom:12,lineHeight:1.5}}>
+              {uk ? "Мітки показуються на картках записів у розкладі. Оберіть значок, напишіть текст і колір. «1-й запис» і «Борг» ставляться автоматично — їх можна лише перейменувати." : "Tags appear on booking cards. Pick an icon, text and colour. “1st booking” and “Debt” are automatic — you can only rename them."}
+            </div>
+            {tags.map(t => (
+              <div key={t.id} style={{marginBottom:7,padding:"10px 12px",borderRadius:12,background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,boxShadow:SO}}>
+                <div style={{display:"flex",alignItems:"center",gap:8}}>
+                  <button onClick={()=>setTagIconOpen(tagIconOpen===t.id?null:t.id)} style={{width:40,height:40,borderRadius:11,border:`1.5px solid ${TAG_COLORS[t.colorId]}`,background:"rgba(0,0,0,0.2)",fontSize:20,cursor:"pointer",flexShrink:0}}>{t.icon}</button>
+                  <input value={t.label} maxLength={20} onChange={e=>patch(t.id,{label:e.target.value})} onBlur={e=>{ if(!e.target.value.trim()) patch(t.id,{label:"Мітка"}); }}
+                    style={{flex:1,minWidth:0,padding:"10px 12px",borderRadius:10,border:`1px solid ${BORDER}`,background:"rgba(0,0,0,0.18)",color:TEXT,fontSize:14,fontFamily:"inherit"}}/>
+                  {!AUTO_TAG_IDS.includes(t.id) && (
+                    <button onClick={()=>setTagList(tags.filter(x=>x.id!==t.id))} title="Видалити" style={{background:"none",border:"none",cursor:"pointer",color:"rgba(248,113,113,0.85)",fontSize:22,lineHeight:1,padding:"0 4px"}}>×</button>
+                  )}
+                </div>
+                <div style={{display:"flex",gap:8,marginTop:9,alignItems:"center"}}>
+                  {Object.entries(TAG_COLORS).map(([cid,col])=>(
+                    <button key={cid} onClick={()=>patch(t.id,{colorId:cid})} aria-label={cid} style={{width:24,height:24,borderRadius:"50%",background:col,cursor:"pointer",border:t.colorId===cid?"2.5px solid #fff":"2px solid transparent",boxShadow:t.colorId===cid?`0 0 8px ${col}`:"none"}}/>
+                  ))}
+                </div>
+                {tagIconOpen===t.id && (
+                  <div style={{display:"flex",flexWrap:"wrap",gap:6,marginTop:10}}>
+                    {TAG_ICONS.map(ic=>(
+                      <button key={ic} onClick={()=>{patch(t.id,{icon:ic});setTagIconOpen(null);}} style={{width:38,height:38,borderRadius:10,fontSize:19,cursor:"pointer",border:t.icon===ic?`1.5px solid ${TEAL}`:`1px solid ${BORDER}`,background:t.icon===ic?"rgba(45,212,191,0.15)":"rgba(0,0,0,0.15)"}}>{ic}</button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+            {tags.length < 12 ? (
+              <button onClick={()=>setTagList([...tags,{id:"t"+Date.now().toString(36),icon:"🏷️",label:uk?"Нова мітка":"New tag",colorId:"purple"}])} style={{width:"100%",padding:"11px",borderRadius:12,border:`1px dashed ${GREEN}88`,cursor:"pointer",background:"transparent",color:GREEN,fontSize:13,fontWeight:700,marginTop:2}}>+ {uk?"Додати мітку":"Add tag"}</button>
+            ) : (
+              <div style={{textAlign:"center",fontSize:12,color:FAINT,padding:"6px 0"}}>{uk?"Максимум 12 міток":"Max 12 tags"}</div>
+            )}
+            <button onClick={()=>setTagList(DEFAULT_TAGS)} style={{width:"100%",padding:"9px",borderRadius:12,border:"none",cursor:"pointer",background:"transparent",color:FAINT,fontSize:12,marginTop:6,textDecoration:"underline"}}>{uk?"Скинути до стандартних":"Reset to defaults"}</button>
+          </div>
+        );
+      }
 
       case "push": return (
         <div>
