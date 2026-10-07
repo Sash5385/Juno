@@ -199,7 +199,6 @@ export function buildDemoTree() {
       hours: Math.round(hoursByUid[s.uid] || 0),
       discount: s.discount || 0, customPrice: s.customPrice ?? null,
       notes: i === 3 ? "Постійний клієнт, віддає перевагу ранковим годинам" : "", blocked: false, isVip: !!s.vip, noIntervalLimit: false,
-      badges: {},
     };
   });
 

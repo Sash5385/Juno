@@ -887,20 +887,6 @@ exports.onInstructorMessage = onValueCreated(
   }
 );
 
-// Майстер видав медаль за запис (users/{uid}/badges/{id}) → push клієнту + запис у його сповіщення.
-exports.onBadgeAwarded = onValueCreated(
-  { ref: "instructors/{iid}/users/{uid}/badges/{badgeId}", region: "europe-west1" },
-  async (event) => {
-    const b = event.data.val();
-    if (!b || !b.label) return;
-    const { iid, uid } = event.params;
-    const title = "🏅 Нове заохочення!";
-    const body = `${b.icon ? b.icon + " " : ""}${String(b.label).slice(0, 80)}`;
-    await pushStudent(iid, uid, title, body, { url: "https://juno-booking-client.web.app/cabinet/profile" });
-    await saveNotification(iid, uid, title, body, "badge").catch(() => {});
-  }
-);
-
 // Ручна відправка шаблону з каналом "push" (вкладка "Шаблони") — клієнт
 // отримує лише push-сповіщення, без запису повідомлення в чат. Клієнт
 // пише в цей тимчасовий вузол, функція шле push і одразу прибирає запис.

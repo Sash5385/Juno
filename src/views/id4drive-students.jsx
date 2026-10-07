@@ -161,7 +161,7 @@ function StudentCard({ s, onSelect, settings }) {
 }
 
 // ─── STUDENT DETAIL SHEET ────────────────────────────────────────
-function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock, onRemoveBadge, autoOpenHistory, slotColor, autoColors, onColorChange }) {
+function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock, autoOpenHistory, slotColor, autoColors, onColorChange }) {
   const { BG_DEEP, SURF_HI, SURFACE, BORDER, TEXT, DIM, FAINT, ACCENT, ACC_HI, GREEN, BLUE, GOLD, RED, SO, SI } = useContext(ThemeContext);
   const { shade, glow, ink } = useFX();
   const [closing,      setClosing]     = useState(false);
@@ -503,26 +503,6 @@ function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock, onRemoveB
                   </div>
                 </div>
 
-                {/* Медалі — видаються за конкретний запис у модалці бронювання */}
-                <div style={{background:glow(0.04),borderRadius:10,padding:"10px 12px",border:`1px solid ${BORDER}`}}>
-                  <div style={{fontSize:9,color:FAINT,letterSpacing:1,textTransform:"uppercase",marginBottom:8}}>🏅 Заохочення</div>
-                  {Object.keys(s.badges||{}).length === 0 ? (
-                    <div style={{fontSize:11,color:FAINT}}>Ще немає заохочень</div>
-                  ) : (
-                    <div style={{display:"flex",flexWrap:"wrap",gap:7}}>
-                      {Object.entries(s.badges).sort((a,b)=>(b[1].awardedAt||0)-(a[1].awardedAt||0)).map(([bid,b])=>(
-                        <div key={bid} onClick={()=>onRemoveBadge(s.id,bid)} title="Тап — прибрати" style={{
-                          display:"flex",alignItems:"center",gap:5,padding:"5px 9px",borderRadius:20,
-                          background:`${GOLD}18`,border:`1px solid ${GOLD}44`,cursor:"pointer",
-                        }}>
-                          <span style={{fontSize:14}}>{b.icon}</span>
-                          <span style={{fontSize:11,fontWeight:700,color:TEXT}}>{b.label}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
                 {/* Notes */}
                 {s.notes && (
                   <div style={{background:glow(0.04),borderRadius:10,padding:"9px 12px",border:`1px solid ${BORDER}`,fontSize:12,color:DIM,lineHeight:1.5}}>📝 {s.notes}</div>
@@ -663,7 +643,6 @@ export default function StudentsView({ studentJump, onStudentJumpHandled, bookin
           discount:u.discount||0, customPrice:u.customPrice??null, notes:u.notes||"", blocked:u.blocked||false, isVip:u.isVip||false,
           noIntervalLimit:u.noIntervalLimit||false,
           createdAt:p.createdAt||u.createdAt||null,
-          badges:u.badges||{},
         };
       }));
       setLoading(false);
@@ -714,9 +693,6 @@ export default function StudentsView({ studentJump, onStudentJumpHandled, bookin
     setStudents(ss=>ss.filter(x=>x.id!==id));
     deleteAccountRequest({ type:"student", iid:auth.currentUser.uid, uid:id })
       .catch(() => remove(iRef(`users/${id}`)).catch(()=>{}));
-  };
-  const removeBadge = (id, badgeId) => {
-    remove(iRef(`users/${id}/badges/${badgeId}`)).catch(()=>{});
   };
   const createStudent = async (data) => {
     const newRef = await push(iRef("users"),{
@@ -873,7 +849,6 @@ export default function StudentsView({ studentJump, onStudentJumpHandled, bookin
           onUpdate={updateStudent}
           onDelete={deleteStudent}
           onBlock={block}
-          onRemoveBadge={removeBadge}
           autoOpenHistory={autoOpenHistory}
           slotColor={studentColors[liveDetail.id] || null}
           autoColors={settings?.autoStudentColors !== false}

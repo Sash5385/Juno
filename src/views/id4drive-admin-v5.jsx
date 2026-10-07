@@ -58,15 +58,6 @@ const AUTO_TAG_BY_ORDER = { 1: "first" };
 // Прибрані мітки (напр. старий "repeat") у вже збережених записах не показуються
 const knownTag = (t) => (TAG_PRESETS.some(p => p.id === t) ? t : null);
 
-// Медалі за запис — присвоюються прямо в модалці бронювання (прив'язані до booking.id)
-const BADGE_PRESETS = [
-  { icon:"🏅", label:"Молодець" },
-  { icon:"🥇", label:"Найкращий клієнт" },
-  { icon:"⭐", label:"Відмінний результат" },
-  { icon:"🎯", label:"Точна робота" },
-  { icon:"🏆", label:"Рекомендую" },
-];
-
 // ═══════════════════════════════════════════════════════════════
 // GLOBAL CSS (slots from v4, rest v3)
 // ═══════════════════════════════════════════════════════════════
@@ -5237,8 +5228,6 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
   const [draftPrice, setDraftPrice] = useState("");
   const [draftDur, setDraftDur] = useState("");
   const [editRate, setEditRate] = useState(0);
-  const [allBadges, setAllBadges] = useState({});
-  const [badgePickerOpen, setBadgePickerOpen] = useState(false);
   const [tagPickerOpen, setTagPickerOpen] = useState(false);
   const [debtInput, setDebtInput] = useState("");
   useEffect(() => { setDebtInput(booking?.debtAmount ? String(booking.debtAmount) : ""); }, [booking?.id]);
@@ -5265,28 +5254,10 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
     return () => unsub();
   }, [booking]);
 
-  // Заохочення клієнта (медалі за запис) — підписка на users/{uid}/badges.
   useEffect(() => {
     if (!booking) return;
-    setBadgePickerOpen(false);
     setTagPickerOpen(false);
-    if (!booking.userId) { setAllBadges({}); return; }
-    const rb = iRef( `users/${booking.userId}/badges`);
-    const unsubB = onValue(rb, snap => setAllBadges(snap.val() || {}));
-    return () => { unsubB(); };
   }, [booking]);
-
-  // Медаль за конкретний запис — прив'язана до booking.id, тому клієнт може
-  // показати її саме біля цього завершеного запису, а не загальним списком.
-  const awardBookingBadge = (icon, label) => {
-    if (!booking) return;
-    fbPush(iRef( `users/${booking.userId}/badges`), { icon, label, awardedAt: Date.now(), bookingId: booking.id }).catch(()=>{});
-    setBadgePickerOpen(false);
-  };
-  const removeBookingBadge = (badgeId) => {
-    if (!booking) return;
-    remove(iRef( `users/${booking.userId}/badges/${badgeId}`)).catch(()=>{});
-  };
 
   // booking може стати null синхронно (напр. cancel обнуляє вибір), поки closing=true.
   // Guard "!booking && !closing" пропускав такий кадр далі й падав на booking.serviceId
@@ -5623,54 +5594,6 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
               </div>
             );
           })()}
-
-          {/* Медаль за запис — золота колірна картка (прив'язана до цього booking, видно клієнту біля завершеного запису) */}
-          <div style={{
-            margin:"10px 14px 0",padding:"12px 14px",borderRadius:16,
-            background:`linear-gradient(155deg,color-mix(in srgb,${GOLD} 38%,${BG_DEEP}) 0%,${BG_DEEP} 100%)`,
-            border:`1px solid color-mix(in srgb,${GOLD} 36%,transparent)`,
-          }}>
-            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
-              <div style={{fontSize:9,fontWeight:700,letterSpacing:1,color:"rgba(255,255,255,.8)",textTransform:"uppercase"}}>
-                🏅 Заохочення за запис
-              </div>
-              <div onClick={() => setBadgePickerOpen(o => !o)} style={{
-                fontSize:11,fontWeight:800,color:"#fff",cursor:"pointer",padding:"2px 8px",
-                borderRadius:8,background:"rgba(0,0,0,0.25)",
-              }}>{badgePickerOpen ? "Закрити" : "+ Додати"}</div>
-            </div>
-            {Object.entries(allBadges).filter(([,b])=>b.bookingId===booking.id).length > 0 && (
-              <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:badgePickerOpen?8:0}}>
-                {Object.entries(allBadges).filter(([,b])=>b.bookingId===booking.id).map(([bid,b])=>(
-                  <div key={bid} onClick={()=>removeBookingBadge(bid)} title="Тап — прибрати" style={{
-                    display:"flex",alignItems:"center",gap:5,padding:"5px 9px",borderRadius:20,
-                    background:"rgba(0,0,0,0.22)",border:"1px solid rgba(255,255,255,0.25)",cursor:"pointer",
-                  }}>
-                    <span style={{fontSize:14}}>{b.icon}</span>
-                    <span style={{fontSize:11,fontWeight:700,color:"#fff"}}>{b.label}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-            {badgePickerOpen && (
-              <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:7,paddingBottom:4}}>
-                {BADGE_PRESETS.map((bp,i)=>(
-                  <button key={i} onClick={()=>awardBookingBadge(bp.icon,bp.label)} style={{
-                    display:"flex",flexDirection:"column",alignItems:"center",gap:4,
-                    padding:"9px 4px",borderRadius:12,border:"1px solid rgba(255,255,255,0.18)",cursor:"pointer",
-                    background:"rgba(0,0,0,0.22)",fontFamily:"inherit",
-                  }}>
-                    <span style={{fontSize:18}}>{bp.icon}</span>
-                    <span style={{fontSize:9,fontWeight:700,color:"rgba(255,255,255,.85)",textAlign:"center",lineHeight:1.2}}>{bp.label}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-            <div style={{marginTop:8,fontSize:10.5,lineHeight:1.4,color:"rgba(255,255,255,.55)"}}>
-              Нагорода клієнту за цей запис. Клієнт побачить її у профілі в розділі «Мої заохочення» і отримає сповіщення. Тап по значку — прибрати.
-            </div>
-          </div>
-
 
           {/* Queue */}
           {queueEntries.length > 0 && (
