@@ -1218,7 +1218,9 @@ const pendingDeletesRef = React.useRef(new Set());
           background: theme.BG_IMAGE ? "#d4ba96" : "transparent",
         }}>
           <Suspense fallback={<Loader/>}>
+            <div className={displayedTab==="schedule" ? "view-fill" : "pc-wrap"}>
             <ViewRenderer tab={displayedTab} settings={settings} setSettings={setSettings} bookings={bookings} setBookings={handleSetBookings} onSlotClick={setSelectedBooking} onEmptySlotClick={setNewBookingData} openInfos={openInfos} toggleInfo={toggleInfo} activeDragIds={activeDragIds} navTo={switchTab} slotExistsRef={slotExistsRef} openSlotsRef={openSlotsRef} jumpTarget={jumpTarget} setJumpTarget={setJumpTarget} onViewStudent={onViewStudent} studentJump={studentJump} onStudentJumpHandled={()=>setStudentJump(null)}/>
+            </div>
           </Suspense>
           <MosaicOverlay phase={mosaicPhase} tileColor={theme.BG_IMAGE ? "#d4ba96" : theme.BG} speed={0.5}/>
         </div>

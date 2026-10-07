@@ -776,9 +776,11 @@ export default function StudentsView({ studentJump, onStudentJumpHandled, bookin
           ))}
         </div>
 
+        <div className="pc-grid">
         {list.map(s=>(
           <StudentCard key={s.id} s={s} onSelect={s=>setDetailStudent(s)} settings={settings} />
         ))}
+        </div>
 
         {loading && (
           <div style={{textAlign:"center",padding:"40px 20px",color:FAINT,fontSize:13}}>

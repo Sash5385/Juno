@@ -141,3 +141,11 @@ code {
   flex-shrink: 0;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* ПК: вкладки (крім розкладу) по центру, обмеженої ширини; список клієнтів у кілька колонок */
+.view-fill { display: flex; flex-direction: column; flex: 1; min-height: 0; width: 100%; }
+@media (min-width: 900px) {
+  .pc-wrap { max-width: 1120px; margin: 0 auto; width: 100%; }
+  .pc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 8px; }
+  .pc-grid > * { margin-bottom: 0 !important; }
+}
