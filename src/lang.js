@@ -55,7 +55,6 @@ const S = {
   'st.count':       { uk:'клієнтів',       en:'clients'   },
   'st.phone':       { uk:'Телефон',     en:'Phone'      },
   'st.discount':    { uk:'Знижка',      en:'Discount'   },
-  'st.progress':    { uk:'Прогрес пакета', en:'Package progress' },
   'st.history':     { uk:'Історія записів', en:'Booking history' },
   'st.viber':       { uk:'Вайбер',      en:'Viber'      },
   'st.telegram':    { uk:'Телеграм',    en:'Telegram'   },
@@ -201,8 +200,6 @@ const S = {
   'set.restr.calendar_h': { uk:'Днів видно клієнтові з індивідуальним записом',  en:'Days visible to an individual-booking client' },
   'set.restr.schoolCalendar':   { uk:'Календар наперед (стандарт)', en:'Calendar ahead (standard)' },
   'set.restr.schoolCalendar_h': { uk:'Днів видно клієнтові зі стандартним записом',  en:'Days visible to standard client' },
-  'set.pkg':            { uk:'Годин у пакеті', en:'Hours in package' },
-  'set.pkg_h':          { uk:'Скільки годин проходить клієнт зі «Стандартом», перш ніж йому відкриваються індивідуальні записи. 0 — без пакета, обмежень немає.', en:'How many hours a Standard client completes before individual bookings unlock. 0 — no package, no limit.' },
 
   'set.queue.title':  { uk:'Черга', en:'Queue' },
   'set.queue.info_t': { uk:'Черга', en:'Queue' },

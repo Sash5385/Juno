@@ -823,7 +823,6 @@ export default function App() {
         showSlotTimes:        settings.showSlotTimes        ?? true,
         autoStudentColors:    settings.autoStudentColors    ?? true,
         stickyTimeEnabled:    settings.stickyTimeEnabled    ?? false,
-        packageHours: settings.packageHours ?? 40,
         minBookingIntervalDays: settings.minBookingIntervalDays ?? 0,
         slotFreedPushEnabled: settings.slotFreedPushEnabled ?? true,
         lockPastBookings: settings.lockPastBookings ?? false,

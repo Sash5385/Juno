@@ -47,38 +47,6 @@ function ActBtn({ icon, label, onClick, color, danger }) {
   );
 }
 
-// ─── PROGRESS BAR ────────────────────────────────────────────────
-function Progress({ hours, offset, target = 40 }) {
-  const { BG_DEEP, DIM, FAINT, ACCENT, ACC_HI, GREEN, BLUE, SI } = useContext(ThemeContext);
-  const { glow } = useFX();
-  const total = hours + (offset || 0);
-  const pct = Math.min((total / target) * 100, 100);
-  const done = pct >= 100;
-  return (
-    <div>
-      <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
-        <span style={{fontSize:11,color:DIM}}>Прогрес пакета</span>
-        <span style={{fontSize:11,fontWeight:800,color:done?ACCENT:GREEN}}>{total}/{target} год · {Math.round(pct)}%</span>
-      </div>
-      <div style={{height:5,background:BG_DEEP,borderRadius:3,boxShadow:SI,overflow:"hidden"}}>
-        {offset > 0 ? (
-          <div style={{position:"relative",height:"100%",width:`${pct}%`,borderRadius:3,
-            background:done?`linear-gradient(90deg,${ACC_HI},${ACCENT})`:`linear-gradient(90deg,${BLUE},${GREEN})`,
-            boxShadow:`0 0 6px ${done?ACCENT:GREEN}44`,overflow:"hidden"}}>
-            <div style={{position:"absolute",left:0,top:0,bottom:0,
-              width:`${Math.min((offset/total)*100,100)}%`,background:glow(0.18)}}/>
-          </div>
-        ) : (
-          <div style={{height:"100%",width:`${pct}%`,borderRadius:3,
-            background:done?`linear-gradient(90deg,${ACC_HI},${ACCENT})`:`linear-gradient(90deg,${BLUE},${GREEN})`,
-            boxShadow:`0 0 6px ${done?ACCENT:GREEN}44`}}/>
-        )}
-      </div>
-      {offset > 0 && <div style={{fontSize:9,color:FAINT,marginTop:3}}>з них {offset} год додано · {hours} год тут</div>}
-    </div>
-  );
-}
-
 // ─── STUDENT FORM (shared: new + edit) ───────────────────────────
 function StudentForm({ initial, onSave, onCancel, saveLabel="Зберегти" }) {
   const { BG_DEEP, TEXT, DIM, FAINT, BORDER, SO } = useContext(ThemeContext);
@@ -193,7 +161,7 @@ function StudentCard({ s, onSelect, settings }) {
 }
 
 // ─── STUDENT DETAIL SHEET ────────────────────────────────────────
-function StudentDetailSheet({ packageHours = 40, s, onClose, onUpdate, onDelete, onBlock, onRemoveBadge, autoOpenHistory, slotColor, autoColors, onColorChange }) {
+function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock, onRemoveBadge, autoOpenHistory, slotColor, autoColors, onColorChange }) {
   const { BG_DEEP, SURF_HI, SURFACE, BORDER, TEXT, DIM, FAINT, ACCENT, ACC_HI, GREEN, BLUE, GOLD, RED, SO, SI } = useContext(ThemeContext);
   const { shade, glow, ink } = useFX();
   const [closing,      setClosing]     = useState(false);
@@ -501,29 +469,10 @@ function StudentDetailSheet({ packageHours = 40, s, onClose, onUpdate, onDelete,
 
                 {/* Type + progress */}
                 <div style={{background:glow(0.04),borderRadius:10,padding:"10px 12px",border:`1px solid ${BORDER}`}}>
-                  <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:s.type==="school"&&packageHours>0?9:0}}>
+                  <div style={{display:"flex",alignItems:"center",gap:7}}>
                     <span style={{fontSize:11,fontWeight:800,color:typeColor}}>{typeLabel}</span>
-                    {s.type==="school" && packageHours>0 && <span style={{fontSize:10,color:FAINT}}>· {s.hours+(s.hoursOffset||0)}/{packageHours} год</span>}
                   </div>
-                  {s.type==="school" && packageHours>0 && <Progress hours={s.hours} offset={s.hoursOffset||0} target={packageHours}/>}
                 </div>
-
-                {/* Hours offset (пакетні клієнти) */}
-                {s.type==="school" && packageHours>0 && (
-                  <div style={{background:glow(0.04),borderRadius:10,padding:"10px 12px",border:`1px solid ${BORDER}`}}>
-                    <div style={{fontSize:9,color:FAINT,letterSpacing:1,textTransform:"uppercase",marginBottom:7}}>Додати години</div>
-                    <div style={{display:"flex",alignItems:"center",gap:8}}>
-                      <button onClick={()=>onUpdate(s.id,{hoursOffset:Math.max(0,(s.hoursOffset||0)-1)})}
-                        style={{width:32,height:32,borderRadius:9,border:"none",cursor:"pointer",flexShrink:0,background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,color:TEXT,fontSize:20,fontWeight:700,boxShadow:SO,display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1,fontFamily:"inherit"}}>−</button>
-                      <div style={{flex:1,textAlign:"center"}}>
-                        <span style={{fontSize:22,fontWeight:900,color:(s.hoursOffset||0)>0?GREEN:FAINT}}>{s.hoursOffset||0}</span>
-                        <span style={{fontSize:11,color:FAINT,marginLeft:5}}>год</span>
-                      </div>
-                      <button onClick={()=>onUpdate(s.id,{hoursOffset:Math.min(packageHours-1,(s.hoursOffset||0)+1)})}
-                        style={{width:32,height:32,borderRadius:9,border:"none",cursor:"pointer",flexShrink:0,background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,color:TEXT,fontSize:20,fontWeight:700,boxShadow:SO,display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1,fontFamily:"inherit"}}>+</button>
-                    </div>
-                  </div>
-                )}
 
                 {/* Action buttons */}
                 <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:7}}>
@@ -710,7 +659,7 @@ export default function StudentsView({ studentJump, onStudentJumpHandled, bookin
         return {
           id:uid, name:p.name||u.name||"Клієнт", phone:p.phone||u.phone||"",
           type:p.type||u.type||"private",
-          hours:u.hours||0, hoursOffset:u.hoursOffset||0,
+          hours:u.hours||0,
           discount:u.discount||0, customPrice:u.customPrice??null, notes:u.notes||"", blocked:u.blocked||false, isVip:u.isVip||false,
           noIntervalLimit:u.noIntervalLimit||false,
           createdAt:p.createdAt||u.createdAt||null,
@@ -919,7 +868,6 @@ export default function StudentsView({ studentJump, onStudentJumpHandled, bookin
       {/* Student detail sheet */}
       {liveDetail && createPortal(
         <StudentDetailSheet
-          packageHours={settings?.packageHours ?? 40}
           s={liveDetail}
           onClose={()=>setDetailStudent(null)}
           onUpdate={updateStudent}
