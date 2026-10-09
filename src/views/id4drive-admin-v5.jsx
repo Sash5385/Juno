@@ -6069,23 +6069,15 @@ function highlightHelp(key) {
   }, 250);
 }
 
-// ТИМЧАСОВО: 10 варіантів прозорого вікна підказок для вибору (?helpstyle=1..10)
-const BLUR = (px, sat) => ({ backdropFilter:`blur(${px}px)${sat?` saturate(${sat})`:""}`, WebkitBackdropFilter:`blur(${px}px)${sat?` saturate(${sat})`:""}` });
-const HELP_STYLES = {
-  1:  { name:"Скло легке",           ov:{ background:"rgba(0,0,0,0.18)", ...BLUR(4) },  panel:{ background:"rgba(20,22,26,0.55)", ...BLUR(22), border:"1px solid rgba(255,255,255,0.14)" }, item:{ background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.10)" }, ico:{ background:"rgba(0,0,0,0.25)" } },
-  2:  { name:"Максимально прозоре",  ov:{ background:"rgba(0,0,0,0)" },                  panel:{ background:"rgba(16,18,22,0.36)", ...BLUR(26,1.4), border:"1px solid rgba(255,255,255,0.16)" }, item:{ background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.12)" }, ico:{ background:"rgba(0,0,0,0.2)" } },
-  3:  { name:"Матове скло",          ov:{ background:"rgba(0,0,0,0.30)", ...BLUR(10) }, panel:{ background:"rgba(30,32,38,0.62)", ...BLUR(34), border:"1px solid rgba(255,255,255,0.12)" }, item:{ background:"rgba(255,255,255,0.06)", border:"1px solid rgba(255,255,255,0.09)" }, ico:{ background:"rgba(0,0,0,0.28)" } },
-  4:  { name:"Золоте сяйво",         ov:{ background:"rgba(0,0,0,0.25)", ...BLUR(6) },  panel:{ background:"rgba(18,18,22,0.46)", ...BLUR(20), border:"1px solid rgba(247,201,72,0.5)", boxShadow:"0 -8px 40px rgba(247,201,72,0.22), inset 0 1px 0 rgba(255,255,255,0.12)" }, item:{ background:"rgba(247,201,72,0.06)", border:"1px solid rgba(247,201,72,0.22)" }, ico:{ background:"rgba(0,0,0,0.25)" } },
-  5:  { name:"Коралово-фіолетовий",  ov:{ background:"rgba(0,0,0,0.2)", ...BLUR(6) },   panel:{ background:"linear-gradient(160deg,rgba(255,90,60,0.26),rgba(122,77,255,0.26))", ...BLUR(24), border:"1px solid rgba(255,255,255,0.18)" }, item:{ background:"rgba(0,0,0,0.20)", border:"1px solid rgba(255,255,255,0.12)" }, ico:{ background:"rgba(0,0,0,0.30)" } },
-  6:  { name:"Плаваюча картка",      ov:{ background:"rgba(0,0,0,0.22)", ...BLUR(5), alignItems:"center", padding:12 }, panel:{ background:"rgba(20,22,26,0.5)", ...BLUR(24), border:"1px solid rgba(255,255,255,0.16)", borderRadius:26, maxHeight:"84dvh", boxShadow:"0 20px 60px rgba(0,0,0,0.5)" }, item:{ background:"rgba(255,255,255,0.05)", border:"1px solid rgba(255,255,255,0.10)" }, ico:{ background:"rgba(0,0,0,0.25)" } },
-  7:  { name:"Темне скло + бірюза",  ov:{ background:"rgba(0,0,0,0.35)", ...BLUR(8) },  panel:{ background:"rgba(8,8,12,0.5)", ...BLUR(26), border:"1px solid rgba(45,212,191,0.35)" }, item:{ background:"rgba(255,255,255,0.07)", border:"1px solid rgba(45,212,191,0.25)" }, ico:{ background:"rgba(45,212,191,0.10)" } },
-  8:  { name:"Світле скло",          ov:{ background:"rgba(255,255,255,0.05)", ...BLUR(12) }, panel:{ background:"rgba(255,255,255,0.15)", ...BLUR(30,1.5), border:"1px solid rgba(255,255,255,0.32)" }, item:{ background:"rgba(255,255,255,0.12)", border:"1px solid rgba(255,255,255,0.22)" }, ico:{ background:"rgba(0,0,0,0.22)" } },
-  9:  { name:"Окремі скляні картки", ov:{ background:"rgba(0,0,0,0.38)", ...BLUR(14) }, panel:{ background:"transparent", border:"none" }, item:{ background:"rgba(20,22,26,0.50)", ...BLUR(16), border:"1px solid rgba(255,255,255,0.14)" }, ico:{ background:"rgba(0,0,0,0.25)" } },
-  10: { name:"Як нижнє меню",        ov:{ background:"rgba(0,0,0,0.25)", ...BLUR(4) },  panel:{ background:"rgba(0,0,0,0.52)", ...BLUR(20), border:"1px solid rgba(255,255,255,0.12)", borderRadius:"26px 26px 0 0", boxShadow:"0 12px 40px rgba(0,0,0,0.65), 0 4px 16px rgba(0,0,0,0.4), 0 -1px 0 rgba(255,255,255,0.05)" }, item:{ background:"linear-gradient(145deg,rgba(255,255,255,0.07),rgba(255,255,255,0.02))", border:"1px solid rgba(255,255,255,0.09)", boxShadow:"inset 0 2px 6px rgba(0,0,0,0.35)" }, ico:{ background:"rgba(0,0,0,0.35)" } },
+// Вікно підказок — прозоре «темне скло з бірюзою» (в стилі нижнього меню)
+const HELP_GLASS = {
+  ov:    { background:"rgba(0,0,0,0.35)", backdropFilter:"blur(8px)", WebkitBackdropFilter:"blur(8px)" },
+  panel: { background:"rgba(8,8,12,0.5)", backdropFilter:"blur(26px)", WebkitBackdropFilter:"blur(26px)", border:"1px solid rgba(45,212,191,0.35)" },
+  item:  { background:"rgba(255,255,255,0.07)", border:"1px solid rgba(45,212,191,0.25)" },
+  ico:   { background:"rgba(45,212,191,0.10)" },
 };
-const helpVariant = () => { try { return HELP_STYLES[Number(new URLSearchParams(window.location.search).get("helpstyle"))] || null; } catch { return null; } };
 function ScheduleHelp({ onClose, onPick }) {
-  const hv = helpVariant();
+  const hv = HELP_GLASS;
   const { BG_DEEP, SURFACE, SURF_HI, BORDER, TEXT, DIM } = useContext(ThemeContext);
   const keySvg = <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.2"/><rect x="14" y="3" width="7" height="7" rx="1.2"/><rect x="3" y="14" width="7" height="7" rx="1.2"/></svg>;
   const lockSvg = <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>;
