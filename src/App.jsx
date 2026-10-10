@@ -832,6 +832,7 @@ export default function App() {
         tags: settings.tags ?? null,
         direction: settings.direction ?? "universal",
         intake: settings.intake ?? null,
+        packages: settings.packages ?? null,
         slotFreedPushEnabled: settings.slotFreedPushEnabled ?? true,
         lockPastBookings: settings.lockPastBookings ?? false,
         showHelpBtn: settings.showHelpBtn ?? true,
@@ -1148,7 +1149,7 @@ const pendingDeletesRef = React.useRef(new Set());
             // Завжди перераховуємо ціну під нову позицію (навіть якщо price
             // раніше не зберігався) і надбавку саме нового слоту (0, якщо
             // новий слот без надбавки, — стара надбавка не має «прилипати»).
-            const newPrice = hasCustomPrice
+            const newPrice = (b.packageId && !b.packageError) ? ax.price : hasCustomPrice
               ? Math.round(Number(b.customPrice) * (baseMin / 60)) + ax.price + newSurcharge
               : Math.max(0, Math.round(basePrice + newSurcharge - discountRub));
             upd[`${bp}/price`] = newPrice;

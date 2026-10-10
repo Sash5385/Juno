@@ -128,6 +128,15 @@ await t("student claims slot reserved for another student", X, () => update(R(S1
 await t("student claims slot whose reservation expired", A, () => update(R(S1, P + "/slot1800"), { available: false, bookedBy: "stu1" }));
 await t("student claims own reserved slot + clears markers (claimReservedSlot)", A, () => update(R(S1, "instructors/inst1"), { [`timeslots/${D}/slot1900/available`]: false, [`timeslots/${D}/slot1900/bookedBy`]: "stu1", [`timeslots/${D}/slot1900/offeredTo/stu1`]: null, [`timeslots/${D}/slot1900/reservedFor`]: null, [`timeslots/${D}/slot1900/reservedUntil`]: null }));
 await t("student removes another student's reservation", X, () => remove(R(S1, P + "/slot1700/reservedFor")));
+console.log("── PACKAGES (пакети клієнта)");
+await env.withSecurityRulesDisabled(async (c) => { await set(ref(c.database(), "instructors/inst1/users/stu1/packages/p1"), { id: "p1", name: "5", total: 5, createdAt: 1 }); });
+await t("student reads own packages", A, () => get(R(S1, "instructors/inst1/users/stu1/packages")));
+await t("student adds package to himself", X, () => set(R(S1, "instructors/inst1/users/stu1/packages/p2"), { id: "p2", name: "free", total: 99 }));
+await t("student raises total of own package", X, () => update(R(S1, "instructors/inst1/users/stu1/packages/p1"), { total: 500 }));
+await t("student clears package uses", X, () => remove(R(S1, "instructors/inst1/users/stu1/packages/p1/uses")));
+await t("instructor adds package to student", A, () => set(R(I1, "instructors/inst1/users/stu1/packages/p3"), { id: "p3", name: "10", total: 10, createdAt: 2 }));
+await t("student creates booking with packageId/packageUseId", A, () => set(R(S1, "instructors/inst1/bookings/stu1/pkgb"), { id: "pkgb", date: D, time: "10:00", status: "pending", durationHours: 1, studentName: "S1", phone: "1", packageId: "p1", packageName: "5", packageUseId: "old", createdAt: NOW }));
+await t("student sets packageUsed himself", X, () => set(R(S1, "instructors/inst1/bookings/stu1/pkgb2"), { id: "pkgb2", date: D, time: "10:00", status: "pending", packageUsed: true }));
 console.log("── INTAKE (анкета клієнта)");
 const ITEM = { id: "a", label: "Алергії", value: "Немає" };
 await t("student saves own intake", A, () => set(R(S1, "instructors/inst1/users/stu1/intake"), { at: NOW, items: [ITEM, { id: "b", label: "Тип", value: "Суха" }] }));

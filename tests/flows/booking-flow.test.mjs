@@ -299,6 +299,47 @@ const mm = (t) => { const [h, m] = t.split(":").map(Number); return h * 60 + m; 
   await fire(UA, kAdm, bef, await bk(UA, kAdm));
   check("скасування адміном звільняє і перерву — день як був", JSON.stringify(clean(await day(D1))) === JSON.stringify(pristine));
 
+  console.log("── 13. Пакети (абонементи): списання, повернення, перенесення, відмова");
+  await seedDays();
+  await loginAs("a@t.dev"); await C.getUserProfile(UA);
+  await adb.ref(`instructors/${IID}/users/${UA}/packages/p1`).set({ id: "p1", name: "2 записи", total: 2, serviceIds: ["sv1"], createdAt: 1 });
+  const pk = async () => (await adb.ref(`instructors/${IID}/users/${UA}/packages/p1`).get()).val();
+  const usesN = async () => Object.keys((await pk())?.uses || {}).length;
+  const bookPkg = async (time, extra = {}) => {
+    const ok = await C.claimSlot(D1, time, 1, 30); if (!ok) return null;
+    const key = await C.createBooking(UA, { date: D1, time, serviceType: "private", serviceId: "sv1", serviceName: "Масаж", durationHours: 1, studentName: "X", phone: "1", packageId: "p1", packageName: "2 записи", ...extra });
+    await fire(UA, key, null, await bk(UA, key));
+    return key;
+  };
+  const k1 = await bookPkg("09:00");
+  check("перший запис списав одне з пакета", (await usesN()) === 1 && (await bk(UA, k1))?.packageUsed === true && !(await bk(UA, k1))?.packageError);
+  const k2 = await bookPkg("10:00");
+  check("другий запис списав ще одне (лишилось 0)", (await usesN()) === 2 && (await bk(UA, k2))?.packageUsed === true);
+  const k3 = await bookPkg("11:00");
+  check("третій — пакет вичерпано: packageError, список списань не змінився", (await usesN()) === 2 && /не лишилось/.test((await bk(UA, k3))?.packageError || ""), JSON.stringify(await bk(UA, k3)));
+  await act(UA, k3, () => C.cancelBooking(UA, k3));
+  check("скасування запису з помилкою пакета нічого не повертає", (await usesN()) === 2);
+  await act(UA, k1, () => C.cancelBooking(UA, k1));
+  check("скасування клієнтом повертає запис у пакет", (await usesN()) === 1 && !(await pk()).uses[k1] && !!(await pk()).uses[k2]);
+  // перенесення: новий запис з packageUseId старого, старий скасовано як reschedule — залишок не змінюється
+  const ok2 = await C.claimSlot(D1, "12:00", 1, 30);
+  const kNew = await C.createBooking(UA, { date: D1, time: "12:00", serviceType: "private", serviceId: "sv1", durationHours: 1, studentName: "X", phone: "1", packageId: "p1", packageName: "2 записи", packageUseId: k2, rescheduledFrom: `${D1} 10:00` });
+  await fire(UA, kNew, null, await bk(UA, kNew));
+  await act(UA, k2, () => C.cancelBooking(UA, k2, { isReschedule: true }));
+  check("перенесення не списує вдруге й не повертає", ok2 && (await usesN()) === 1 && !!(await pk()).uses[k2] && (await bk(UA, kNew))?.packageUsed === true);
+  await act(UA, kNew, () => C.cancelBooking(UA, kNew));
+  check("скасування перенесеного запису повертає запис у пакет (ключ старого)", (await usesN()) === 0);
+  // інша послуга
+  const kx = await C.createBooking(UA, { date: D1, time: "13:00", serviceType: "private", serviceId: "svX", durationHours: 1, studentName: "X", phone: "1", packageId: "p1", packageName: "2 записи" });
+  await fire(UA, kx, null, await bk(UA, kx));
+  check("пакет не діє на іншу послугу", (await usesN()) === 0 && /не діє/.test((await bk(UA, kx))?.packageError || ""));
+  // скасування адміном повертає
+  const k4 = await bookPkg("09:30");
+  const bef4 = await bk(UA, k4);
+  await adb.ref(`instructors/${IID}/bookings/${UA}/${k4}`).update({ status: "cancelled", cancelledBy: "admin" });
+  await fire(UA, k4, bef4, await bk(UA, k4));
+  check("скасування адміном повертає запис у пакет", (await usesN()) === 0);
+
   console.log(failed ? `\n${failed} FAILED` : "\nALL PASS");
   process.exit(failed ? 1 : 0);
 })().catch((e) => { console.error(e); process.exit(1); });

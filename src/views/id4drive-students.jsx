@@ -8,6 +8,7 @@ import { ThemeContext } from "../theme.js";
 import { UICss, Field, Btn as UIBtn, useFX, useBackClose } from "../ui";
 import { makePalette } from "./id4drive-services";
 import { STUDENT_COLOR_CHOICES } from "../studentColors";
+import { normPackages, normPackageTemplates, buildClientPackage, expiresLabel } from "../packages";
 
 const M = ["","Січ","Лют","Бер","Кві","Тра","Чер","Лип","Сер","Вер","Жов","Лис","Гру"];
 const fmtS = d => { if(!d) return "—"; const [,m,day]=d.split("-"); return `${parseInt(day)} ${M[parseInt(m)]}`; };
@@ -161,7 +162,7 @@ function StudentCard({ s, onSelect, settings }) {
 }
 
 // ─── STUDENT DETAIL SHEET ────────────────────────────────────────
-function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock, autoOpenHistory, slotColor, autoColors, onColorChange }) {
+function StudentDetailSheet({ settings, s, onClose, onUpdate, onDelete, onBlock, autoOpenHistory, slotColor, autoColors, onColorChange }) {
   const { BG_DEEP, SURF_HI, SURFACE, BORDER, TEXT, DIM, FAINT, ACCENT, ACC_HI, GREEN, BLUE, GOLD, RED, SO, SI } = useContext(ThemeContext);
   const { shade, glow, ink } = useFX();
   const [closing,      setClosing]     = useState(false);
@@ -508,6 +509,36 @@ function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock, autoOpenH
                   <div style={{background:glow(0.04),borderRadius:10,padding:"9px 12px",border:`1px solid ${BORDER}`,fontSize:12,color:DIM,lineHeight:1.5}}>📝 {s.notes}</div>
                 )}
 
+                {/* Пакети (абонементи) клієнта: додає майстер із заготовок (Налаштування → Пакети) */}
+                {(() => {
+                  const pkgs = normPackages(s.packages);
+                  const tpls = normPackageTemplates(settings?.packages);
+                  return (
+                    <div style={{background:glow(0.04),borderRadius:10,padding:"9px 12px",border:`1px solid ${BORDER}`,fontSize:12,color:DIM,lineHeight:1.6}}>
+                      <div style={{fontSize:10,fontWeight:700,letterSpacing:1,textTransform:"uppercase",color:FAINT,marginBottom:3}}>🎫 Пакети</div>
+                      {pkgs.length === 0 && <div style={{color:FAINT}}>Немає пакетів</div>}
+                      {pkgs.map(p => (
+                        <div key={p.id} style={{display:"flex",alignItems:"center",gap:8,padding:"3px 0"}}>
+                          <div style={{flex:1,minWidth:0}}>
+                            <b style={{color:TEXT,fontWeight:700}}>{p.name}</b>: {p.left} з {p.total}
+                            <span style={{color:FAINT}}> · {expiresLabel(p)}</span>
+                          </div>
+                          <button onClick={()=>{ if (window.confirm(`Видалити пакет «${p.name}»?`)) remove(iRef(`users/${s.id}/packages/${p.id}`)).catch(()=>{}); }} aria-label="Видалити пакет" style={{background:"none",border:"none",cursor:"pointer",color:"rgba(248,113,113,0.85)",fontSize:18,lineHeight:1,padding:"0 4px"}}>×</button>
+                        </div>
+                      ))}
+                      {tpls.length > 0 ? (
+                        <div style={{display:"flex",flexWrap:"wrap",gap:6,marginTop:6}}>
+                          {tpls.map(t => (
+                            <button key={t.id} onClick={()=>{ const pk = buildClientPackage(t); update(iRef(`users/${s.id}/packages/${pk.id}`), pk).catch(()=>{}); }} style={{padding:"6px 10px",borderRadius:9,border:`1px dashed ${GREEN}`,background:"transparent",color:GREEN,fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>+ {t.name}</button>
+                          ))}
+                        </div>
+                      ) : (
+                        <div style={{color:FAINT,fontSize:11}}>Заготовки пакетів створюються в Налаштування → Пакети.</div>
+                      )}
+                    </div>
+                  );
+                })()}
+
                 {/* Анкета клієнта (відповіді з Налаштування → Анкета) */}
                 {s.intake?.length > 0 && (
                   <div style={{background:glow(0.04),borderRadius:10,padding:"9px 12px",border:`1px solid ${BORDER}`,fontSize:12,color:DIM,lineHeight:1.6}}>
@@ -653,6 +684,7 @@ export default function StudentsView({ studentJump, onStudentJumpHandled, bookin
           discount:u.discount||0, customPrice:u.customPrice??null, notes:u.notes||"", blocked:u.blocked||false, isVip:u.isVip||false,
           noIntervalLimit:u.noIntervalLimit||false,
           photo:p.photo||null,
+          packages:u.packages||null,
           intake:Array.isArray(u.intake?.items)?u.intake.items:(u.intake?.items?Object.values(u.intake.items):[]),
           createdAt:p.createdAt||u.createdAt||null,
         };
@@ -858,6 +890,7 @@ export default function StudentsView({ studentJump, onStudentJumpHandled, bookin
       {/* Student detail sheet */}
       {liveDetail && createPortal(
         <StudentDetailSheet
+          settings={settings}
           s={liveDetail}
           onClose={()=>setDetailStudent(null)}
           onUpdate={updateStudent}

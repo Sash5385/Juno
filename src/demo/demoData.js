@@ -201,6 +201,7 @@ export function buildDemoTree() {
       hours: Math.round(hoursByUid[s.uid] || 0),
       discount: s.discount || 0, customPrice: s.customPrice ?? null,
       notes: i === 3 ? "Постійний клієнт, віддає перевагу ранковим годинам" : "", blocked: false, isVip: !!s.vip, noIntervalLimit: false,
+      ...(i === 2 ? { packages: { demo1: { id: "demo1", name: "5 записів", total: 5, createdAt: nowTs - 86400000 * 10, expiresAt: nowTs + 86400000 * 80, uses: { u1: 1, u2: 1 } } } } : {}),
     };
   });
 
@@ -330,6 +331,7 @@ export function buildDemoTree() {
     lunchEnabled: true, lunchStart: 13, lunchEnd: 14,
     weekSchedule: [weekday, weekday, weekday, weekday, weekday, { enabled: true, start: 10, end: 16, lunchEnabled: false, lunchStart: 13, lunchEnd: 14 }, { enabled: false, start: 9, end: 18, lunchEnabled: false, lunchStart: 13, lunchEnd: 14 }],
     dateOverrides: [], pendingEnabled: true, lockPastBookings: false,
+    packages: [{ id: "pk1", name: "5 записів", count: 5, days: 90, price: 2500, serviceIds: [] }],
     intake: { enabled: true, fields: [
       { id: "f1", label: "Що хочете отримати від запису?", type: "text", required: true },
       { id: "f2", label: "Як зручніше спілкуватись", type: "select", options: ["Телефон", "Месенджер", "Не телефонуйте"], required: false },

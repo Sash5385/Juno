@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { update, get, onValue, off, remove, push as fbPush } from "firebase/database";
 import { iRef, auth } from "../firebase";
 import { blockRangeUpdates, restoreRangeUpdates } from "../slotRules";
+import { normPackages, pickPackage } from "../packages";
 import { normAddons, bufferOf, bookingAddonTotals, pickAddons, addonsTotals, addonsSnapshot, addonsLabel } from "../addons";
 
 // Єдині правила timeslots під запис (див. slotRules.js): блокування ставить
@@ -4839,6 +4840,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
             ...(b.note && { note: b.note }),
             ...(b.addons?.length && { addons: b.addons, addonsPrice: b.addonsPrice || 0 }),
             ...(b.bufferMin > 0 && { bufferMin: b.bufferMin }),
+            ...(b.packageId && { packageId: b.packageId, packageName: b.packageName || "" }),
           };
           if (b.userId) {
             update(iRef( `bookings/${b.userId}/${b.id}`), fbData).catch(()=>{});
@@ -5226,6 +5228,8 @@ function effectivePrice(svc, dateStr) {
 
 function computeBookingPrice(b, services) {
   if (b.manualPrice != null) return b.manualPrice;
+  // Запис за пакетом: послуга вже оплачена пакетом, платяться лише допуслуги (якщо пакет не вдалося списати — рахуємо як звичайний)
+  if (b.packageId && !b.packageError) return bookingAddonTotals(b).price;
   // Ціна, записана в слот при бронюванні (клієнт: тариф + надбавка − знижка/індив. ціна) —
   // джерело істини, поки тривалість не змінилась після запису.
   const _hrs = b.durationHours != null ? b.durationHours : b.durMin / 60;
@@ -5560,7 +5564,7 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
           </div>
 
           {/* Допуслуги й перерва запису (з послуги на момент запису) */}
-          {(normAddons(booking.addons).length > 0 || bufferOf(booking) > 0) && (
+          {(normAddons(booking.addons).length > 0 || bufferOf(booking) > 0 || booking.packageId) && (
             <div style={{margin:"10px 14px 0",padding:"10px 14px",borderRadius:14,background:`rgba(${GLOW},0.06)`,border:`1px solid ${BORDER}`,fontSize:12,color:TEXT,lineHeight:1.5}}>
               {normAddons(booking.addons).length > 0 && (() => {
                 const ax = bookingAddonTotals(booking);
@@ -5571,6 +5575,7 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
                 );
               })()}
               {bufferOf(booking) > 0 && <div style={{color:DIM}}>⏸ Перерва після запису: {bufferOf(booking)} хв</div>}
+              {booking.packageId && <div>🎫 {booking.packageError ? <span style={{color:ACCENT}}>Пакет «{booking.packageName}» не списано: {booking.packageError}</span> : <>З пакета «{booking.packageName}»</>}</div>}
             </div>
           )}
 
@@ -6208,6 +6213,7 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
   const [timeVal,    setTimeVal]    = useState(null);
   const [svcId,      setSvcId]      = useState(null);
   const [addonIds,   setAddonIds]   = useState([]);
+  const [usePkg,     setUsePkg]     = useState(true);
   const [note,       setNote]       = useState("");
   const [debtAmount, setDebtAmount] = useState("");
   const [newTag,     setNewTag]     = useState(null); // ручна мітка: id довільної мітки
@@ -6220,7 +6226,7 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
       const d = snap.val() || {};
       setStudents(Object.entries(d).map(([uid, u]) => {
         const p = u.profile || {};
-        return { id:uid, name:p.name||u.name||"Клієнт", phone:p.phone||u.phone||"" };
+        return { id:uid, name:p.name||u.name||"Клієнт", phone:p.phone||u.phone||"", packages:normPackages(u.packages) };
       }).filter(s=>s.name!=="Клієнт"||s.phone));
     });
     return () => off(r, "value", handler);
@@ -6263,6 +6269,10 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
   const chosenAddons = pickAddons(selSvc, addonIds);
   const axTotals = addonsTotals(chosenAddons);
   const totalDur = selSvc ? selSvc.duration + axTotals.minutes : 0;
+  // Пакет клієнта, який можна списати на цю послугу в обрану дату
+  const pkgDateStr = (() => { const d0 = new Date(); d0.setHours(0,0,0,0); d0.setDate(d0.getDate() + dateOffset); return `${d0.getFullYear()}-${String(d0.getMonth()+1).padStart(2,"0")}-${String(d0.getDate()).padStart(2,"0")}`; })();
+  const availPkg = (selSvc && selStudent && selStudent.id !== "new") ? pickPackage(selStudent.packages || [], selSvc.id, pkgDateStr) : null;
+  const pkgOn = !!availPkg && usePkg;
   const finalName = isNewStudent ? newName.trim() : selStudent ? selStudent.name : search.trim();
   const finalPhone= isNewStudent ? newPhone.trim() : phone || (selStudent?.phone ?? "");
   const readyToConfirm = finalName.length > 1 && !!selSvc && timeVal != null;
@@ -6301,6 +6311,7 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
       ...(newTag && { tag: newTag, tagManual: true }),
       ...(chosenAddons.length && { addons: addonsSnapshot(chosenAddons), addonsPrice: axTotals.price }),
       ...(bufferOf(selSvc) > 0 && { bufferMin: bufferOf(selSvc) }),
+      ...(pkgOn && { packageId: availPkg.id, packageName: availPkg.name }),
     });
     _close();
   };
@@ -6532,6 +6543,19 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
             </div>
           )}
 
+          {/* ПАКЕТ клієнта */}
+          {availPkg && (
+            <button type="button" onClick={()=>setUsePkg(v=>!v)} style={{
+              display:"flex",alignItems:"center",gap:10,textAlign:"left",padding:"10px 13px",borderRadius:12,cursor:"pointer",fontFamily:"inherit",
+              border: pkgOn ? `1.5px solid ${GREEN}` : `1.5px solid ${BORDER}`,
+              background: pkgOn ? `${GREEN}1a` : SURFACE_LO, color:TEXT,fontSize:13,fontWeight:700,
+            }}>
+              <span style={{fontSize:16}}>🎫</span>
+              <span style={{flex:1}}>Списати з пакета «{availPkg.name}» <span style={{color:TEXT_DIM,fontWeight:600}}>(лишилось {availPkg.left})</span></span>
+              <span style={{color:pkgOn?GREEN:TEXT_FAINT}}>{pkgOn?"✓":"○"}</span>
+            </button>
+          )}
+
           {/* ЦІНА PREVIEW */}
           {selSvc && (
             <div style={{
@@ -6540,7 +6564,7 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
               background:`${GOLD}14`,border:`1px solid ${GOLD}30`,
             }}>
               <span style={{fontSize:15}}>💰</span>
-              <div style={{fontSize:15,fontWeight:800,color:GOLD}}>{selSvc.price + axTotals.price}₴</div>
+              <div style={{fontSize:15,fontWeight:800,color:GOLD}}>{(pkgOn ? 0 : selSvc.price) + axTotals.price}₴</div>
               <div style={{fontSize:12,color:TEXT_DIM}}>· {totalDur} хв</div>
               {timeVal!=null && (
                 <div style={{marginLeft:"auto",fontSize:12,color:TEXT_DIM}}>

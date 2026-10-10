@@ -339,6 +339,50 @@ async function buildRescheduleSlotUpdates(iid, before, after) {
   return updates;
 }
 
+// ── Пакети (абонементи) клієнта: users/{uid}/packages/{pid} = { name, total, expiresAt, serviceIds, uses: {ключ: ts} }.
+// Залишок = total − кількість uses; запис за пакетом списує ключ (id запису, а при перенесенні — ключ старого запису,
+// packageUseId), скасування його прибирає. Пише лише сервер (клієнт пакети читає, але змінити не може) — ідемпотентно.
+const kyivDay = (ms) => new Date(ms).toLocaleDateString("sv-SE", { timeZone: "Europe/Kyiv" });
+
+async function consumePackage(iid, uid, bookingId, b) {
+  const useKey = b.rescheduledFrom && b.packageUseId ? String(b.packageUseId) : bookingId;
+  const pRef = iRef(iid, `users/${uid}/packages/${b.packageId}`);
+  let reason = null;
+  const res = await pRef.transaction((cur) => {
+    reason = null;
+    if (cur === null) return cur; // ще не в кеші — SDK повторить зі справжнім значенням
+    const uses = cur.uses || {};
+    const used = Object.keys(uses).filter((k) => k !== useKey).length;
+    if (cur.expiresAt && b.date && b.date > kyivDay(cur.expiresAt)) reason = "термін пакета минув";
+    else if (used >= (Number(cur.total) || 0)) reason = "у пакеті не лишилось записів";
+    else if (Array.isArray(cur.serviceIds) && cur.serviceIds.length && !cur.serviceIds.includes(b.serviceId)) reason = "пакет не діє на цю послугу";
+    if (reason) return undefined;
+    return { ...cur, uses: { ...uses, [useKey]: Date.now() } };
+  });
+  const bRef = iRef(iid, `bookings/${uid}/${bookingId}`);
+  if (!res.snapshot.exists()) reason = "пакет не знайдено";
+  if (reason) {
+    console.warn(`consumePackage: ${reason} iid=${iid} uid=${uid} booking=${bookingId}`);
+    await bRef.update({ packageError: reason }).catch(() => {});
+    await pushAdmin(iid, "⚠️ Пакет не списано", `${b.studentName || "Клієнт"} · ${b.date || ""} о ${b.time || ""}: ${reason}`).catch(() => {});
+    return false;
+  }
+  await bRef.update({ packageUsed: true }).catch(() => {});
+  return true;
+}
+
+async function releasePackage(iid, uid, bookingId, b) {
+  if (!b?.packageId || b.packageError) return;
+  const useKey = b.packageUseId ? String(b.packageUseId) : bookingId;
+  await iRef(iid, `users/${uid}/packages/${b.packageId}`).transaction((cur) => {
+    if (cur === null) return cur;
+    if (!cur.uses || !cur.uses[useKey]) return undefined;
+    const uses = { ...cur.uses };
+    delete uses[useKey];
+    return { ...cur, uses: Object.keys(uses).length ? uses : null };
+  }).catch(() => {});
+}
+
 // Всі зміни запису → push адміну або клієнту + синхронізація timeslots
 exports.onBookingChanged = onValueWritten(
   { ref: "instructors/{iid}/bookings/{uid}/{bookingId}", region: "europe-west1" },
@@ -371,6 +415,7 @@ exports.onBookingChanged = onValueWritten(
       }
       const slotUpd = await buildSlotUpdates(iid, after, false);
       if (Object.keys(slotUpd).length) await iRef(iid).update(slotUpd).catch(() => {});
+      if (after.packageId && after.status !== "personal") await consumePackage(iid, uid, bookingId, after).catch((e) => console.error("consumePackage failed", e));
       await iRef(iid, `activeStudents/${uid}`).set(true).catch(() => {});
       await iRef(iid, `recentStudents/${uid}`).set(Date.now()).catch(() => {});
       if (after.createdBy === "admin" && uid !== "admin") {
@@ -403,6 +448,7 @@ exports.onBookingChanged = onValueWritten(
       console.log(`onBookingChanged: student cancel iid=${iid} uid=${uid}`);
       const slotUpd = await buildSlotUpdates(iid, before, true, uid);
       if (Object.keys(slotUpd).length) await iRef(iid).update(slotUpd).catch(() => {});
+      await releasePackage(iid, uid, bookingId, before);
       await pushAdmin(iid, "❌ Запис скасовано", `${name} · ${date} о ${time}`, { url: adminLink() });
       if (date !== "—" && time !== "—") {
         const freedDurationHours = before.durationHours || (before.durMin ? before.durMin / 60 : 1);
@@ -438,6 +484,7 @@ exports.onBookingChanged = onValueWritten(
       console.log(`onBookingChanged: admin cancelled iid=${iid} uid=${uid}`);
       const slotUpd = await buildSlotUpdates(iid, before, true, uid);
       if (Object.keys(slotUpd).length) await iRef(iid).update(slotUpd).catch(() => {});
+      await releasePackage(iid, uid, bookingId, before);
       const cancelVars = { "ім'я": name, "дата": date, "час": time };
       const usedCancelTpl = await sendActiveTemplates(iid, uid, "auto_cancel", cancelVars).catch(() => false);
       if (!usedCancelTpl) {

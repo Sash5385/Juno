@@ -1,6 +1,7 @@
 import { useState, useContext, useEffect, useRef } from "react";
 import { TAG_COLORS, TAG_ICONS, DEFAULT_TAGS, AUTO_TAG_IDS, normalizeTags } from "../tags";
 import { FIELD_TYPES, MAX_FIELDS } from "../intake";
+import { MAX_TEMPLATES } from "../packages";
 import { DIRECTIONS, DIRECTION_IDS, normDirection } from "../terms";
 import { createPortal } from "react-dom";
 import { get, set, update, onValue, off } from "firebase/database";
@@ -32,6 +33,7 @@ const SEC_ICON_SVG = {
   sticky:     <><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.3"/></>,
   auto:       <><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></>,
   tags: <><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8Z"/><circle cx="7.5" cy="7.5" r="1.4"/></>,
+  packages: <><path d="M3 8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-2a2 2 0 0 0 0-4Z"/><path d="M14 6v12" strokeDasharray="2 2"/></>,
   intake: <><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h4"/></>,
   surcharges: <><circle cx="12" cy="12" r="9"/><path d="M12 7.5v9M15 9.7c0-1.1-1.2-2-3-2s-3 .9-3 1.9 1.3 1.5 3 1.8c1.7.3 3 .8 3 1.9s-1.2 1.9-3 1.9-3-.9-3-2"/></>,
   push:       <><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></>,
@@ -1005,6 +1007,7 @@ select{color-scheme:${isKava?"light":"dark"}}
     { id:"sticky",     icon:"📌", color:PURPLE, title:t('set.sticky.title'),   label:uk?"Слоти":"Slots"  },
     { id:"surcharges", icon:"💰", color:GOLD,   title:"Надбавки",              label:uk?"Збори":"Fees"   },
     { id:"tags",       icon:"🏷️", color:TEAL,   title:uk?"Мітки записів":"Booking tags", label:uk?"Мітки":"Tags" },
+    { id:"packages",   icon:"🎫", color:GOLD,   title:"Пакети записів",        label:"Пакети"            },
     { id:"intake",     icon:"📋", color:PURPLE, title:"Анкета клієнта",        label:"Анкета"            },
     { id:"push",       icon:"🔔", color:GREEN,  title:"Сповіщення",            label:"Сповіщення"        },
     { id:"reviews",    icon:"⭐", color:GOLD,   title:"Відгуки клієнтів",         label:"Відгуки"           },
@@ -1253,6 +1256,47 @@ select{color-scheme:${isKava?"light":"dark"}}
               <div style={{textAlign:"center",fontSize:12,color:FAINT,padding:"6px 0"}}>{uk?"Максимум 12 міток":"Max 12 tags"}</div>
             )}
             <button onClick={()=>setTagList(DEFAULT_TAGS)} style={{width:"100%",padding:"9px",borderRadius:12,border:"none",cursor:"pointer",background:"transparent",color:FAINT,fontSize:12,marginTop:6,textDecoration:"underline"}}>{uk?"Скинути до стандартних":"Reset to defaults"}</button>
+          </div>
+        );
+      }
+
+      case "packages": {
+        const pkgs = Array.isArray(settings.packages) ? settings.packages : [];
+        const svcs = (settings.services || []).filter(sv => !sv.archived);
+        const setPk = (list) => upd("packages", list);
+        const patchPk = (i, p) => setPk(pkgs.map((x, j) => j === i ? { ...x, ...p } : x));
+        const box = { padding:"10px 12px", borderRadius:10, border:`1px solid ${BORDER}`, background:"rgba(0,0,0,0.18)", color:TEXT, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", minWidth:0, width:"100%" };
+        const lbl = { fontSize:9, letterSpacing:1, color:FAINT, textTransform:"uppercase", marginBottom:3 };
+        return (
+          <div>
+            <div style={{fontSize:12,color:FAINT,marginBottom:12,lineHeight:1.5}}>
+              Заготовки пакетів (абонементів): скільки записів, на скільки днів і на які послуги. Додати пакет клієнту можна в його картці («Клієнти»). Записи за пакетом списуються автоматично, а при скасуванні повертаються.
+            </div>
+            {pkgs.map((pk, i) => (
+              <div key={pk.id || i} style={{marginBottom:8,padding:"10px 12px",borderRadius:12,background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,boxShadow:SO}}>
+                <div style={{display:"flex",alignItems:"center",gap:6}}>
+                  <input value={pk.name || ""} maxLength={40} placeholder="Назва, напр. «5 записів»" onChange={e=>patchPk(i,{name:e.target.value})} style={{...box,flex:1,width:"auto"}}/>
+                  <button onClick={()=>setPk(pkgs.filter((_, j) => j !== i))} aria-label="Видалити" style={{background:"none",border:"none",cursor:"pointer",color:"rgba(248,113,113,0.85)",fontSize:22,lineHeight:1,padding:"0 4px"}}>×</button>
+                </div>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:8,marginTop:8}}>
+                  <div><div style={lbl}>Записів</div><input type="number" min={1} max={200} value={pk.count ?? ""} onChange={e=>patchPk(i,{count:e.target.value===""?"":+e.target.value})} style={box}/></div>
+                  <div><div style={lbl}>Днів (0 — безстроково)</div><input type="number" min={0} max={1095} value={pk.days ?? ""} onChange={e=>patchPk(i,{days:e.target.value===""?"":+e.target.value})} style={box}/></div>
+                  <div><div style={lbl}>Ціна, ₴</div><input type="number" min={0} value={pk.price ?? ""} onChange={e=>patchPk(i,{price:e.target.value===""?"":+e.target.value})} style={box}/></div>
+                </div>
+                <div style={{...lbl,marginTop:9}}>Діє на послуги {(!pk.serviceIds || !pk.serviceIds.length) && <span style={{textTransform:"none",letterSpacing:0}}>— на всі</span>}</div>
+                <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                  {svcs.map(sv => { const on = (pk.serviceIds || []).includes(sv.id); return (
+                    <button key={sv.id} onClick={()=>patchPk(i,{serviceIds:on?(pk.serviceIds||[]).filter(x=>x!==sv.id):[...(pk.serviceIds||[]),sv.id]})} style={{padding:"6px 10px",borderRadius:9,border:"none",cursor:"pointer",fontSize:11,fontWeight:700,fontFamily:"inherit",
+                      background:on?`linear-gradient(165deg,${ACC_HI},${ACCENT})`:`linear-gradient(135deg,${SURF_HI},${SURFACE})`,color:on?"#fff":DIM,boxShadow:SO}}>{on?"✓ ":""}{sv.name}</button>
+                  ); })}
+                </div>
+              </div>
+            ))}
+            {pkgs.length < MAX_TEMPLATES ? (
+              <button onClick={()=>setPk([...pkgs,{id:"pk"+Date.now().toString(36),name:"",count:5,days:90,price:0,serviceIds:[]}])} style={{width:"100%",padding:"11px",borderRadius:12,border:`1px dashed ${GREEN}`,background:"transparent",color:GREEN,fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>+ Додати пакет</button>
+            ) : (
+              <div style={{textAlign:"center",fontSize:12,color:FAINT,padding:"6px 0"}}>Максимум {MAX_TEMPLATES} пакетів</div>
+            )}
           </div>
         );
       }

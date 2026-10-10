@@ -30,6 +30,7 @@ function effectivePrice(svc, dateStr) {
 }
 function bkIncome(b, svcs) {
   if (b.manualPrice != null) return b.manualPrice;
+  if (b.packageId && !b.packageError) return bookingAddonTotals(b).price; // послуга оплачена пакетом
   if (typeof b.price === "number" && b.price > 0 && Math.round((b.durationHours != null ? b.durationHours : (b.durMin||60)/60) * 60) === (b.durMin || 60)) return b.price;
   const svc = (svcs||[]).find(s => s.id === b.serviceId);
   const dur = b.durMin || (b.durationHours ? b.durationHours * 60 : 60);
