@@ -128,13 +128,27 @@ function buildAdminLink(base, { date, time, uid, bookingId } = {}) {
   return qs ? `${base}/?${qs}` : `${base}/`;
 }
 
+// Тривалість для пушів: 1 → «1 год», 1.25 → «1 год 15 хв» (запис із допуслугами не завжди цілий)
+function fmtDurH(durH) {
+  const min = Math.round((Number(durH) || 1) * 60);
+  const h = Math.floor(min / 60), m = min % 60;
+  return h === 0 ? `${m} хв` : m === 0 ? `${h} год` : `${h} год ${m} хв`;
+}
+
+// Допуслуги запису одним рядком: «Покриття, Дизайн» (знімок addons у записі)
+function addonsText(after) {
+  const raw = after.addons;
+  const list = Array.isArray(raw) ? raw : (raw && typeof raw === "object" ? Object.values(raw) : []);
+  return list.map((a) => String(a?.name || "").trim()).filter(Boolean).join(", ");
+}
+
 // Формат тексту пуша "Запис перенесено": ім'я · послуга тривалість / з дати на дату
 function buildRescheduleBody(after, name, date, time) {
   const svc = after.serviceName || after.service || "";
   const durH = after.durationHours || (after.durMin ? after.durMin / 60 : 1);
   const [od, ot] = String(after.rescheduledFrom || "").split(" ");
   const fmtD = (d) => { const m = /^\d{4}-(\d{2})-(\d{2})$/.exec(d || ""); return m ? `${m[2]}.${m[1]}` : (d || "—"); };
-  const line1 = svc ? `${name} · ${svc} ${durH} год` : `${name} · ${durH} год`;
+  const line1 = svc ? `${name} · ${svc} ${fmtDurH(durH)}` : `${name} · ${fmtDurH(durH)}`;
   return `${line1}\nз ${fmtD(od)} о ${ot || "—"} на ${fmtD(date)} о ${time}`;
 }
 
@@ -143,10 +157,12 @@ function buildNewBookingBody(after, name, date, time) {
   const svc = after.serviceName || after.service || "";
   const durH = after.durationHours || (after.durMin ? after.durMin / 60 : 1);
   const phone = after.phone || after.studentPhone || "";
-  const line1 = svc ? `${name} · ${svc} ${durH} год` : `${name} · ${durH} год`;
+  const line1 = svc ? `${name} · ${svc} ${fmtDurH(durH)}` : `${name} · ${fmtDurH(durH)}`;
   const line2 = phone ? `${date} о ${time} · ${phone}` : `${date} о ${time}`;
   const note = String(after.studentNote || "").trim();
-  return note ? `${line1}\n${line2}\n💬 ${note}` : `${line1}\n${line2}`;
+  const adds = addonsText(after);
+  const lines = [line1, ...(adds ? [`➕ ${adds}`] : []), line2, ...(note ? [`💬 ${note}`] : [])];
+  return lines.join("\n");
 }
 
 // Хелпер: відправити push адміну (на всі зареєстровані пристрої)
@@ -262,8 +278,10 @@ async function getActiveTemplateRaw(iid, triggerId) {
 }
 
 // Діапазон запису в хвилинах від півночі (або null, якщо даних замало)
+// buffer — перерва після запису (service.bufferMin → booking.bufferMin), хв: слоти за записом теж займаються,
+// але в тривалість запису вона не входить.
 function bookingRange(bookingData) {
-  const { date, time, durationHours, durMin, startMin } = bookingData || {};
+  const { date, time, durationHours, durMin, startMin, bufferMin } = bookingData || {};
   if (!date || (!time && startMin == null)) return null;
   let start;
   if (startMin != null) {
@@ -272,7 +290,9 @@ function bookingRange(bookingData) {
     const [h, m] = (time || "0:0").split(":").map(Number);
     start = h * 60 + m;
   }
-  return { date, start, dur: durMin ?? ((durationHours || 1) * 60) };
+  const buf = Number(bufferMin);
+  const buffer = Number.isFinite(buf) && buf > 0 ? Math.min(120, Math.round(buf)) : 0;
+  return { date, start, dur: durMin ?? ((durationHours || 1) * 60), buffer };
 }
 
 async function readSlotDay(iid, date) {
@@ -290,11 +310,11 @@ async function buildSlotUpdates(iid, bookingData, available, uid = null) {
   if (!r) return {};
   const day = await readSlotDay(iid, r.date);
   const prefix = `timeslots/${r.date}/`;
-  if (!available) return blockRangeUpdates(day, prefix, r.start, r.dur);
+  if (!available) return blockRangeUpdates(day, prefix, r.start, r.dur, { bufferMin: r.buffer });
   // Слот, який зайняв (bookedBy) інший клієнт, не звільняємо: запис-«накладка» на чужий час
   // не повинен відкривати чужий слот при скасуванні. bookedBy знімаємо зі звільнених.
   const mine = uid ? Object.fromEntries(Object.entries(day).filter(([, n]) => !n?.bookedBy || n.bookedBy === uid)) : day;
-  return restoreRangeUpdates(mine, prefix, r.start, r.dur, { extra: { bookedBy: null } });
+  return restoreRangeUpdates(mine, prefix, r.start, r.dur + r.buffer, { extra: { bookedBy: null } });
 }
 
 // Перенесення запису: заблокувати нове місце і звільнити старе (крім позицій,
@@ -306,13 +326,13 @@ async function buildRescheduleSlotUpdates(iid, before, after) {
   let newDay = null;
   if (newR) {
     newDay = await readSlotDay(iid, newR.date);
-    Object.assign(updates, blockRangeUpdates(newDay, `timeslots/${newR.date}/`, newR.start, newR.dur));
+    Object.assign(updates, blockRangeUpdates(newDay, `timeslots/${newR.date}/`, newR.start, newR.dur, { bufferMin: newR.buffer }));
   }
   if (oldR) {
     const sameDay = newR && newR.date === oldR.date;
     const oldDay = sameDay ? newDay : await readSlotDay(iid, oldR.date);
-    Object.assign(updates, restoreRangeUpdates(oldDay, `timeslots/${oldR.date}/`, oldR.start, oldR.dur, {
-      skipRange: sameDay ? { start: newR.start, end: newR.start + newR.dur } : null,
+    Object.assign(updates, restoreRangeUpdates(oldDay, `timeslots/${oldR.date}/`, oldR.start, oldR.dur + oldR.buffer, {
+      skipRange: sameDay ? { start: newR.start, end: newR.start + newR.dur + newR.buffer } : null,
       extra: { bookedBy: null },
     }));
   }

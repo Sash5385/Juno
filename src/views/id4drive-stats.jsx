@@ -6,6 +6,7 @@ import { createT } from "../lang";
 
 import { ThemeContext } from "../theme.js";
 import { UICss, Card, useFX } from "../ui";
+import { bookingAddonTotals } from "../addons";
 
 const UK_MONTHS     = ["Січ","Лют","Бер","Кві","Тра","Чер","Лип","Сер","Вер","Жов","Лис","Гру"];
 const UK_WEEK_LABELS= ["Пн","Вт","Ср","Чт","Пт","Сб"];
@@ -32,7 +33,9 @@ function bkIncome(b, svcs) {
   if (typeof b.price === "number" && b.price > 0 && Math.round((b.durationHours != null ? b.durationHours : (b.durMin||60)/60) * 60) === (b.durMin || 60)) return b.price;
   const svc = (svcs||[]).find(s => s.id === b.serviceId);
   const dur = b.durMin || (b.durationHours ? b.durationHours * 60 : 60);
-  if (svc && svc.price && svc.duration) return Math.round((effectivePrice(svc, b.date) / svc.duration) * dur);
+  // Допуслуги: їхні хвилини не множаться на тариф, ціна додається окремо
+  const ax = bookingAddonTotals(b);
+  if (svc && svc.price && svc.duration) return Math.round((effectivePrice(svc, b.date) / svc.duration) * Math.max(0, dur - ax.minutes)) + ax.price;
   if (b.price && b.durationHours && b.durMin) return Math.round((b.price / (b.durationHours * 60)) * b.durMin);
   return b.price || 0;
 }

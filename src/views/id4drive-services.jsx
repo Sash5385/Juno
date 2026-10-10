@@ -4,6 +4,7 @@ import { iRef } from "../firebase";
 
 import { ThemeContext } from "../theme.js";
 import { UICss, Modal, Chip, Btn, Toggle, Pill, useFX } from "../ui";
+import { rawAddons, normAddons, bufferOf, ADDON_MINUTES, BUFFER_OPTIONS, MAX_ADDONS } from "../addons";
 
 export const makePalette = ({GREEN, GOLD, BLUE, PURPLE, ACCENT, TEAL}) => [
   { id:"green",   name:"Зелений",    color:GREEN  },
@@ -83,12 +84,17 @@ function ServiceFormModal({ svc, onSave, onClose }) {
   const PALETTE = makePalette(theme);
   const { glow, shade } = useFX();
   const isNew = !svc;
-  const [form, setForm] = useState(svc || {
+  const [form, setForm] = useState(svc ? {...svc, accessCats:svc.accessCats||["cat-all"], addons:rawAddons(svc.addons), bufferMin:bufferOf(svc)} : {
     id:`sv-${Date.now()}`,name:"",type:"school",duration:60,price:0,
     colorId:"green",active:true,archived:false,description:"",instructions:"",
-    accessCats:["cat-all"],lessons:0,income:0,
+    accessCats:["cat-all"],lessons:0,income:0,addons:[],bufferMin:0,
   });
   const upd = (k,v) => setForm(f=>({...f,[k]:v}));
+  // Допуслуги: назва, ціна (₴ додається до запису) і додатковий час (хв додаються до тривалості)
+  const addons = rawAddons(form.addons);
+  const setAddon = (i,patch) => upd("addons", addons.map((a,j)=>j===i?{...a,...patch}:a));
+  const addAddon = () => addons.length < MAX_ADDONS && upd("addons", [...addons, {id:`ad-${Date.now().toString(36)}${Math.random().toString(36).slice(2,5)}`,name:"",price:0,minutes:0}]);
+  const delAddon = i => upd("addons", addons.filter((_,j)=>j!==i));
   const valid = form.name.trim() && form.accessCats.length > 0;
   const accentColor = PALETTE.find(p=>p.id===form.colorId)?.color || theme.GREEN;
 
@@ -96,7 +102,7 @@ function ServiceFormModal({ svc, onSave, onClose }) {
     <Modal open onClose={onClose} sheet size="lg" title={isNew?"Нова послуга":"Редагування послуги"}
       footer={<>
         <Btn variant="ghost" flex={1} onClick={onClose}>Скасувати</Btn>
-        <Btn variant="primary" flex={1} disabled={!valid} onClick={()=>valid&&onSave({...form,price:Number(form.price)||0})}>
+        <Btn variant="primary" flex={1} disabled={!valid} onClick={()=>valid&&onSave({...form,price:Number(form.price)||0,addons:normAddons(form.addons),bufferMin:bufferOf(form)})}>
           {isNew?"Створити послугу":"Зберегти зміни"}
         </Btn>
       </>}>
@@ -187,6 +193,75 @@ function ServiceFormModal({ svc, onSave, onClose }) {
             З {form.nextPriceFrom} ціна автоматично стане {form.nextPrice}₴ для записів з цією датою й пізніше.
           </div>
         )}
+      </div>
+
+      {/* add-ons */}
+      <div style={{marginBottom:14}}>
+        <div style={{fontSize:10,color:"rgba(255,255,255,0.55)",letterSpacing:1,marginBottom:6}}>ДОПУСЛУГИ (опційно)</div>
+        <div style={{display:"flex",flexDirection:"column",gap:8}}>
+          {addons.map((a,i)=>(
+            <Inset key={a.id||i} style={{padding:"8px 12px"}}>
+              <div style={{display:"flex",alignItems:"center",gap:8}}>
+                <input value={a.name||""} maxLength={40} onChange={e=>setAddon(i,{name:e.target.value})} placeholder="Назва допуслуги..."
+                  style={{flex:1,minWidth:0,background:"transparent",border:"none",outline:"none",color:TEXT,fontSize:14,fontWeight:800,padding:"6px 0",fontFamily:"inherit"}}/>
+                <button onClick={()=>delAddon(i)} aria-label="Видалити допуслугу" style={{
+                  width:28,height:28,borderRadius:8,border:"none",cursor:"pointer",flexShrink:0,
+                  background:`${ACCENT}1f`,color:ACCENT,fontSize:13,fontWeight:800,
+                }}>✕</button>
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"minmax(0,1fr) minmax(0,1fr)",gap:10,marginTop:4}}>
+                <div>
+                  <div style={{fontSize:9,color:"rgba(255,255,255,0.55)",letterSpacing:1,marginBottom:3}}>+ ДО ЦІНИ</div>
+                  <div style={{display:"flex",alignItems:"center",gap:5}}>
+                    <input type="number" value={a.price ?? ""} min={0} onChange={e=>setAddon(i,{price:e.target.value===""?"":+e.target.value})}
+                      style={{flex:1,minWidth:0,width:"100%",background:"transparent",border:"none",outline:"none",color:GOLD,fontSize:15,fontWeight:800,fontFamily:"inherit"}}/>
+                    <span style={{color:GOLD,fontSize:12,fontWeight:700}}>₴</span>
+                  </div>
+                </div>
+                <div>
+                  <div style={{fontSize:9,color:"rgba(255,255,255,0.55)",letterSpacing:1,marginBottom:3}}>+ ХВИЛИН</div>
+                  <div style={{display:"flex",alignItems:"center",gap:5}}>
+                    <input type="number" value={a.minutes ?? ""} min={0} max={240} step={5} onChange={e=>setAddon(i,{minutes:e.target.value===""?"":+e.target.value})}
+                      style={{flex:1,minWidth:0,width:"100%",background:"transparent",border:"none",outline:"none",color:TEXT,fontSize:15,fontWeight:800,fontFamily:"inherit"}}/>
+                    <span style={{color:DIM,fontSize:11}}>хв</span>
+                  </div>
+                </div>
+              </div>
+              <div style={{display:"flex",gap:4,marginTop:6,flexWrap:"wrap"}}>
+                {[0,...ADDON_MINUTES.filter(v=>v>0&&v<=60)].map(v=>(
+                  <button key={v} onClick={()=>setAddon(i,{minutes:v})} style={{
+                    padding:"3px 8px",borderRadius:7,border:"none",cursor:"pointer",fontSize:10,fontWeight:700,fontFamily:"inherit",
+                    background:Number(a.minutes||0)===v?`linear-gradient(165deg,${ACC_HI},${ACCENT})`:`linear-gradient(135deg,${SURF_HI},${SURFACE})`,
+                    color:Number(a.minutes||0)===v?"#fff":DIM,boxShadow:SO,
+                  }}>{v===0?"без часу":`+${v}`}</button>
+                ))}
+              </div>
+            </Inset>
+          ))}
+          {addons.length < MAX_ADDONS && (
+            <Btn variant="ghost" onClick={addAddon} style={{width:"100%"}}>＋ Додати допуслугу</Btn>
+          )}
+        </div>
+        <div style={{fontSize:10,color:"rgba(255,255,255,0.55)",marginTop:6}}>
+          Клієнт відмічає допуслуги при записі: сума додається до ціни, хвилини — до тривалості запису.
+        </div>
+      </div>
+
+      {/* buffer after booking */}
+      <div style={{marginBottom:14}}>
+        <div style={{fontSize:10,color:"rgba(255,255,255,0.55)",letterSpacing:1,marginBottom:8}}>ПЕРЕРВА ПІСЛЯ ЗАПИСУ</div>
+        <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+          {BUFFER_OPTIONS.map(v=>(
+            <button key={v} onClick={()=>upd("bufferMin",v)} style={{
+              padding:"6px 11px",borderRadius:9,border:"none",cursor:"pointer",fontSize:12,fontWeight:700,fontFamily:"inherit",
+              background:bufferOf(form)===v?`linear-gradient(165deg,${ACC_HI},${ACCENT})`:`linear-gradient(135deg,${SURF_HI},${SURFACE})`,
+              color:bufferOf(form)===v?"#fff":DIM,boxShadow:SO,
+            }}>{v===0?"Без перерви":`${v} хв`}</button>
+          ))}
+        </div>
+        <div style={{fontSize:10,color:"rgba(255,255,255,0.55)",marginTop:6}}>
+          Час на прибирання чи відпочинок: слот одразу після запису буде зайнятий, і клієнти не запишуться впритул. У тривалість і ціну перерва не входить.
+        </div>
       </div>
 
       {/* color */}
@@ -356,7 +431,11 @@ function ServiceRow({ svc, onEdit, onToggle, onDelete, dragHandleProps, isDraggi
       </div>
 
       <div style={{position:"relative",zIndex:2,display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:6}}>
-        <div style={{fontSize:10.5,color:"rgba(255,255,255,0.85)",fontWeight:700}}>{fmtDur(svc.duration)} · {svc.lessons} записів</div>
+        <div style={{fontSize:10.5,color:"rgba(255,255,255,0.85)",fontWeight:700}}>
+          {fmtDur(svc.duration)} · {svc.lessons} записів
+          {normAddons(svc.addons).length>0 && <> · допуслуг: {normAddons(svc.addons).length}</>}
+          {bufferOf(svc)>0 && <> · перерва {bufferOf(svc)} хв</>}
+        </div>
         <div onClick={stop}><Toggle on={svc.active&&!svc.archived} onChange={v=>onToggle(svc.id,v)}/></div>
       </div>
 

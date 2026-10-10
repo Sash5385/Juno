@@ -12,6 +12,7 @@ import { useMosaicSwitch, MosaicOverlay } from "./mosaic";
 import { APP_VERSION } from "./version.js";
 import { setTags } from "./tags";
 import { startTerms } from "./terms";
+import { bufferOf, bookingAddonTotals } from "./addons";
 
 export const LangContext = createContext('uk');
 
@@ -853,7 +854,7 @@ export default function App() {
           userId:    uid,
           day:       dateToDayIdx(b.date),
           startMin:  b.startMin ?? (parseInt((b.time||"0:0").split(":")[0])*60 + parseInt((b.time||"0:0").split(":")[1])),
-          durMin:    b.durMin   ?? (b.durationHours ? b.durationHours*60 : 60),
+          durMin:    b.durMin   ?? (b.durationHours ? Math.round(b.durationHours*60) : 60),
           name:      b.studentName || b.name || "Без імені",
           type:      b.serviceType || b.type || "private",
         });
@@ -955,15 +956,17 @@ const pendingDeletesRef = React.useRef(new Set());
       // cancelBooking роблять у клієнтському застосунку.
       // acc !== null → пишемо в спільний об'єкт (атомарний запис разом з бронюванням),
       // інакше робимо самостійний update.
-      const blockSlots = (date, startMin, durMin, onlyExisting = false, acc = null) => {
+      // bufferMin — перерва після запису: блокуємо лише наявні слоти сітки, не закриті майстром
+      const blockSlots = (date, startMin, durMin, onlyExisting = false, acc = null, bufferMin = 0) => {
         if (!date) return;
         const existsForDate = slotExistsRef.current[date];
         const endMin = startMin + durMin;
         const upd = acc || {};
         const now = Date.now();
-        for (let cur = startMin; cur < endMin; cur += 30) {
+        for (let cur = startMin; cur < endMin + (bufferMin > 0 ? bufferMin : 0); cur += 30) {
           const h = String(Math.floor(cur / 60)).padStart(2, "0");
           const m = String(cur % 60).padStart(2, "0");
+          if (cur >= endMin && (!existsForDate?.has(`${h}:${m}`) || openSlotsRef.current[date]?.[`${h}:${m}`]?.adminBlocked)) continue;
           // При переносі (onlyExisting) позначаємо зайнятими лише вже згенеровані
           // слоти — не створюємо нові вузли в днях без розкладу, інакше
           // перетягування «спавнить» вільні слоти в чужих днях.
@@ -981,22 +984,25 @@ const pendingDeletesRef = React.useRef(new Set());
         if (!acc && Object.keys(upd).length) update(iRef(), upd).catch(() => {});
       };
 
-      const freeSlots = (date, startMin, durMin, acc = null) => {
+      const freeSlots = (date, startMin, durMin, acc = null, bufferMin = 0) => {
         if (!date) return;
         const existsForDate = slotExistsRef.current[date];
         const endMin = startMin + durMin;
         const upd = acc || {};
         const now = Date.now();
-        for (let i = 0, cur = startMin; cur < endMin; cur += 30, i += 30) {
+        for (let i = 0, cur = startMin; cur < endMin + (bufferMin > 0 ? bufferMin : 0); cur += 30, i += 30) {
           const slotEnd = cur + 30;
           // Не звільняємо інтервал, який все ще перекриває інший активний запис
           // (інакше слот, поділений між двома записами, помилково став би вільним).
+          // Перерва іншого запису теж тримає слот зайнятим.
           const stillTaken = next.some(x =>
             x.status !== "cancelled" && bookingDateOf(x) === date &&
-            x.startMin < slotEnd && x.startMin + x.durMin > cur);
+            x.startMin < slotEnd && x.startMin + x.durMin + bufferOf(x) > cur);
           if (stillTaken) continue;
           const h = String(Math.floor(cur / 60)).padStart(2, "0");
           const m = String(cur % 60).padStart(2, "0");
+          // Перерва після запису: відкриваємо лише справжні слоти сітки, не закриті майстром; нічого не видаляємо
+          if (cur >= endMin && (!existsForDate?.has(`${h}:${m}`) || openSlotsRef.current[date]?.[`${h}:${m}`]?.adminBlocked)) continue;
           const key = `timeslots/${date}/slot${h}${m}`;
           // Слот, що належить сітці дня (:00 та :30 — обидва канонічні),
           // відновлюємо available:true. Вузол поза сіткою (phantom, створений
@@ -1022,10 +1028,10 @@ const pendingDeletesRef = React.useRef(new Set());
           delete moveSaveTimers.current[b.id];
           // Free original slot (before any drag) if booking was moved before deletion
           const orig = moveOriginals.current[b.id];
-          if (orig && orig.date) freeSlots(orig.date, orig.startMin, orig.durMin);
+          if (orig && orig.date) freeSlots(orig.date, orig.startMin, orig.durMin, null, bufferOf(b));
           delete moveOriginals.current[b.id];
           pendingDeletesRef.current.add(b.id);
-          freeSlots(b.date, b.startMin, b.durMin);
+          freeSlots(b.date, b.startMin, b.durMin, null, bufferOf(b));
           Promise.resolve().then(() => {
             const fbKey = b._fbKey || b.id;
             const now = Date.now();
@@ -1052,7 +1058,7 @@ const pendingDeletesRef = React.useRef(new Set());
               time: `${hh}:${mm}`,
               durationHours: b.durMin / 60,
             }).catch(() => {});
-            blockSlots(date, b.startMin, b.durMin);
+            blockSlots(date, b.startMin, b.durMin, false, null, bufferOf(b));
             bookingPatches.set(b.id, { userId: adminUser.uid, date });
             return;
           }
@@ -1067,7 +1073,7 @@ const pendingDeletesRef = React.useRef(new Set());
             if (b.status === 'cancelled') {
               patch.cancelledBy = 'admin';
               patch.cancelledAt = Date.now();
-              freeSlots(b.date, b.startMin, b.durMin);
+              freeSlots(b.date, b.startMin, b.durMin, null, bufferOf(b));
               Promise.resolve().then(() => setBookings(bs => bs.filter(x => x.id !== b.id)));
             }
             update(iRef( `bookings/${b.userId}/${b._fbKey || b.id}`), patch).catch(() => {});
@@ -1103,14 +1109,17 @@ const pendingDeletesRef = React.useRef(new Set());
             // Знижка клієнта — фіксована сума ₴/год (b.discount, з картки клієнта), а не відсотки;
             // індивідуальна ціна (b.customPrice, ₴/год) замінює тарифну і знижку.
             const hasCustomPrice = b.customPrice > 0;
-            const discountRub = hasCustomPrice ? 0 : (b.discount || 0) * (b.durMin / 60);
+            // Допуслуги запису: їхні хвилини не множаться на тариф, ціна додається окремо
+            const ax = bookingAddonTotals(b);
+            const baseMin = Math.max(0, b.durMin - ax.minutes);
+            const discountRub = hasCustomPrice ? 0 : (b.discount || 0) * (baseMin / 60);
             // Базова ціна за послугою (як у розкладі/деталях запису) — а не
             // дельта від старої b.price, якої може не бути (записи, створені
             // вручну через NewBookingModal, price/surcharge не зберігають).
             const svc = (settings.services || []).find(s => s.id === b.serviceId)
                      || (settings.services || []).find(s => s.active && s.type === (b.serviceType || b.type) && Number(s.duration) === b.durMin);
             const basePrice = svc
-              ? Math.round((svc.price / svc.duration) * b.durMin)
+              ? Math.round((svc.price / svc.duration) * baseMin) + ax.price
               : b.price && b.durationHours
                 ? Math.round((b.price / (b.durationHours * 60)) * b.durMin)
                 : (b.price || 0);
@@ -1124,9 +1133,9 @@ const pendingDeletesRef = React.useRef(new Set());
             const orig = moveOriginals.current[b.id];
             const origDate = orig ? dayIdxToDate(orig.day) : null;
             if (orig && origDate && (origDate !== newDate || orig.startMin !== b.startMin || orig.durMin !== b.durMin)) {
-              freeSlots(origDate, orig.startMin, orig.durMin, upd);
+              freeSlots(origDate, orig.startMin, orig.durMin, upd, bufferOf(b));
             }
-            blockSlots(newDate, b.startMin, b.durMin, true, upd);
+            blockSlots(newDate, b.startMin, b.durMin, true, upd, bufferOf(b));
             const bp = `bookings/${b.userId}/${b._fbKey || b.id}`;
             upd[`${bp}/startMin`]      = b.startMin;
             upd[`${bp}/durMin`]        = b.durMin;
@@ -1139,7 +1148,7 @@ const pendingDeletesRef = React.useRef(new Set());
             // раніше не зберігався) і надбавку саме нового слоту (0, якщо
             // новий слот без надбавки, — стара надбавка не має «прилипати»).
             const newPrice = hasCustomPrice
-              ? Math.round(Number(b.customPrice) * (b.durMin / 60)) + newSurcharge
+              ? Math.round(Number(b.customPrice) * (baseMin / 60)) + ax.price + newSurcharge
               : Math.max(0, Math.round(basePrice + newSurcharge - discountRub));
             upd[`${bp}/price`] = newPrice;
             upd[`${bp}/surcharge`] = newSurcharge || null;

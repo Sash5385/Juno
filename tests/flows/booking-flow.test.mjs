@@ -247,6 +247,58 @@ const mm = (t) => { const [h, m] = t.split(":").map(Number); return h * 60 + m; 
   await act(UB, bB, () => C.cancelBooking(UB, bB));
   check("B скасовує свій запис — слоти звільнено", clean(await day(D1)).slot1000.available === true);
 
+  console.log("── 12. Допуслуги і перерва після запису");
+  const bookBuf = async (uid, date, time, hours, buffer, extra = {}) => {
+    const ok = await C.claimSlot(date, time, hours, 30, buffer);
+    if (!ok) return null;
+    const key = await C.createBooking(uid, { date, time, serviceType: "private", serviceName: "Манікюр", durationHours: hours, price: 900, studentName: "X", phone: "1", bufferMin: buffer || undefined, ...extra });
+    await fire(uid, key, null, await bk(uid, key));
+    return key;
+  };
+  await seedDays();
+  await loginAs("a@t.dev"); await C.getUserProfile(UA);
+  const bBuf = await bookBuf(UA, D1, "10:00", 1.25, 30, { addons: [{ id: "a1", name: "Покриття", price: 150, minutes: 15 }], addonsPrice: 150 });
+  d = clean(await day(D1));
+  console.log("   слоти:", show(d));
+  check("запис з допуслугою (1 год 15 хв) + перерва 30 хв створено, поля збережено", !!bBuf && (await bk(UA, bBuf))?.bufferMin === 30 && (await bk(UA, bBuf))?.addons?.[0]?.name === "Покриття" && (await bk(UA, bBuf))?.addonsPrice === 150);
+  check("зайняті 10:00–11:00 (запис+допуслуга) і 11:30 (перерва), 12:00 вільний", [d.slot1000, d.slot1030, d.slot1100, d.slot1130].every((x) => x.available === false) && d.slot1200.available === true);
+  await act(UA, bBuf, () => C.cancelBooking(UA, bBuf));
+  check("скасування клієнтом звільняє і перерву — день як був", JSON.stringify(clean(await day(D1))) === JSON.stringify(pristine), JSON.stringify(show(clean(await day(D1)))));
+
+  console.log("── 12б. Слот у перерві закритий майстром — не чіпаємо ні при записі, ні при скасуванні");
+  await seedDays();
+  await adb.ref(`instructors/${IID}/timeslots/${D1}/slot1100`).update({ available: false, adminBlocked: true });
+  const bBlk = await bookBuf(UA, D1, "10:00", 1, 30);
+  d = clean(await day(D1));
+  check("запис проходить, закритий 11:00 лишився закритим без bookedBy", !!bBlk && d.slot1100.available === false && d.slot1100.adminBlocked === true && !d.slot1100.bookedBy);
+  await act(UA, bBlk, () => C.cancelBooking(UA, bBlk));
+  d = clean(await day(D1));
+  check("після скасування 10:00–10:30 вільні, а закритий 11:00 так і закритий", d.slot1000.available === true && d.slot1030.available === true && d.slot1100.available === false && d.slot1100.adminBlocked === true);
+
+  console.log("── 12в. Одразу після запису вже є чужий запис — перерви немає, діапазон не береться");
+  await seedDays();
+  await loginAs("b@t.dev"); await C.getUserProfile(UB);
+  const bNext = await book(UB, D1, "11:00", 1);
+  await loginAs("a@t.dev"); await C.getUserProfile(UA);
+  const before12 = JSON.stringify(clean(await day(D1)));
+  const bNo = await bookBuf(UA, D1, "10:00", 1, 30);
+  check("claimSlot з перервою відмовлено (11:00 зайнято)", bNo === null);
+  check("слоти A повністю повернуто, чужий запис не зачеплено", JSON.stringify(clean(await day(D1))) === before12);
+  await loginAs("b@t.dev"); await C.getUserProfile(UB);
+  await act(UB, bNext, () => C.cancelBooking(UB, bNext));
+
+  console.log("── 12г. Запис без клієнтського claim (як адмінський): сервер сам блокує перерву й звільняє її");
+  await seedDays();
+  const kAdm = "adm12";
+  await adb.ref(`instructors/${IID}/bookings/${UA}/${kAdm}`).set({ id: kAdm, date: D1, time: "10:00", startMin: 600, durMin: 60, durationHours: 1, status: "confirmed", createdBy: "admin", studentName: "X", bufferMin: 30 });
+  await fire(UA, kAdm, null, await bk(UA, kAdm));
+  d = clean(await day(D1));
+  check("сервер блокує 10:00–10:30 і перерву 11:00", d.slot1000.available === false && d.slot1030.available === false && d.slot1100.available === false && d.slot1130.available === true);
+  const bef = await bk(UA, kAdm);
+  await adb.ref(`instructors/${IID}/bookings/${UA}/${kAdm}`).update({ status: "cancelled", cancelledBy: "admin" });
+  await fire(UA, kAdm, bef, await bk(UA, kAdm));
+  check("скасування адміном звільняє і перерву — день як був", JSON.stringify(clean(await day(D1))) === JSON.stringify(pristine));
+
   console.log(failed ? `\n${failed} FAILED` : "\nALL PASS");
   process.exit(failed ? 1 : 0);
 })().catch((e) => { console.error(e); process.exit(1); });

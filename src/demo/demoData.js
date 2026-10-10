@@ -52,9 +52,11 @@ const STUDENTS = [
 }));
 
 const SERVICES = [
-  { id: "sv1", name: "Стандарт 1 год", type: "school",  duration: 60,  price: 600,  colorId: "green",  active: true, description: "Стандартний запис" },
+  { id: "sv1", name: "Стандарт 1 год", type: "school",  duration: 60,  price: 600,  colorId: "green",  active: true, description: "Стандартний запис",
+    addons: [{ id: "ad1", name: "Додаткові матеріали", price: 150, minutes: 0 }, { id: "ad2", name: "Подовження +30 хв", price: 300, minutes: 30 }] },
   { id: "sv2", name: "Стандарт 2 год", type: "school",  duration: 120, price: 1100, colorId: "green",  active: true, description: "Подвійний запис" },
-  { id: "sv3", name: "Індивідуальний 1 год", type: "private", duration: 60,  price: 800,  colorId: "yellow", active: true, description: "Індивідуальний запис" },
+  { id: "sv3", name: "Індивідуальний 1 год", type: "private", duration: 60,  price: 800,  colorId: "yellow", active: true, description: "Індивідуальний запис",
+    addons: [{ id: "ad3", name: "Подовження +15 хв", price: 150, minutes: 15 }], bufferMin: 15 },
   { id: "sv5", name: "Індивідуальний 1,5 год", type: "private", duration: 90, price: 1200, colorId: "purple", active: true, description: "Розширений запис" },
   { id: "sv4", name: "Індивідуальний 2 год", type: "private", duration: 120, price: 1500, colorId: "yellow", active: true, description: "Розширений запис із підготовкою" },
 ];

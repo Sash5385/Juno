@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { update, get, onValue, off, remove, push as fbPush } from "firebase/database";
 import { iRef, auth } from "../firebase";
 import { blockRangeUpdates, restoreRangeUpdates } from "../slotRules";
+import { normAddons, bufferOf, bookingAddonTotals, pickAddons, addonsTotals, addonsSnapshot, addonsLabel } from "../addons";
 
 // Єдині правила timeslots під запис (див. slotRules.js): блокування ставить
 // phantom на позиції без власного документа, звільнення видаляє phantom і
@@ -1524,10 +1525,12 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
       .filter(b => b.date === dateStr && b.status !== "cancelled")
       .forEach(b => {
         const bEnd = b.startMin + b.durMin;
-        for (let cur = b.startMin; cur < bEnd; cur += intervalMin) {
+        for (let cur = b.startMin; cur < bEnd + bufferOf(b); cur += intervalMin) {
           const h = String(Math.floor(cur / 60)).padStart(2, "0");
           const m = String(cur % 60).padStart(2, "0");
           const id = `slot${h}${m}`;
+          // Перерва після запису: лише слоти, що щойно згенерувались у сітці дня (без phantom і без закритих майстром)
+          if (cur >= bEnd && updates[`timeslots/${dateStr}/${id}/available`] !== true) continue;
           // Слот поза згенерованою сіткою (запис за межами робочих годин) —
           // позначаємо phantom для довідки; при скасуванні все одно стає вільним.
           if (!(`timeslots/${dateStr}/${id}/available` in updates)) {
@@ -2736,7 +2739,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
         }
         if (mb.startMin !== undefined && mb.durMin) {
           try {
-            await restoreSlotRange(mb.date || absDayToDateStr(mb.day), mb.startMin, mb.durMin);
+            await restoreSlotRange(mb.date || absDayToDateStr(mb.day), mb.startMin, mb.durMin + bufferOf(mb));
           } catch {}
         }
       };
@@ -3995,7 +3998,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                           // справжні повертаються як були) — раніше ВСІ позиції, включно
                           // з проміжними phantom, ставали окремими 30-хв слотами.
                           if (b.startMin !== undefined && b.durMin) {
-                            restoreSlotRange(b.date || absDayToDateStr(b.day), b.startMin, b.durMin).catch(()=>{});
+                            restoreSlotRange(b.date || absDayToDateStr(b.day), b.startMin, b.durMin + bufferOf(b)).catch(()=>{});
                           }
                           // Починаємо 2с відлік — затемнення → видалення
                           setCancellingSet(s=>new Set([...s, b.id, ...(b._mergedIds || [])]));
@@ -4834,6 +4837,8 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
             status: b.status, hours: b.hoursDone || 0,
             createdAt: Date.now(), createdBy: "admin",
             ...(b.note && { note: b.note }),
+            ...(b.addons?.length && { addons: b.addons, addonsPrice: b.addonsPrice || 0 }),
+            ...(b.bufferMin > 0 && { bufferMin: b.bufferMin }),
           };
           if (b.userId) {
             update(iRef( `bookings/${b.userId}/${b.id}`), fbData).catch(()=>{});
@@ -4869,7 +4874,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
           // інакше після скасування вони лишались би окремими 30-хв слотами.
           // bookingStart — явний прапорець реального старту бронювання: клієнт
           // показує лише його, а не кожен 30-хвилинний блок.
-          blockSlotRange(b.date, b.startMin, b.durMin, { bookingStart: true }).catch(() => {});
+          blockSlotRange(b.date, b.startMin, b.durMin, { bookingStart: true, bufferMin: bufferOf(b) }).catch(() => {});
         }
         setFormData(null);
       }}
@@ -5228,9 +5233,12 @@ function computeBookingPrice(b, services) {
   // Індивідуальна фікс. ціна клієнта (₴/год у картці клієнта) — виставляється
   // адміном вручну і діє на всі записи цього клієнта замість тарифу послуги;
   // знижка при цьому не застосовується (ціна вже персональна).
+  // Допуслуги (знімок у записі): їхні хвилини не множаться на тариф, а ціна додається окремо
+  const ax = bookingAddonTotals(b);
+  const baseMin = Math.max(0, b.durMin - ax.minutes);
   if (b.customPrice != null) {
-    const base = Math.round((b.customPrice / 60) * b.durMin);
-    return Math.max(0, Math.round(base + (b.surcharge || 0)));
+    const base = Math.round((b.customPrice / 60) * baseMin);
+    return Math.max(0, Math.round(base + ax.price + (b.surcharge || 0)));
   }
   const svc = services.find(s => s.id === b.serviceId)
            || services.find(s => s.active && s.type===(b.serviceType||b.type) && Number(s.duration)===b.durMin);
@@ -5239,14 +5247,14 @@ function computeBookingPrice(b, services) {
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   })();
   const base = svc
-    ? Math.round((effectivePrice(svc, dateStr) / svc.duration) * b.durMin)
+    ? Math.round((effectivePrice(svc, dateStr) / svc.duration) * baseMin) + ax.price
     : b.price && b.durationHours
       ? Math.round((b.price / (b.durationHours * 60)) * b.durMin)
       : (b.price || 0);
   // Знижка клієнта (грн/год, фіксована сума) — діє на годину, тож масштабується
   // на тривалість запису (2 год = знижка ×2). Не застосовується там, де ціну
   // виставлено вручну (manualPrice — свідомий override адміна).
-  const discount = (b.discount || 0) * (b.durMin / 60);
+  const discount = (b.discount || 0) * (baseMin / 60);
   return Math.max(0, Math.round(base + (b.surcharge || 0) - discount));
 }
 
@@ -5550,6 +5558,21 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
               ))}
             </div>
           </div>
+
+          {/* Допуслуги й перерва запису (з послуги на момент запису) */}
+          {(normAddons(booking.addons).length > 0 || bufferOf(booking) > 0) && (
+            <div style={{margin:"10px 14px 0",padding:"10px 14px",borderRadius:14,background:`rgba(${GLOW},0.06)`,border:`1px solid ${BORDER}`,fontSize:12,color:TEXT,lineHeight:1.5}}>
+              {normAddons(booking.addons).length > 0 && (() => {
+                const ax = bookingAddonTotals(booking);
+                return (
+                  <div>➕ <b>{addonsLabel(normAddons(booking.addons))}</b>
+                    <span style={{color:DIM}}> · +{ax.price}₴{ax.minutes>0?` · +${ax.minutes} хв`:""}</span>
+                  </div>
+                );
+              })()}
+              {bufferOf(booking) > 0 && <div style={{color:DIM}}>⏸ Перерва після запису: {bufferOf(booking)} хв</div>}
+            </div>
+          )}
 
           {/* Мітка — booking.tag/tagManual, якщо ручна; інакше показуємо автотег
               (за порядком запису/сумою боргу), рахований у батьківському компоненті. */}
@@ -6184,6 +6207,7 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
   const [dateOffset, setDateOffset] = useState(0);
   const [timeVal,    setTimeVal]    = useState(null);
   const [svcId,      setSvcId]      = useState(null);
+  const [addonIds,   setAddonIds]   = useState([]);
   const [note,       setNote]       = useState("");
   const [debtAmount, setDebtAmount] = useState("");
   const [newTag,     setNewTag]     = useState(null); // ручна мітка: id довільної мітки
@@ -6211,6 +6235,7 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
       setNewName(""); setNewPhone(""); setNote("");
       setDebtAmount("");
       setSvcId(null);
+      setAddonIds([]);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   },[!!data]);
@@ -6233,6 +6258,11 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
 
   const isNewStudent = selStudent?.id === "new";
   const selSvc    = activeServices.find(s=>s.id===svcId) ?? null;
+  // Допуслуги вибраної послуги: ціна додається до запису, хвилини — до його тривалості
+  const svcAddons = normAddons(selSvc?.addons);
+  const chosenAddons = pickAddons(selSvc, addonIds);
+  const axTotals = addonsTotals(chosenAddons);
+  const totalDur = selSvc ? selSvc.duration + axTotals.minutes : 0;
   const finalName = isNewStudent ? newName.trim() : selStudent ? selStudent.name : search.trim();
   const finalPhone= isNewStudent ? newPhone.trim() : phone || (selStudent?.phone ?? "");
   const readyToConfirm = finalName.length > 1 && !!selSvc && timeVal != null;
@@ -6261,7 +6291,7 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
     const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
     onConfirm({
       id:`b-${Date.now()}`,
-      day:dateOffset, date:dateStr, startMin:timeVal, durMin:selSvc.duration,
+      day:dateOffset, date:dateStr, startMin:timeVal, durMin:totalDur,
       name:finalName, phone:finalPhone, serviceId:selSvc.id,
       type:selSvc.type||"private", status:"confirmed",
       hoursDone:0, categoryId:null, isVipOnly:false,
@@ -6269,6 +6299,8 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
       ...(note.trim() && { note:note.trim() }),
       ...(Number(debtAmount) > 0 && { debtAmount: Number(debtAmount) }),
       ...(newTag && { tag: newTag, tagManual: true }),
+      ...(chosenAddons.length && { addons: addonsSnapshot(chosenAddons), addonsPrice: axTotals.price }),
+      ...(bufferOf(selSvc) > 0 && { bufferMin: bufferOf(selSvc) }),
     });
     _close();
   };
@@ -6456,7 +6488,7 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
                 const active = s.id===svcId;
                 const c = colorOf(s.colorId || (s.type==="school"?"green":"yellow"));
                 return (
-                  <button key={s.id} onClick={()=>setSvcId(s.id)} style={{
+                  <button key={s.id} onClick={()=>{ if (s.id!==svcId) { setSvcId(s.id); setAddonIds([]); } }} style={{
                     display:"flex",alignItems:"center",justifyContent:"space-between",
                     padding:"10px 13px",borderRadius:12,cursor:"pointer",
                     background:active?`${c}1a`:SURFACE_LO,
@@ -6477,6 +6509,29 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
             </div>
           </div>
 
+          {/* ДОПУСЛУГИ — якщо в послуги вони є */}
+          {selSvc && svcAddons.length > 0 && (
+            <div>
+              <SL>Допуслуги</SL>
+              <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                {svcAddons.map(a=>{
+                  const on = addonIds.includes(a.id);
+                  return (
+                    <button key={a.id} type="button" onClick={()=>setAddonIds(ids=>on?ids.filter(x=>x!==a.id):[...ids,a.id])} style={{
+                      padding:"8px 11px",borderRadius:11,cursor:"pointer",fontFamily:"inherit",textAlign:"left",
+                      border: on ? `1.5px solid ${GOLD}` : `1.5px solid ${BORDER}`,
+                      background: on ? `${GOLD}1f` : SURFACE_LO,
+                      color: on ? TEXT : TEXT_DIM, fontSize:12, fontWeight:on?800:600,
+                    }}>
+                      {on?"✓ ":"+ "}{a.name}
+                      <span style={{opacity:0.75,fontWeight:600}}> · {a.price}₴{a.minutes>0?` · +${a.minutes}хв`:""}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* ЦІНА PREVIEW */}
           {selSvc && (
             <div style={{
@@ -6485,11 +6540,11 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
               background:`${GOLD}14`,border:`1px solid ${GOLD}30`,
             }}>
               <span style={{fontSize:15}}>💰</span>
-              <div style={{fontSize:15,fontWeight:800,color:GOLD}}>{selSvc.price}₴</div>
-              <div style={{fontSize:12,color:TEXT_DIM}}>· {selSvc.duration} хв</div>
+              <div style={{fontSize:15,fontWeight:800,color:GOLD}}>{selSvc.price + axTotals.price}₴</div>
+              <div style={{fontSize:12,color:TEXT_DIM}}>· {totalDur} хв</div>
               {timeVal!=null && (
                 <div style={{marginLeft:"auto",fontSize:12,color:TEXT_DIM}}>
-                  {fmtTime(timeVal)} → {fmtTime(timeVal + selSvc.duration)}
+                  {fmtTime(timeVal)} → {fmtTime(timeVal + totalDur)}
                 </div>
               )}
             </div>
@@ -7440,7 +7495,7 @@ export default function App() {
           day,
           date:     dateStr,
           startMin: raw.startMin ?? (hh * 60 + mm),
-          durMin:   raw.durMin ?? (raw.durationHours ? raw.durationHours * 60 : 60),
+          durMin:   raw.durMin ?? (raw.durationHours ? Math.round(raw.durationHours * 60) : 60),
           name:     raw.studentName || raw.name || "Клієнт",
           phone:    raw.phone || "",
           type:     raw.serviceType || raw.type || "private",
