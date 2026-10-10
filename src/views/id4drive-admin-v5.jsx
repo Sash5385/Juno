@@ -2021,6 +2021,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   const minToPx = (m) => (m - wsMinAbs) * PX_PER_MIN;
 
   const onPointerDown = (e, b, mode) => {
+    if (e.button > 0) return; // права кнопка миші — лише контекстне меню (відкриває деталі), без перетягування
     if (scheduleLocked) {
       // Замочок закритий — редагування заборонене, але дотик на записі/блоці все одно
       // мусить дозволяти свайп-гортання розкладу (не лише порожні ділянки сітки).
@@ -2095,6 +2096,30 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
       if (g.axis === "x") { if (el.scrollTop !== g.st) el.scrollTop = g.st; }
       else if (el.scrollLeft !== g.sl) el.scrollLeft = g.sl;
     };
+    // ПК: затиснута ліва кнопка миші на порожньому місці сітки (фон колонки, data-pan) тягне розклад у будь-який бік.
+    // Дотики (touch) не чіпаємо — там нативне панорамування з блокуванням осі.
+    let mp = null;
+    const mDown = (e) => {
+      if (e.pointerType !== "mouse" || e.button !== 0 || !e.target?.hasAttribute?.("data-pan")) return;
+      mp = { x: e.clientX, y: e.clientY, sl: el.scrollLeft, st: el.scrollTop, moved: false };
+    };
+    const mMove = (e) => {
+      if (!mp) return;
+      const dx = e.clientX - mp.x, dy = e.clientY - mp.y;
+      if (!mp.moved) {
+        if (Math.hypot(dx, dy) < 5) return;
+        mp.moved = true;
+        clearTimeout(emptyHoldTimerRef.current); emptyHoldPosRef.current = null; // це тягнення, а не довге натискання «новий слот»
+        el.style.cursor = "grabbing";
+      }
+      el.scrollLeft = mp.sl - dx;
+      el.scrollTop = mp.st - dy;
+    };
+    const mUp = () => { if (mp?.moved) el.style.cursor = ""; mp = null; };
+    el.addEventListener("pointerdown", mDown);
+    window.addEventListener("pointermove", mMove);
+    window.addEventListener("pointerup", mUp);
+    window.addEventListener("pointercancel", mUp);
     el.addEventListener("touchstart", onStart, { passive: true });
     el.addEventListener("touchmove", onMoveT, { passive: true });
     el.addEventListener("touchend", onEnd, { passive: true });
@@ -2102,6 +2127,8 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
     el.addEventListener("scroll", onScrollLock, { passive: true });
     return () => {
       clearTimeout(unlockT);
+      el.removeEventListener("pointerdown", mDown);
+      window.removeEventListener("pointermove", mMove); window.removeEventListener("pointerup", mUp); window.removeEventListener("pointercancel", mUp);
       el.removeEventListener("touchstart", onStart); el.removeEventListener("touchmove", onMoveT);
       el.removeEventListener("touchend", onEnd); el.removeEventListener("touchcancel", onEnd);
       el.removeEventListener("scroll", onScrollLock);
@@ -3279,7 +3306,18 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                 }}
                 onPointerCancel={()=>{ clearTimeout(emptyHoldTimerRef.current); emptyHoldPosRef.current = null; }}
                 onPointerLeave={()=>{ clearTimeout(emptyHoldTimerRef.current); emptyHoldPosRef.current = null; }}
-                onContextMenu={e=>e.preventDefault()}
+                data-pan="1"
+                onContextMenu={e=>{
+                  e.preventDefault();
+                  // Права кнопка миші на порожньому місці = довге натискання: меню «новий слот / запис»
+                  if (e.target !== e.currentTarget || scheduleLocked || isPastDay) return;
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const minute = Math.floor((calcRef.current.workStartMin + (e.clientY - rect.top) / calcRef.current.PX_PER_MIN) / 30) * 30;
+                  if (colLunch.enabled && minute >= colLunch.start * 60 && minute < colLunch.end * 60) return;
+                  clearTimeout(emptyHoldTimerRef.current); emptyHoldPosRef.current = null;
+                  setLtmClosing(false); setLtmScatter(false);
+                  setLongTapMenu({ dateStr: dateStrCol, startMin: minute, selectedMin: minute, clientX: e.clientX, clientY: e.clientY, isClosedDay });
+                }}
                 style={{
                   width:COL_W, height:gridHeight,
                   position:"relative", padding:"0 4px",
@@ -3355,7 +3393,14 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                 const displayHeightMin = isBeingResized ? freeResizePreview.newDur : slotHeightMin;
                 return (
                   <div key={`os-${time}`}
+                    onContextMenu={e=>{
+                      e.preventDefault();
+                      if (isPastDay || scheduleLocked) return;
+                      clearTimeout(slotHoldTimerRef.current); slotPressRef.current = null;
+                      setSlotOptions({ dateStr: dateStrCol, time, startTime: time, slot });
+                    }}
                     onPointerDown={e=>{
+                      if (e.button > 0) return; // права кнопка відкриває меню через onContextMenu, а не запускає перетягування
                       // isClosedDay НЕ блокує тут: слот, який реально існує на
                       // закритому дні (адмін відкрив вручну через довгий тап →
                       // "Вільний слот"), має лишатись керованим — інакше його
@@ -3771,7 +3816,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                         }
                         onPointerDown(e,b,"move");
                       }}
-                      onContextMenu={e=>e.preventDefault()}
+                      onContextMenu={e=>{ e.preventDefault(); e.currentTarget.click(); }}
                       onClick={e=>{
                         e.stopPropagation();
                         if(xJustShownRef.current){ xJustShownRef.current=false; return; }
