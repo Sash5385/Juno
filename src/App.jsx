@@ -831,6 +831,7 @@ export default function App() {
         minBookingIntervalDays: settings.minBookingIntervalDays ?? 0,
         tags: settings.tags ?? null,
         direction: settings.direction ?? "universal",
+        intake: settings.intake ?? null,
         slotFreedPushEnabled: settings.slotFreedPushEnabled ?? true,
         lockPastBookings: settings.lockPastBookings ?? false,
         showHelpBtn: settings.showHelpBtn ?? true,

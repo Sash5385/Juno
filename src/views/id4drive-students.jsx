@@ -508,6 +508,16 @@ function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock, autoOpenH
                   <div style={{background:glow(0.04),borderRadius:10,padding:"9px 12px",border:`1px solid ${BORDER}`,fontSize:12,color:DIM,lineHeight:1.5}}>📝 {s.notes}</div>
                 )}
 
+                {/* Анкета клієнта (відповіді з Налаштування → Анкета) */}
+                {s.intake?.length > 0 && (
+                  <div style={{background:glow(0.04),borderRadius:10,padding:"9px 12px",border:`1px solid ${BORDER}`,fontSize:12,color:DIM,lineHeight:1.6}}>
+                    <div style={{fontSize:10,fontWeight:700,letterSpacing:1,textTransform:"uppercase",color:FAINT,marginBottom:3}}>📋 Анкета</div>
+                    {s.intake.map((it,i)=>(
+                      <div key={it.id||i}><span style={{color:FAINT}}>{it.label}:</span> <b style={{color:TEXT,fontWeight:700}}>{it.value}</b></div>
+                    ))}
+                  </div>
+                )}
+
                 {/* Delete */}
                 <button onClick={()=>setConfirmDel(true)} style={{
                   width:"100%",padding:"11px",borderRadius:11,border:"1px solid rgba(239,68,68,0.25)",
@@ -643,6 +653,7 @@ export default function StudentsView({ studentJump, onStudentJumpHandled, bookin
           discount:u.discount||0, customPrice:u.customPrice??null, notes:u.notes||"", blocked:u.blocked||false, isVip:u.isVip||false,
           noIntervalLimit:u.noIntervalLimit||false,
           photo:p.photo||null,
+          intake:Array.isArray(u.intake?.items)?u.intake.items:(u.intake?.items?Object.values(u.intake.items):[]),
           createdAt:p.createdAt||u.createdAt||null,
         };
       }));

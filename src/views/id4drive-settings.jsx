@@ -1,5 +1,6 @@
 import { useState, useContext, useEffect, useRef } from "react";
 import { TAG_COLORS, TAG_ICONS, DEFAULT_TAGS, AUTO_TAG_IDS, normalizeTags } from "../tags";
+import { FIELD_TYPES, MAX_FIELDS } from "../intake";
 import { DIRECTIONS, DIRECTION_IDS, normDirection } from "../terms";
 import { createPortal } from "react-dom";
 import { get, set, update, onValue, off } from "firebase/database";
@@ -31,6 +32,7 @@ const SEC_ICON_SVG = {
   sticky:     <><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.3"/></>,
   auto:       <><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></>,
   tags: <><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8Z"/><circle cx="7.5" cy="7.5" r="1.4"/></>,
+  intake: <><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h4"/></>,
   surcharges: <><circle cx="12" cy="12" r="9"/><path d="M12 7.5v9M15 9.7c0-1.1-1.2-2-3-2s-3 .9-3 1.9 1.3 1.5 3 1.8c1.7.3 3 .8 3 1.9s-1.2 1.9-3 1.9-3-.9-3-2"/></>,
   push:       <><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></>,
   reviews:    <><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></>,
@@ -1003,6 +1005,7 @@ select{color-scheme:${isKava?"light":"dark"}}
     { id:"sticky",     icon:"📌", color:PURPLE, title:t('set.sticky.title'),   label:uk?"Слоти":"Slots"  },
     { id:"surcharges", icon:"💰", color:GOLD,   title:"Надбавки",              label:uk?"Збори":"Fees"   },
     { id:"tags",       icon:"🏷️", color:TEAL,   title:uk?"Мітки записів":"Booking tags", label:uk?"Мітки":"Tags" },
+    { id:"intake",     icon:"📋", color:PURPLE, title:"Анкета клієнта",        label:"Анкета"            },
     { id:"push",       icon:"🔔", color:GREEN,  title:"Сповіщення",            label:"Сповіщення"        },
     { id:"reviews",    icon:"⭐", color:GOLD,   title:"Відгуки клієнтів",         label:"Відгуки"           },
     { id:"profile",    icon:"👤", color:BLUE,   title:"Профіль майстра",   label:"Профіль"           },
@@ -1250,6 +1253,55 @@ select{color-scheme:${isKava?"light":"dark"}}
               <div style={{textAlign:"center",fontSize:12,color:FAINT,padding:"6px 0"}}>{uk?"Максимум 12 міток":"Max 12 tags"}</div>
             )}
             <button onClick={()=>setTagList(DEFAULT_TAGS)} style={{width:"100%",padding:"9px",borderRadius:12,border:"none",cursor:"pointer",background:"transparent",color:FAINT,fontSize:12,marginTop:6,textDecoration:"underline"}}>{uk?"Скинути до стандартних":"Reset to defaults"}</button>
+          </div>
+        );
+      }
+
+      case "intake": {
+        const intake = settings.intake || { enabled: true, fields: [] };
+        const fields = Array.isArray(intake.fields) ? intake.fields : [];
+        const setIntake = (patch) => upd("intake", { ...intake, fields, ...patch });
+        const patchField = (i, p) => setIntake({ fields: fields.map((f, j) => j === i ? { ...f, ...p } : f) });
+        const move = (i, d) => { const n = [...fields]; const k = i + d; if (k < 0 || k >= n.length) return; [n[i], n[k]] = [n[k], n[i]]; setIntake({ fields: n }); };
+        const box = { padding:"10px 12px", borderRadius:10, border:`1px solid ${BORDER}`, background:"rgba(0,0,0,0.18)", color:TEXT, fontSize:14, fontFamily:"inherit", width:"100%", boxSizing:"border-box" };
+        return (
+          <div>
+            <div style={{fontSize:12,color:FAINT,marginBottom:12,lineHeight:1.5}}>
+              {uk ? "Питання, на які клієнт відповідає один раз перед першим записом. Відповіді видно в картці клієнта. Якщо додасте нове обов'язкове питання — клієнти відповідять на нього перед наступним записом."
+                  : "Questions a client answers once before their first booking. Answers appear in the client card."}
+            </div>
+            <Row color={intake.enabled !== false ? GREEN : RED} label={uk ? "Анкета увімкнена" : "Questionnaire on"}>
+              <Toggle color={intake.enabled !== false ? GREEN : RED} on={intake.enabled !== false} onChange={v=>setIntake({ enabled: v })}/>
+            </Row>
+            {fields.map((f, i) => (
+              <div key={f.id || i} style={{marginTop:8,padding:"10px 12px",borderRadius:12,background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,boxShadow:SO}}>
+                <div style={{display:"flex",alignItems:"center",gap:6}}>
+                  <input value={f.label || ""} maxLength={80} placeholder={uk ? "Питання, напр. «Алергії»" : "Question"} onChange={e=>patchField(i,{label:e.target.value})} style={{...box,flex:1,width:"auto"}}/>
+                  <button onClick={()=>move(i,-1)} disabled={i===0} aria-label="Вгору" style={{background:"none",border:"none",color:i===0?FAINT:DIM,cursor:"pointer",fontSize:15,padding:"0 3px"}}>▲</button>
+                  <button onClick={()=>move(i,1)} disabled={i===fields.length-1} aria-label="Вниз" style={{background:"none",border:"none",color:i===fields.length-1?FAINT:DIM,cursor:"pointer",fontSize:15,padding:"0 3px"}}>▼</button>
+                  <button onClick={()=>setIntake({ fields: fields.filter((_, j) => j !== i) })} aria-label="Видалити" style={{background:"none",border:"none",cursor:"pointer",color:"rgba(248,113,113,0.85)",fontSize:22,lineHeight:1,padding:"0 4px"}}>×</button>
+                </div>
+                <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:8}}>
+                  {FIELD_TYPES.map(ft => (
+                    <button key={ft.id} onClick={()=>patchField(i,{type:ft.id})} style={{padding:"6px 10px",borderRadius:9,border:"none",cursor:"pointer",fontSize:11,fontWeight:700,fontFamily:"inherit",
+                      background:f.type===ft.id?`linear-gradient(165deg,${ACC_HI},${ACCENT})`:`linear-gradient(135deg,${SURF_HI},${SURFACE})`,color:f.type===ft.id?"#fff":DIM,boxShadow:SO}}>{ft.label}</button>
+                  ))}
+                </div>
+                {f.type === "select" && (
+                  <input value={f.optionsRaw ?? (Array.isArray(f.options) ? f.options.join(", ") : "")} maxLength={300} placeholder={uk ? "Варіанти через кому: Суха, Жирна, Комбінована" : "Options, comma separated"}
+                    onChange={e=>patchField(i,{optionsRaw:e.target.value,options:e.target.value.split(",").map(x=>x.trim()).filter(Boolean)})} style={{...box,marginTop:8}}/>
+                )}
+                <div style={{display:"flex",alignItems:"center",gap:8,marginTop:8}}>
+                  <Toggle color={f.required ? GREEN : DIM} on={!!f.required} onChange={v=>patchField(i,{required:v})}/>
+                  <span style={{fontSize:12,color:DIM}}>{uk ? "Обов'язкове" : "Required"}</span>
+                </div>
+              </div>
+            ))}
+            {fields.length < MAX_FIELDS ? (
+              <button onClick={()=>setIntake({ fields: [...fields, { id:"f"+Date.now().toString(36), label:"", type:"text", required:false }] })} style={{width:"100%",padding:"11px",marginTop:8,borderRadius:12,border:`1px dashed ${GREEN}`,background:"transparent",color:GREEN,fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>{uk ? "+ Додати питання" : "+ Add question"}</button>
+            ) : (
+              <div style={{textAlign:"center",fontSize:12,color:FAINT,padding:"6px 0"}}>{uk ? "Максимум 12 питань" : "Max 12 questions"}</div>
+            )}
           </div>
         );
       }

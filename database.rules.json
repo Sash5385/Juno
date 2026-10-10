@@ -97,6 +97,16 @@
             "queueOffers":   { ".write": "auth != null && auth.uid === $uid" },
             "fcmTokens":     { ".write": "auth != null && auth.uid === $uid" },
             "internalExam":  { ".write": "auth != null && auth.uid === $uid" },
+            // Анкета клієнта: { at, items: [{ id, label, value }] } — до 12 рядків, довжини обмежені
+            "intake":        { ".write": "auth != null && auth.uid === $uid",
+                               ".validate": "newData.hasChildren(['at','items'])",
+                               "at":    { ".validate": "newData.isNumber()" },
+                               "items": { "$i": { ".validate": "$i.matches(/^([0-9]|1[01])$/) && newData.hasChildren(['id','label','value'])",
+                                                  "id":    { ".validate": "newData.isString() && newData.val().length <= 40" },
+                                                  "label": { ".validate": "newData.isString() && newData.val().length <= 80" },
+                                                  "value": { ".validate": "newData.isString() && newData.val().length <= 500" },
+                                                  "$other": { ".validate": false } } },
+                               "$other": { ".validate": false } },
             "customPrice": { ".validate": "auth.uid === $iid || newData.val() === data.val()" }
           }
         },

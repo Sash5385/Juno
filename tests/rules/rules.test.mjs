@@ -128,6 +128,15 @@ await t("student claims slot reserved for another student", X, () => update(R(S1
 await t("student claims slot whose reservation expired", A, () => update(R(S1, P + "/slot1800"), { available: false, bookedBy: "stu1" }));
 await t("student claims own reserved slot + clears markers (claimReservedSlot)", A, () => update(R(S1, "instructors/inst1"), { [`timeslots/${D}/slot1900/available`]: false, [`timeslots/${D}/slot1900/bookedBy`]: "stu1", [`timeslots/${D}/slot1900/offeredTo/stu1`]: null, [`timeslots/${D}/slot1900/reservedFor`]: null, [`timeslots/${D}/slot1900/reservedUntil`]: null }));
 await t("student removes another student's reservation", X, () => remove(R(S1, P + "/slot1700/reservedFor")));
+console.log("── INTAKE (анкета клієнта)");
+const ITEM = { id: "a", label: "Алергії", value: "Немає" };
+await t("student saves own intake", A, () => set(R(S1, "instructors/inst1/users/stu1/intake"), { at: NOW, items: [ITEM, { id: "b", label: "Тип", value: "Суха" }] }));
+await t("student intake with too long value", X, () => set(R(S1, "instructors/inst1/users/stu1/intake"), { at: NOW, items: [{ ...ITEM, value: "x".repeat(501) }] }));
+await t("student intake with extra field in item", X, () => set(R(S1, "instructors/inst1/users/stu1/intake"), { at: NOW, items: [{ ...ITEM, evil: 1 }] }));
+await t("student intake with extra top-level key", X, () => set(R(S1, "instructors/inst1/users/stu1/intake"), { at: NOW, items: [ITEM], isVip: true }));
+await t("student intake with 100 items (index limit)", X, () => set(R(S1, "instructors/inst1/users/stu1/intake"), { at: NOW, items: Array.from({ length: 100 }, () => ITEM) }));
+await t("student writes another student's intake", X, () => set(R(S1, "instructors/inst1/users/stuX/intake"), { at: NOW, items: [ITEM] }));
+await t("instructor reads student's intake", A, () => get(R(I1, "instructors/inst1/users/stu1/intake")));
 console.log("── BOOKINGS (student)");
 const B = "instructors/inst1/bookings/stu1";
 await env.withSecurityRulesDisabled(async (c) => { const d = c.database(); await set(ref(d, B + "/own"), { id: "own", date: D, time: "10:00", status: "confirmed", price: 600, durationHours: 1, debtAmount: 600, tag: "x", createdBy: "admin", studentName: "S1" }); await set(ref(d, "instructors/inst1/bookings/stuX/other"), { id: "other", date: D, time: "11:00", status: "pending", price: 600 }); });

@@ -330,6 +330,11 @@ export function buildDemoTree() {
     lunchEnabled: true, lunchStart: 13, lunchEnd: 14,
     weekSchedule: [weekday, weekday, weekday, weekday, weekday, { enabled: true, start: 10, end: 16, lunchEnabled: false, lunchStart: 13, lunchEnd: 14 }, { enabled: false, start: 9, end: 18, lunchEnabled: false, lunchStart: 13, lunchEnd: 14 }],
     dateOverrides: [], pendingEnabled: true, lockPastBookings: false,
+    intake: { enabled: true, fields: [
+      { id: "f1", label: "Що хочете отримати від запису?", type: "text", required: true },
+      { id: "f2", label: "Як зручніше спілкуватись", type: "select", options: ["Телефон", "Месенджер", "Не телефонуйте"], required: false },
+      { id: "f3", label: "Є особливі побажання чи обмеження", type: "yesno", required: false },
+    ] },
     theme: demoTheme(), language: "uk",
     direction: (() => { try { return new URLSearchParams(window.location.search).get("dir") || "universal"; } catch { return "universal"; } })(), // ?demo=1&dir=education|consult|beauty
     queueAutoFifo: true, queueBroadcast: false, queueManual: false,
