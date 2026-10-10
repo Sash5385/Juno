@@ -1165,6 +1165,25 @@ exports.sendLessonReminders = onSchedule(
 // [0, reminderHours] само по собі не ширше за 15/30 хв, і перевірка раз на
 // 15 хв (як було раніше) регулярно повністю проскакувала його між двома
 // тіками, залежно від фази — нагадування мовчки не приходило.
+// Щодня о 11:00 за Києвом: клієнтам, яким «пора» повторити послугу (service.rebookDays), надсилаємо м'яке нагадування
+const { findRebookDue } = require("./rebook");
+exports.sendRebookReminders = onSchedule(
+  { schedule: "0 11 * * *", timeZone: "Europe/Kyiv", region: "europe-west1" },
+  async () => {
+    const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Kyiv" });
+    const instructors = (await db.ref("instructors").get()).val() || {};
+    for (const [iid, inst] of Object.entries(instructors)) {
+      if (isLicenseReadonly(inst?.license)) continue;
+      for (const d of findRebookDue(inst, today)) {
+        const pushed = await pushStudent(iid, d.uid, "📅 Час записатись знову", `Минуло ${d.days} дн. після «${d.serviceName}». Оберіть зручний час.`, {
+          url: "https://juno-booking-client.web.app/cabinet",
+        }).catch(() => false);
+        if (pushed !== false) await iRef(iid, `users/${d.uid}/rebookReminded`).set(d.bookingId).catch(() => {}); // один раз на візит
+      }
+    }
+  }
+);
+
 exports.sendPersonalEventReminders = onSchedule(
   { schedule: "every 1 minutes", region: "europe-west1" },
   async () => {

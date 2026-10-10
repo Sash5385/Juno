@@ -36,6 +36,8 @@ const INIT_SERVICES = [
   { id:"sv2", name:"Індивідуальний", type:"private", duration:60,  price:0,    colorId:"yellow", active:true,  archived:false, description:"", accessCats:["cat-all"], lessons:0, income:0, instructions:"" },
 ];
 
+const REBOOK_OPTIONS = [0,14,21,30,45,60,90];
+const rebookOf = svc => { const d = Math.round(Number(svc?.rebookDays)); return d > 0 ? Math.min(365, d) : 0; };
 const fmtDur = min => { const h=Math.floor(min/60),m=min%60; return m?`${h}г ${m}хв`:`${h} год`; };
 
 // ─── ICONS ──────────────────────────────────────────────────────
@@ -85,10 +87,10 @@ function ServiceFormModal({ svc, onSave, onClose }) {
   const PALETTE = makePalette(theme);
   const { glow, shade } = useFX();
   const isNew = !svc;
-  const [form, setForm] = useState(svc ? {...svc, accessCats:svc.accessCats||["cat-all"], addons:rawAddons(svc.addons), bufferMin:bufferOf(svc), capacity:capacityOf(svc)} : {
+  const [form, setForm] = useState(svc ? {...svc, accessCats:svc.accessCats||["cat-all"], addons:rawAddons(svc.addons), bufferMin:bufferOf(svc), capacity:capacityOf(svc), rebookDays:rebookOf(svc)} : {
     id:`sv-${Date.now()}`,name:"",type:"school",duration:60,price:0,
     colorId:"green",active:true,archived:false,description:"",instructions:"",
-    accessCats:["cat-all"],lessons:0,income:0,addons:[],bufferMin:0,capacity:1,
+    accessCats:["cat-all"],lessons:0,income:0,addons:[],bufferMin:0,capacity:1,rebookDays:0,
   });
   const upd = (k,v) => setForm(f=>({...f,[k]:v}));
   // Допуслуги: назва, ціна (₴ додається до запису) і додатковий час (хв додаються до тривалості)
@@ -103,7 +105,7 @@ function ServiceFormModal({ svc, onSave, onClose }) {
     <Modal open onClose={onClose} sheet size="lg" title={isNew?"Нова послуга":"Редагування послуги"}
       footer={<>
         <Btn variant="ghost" flex={1} onClick={onClose}>Скасувати</Btn>
-        <Btn variant="primary" flex={1} disabled={!valid} onClick={()=>valid&&onSave({...form,price:Number(form.price)||0,addons:capacityOf(form)>1?[]:normAddons(form.addons),bufferMin:bufferOf(form),capacity:capacityOf(form)})}>
+        <Btn variant="primary" flex={1} disabled={!valid} onClick={()=>valid&&onSave({...form,price:Number(form.price)||0,addons:capacityOf(form)>1?[]:normAddons(form.addons),bufferMin:bufferOf(form),capacity:capacityOf(form),rebookDays:rebookOf(form)})}>
           {isNew?"Створити послугу":"Зберегти зміни"}
         </Btn>
       </>}>
@@ -194,6 +196,23 @@ function ServiceFormModal({ svc, onSave, onClose }) {
             З {form.nextPriceFrom} ціна автоматично стане {form.nextPrice}₴ для записів з цією датою й пізніше.
           </div>
         )}
+      </div>
+
+      {/* rebook reminder */}
+      <div style={{marginBottom:14}}>
+        <div style={{fontSize:10,color:"rgba(255,255,255,0.55)",letterSpacing:1,marginBottom:8}}>НАГАДАТИ ПРО ПОВТОРНИЙ ЗАПИС</div>
+        <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+          {REBOOK_OPTIONS.map(v=>(
+            <button key={v} onClick={()=>upd("rebookDays",v)} style={{
+              padding:"6px 11px",borderRadius:9,border:"none",cursor:"pointer",fontSize:12,fontWeight:700,fontFamily:"inherit",
+              background:rebookOf(form)===v?`linear-gradient(165deg,${ACC_HI},${ACCENT})`:`linear-gradient(135deg,${SURF_HI},${SURFACE})`,
+              color:rebookOf(form)===v?"#fff":DIM,boxShadow:SO,
+            }}>{v===0?"Вимкнено":`${v} дн.`}</button>
+          ))}
+        </div>
+        <div style={{fontSize:10,color:"rgba(255,255,255,0.55)",marginTop:6}}>
+          {rebookOf(form)>0 ? `Через ${rebookOf(form)} дн. після візиту клієнт отримає пуш «Час записатись знову» (лише якщо в нього немає майбутнього запису; раз за візит).` : "Клієнтам не нагадується."}
+        </div>
       </div>
 
       {/* group capacity */}
@@ -456,6 +475,7 @@ function ServiceRow({ svc, onEdit, onToggle, onDelete, dragHandleProps, isDraggi
           {normAddons(svc.addons).length>0 && <> · допуслуг: {normAddons(svc.addons).length}</>}
           {bufferOf(svc)>0 && <> · перерва {bufferOf(svc)} хв</>}
           {capacityOf(svc)>1 && <> · група до {capacityOf(svc)}</>}
+          {rebookOf(svc)>0 && <> · нагадування {rebookOf(svc)} дн.</>}
         </div>
         <div onClick={stop}><Toggle on={svc.active&&!svc.archived} onChange={v=>onToggle(svc.id,v)}/></div>
       </div>
