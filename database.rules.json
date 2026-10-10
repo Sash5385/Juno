@@ -1,5 +1,28 @@
 {
   "rules": {
+    // Салон = група окремих майстрів зі спільною публічною сторінкою /s/{slug}.
+    // salons/{slug}: { ownerIid, name, createdAt, masters: { iid: 'owner' | токен запрошення } }.
+    // Створює й змінює салон лише власник; майстер сам приєднується (лише з чинним запрошенням) і сам виходить.
+    "salons": {
+      "$slug": {
+        ".read": true,
+        ".write": "auth != null && $slug.matches(/^[a-z0-9-]{3,40}$/) && ((!data.exists() && newData.child('ownerIid').val() === auth.uid) || (data.exists() && data.child('ownerIid').val() === auth.uid && (!newData.exists() || newData.child('ownerIid').val() === auth.uid)))",
+        ".validate": "newData.hasChildren(['ownerIid','name']) && newData.child('name').isString() && newData.child('name').val().length <= 60",
+        "masters": {
+          "$mid": {
+            ".write": "auth != null && auth.uid === $mid && (!newData.exists() || (newData.isString() && root.child('salon_invites/'+newData.val()+'/salon').val() === $slug && root.child('salon_invites/'+newData.val()+'/expiresAt').val() > now))"
+          }
+        }
+      }
+    },
+    // Запрошення майстра в салон: читається за токеном (список недоступний), пишуть лише власник салону
+    "salon_invites": {
+      "$token": {
+        ".read": true,
+        ".write": "auth != null && (newData.exists() ? (root.child('salons/'+newData.child('salon').val()+'/ownerIid').val() === auth.uid && newData.child('ownerIid').val() === auth.uid) : data.child('ownerIid').val() === auth.uid)",
+        ".validate": "newData.hasChildren(['salon','ownerIid','expiresAt']) && newData.child('expiresAt').isNumber() && newData.child('expiresAt').val() <= now + 1209600000"
+      }
+    },
     "slugs": {
       ".read": true,
       "$slug": {

@@ -2,6 +2,7 @@ import { useState, useContext, useEffect, useRef } from "react";
 import { TAG_COLORS, TAG_ICONS, DEFAULT_TAGS, AUTO_TAG_IDS, normalizeTags } from "../tags";
 import { FIELD_TYPES, MAX_FIELDS } from "../intake";
 import { MAX_TEMPLATES } from "../packages";
+import SalonSection from "./SalonSection";
 import { DIRECTIONS, DIRECTION_IDS, normDirection } from "../terms";
 import { createPortal } from "react-dom";
 import { get, set, update, onValue, off } from "firebase/database";
@@ -33,6 +34,7 @@ const SEC_ICON_SVG = {
   sticky:     <><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.3"/></>,
   auto:       <><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></>,
   tags: <><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8Z"/><circle cx="7.5" cy="7.5" r="1.4"/></>,
+  salon: <><path d="M3 21V8l9-5 9 5v13"/><path d="M9 21v-6h6v6"/></>,
   packages: <><path d="M3 8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-2a2 2 0 0 0 0-4Z"/><path d="M14 6v12" strokeDasharray="2 2"/></>,
   intake: <><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h4"/></>,
   surcharges: <><circle cx="12" cy="12" r="9"/><path d="M12 7.5v9M15 9.7c0-1.1-1.2-2-3-2s-3 .9-3 1.9 1.3 1.5 3 1.8c1.7.3 3 .8 3 1.9s-1.2 1.9-3 1.9-3-.9-3-2"/></>,
@@ -1007,6 +1009,7 @@ select{color-scheme:${isKava?"light":"dark"}}
     { id:"sticky",     icon:"📌", color:PURPLE, title:t('set.sticky.title'),   label:uk?"Слоти":"Slots"  },
     { id:"surcharges", icon:"💰", color:GOLD,   title:"Надбавки",              label:uk?"Збори":"Fees"   },
     { id:"tags",       icon:"🏷️", color:TEAL,   title:uk?"Мітки записів":"Booking tags", label:uk?"Мітки":"Tags" },
+    { id:"salon",      icon:"🏢", color:BLUE,   title:"Салон",                 label:"Салон"             },
     { id:"packages",   icon:"🎫", color:GOLD,   title:"Пакети записів",        label:"Пакети"            },
     { id:"intake",     icon:"📋", color:PURPLE, title:"Анкета клієнта",        label:"Анкета"            },
     { id:"push",       icon:"🔔", color:GREEN,  title:"Сповіщення",            label:"Сповіщення"        },
@@ -1259,6 +1262,8 @@ select{color-scheme:${isKava?"light":"dark"}}
           </div>
         );
       }
+
+      case "salon": return <SalonSection settings={settings} upd={upd}/>;
 
       case "packages": {
         const pkgs = Array.isArray(settings.packages) ? settings.packages : [];

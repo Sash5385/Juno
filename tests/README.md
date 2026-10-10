@@ -34,6 +34,7 @@ bash tests/flows/run.sh        # потрібен клонований DrivePad-
 **Допуслуги і перерва:** `node tests/addons/addons.test.mjs` (розрахунки допуслуг, `slotRules` з перервою — клієнтська/адмінська/серверна копії дають однаковий результат);
 анкета клієнта: `node tests/addons/intake.test.mjs` (+ блок INTAKE у rules-тесті);
 пакети: `node tests/addons/packages.test.mjs` (+ блок PACKAGES у rules-тесті);
+салон: `node tests/addons/salon.test.mjs` (+ блок SALON у rules-тесті);
 групи: `node tests/addons/groups.test.mjs` (+ блок GROUP SEATS у rules-тесті);
 у `booking-flow` — блоки 12 (допуслуги/перерва), 13 (пакети), 14 (групи) (запис з допуслугою+перервою, скасування, закритий майстром слот у перерві, чужий запис одразу після, серверне блокування перерви).
 
