@@ -1333,7 +1333,7 @@ exports.deleteAccount = onRequest({ region: "europe-west1", cors: true, timeoutS
     const idToken = (req.get("Authorization") || "").replace(/^Bearer /, "");
     if (!idToken) { res.status(401).json({ error: "unauthorized" }); return; }
     const caller = await admin.auth().verifyIdToken(idToken);
-    const isVendor = caller.email === VENDOR_EMAIL;
+    const isVendor = caller.email === VENDOR_EMAIL && caller.email_verified === true;
     const { type, iid, uid } = req.body || {};
     if (!iid || typeof iid !== "string" || /[.#$\[\]/]/.test(iid)) { res.status(400).json({ error: "bad iid" }); return; }
 

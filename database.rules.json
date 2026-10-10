@@ -48,7 +48,7 @@
           }
         },
         "bookings": {
-          ".read": "auth != null && auth.token.email === 'sash5385@gmail.com'",
+          ".read": "auth != null && (auth.token.email === 'sash5385@gmail.com' && auth.token.email_verified === true)",
           "$uid": {
             ".read": "auth != null && (auth.uid === $uid || auth.uid === $iid)",
             ".write": "auth != null && auth.uid === $iid",
@@ -101,20 +101,12 @@
           }
         },
         "chats": {
-          "general": {
-            ".read": "auth != null && (auth.uid === $iid || root.child('instructors/'+$iid+'/users/'+auth.uid).exists())",
-            ".write": "auth != null && (auth.uid === $iid || root.child('instructors/'+$iid+'/users/'+auth.uid).exists())"
-          },
           "$uid": {
             ".read": "auth != null && (auth.uid === $uid || auth.uid === $iid)",
             ".write": "auth != null && (auth.uid === $uid || auth.uid === $iid)"
           }
         },
         "chatMeta": {
-          "general": {
-            ".read": "auth != null && (auth.uid === $iid || root.child('instructors/'+$iid+'/users/'+auth.uid).exists())",
-            ".write": "auth != null && (auth.uid === $iid || root.child('instructors/'+$iid+'/users/'+auth.uid).exists())"
-          },
           "$uid": {
             ".read": "auth != null && (auth.uid === $uid || auth.uid === $iid)",
             ".write": "auth != null && (auth.uid === $uid || auth.uid === $iid)"
@@ -159,32 +151,32 @@
           }
         },
         "license": {
-          ".read": "auth != null && (auth.uid === $iid || auth.token.email === 'sash5385@gmail.com')",
-          ".write": "auth != null && auth.token.email === 'sash5385@gmail.com'",
+          ".read": "auth != null && (auth.uid === $iid || (auth.token.email === 'sash5385@gmail.com' && auth.token.email_verified === true))",
+          ".write": "auth != null && (auth.token.email === 'sash5385@gmail.com' && auth.token.email_verified === true)",
           "status": {
-            ".validate": "auth.token.email === 'sash5385@gmail.com' || (!data.exists() && newData.val() === 'trial')"
+            ".validate": "(auth.token.email === 'sash5385@gmail.com' && auth.token.email_verified === true) || (!data.exists() && newData.val() === 'trial')"
           },
           "trialEndsAt": {
-            ".validate": "auth.token.email === 'sash5385@gmail.com' || (!data.exists() && newData.isNumber() && newData.val() <= now + 1296000000)"
+            ".validate": "(auth.token.email === 'sash5385@gmail.com' && auth.token.email_verified === true) || (!data.exists() && newData.isNumber() && newData.val() <= now + 1296000000)"
           },
           "expiresAt": {
-            ".validate": "auth.token.email === 'sash5385@gmail.com'"
+            ".validate": "(auth.token.email === 'sash5385@gmail.com' && auth.token.email_verified === true)"
           },
           "provider": {
-            ".validate": "auth.token.email === 'sash5385@gmail.com'"
+            ".validate": "(auth.token.email === 'sash5385@gmail.com' && auth.token.email_verified === true)"
           },
           "lastPaymentAt": {
-            ".validate": "auth.token.email === 'sash5385@gmail.com'"
+            ".validate": "(auth.token.email === 'sash5385@gmail.com' && auth.token.email_verified === true)"
           }
         }
       }
     },
     "system": {
-      ".read": "auth != null && auth.token.email === 'sash5385@gmail.com'",
-      ".write": "auth != null && auth.token.email === 'sash5385@gmail.com'"
+      ".read": "auth != null && (auth.token.email === 'sash5385@gmail.com' && auth.token.email_verified === true)",
+      ".write": "auth != null && (auth.token.email === 'sash5385@gmail.com' && auth.token.email_verified === true)"
     },
     "instructor_index": {
-      ".read": "auth != null && auth.token.email === 'sash5385@gmail.com'",
+      ".read": "auth != null && (auth.token.email === 'sash5385@gmail.com' && auth.token.email_verified === true)",
       "$iid": {
         ".write": "auth != null && auth.uid === $iid"
       }

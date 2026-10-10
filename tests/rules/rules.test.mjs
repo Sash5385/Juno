@@ -34,7 +34,7 @@ await env.withSecurityRulesDisabled(async (ctx) => {
     },
   });
 });
-const as = (uid, email) => env.authenticatedContext(uid, email ? { email } : {}).database();
+const as = (uid, email, verified = true) => env.authenticatedContext(uid, email ? { email, email_verified: verified } : {}).database();
 const anon = env.unauthenticatedContext().database();
 const I1 = as("inst1"), I3 = as("inst3"), OWNER = as("ownerUid", "sash5385@gmail.com");
 const S1 = as("stu1"), SX = as("stuX"), SNEW = as("stuNew");
@@ -56,6 +56,7 @@ await t("instructor removes whole own node", X, () => remove(R(I1, "instructors/
 await t("instructor sets status active", X, () => set(R(I1, "instructors/inst1/license/status"), "active"));
 await t("instructor extends expiresAt", X, () => set(R(I1, "instructors/inst1/license/expiresAt"), NOW + 999 * DAY));
 await t("new instructor creates 14-day trial (registration multi-path)", A, () => update(R(I3, "instructors/inst3"), { "admin_settings/profile": { name: "N", slug: "n" }, "license/status": "trial", "license/trialEndsAt": NOW + 14 * DAY }));
+await t("owner with UNVERIFIED email cannot set license", X, () => update(R(as("fakeOwner", "sash5385@gmail.com", false), "instructors/inst1/license"), { status: "active", expiresAt: Date.now() + 86400000 }));
 await t("owner sets license active", A, () => update(R(OWNER, "instructors/inst1/license"), { status: "active", expiresAt: NOW + 60 * DAY, provider: "manual" }));
 await t("instructor writes admin_settings", A, () => set(R(I1, "instructors/inst1/admin_settings/workStart"), 9));
 await t("instructor reads own license", A, () => get(R(I1, "instructors/inst1/license")));
