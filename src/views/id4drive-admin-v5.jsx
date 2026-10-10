@@ -942,7 +942,7 @@ function DayNotesModal({ dateStr, dayLabel, dayNum, dayMonth, note, settings, on
     return init;
   });
 
-  const clampMin = (m) => Math.max(settings.workStart*60, Math.min(settings.workEnd*60 - 1, m));
+  const clampMin = (m) => Math.max(Math.round(settings.workStart*60), Math.min(Math.round(settings.workEnd*60) - 1, m));
   const setRow = (h, patch) => setRows(rs => ({ ...rs, [h]: { ...rs[h], ...patch } }));
 
   const handleSave = async () => {
@@ -1515,7 +1515,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
     const step = 60;
     const updates = {};
     let afterLunch = false;
-    for (let min = start * 60; min < end * 60; min += step) {
+    for (let min = Math.round(start * 60); min < Math.round(end * 60); min += step) {
       // Слот, що перетинає обід (навіть частково), не створюємо; сітка після
       // обіду стартує рівно з його кінця (обід 12:30–13:00 → ...11:00, 13:00, 14:00).
       if (lunchEnabled && lunchEnd > lunchStart && min < lunchEnd * 60 && min + step > lunchStart * 60) {
@@ -1894,7 +1894,9 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   const effectiveWorkEnd = allDaySchedules.length
     ? Math.max(settings.workEnd, ...allDaySchedules.map(d => d.end ?? settings.workEnd))
     : settings.workEnd;
-  const totalMin = Math.max(60, (effectiveWorkEnd - effectiveWorkStart) * 60);
+  // Межі робочого дня в цілих хвилинах (початок/кінець можуть бути будь-якою хвилиною)
+  const wsMinAbs = Math.round(effectiveWorkStart * 60), weMinAbs = Math.round(effectiveWorkEnd * 60);
+  const totalMin = Math.max(60, weMinAbs - wsMinAbs);
   // Авто-підлаштування: вся висота розкладу = доступна висота viewport
   // hourHeightPx / 60 використовується як zoom-множник (pinch)
   const availGridH = Math.max(120, windowH - 156 - HEADER_H - 4);
@@ -1903,7 +1905,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   const gridHeight = totalMin * PX_PER_MIN;
 
   // Keep calc values fresh for always-on window listeners (avoids stale closure)
-  calcRef.current = { PX_PER_MIN, snapMin: settings.snapMin, workStart: effectiveWorkStart, workEnd: effectiveWorkEnd, COL_W, dayOffset, daysShown: settings.daysShown, N_DAYS, autoHourHeight: !!settings.autoHourHeight };
+  calcRef.current = { PX_PER_MIN, snapMin: settings.snapMin, workStart: effectiveWorkStart, workEnd: effectiveWorkEnd, workStartMin: wsMinAbs, workEndMin: weMinAbs, COL_W, dayOffset, daysShown: settings.daysShown, N_DAYS, autoHourHeight: !!settings.autoHourHeight };
 
   // Часовий діапазон записів/слотів у ВИДИМИХ днях — основа авто-висоти годин.
   // Рахуємо по індексу bookingsByDay (лише видимі дні), а не проходом по всіх записах.
@@ -2008,7 +2010,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
     const gridOffsetTop = timeCol
       ? timeCol.getBoundingClientRect().top - el.getBoundingClientRect().top + el.scrollTop
       : (2 + HEADER_H + 10); // резервне значення, якщо ref ще не змонтований
-    const y = gridOffsetTop + (targetMin - effectiveWorkStart * 60) * PX_PER_MIN;
+    const y = gridOffsetTop + (targetMin - wsMinAbs) * PX_PER_MIN;
     // Шапка дати "плаває" (position:sticky) поверх контенту під час скролу —
     // верхні HEADER_H px видимої області завжди перекриті нею. Тому відступ
     // зверху має бути не просто "трохи" (8px), а щонайменше HEADER_H, інакше
@@ -2016,7 +2018,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
     el.scrollTop = Math.max(0, y - HEADER_H - 8);
   }, [settings.hourHeightPx]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const minToPx = (m) => (m - effectiveWorkStart*60) * PX_PER_MIN;
+  const minToPx = (m) => (m - wsMinAbs) * PX_PER_MIN;
 
   const onPointerDown = (e, b, mode) => {
     if (scheduleLocked) {
@@ -2245,7 +2247,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
       }
       if (!dragRef.current) return;
       const drag = dragRef.current;
-      const { PX_PER_MIN, snapMin, workStart, workEnd, COL_W, dayOffset, N_DAYS } = calcRef.current;
+      const { PX_PER_MIN, snapMin, workStartMin, workEndMin, COL_W, dayOffset, N_DAYS } = calcRef.current;
       const snap = (m) => Math.round(m / snapMin) * snapMin;
       const dy = e.clientY - drag.startClientY;
       const dxRaw = e.clientX - drag.startClientX;
@@ -2290,8 +2292,8 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
           const minS = Math.min(...targets.map(t => t.s));
           const maxE = Math.max(...targets.map(t => t.s + t.durMin));
           let shift = 0;
-          if (minS < workStart * 60) shift = workStart * 60 - minS;
-          if (maxE + shift > workEnd * 60) shift = Math.min(shift, workEnd * 60 - maxE);
+          if (minS < workStartMin) shift = workStartMin - minS;
+          if (maxE + shift > workEndMin) shift = Math.min(shift, workEndMin - maxE);
           targets.forEach(t => { t.s += shift; });
           // Атомарна перевірка накладання — якщо хоч один сегмент конфліктує, тримаємо всю групу
           const overlap = targets.some(t => bs.some(x =>
@@ -2307,14 +2309,14 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
           if (drag.mode === "bottom") {
             let d = snap(drag.startDur + deltaMin);
             const nextStart = bs.filter(x=>!allDragIds.has(x.id)&&x.day===b.day&&x.startMin>b.startMin)
-              .reduce((mn,x)=>Math.min(mn,x.startMin), workEnd*60);
+              .reduce((mn,x)=>Math.min(mn,x.startMin), workEndMin);
             d = Math.max(60, Math.min(d, nextStart - b.startMin));
             return {...b, durMin:d};
           } else if (drag.mode === "top") {
             let s = snap(drag.startMinutes + deltaMin);
             const maxS = drag.startMinutes + drag.startDur - 60;
             const floorStart = bs.filter(x=>!allDragIds.has(x.id)&&x.day===b.day&&x.startMin+x.durMin<=drag.startMinutes)
-              .reduce((mx,x)=>Math.max(mx,x.startMin+x.durMin), workStart*60);
+              .reduce((mx,x)=>Math.max(mx,x.startMin+x.durMin), workStartMin);
             s = Math.max(floorStart, Math.min(maxS, s));
             const diff = s - drag.startMinutes;
             return {...b, startMin:s, durMin: drag.startDur - diff};
@@ -2524,10 +2526,10 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
         navigator.vibrate?.(15);
       }
       if (!fd.moved) return;
-      const { PX_PER_MIN, snapMin, workStart, workEnd } = calcRef.current;
+      const { PX_PER_MIN, snapMin, workStartMin, workEndMin } = calcRef.current;
       const deltaMin = dy / PX_PER_MIN;
       let ns = Math.round((fd.startMin + deltaMin) / snapMin) * snapMin;
-      ns = Math.max(workStart * 60, Math.min(ns, workEnd * 60 - 60));
+      ns = Math.max(workStartMin, Math.min(ns, workEndMin - 60));
       fd.newStart = ns;
       setFreeDragPreview({ dateStr: fd.dateStr, time: fd.time, newStart: ns });
     };
@@ -2727,8 +2729,8 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
     if (dragRef.current || dragEndedRef.current || pendingDragRef.current) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const yRel = e.clientY - rect.top;
-    const { snapMin, workStart, PX_PER_MIN } = calcRef.current;
-    const rawMin = workStart * 60 + yRel / PX_PER_MIN;
+    const { snapMin, workStartMin, PX_PER_MIN } = calcRef.current;
+    const rawMin = workStartMin + yRel / PX_PER_MIN;
     const minute = Math.round(rawMin / snapMin) * snapMin;
     const bData = { day: absDay, startMin: minute, clientX: e.clientX, clientY: e.clientY, dateStr: absDayToDateStr(absDay) };
     setBubbleData(bData);
@@ -3002,15 +3004,12 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
           </div>
           <div style={{overflow:"hidden", flex:1, position:"relative"}}>
             <div ref={timeColRef} style={{position:"absolute", top:0, left:0, right:0, height:gridHeight}}>
-              {Array.from({length:(effectiveWorkEnd-effectiveWorkStart)*2+1},(_,i)=>{
-                const totalMins = i*30;
-                // absMin — абсолютна хвилина від півночі: effectiveWorkStart тепер
-                // може бути дробовим (напр. 8.5 = 8:30), тож просте "workStart+h"
-                // давало биту мітку типу "8.5:00" замість "09:00".
-                const absMin = effectiveWorkStart*60 + totalMins;
+              {Array.from({length:Math.max(0, Math.floor(weMinAbs/30) - Math.ceil(wsMinAbs/30) + 1)},(_,i)=>{
+                // Мітки стоять на справжніх :00 і :30 (початок дня може бути будь-якою хвилиною, напр. 09:07)
+                const absMin = (Math.ceil(wsMinAbs/30) + i) * 30;
+                const totalMins = absMin - wsMinAbs;
                 const h = Math.floor(absMin/60);
                 const m = absMin % 60;
-                if (absMin > effectiveWorkEnd*60) return null;
                 return m === 0 ? (
                   <div key={i} style={{
                     position:"absolute", top:Math.max(2, totalMins*PX_PER_MIN - 5),
@@ -3026,7 +3025,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                   }}>{h}:30</div>
                 );
               })}
-              {nowMin >= effectiveWorkStart*60 && nowMin <= effectiveWorkEnd*60 && (
+              {nowMin >= wsMinAbs && nowMin <= weMinAbs && (
                 <div data-help="nowline" style={{
                   position:"absolute", left:2, right:2, top:minToPx(nowMin),
                   transform:"translateY(-50%)",
@@ -3245,7 +3244,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                   if (e.button > 0) return;
                   if (dragRef.current || pendingDragRef.current) return;
                   const rect = e.currentTarget.getBoundingClientRect();
-                  const rawMin = calcRef.current.workStart * 60 + (e.clientY - rect.top) / calcRef.current.PX_PER_MIN;
+                  const rawMin = calcRef.current.workStartMin + (e.clientY - rect.top) / calcRef.current.PX_PER_MIN;
                   // Округлення вниз (а не до найближчого) — тап у будь-якому місці
                   // 30-хвилинного рядка має відповідати ЙОГО початку, а не сусідньому,
                   // інакше дотик у нижній половині рядка показував час на 30хв пізніше.
@@ -3291,7 +3290,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                 }}>
 
               {/* Лінія поточного часу — тільки в колонці сьогодні */}
-              {isToday && nowMin >= effectiveWorkStart*60 && nowMin <= effectiveWorkEnd*60 && (
+              {isToday && nowMin >= wsMinAbs && nowMin <= weMinAbs && (
                 <div data-help="nowline" style={{
                   position:"absolute", left:0, right:0, top:minToPx(nowMin),
                   height:3, zIndex:5, pointerEvents:"none",
@@ -3313,14 +3312,14 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                 return Object.entries(daySlots).map(([time, slot]) => {
                 const [h, m] = time.split(":").map(Number);
                 const startMin = h * 60 + m;
-                if (startMin < effectiveWorkStart * 60 || startMin >= effectiveWorkEnd * 60) return null;
+                if (startMin < wsMinAbs || startMin >= weMinAbs) return null;
                 // Вільний/доступний слот, накритий записом (хоча б частково), не показуємо.
                 if (slot.available && slotCovered(startMin)) return null;
                 // Якщо після цього слота більше немає документів (наприклад, усі поглинуті
                 // розтягуванням) — межею є кінець робочого дня, а не штучні +60 хв.
-                const nextMin = sortedMins.find(t => t > startMin) ?? (effectiveWorkEnd * 60);
+                const nextMin = sortedMins.find(t => t > startMin) ?? (weMinAbs);
                 const slotDurMin = slot.durMin || 60;
-                const slotHeightMin = Math.min(slotDurMin, nextMin - startMin, effectiveWorkEnd * 60 - startMin);
+                const slotHeightMin = Math.min(slotDurMin, nextMin - startMin, weMinAbs - startMin);
                 const isVip = slot.vipOnly;
                 const isBlocked = slot.adminBlocked;
                 const hasSurcharge = !!slot.surcharge;
@@ -3340,7 +3339,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                 // Розтягування вниз може поглинати наступні вільні слоти підряд (без запису,
                 // блокування, VIP чи надбавки) — межа росту не обмежена одним нижнім слотом,
                 // а йде до першого «непоглинаючого» слота/запису або кінця робочого дня.
-                let resizeLimitMin = effectiveWorkEnd * 60;
+                let resizeLimitMin = weMinAbs;
                 if (isPlainFree) {
                   for (const t of sortedMins) {
                     if (t <= startMin) continue;
@@ -3351,7 +3350,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                     if (!s2Free || slotCovered(t)) { resizeLimitMin = t; break; }
                   }
                 }
-                const maxDurMin = Math.max(settings.snapMin || 30, Math.min(resizeLimitMin - startMin, effectiveWorkEnd * 60 - startMin));
+                const maxDurMin = Math.max(settings.snapMin || 30, Math.min(resizeLimitMin - startMin, weMinAbs - startMin));
                 const isBeingResized = freeResizePreview && freeResizePreview.dateStr===dateStrCol && freeResizePreview.time===time;
                 const displayHeightMin = isBeingResized ? freeResizePreview.newDur : slotHeightMin;
                 return (
@@ -3610,11 +3609,13 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
             })()}
 
               {/* 30-min grid lines */}
-              {Array.from({length:(effectiveWorkEnd-effectiveWorkStart)*2-1},(_,i)=>{
-                const isHour=(i+1)%2===0;
+              {Array.from({length:Math.max(0, Math.ceil(weMinAbs/30) - Math.floor(wsMinAbs/30) - 1)},(_,i)=>{
+                const absMin = (Math.floor(wsMinAbs/30) + 1 + i) * 30;
+                if (absMin <= wsMinAbs || absMin >= weMinAbs) return null;
+                const isHour = absMin % 60 === 0;
                 return <div key={i} style={{
                   position:"absolute",left:0,right:0,
-                  top:(i+1)*30*PX_PER_MIN,
+                  top:(absMin - wsMinAbs)*PX_PER_MIN,
                   height:1,
                   background:isHour ? GRID_H : GRID_HH
                 }}/>;
@@ -3641,7 +3642,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                 if (s && !s.adminBlocked) return false;
                 const [h, m] = time.split(":").map(Number);
                 const sm = h * 60 + m;
-                return sm >= effectiveWorkStart * 60 && sm < effectiveWorkEnd * 60;
+                return sm >= wsMinAbs && sm < weMinAbs;
               }).map(time => {
                 const [h, m] = time.split(":").map(Number);
                 const topPx = minToPx(h * 60 + m);
@@ -3674,8 +3675,8 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                   ? { ...origB, durMin: mi.mergedDurMin, _mergedIds: mi.mergedIds, _mergedPrice: mi.mergedPrice }
                   : origB;
                 const b = gi?.rep ? { ...b0, name: `👥 ${gi.members.length}/${origB.groupCap || "?"} · ${origB.name}` } : b0;
-                const wsMin = effectiveWorkStart * 60;
-                const weMin = effectiveWorkEnd * 60;
+                const wsMin = wsMinAbs;
+                const weMin = weMinAbs;
                 if (b.startMin >= weMin || b.startMin + b.durMin <= wsMin) return null;
                 const visStart = Math.max(b.startMin, wsMin);
                 const visEnd   = Math.min(b.startMin + b.durMin, weMin);
@@ -5122,7 +5123,7 @@ function CreateSlotSheet({ data, settings, onClose }) {
   const slotStep = settings.slotCreateStep || 30;
   const timeItems = useMemo(() => {
     const arr = [];
-    for (let m = settings.workStart * 60; m < settings.workEnd * 60; m += slotStep)
+    for (let m = Math.round(settings.workStart * 60); m < Math.round(settings.workEnd * 60); m += slotStep)
       arr.push({ label: fmtTime(m), value: m });
     return arr;
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -6228,7 +6229,7 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
   const timeStep = data?.freeSnap ? 5 : (settings.snapMin || 30);
   const timeItems = useMemo(()=>{
     const arr=[];
-    for(let m=settings.workStart*60; m<settings.workEnd*60; m+=timeStep)
+    for(let m=Math.round(settings.workStart*60); m<Math.round(settings.workEnd*60); m+=timeStep)
       arr.push({label:fmtTime(m), value:m});
     return arr;
   // eslint-disable-next-line react-hooks/exhaustive-deps

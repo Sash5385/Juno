@@ -2,6 +2,7 @@ import { useState, useEffect, useContext } from "react";
 import { ref, get, set, remove } from "firebase/database";
 import { db, auth } from "../firebase";
 import { ThemeContext } from "../theme.js";
+import { useConfirm } from "../ConfirmModal";
 import {
   salonSlugFrom, salonSlugValid, salonPublicUrl, inviteUrl, parseInviteToken, newInviteToken, salonMasters, INVITE_DAYS, INVITE_KEY,
 } from "../salon";
@@ -21,6 +22,7 @@ export default function SalonSection({ settings, upd }) {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
   const [copied, setCopied] = useState("");
+  const [confirm, confirmNode] = useConfirm();
 
   const [tick, setTick] = useState(0); // збільшуємо, щоб перечитати салон після змін
   useEffect(() => {
@@ -76,13 +78,13 @@ export default function SalonSection({ settings, upd }) {
   });
 
   const removeMaster = (iid) => run(async () => {
-    if (!window.confirm(`Прибрати «${names[iid] || "майстра"}» із салону?`)) return;
+    if (!(await confirm({ title: `Прибрати «${names[iid] || "майстра"}» із салону?`, text: "Майстер зникне зі сторінки салону, але його акаунт і клієнти залишаться.", okLabel: "Прибрати", danger: true }))) return;
     await remove(ref(db, `salons/${slug}/masters/${iid}`));
     setTick(t => t + 1);
   });
 
   const leave = () => run(async () => {
-    if (!window.confirm("Вийти із салону?")) return;
+    if (!(await confirm({ title: "Вийти із салону?", text: "Вас буде прибрано зі сторінки салону. Приєднатись знову можна за новим запрошенням.", okLabel: "Вийти", danger: true }))) return;
     await remove(ref(db, `salons/${slug}/masters/${uid}`));
     upd("salonSlug", null);
   });
@@ -123,6 +125,7 @@ export default function SalonSection({ settings, upd }) {
   const url = salonPublicUrl(slug);
   return (
     <div>
+      {confirmNode}
       <div style={{fontSize:16,fontWeight:800,color:TEXT}}>{salon.name}</div>
       <div style={{fontSize:12,color:FAINT,marginTop:2}}>{owner ? "Ви власник салону" : "Ви майстер салону"}</div>
       <div style={card}>

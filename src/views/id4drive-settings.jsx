@@ -3,6 +3,7 @@ import { TAG_COLORS, TAG_ICONS, DEFAULT_TAGS, AUTO_TAG_IDS, normalizeTags } from
 import { FIELD_TYPES, MAX_FIELDS } from "../intake";
 import { MAX_TEMPLATES } from "../packages";
 import SalonSection from "./SalonSection";
+import { useConfirm } from "../ConfirmModal";
 import { DIRECTIONS, DIRECTION_IDS, normDirection } from "../terms";
 import { createPortal } from "react-dom";
 import { get, set, update, onValue, off } from "firebase/database";
@@ -231,32 +232,47 @@ function Info({ title, text, color }) {
 
 function TimeInput({ value, onChange, min=0, max=24, compact=false }) {
   const { BG_DEEP, TEXT, FAINT, SI } = useContext(ThemeContext);
-  const v = Number(value) || 0;
-  const h = Math.floor(v);
-  const m = (v % 1 >= 0.5) ? 30 : 0;
-  const disp = `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}`;
-  const dec = () => { const n = Math.round((v - 0.5) * 2) / 2; onChange(Math.max(min, n)); };
-  const inc = () => { const n = Math.round((v + 0.5) * 2) / 2; onChange(Math.min(max, n)); };
+  const tm = Math.round((Number(value) || 0) * 60);        // хвилини від півночі — точність 1 хв
+  const minM = Math.round(min * 60), maxM = Math.round(max * 60);
+  const disp = `${String(Math.floor(tm / 60)).padStart(2,"0")}:${String(tm % 60).padStart(2,"0")}`;
+  const setM = (n) => onChange(Math.min(maxM, Math.max(minM, n)) / 60);
+  // Утримання ‹ › повторює крок із прискоренням: по одній хвилині тапати довго
+  const hold = useRef(null);
+  const stop = () => { clearTimeout(hold.current); hold.current = null; };
+  const start = (dir) => {
+    let cur = tm, n = 0;
+    const step = () => { cur = Math.min(maxM, Math.max(minM, cur + dir)); onChange(cur / 60); };
+    const loop = () => { step(); n++; hold.current = setTimeout(loop, n > 12 ? 40 : 120); };
+    step(); hold.current = setTimeout(loop, 400); // перший крок одразу, повтор — лише при утриманні
+  };
+  useEffect(() => stop, []);
   const bW = compact ? 14 : 32;
   const bH = compact ? 20 : 38;
   const fS = compact ? 11 : 22;
   const dW = compact ? 28 : 64;
   const dS = compact ? 9 : 18;
+  const btn = (dir, ch) => (
+    <button onPointerDown={e=>{ e.preventDefault(); start(dir); }} onPointerUp={stop} onPointerLeave={stop} onPointerCancel={stop}
+      style={{width:bW,height:bH,border:"none",cursor:"pointer",background:"transparent",color:FAINT,fontSize:fS,padding:0,lineHeight:1,touchAction:"none"}}>{ch}</button>
+  );
   return (
     <div style={{display:"flex",alignItems:"center",background:BG_DEEP,borderRadius:7,boxShadow:SI,overflow:"hidden"}}>
-      <button onClick={dec} style={{width:bW,height:bH,border:"none",cursor:"pointer",background:"transparent",color:FAINT,fontSize:fS,padding:0,lineHeight:1}}>‹</button>
-      <span style={{fontSize:dS,fontWeight:700,color:TEXT,minWidth:dW,textAlign:"center"}}>{disp}</span>
-      <button onClick={inc} style={{width:bW,height:bH,border:"none",cursor:"pointer",background:"transparent",color:FAINT,fontSize:fS,padding:0,lineHeight:1}}>›</button>
+      {btn(-1,"‹")}
+      <label style={{position:"relative",fontSize:dS,fontWeight:700,color:TEXT,minWidth:dW,textAlign:"center",cursor:"pointer"}}>
+        {disp}
+        <input type="time" step={60} value={disp} onChange={e=>{ const [h,m] = String(e.target.value || "").split(":").map(Number); if (Number.isFinite(h) && Number.isFinite(m)) setM(h * 60 + m); }}
+          style={{position:"absolute",inset:0,width:"100%",height:"100%",opacity:0,cursor:"pointer"}}/>
+      </label>
+      {btn(1,"›")}
     </div>
   );
 }
 
 // ─── БАРАБАН ЧАСУ — крупний вибір часу прокруткою (scroll-snap) ──────────
-// Крок хвилин 30: календар (сітка, підписи, лінії) побудований на півгодинних
-// рядках, дробові 15/10/5 хв зламали б вирівнювання сітки.
+// Хвилини 00–59 (точність 1 хв): сітка розкладу вирівнюється по справжніх :00/:30, початок дня може бути будь-якою хвилиною.
 const WHEEL_ITEM = 40;
 const WHEEL_H = Array.from({length:25},(_,i)=>String(i).padStart(2,"0"));
-const WHEEL_M = ["00","30"];
+const WHEEL_M = Array.from({length:60},(_,i)=>String(i).padStart(2,"0"));
 
 function WheelCol({ items, index, onIndex, rows = 5, width = 48 }) {
   const { TEXT, FAINT } = useContext(ThemeContext);
@@ -312,9 +328,10 @@ function TimeWheel({ label, value, onChange, min = 0, max = 24, rows = 5, color 
   const { DIM, TEXT, GREEN, BG_DEEP } = useContext(ThemeContext);
   const c = color || GREEN;
   const v = Math.min(max, Math.max(min, Number(value) || 0));
-  const h = Math.floor(v);
-  const m = v % 1 >= 0.5 ? 1 : 0;
-  const set = (nh, nm) => onChange(Math.min(max, Math.max(min, nh + nm * 0.5)));
+  const tm = Math.round(v * 60);
+  const h = Math.floor(tm / 60);
+  const m = tm % 60;
+  const set = (nh, nm) => onChange(Math.min(max, Math.max(min, (nh * 60 + nm) / 60)));
   const pad = ((rows - 1) / 2) * WHEEL_ITEM;
   return (
     <div style={{textAlign:"center"}}>
@@ -340,7 +357,7 @@ function daySlotStarts(d) {
   const useL = !!d.lunchEnabled && lE > lS;
   const out = [];
   let after = false;
-  for (let m = d.start * 60; m < d.end * 60; m += 60) {
+  for (let m = Math.round(d.start * 60); m < Math.round(d.end * 60); m += 60) {
     if (useL && m < lE && m + 60 > lS) { m = lE - 60; after = true; continue; }
     if (after && m + 60 > d.end * 60) break;
     out.push(m);
@@ -700,6 +717,7 @@ function PhotoViewer({ photos, index, onClose }) {
 const RESET_PATHS = ["bookings","bookings_by_phone","timeslots","slotBookings","queue","admin_settings","admin_data","chats","chatMeta","dayNotes","studentColors","reviews","pushTemplates","adminPush","templatePush","push_tasks","pushLog"];
 
 export default function SettingsView({ settings, setSettings }) {
+  const [confirm, confirmNode] = useConfirm();
   const { BG_DEEP, SURF_HI, SURFACE, SURF_LO, BORDER, TEXT, DIM, FAINT, ACCENT, ACC_HI, GREEN, BLUE, PURPLE, GOLD, RED, TEAL, SO, SI } = useContext(ThemeContext);
   const lang = useContext(LangContext);
   const t = createT(lang);
@@ -1446,7 +1464,7 @@ select{color-scheme:${isKava?"light":"dark"}}
             {DIRECTION_PRESETS[normDirection(settings.direction)] && (
               <button onClick={async ()=>{
                 const pr = DIRECTION_PRESETS[normDirection(settings.direction)];
-                if (!window.confirm("Додати стартові послуги й мітки для цього напрямку? Наявні не зміняться.")) return;
+                if (!(await confirm({ title: "Додати стартові послуги й мітки?", text: "Для вибраного напрямку з'являться готові послуги й мітки. Наявні не зміняться.", okLabel: "Додати", icon: "✨" }))) return;
                 try {
                   const cur = (await get(iRef("admin_data/services"))).val();
                   const arr = Array.isArray(cur) ? cur : [];
@@ -1640,6 +1658,7 @@ select{color-scheme:${isKava?"light":"dark"}}
     <>
       <UICss/>
       <style>{css}</style>
+      {confirmNode}
       <div style={{
         display:"flex", flexDirection:"column", gap:10,
         fontFamily:"ui-sans-serif,-apple-system,system-ui,sans-serif", color:TEXT,
@@ -1819,7 +1838,7 @@ select{color-scheme:${isKava?"light":"dark"}}
       })()}
       {active === "profile" && (
         <div style={{margin:"10px 14px 0"}}>
-          <button onClick={() => { if (window.confirm("Вийти з акаунта?")) signOut(auth).catch(() => {}); }} style={{
+          <button onClick={async () => { if (await confirm({ title: "Вийти з акаунта?", okLabel: "Вийти", danger: true, icon: "🚪" })) signOut(auth).catch(() => {}); }} style={{
             width:"100%", padding:"12px", borderRadius:12, cursor:"pointer", fontFamily:"inherit",
             background:"rgba(239,68,68,0.10)", border:"1px solid rgba(239,68,68,0.35)",
             color:"#f87171", fontSize:13, fontWeight:800,

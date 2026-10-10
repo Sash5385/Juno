@@ -8,6 +8,7 @@ import { ThemeContext } from "../theme.js";
 import { UICss, Field, Btn as UIBtn, useFX, useBackClose } from "../ui";
 import { makePalette } from "./id4drive-services";
 import { STUDENT_COLOR_CHOICES } from "../studentColors";
+import { useConfirm } from "../ConfirmModal";
 import { normPackages, normPackageTemplates, buildClientPackage, expiresLabel } from "../packages";
 
 const M = ["","Січ","Лют","Бер","Кві","Тра","Чер","Лип","Сер","Вер","Жов","Лис","Гру"];
@@ -166,6 +167,7 @@ function StudentDetailSheet({ settings, s, onClose, onUpdate, onDelete, onBlock,
   const { BG_DEEP, SURF_HI, SURFACE, BORDER, TEXT, DIM, FAINT, ACCENT, ACC_HI, GREEN, BLUE, GOLD, RED, SO, SI } = useContext(ThemeContext);
   const { shade, glow, ink } = useFX();
   const [closing,      setClosing]     = useState(false);
+  const [confirm, confirmNode] = useConfirm();
   const [colorOpen, setColorOpen] = useState(false);
   const [editMode,     setEditMode]    = useState(false);
   const [confirmDel,   setConfirmDel]  = useState(false);
@@ -509,6 +511,7 @@ function StudentDetailSheet({ settings, s, onClose, onUpdate, onDelete, onBlock,
                   <div style={{background:glow(0.04),borderRadius:10,padding:"9px 12px",border:`1px solid ${BORDER}`,fontSize:12,color:DIM,lineHeight:1.5}}>📝 {s.notes}</div>
                 )}
 
+                {confirmNode}
                 {/* Пакети (абонементи) клієнта: додає майстер із заготовок (Налаштування → Пакети) */}
                 {(() => {
                   const pkgs = normPackages(s.packages);
@@ -523,7 +526,7 @@ function StudentDetailSheet({ settings, s, onClose, onUpdate, onDelete, onBlock,
                             <b style={{color:TEXT,fontWeight:700}}>{p.name}</b>: {p.left} з {p.total}
                             <span style={{color:FAINT}}> · {expiresLabel(p)}</span>
                           </div>
-                          <button onClick={()=>{ if (window.confirm(`Видалити пакет «${p.name}»?`)) remove(iRef(`users/${s.id}/packages/${p.id}`)).catch(()=>{}); }} aria-label="Видалити пакет" style={{background:"none",border:"none",cursor:"pointer",color:"rgba(248,113,113,0.85)",fontSize:18,lineHeight:1,padding:"0 4px"}}>×</button>
+                          <button onClick={async()=>{ if (await confirm({ title:`Видалити пакет «${p.name}»?`, text:`Залишок ${p.left} з ${p.total} буде втрачено.`, okLabel:"Видалити", danger:true })) remove(iRef(`users/${s.id}/packages/${p.id}`)).catch(()=>{}); }} aria-label="Видалити пакет" style={{background:"none",border:"none",cursor:"pointer",color:"rgba(248,113,113,0.85)",fontSize:18,lineHeight:1,padding:"0 4px"}}>×</button>
                         </div>
                       ))}
                       {tpls.length > 0 ? (
