@@ -59,6 +59,7 @@ const SERVICES = [
     addons: [{ id: "ad3", name: "Подовження +15 хв", price: 150, minutes: 15 }], bufferMin: 15 },
   { id: "sv5", name: "Індивідуальний 1,5 год", type: "private", duration: 90, price: 1200, colorId: "purple", active: true, description: "Розширений запис" },
   { id: "sv4", name: "Індивідуальний 2 год", type: "private", duration: 120, price: 1500, colorId: "yellow", active: true, description: "Розширений запис із підготовкою" },
+  { id: "sv6", name: "Груповий запис 1 год", type: "school", duration: 60, price: 300, colorId: "teal", active: true, description: "Група до 6 клієнтів", capacity: 6 },
 ];
 
 const NOTES = ["Уточнити побажання", "Повторний візит", "Підготувати матеріали", "Додаткові деталі в чаті", "Другий етап роботи", "Коригування за результатом"];

@@ -339,6 +339,84 @@ async function buildRescheduleSlotUpdates(iid, before, after) {
   return updates;
 }
 
+// ── Групові записи: місця в groupSeats/{date}/{HHMM} = { serviceId, capacity, count, seats: { bookingId: uid } }.
+// Клієнт сам займає місце транзакцією (db.js) — тут сервер лишається остаточним арбітром: підтверджує місце запису,
+// відсікає перебір понад РЕАЛЬНУ місткість послуги (клієнт міг підробити capacity у вузлі) і звільняє слоти лише тоді,
+// коли в групі не лишилось жодного учасника.
+const seatNodeRef = (iid, b) => iRef(iid, `groupSeats/${b.date}/${String(b.time || "").replace(":", "")}`);
+
+async function serviceCapacity(iid, serviceId) {
+  const snap = await iRef(iid, "admin_data/services").get().catch(() => null);
+  const val = snap?.val();
+  const arr = Array.isArray(val) ? val : (val && typeof val === "object" ? Object.values(val) : []);
+  const svc = arr.find((x) => x && x.id === serviceId);
+  return Math.max(1, Math.min(30, Math.round(Number(svc?.capacity)) || 1));
+}
+
+// Гарантує місце в групі для запису (клієнт уже зайняв його сам, а записи майстра — тут). false → запис скасовано.
+async function ensureGroupSeat(iid, uid, bookingId, b) {
+  const realCap = await serviceCapacity(iid, b.serviceId);
+  let reason = null;
+  const nodeRef = seatNodeRef(iid, b);
+  await nodeRef.transaction((cur) => {
+    reason = null;
+    if (!cur) {
+      if (realCap < 2) { reason = "послуга не групова"; return undefined; }
+      return { serviceId: b.serviceId, capacity: realCap, count: 1, seats: { [bookingId]: uid } };
+    }
+    if (cur.serviceId !== b.serviceId) { reason = "у цей час уже інша група"; return undefined; }
+    const cap = Math.min(Number(cur.capacity) || realCap, realCap);
+    const seats = cur.seats || {};
+    if (seats[bookingId]) {
+      if (Object.keys(seats).length > cap) { // перебір понад реальну місткість — прибираємо цей запис
+        reason = "група заповнена";
+        const rest = { ...seats }; delete rest[bookingId];
+        return { ...cur, capacity: cap, count: Object.keys(rest).length, seats: rest };
+      }
+      return { ...cur, capacity: cap, count: Object.keys(seats).length };
+    }
+    if (Object.keys(seats).length >= cap) { reason = "група заповнена"; return undefined; }
+    return { ...cur, capacity: cap, count: Object.keys(seats).length + 1, seats: { ...seats, [bookingId]: uid } };
+  });
+  if (!reason) return true;
+  console.warn(`ensureGroupSeat: ${reason} iid=${iid} uid=${uid} booking=${bookingId}`);
+  await iRef(iid, `bookings/${uid}/${bookingId}`).update({ status: "cancelled", cancelledBy: "group", groupError: reason }).catch(() => {});
+  // Групи в цей час немає (відхилили єдиний запис) — слоти, які він зайняв, повертаємо
+  if (!(await nodeRef.get().catch(() => null))?.exists()) {
+    const upd = await buildSlotUpdates(iid, b, true, null);
+    if (Object.keys(upd).length) await iRef(iid).update(upd).catch(() => {});
+  }
+  await pushStudent(iid, uid, "⚠️ Запис недоступний", `Не вдалося записати в групу: ${reason}.`, { url: "https://juno-booking-client.web.app/cabinet/bookings" }).catch(() => {});
+  await pushAdmin(iid, "⚠️ Запис у групу відхилено", `${b.studentName || "Клієнт"} · ${b.date} о ${b.time}: ${reason}`).catch(() => {});
+  return false;
+}
+
+// Прибирає місце запису; повертає, скільки учасників лишилось (0 — вузол видалено)
+async function removeGroupSeat(iid, bookingId, b) {
+  let left = 0;
+  await seatNodeRef(iid, b).transaction((cur) => {
+    if (!cur) { left = 0; return cur; }
+    const seats = { ...(cur.seats || {}) };
+    delete seats[bookingId];
+    left = Object.keys(seats).length;
+    return left ? { ...cur, count: left, seats } : null;
+  }).catch(() => {});
+  return left;
+}
+
+// Звільняє слоти запису. Для групового — лише коли він був останнім учасником. Повертає, чи слоти звільнено.
+async function freeBookingSlots(iid, uid, bookingId, before) {
+  if (before?.groupKey) {
+    if ((await removeGroupSeat(iid, bookingId, before)) > 0) return false;
+    const upd = await buildSlotUpdates(iid, before, true, null); // слоти групи тримав перший учасник/сервер — звільняємо всі
+    if (Object.keys(upd).length) await iRef(iid).update(upd).catch(() => {});
+    return true;
+  }
+  const upd = await buildSlotUpdates(iid, before, true, uid);
+  if (Object.keys(upd).length) await iRef(iid).update(upd).catch(() => {});
+  return true;
+}
+
 // ── Пакети (абонементи) клієнта: users/{uid}/packages/{pid} = { name, total, expiresAt, serviceIds, uses: {ключ: ts} }.
 // Залишок = total − кількість uses; запис за пакетом списує ключ (id запису, а при перенесенні — ключ старого запису,
 // packageUseId), скасування його прибирає. Пише лише сервер (клієнт пакети читає, але змінити не може) — ідемпотентно.
@@ -405,8 +483,7 @@ exports.onBookingChanged = onValueWritten(
         if (isLicenseReadonly(lic)) {
           console.warn(`onBookingChanged: booking rejected, license readonly iid=${iid} uid=${uid}`);
           await iRef(iid, `bookings/${uid}/${bookingId}`).update({ status: "cancelled", cancelledBy: "license" }).catch(() => {});
-          const freeUpd = await buildSlotUpdates(iid, after, true, uid);
-          if (Object.keys(freeUpd).length) await iRef(iid).update(freeUpd).catch(() => {});
+          await freeBookingSlots(iid, uid, bookingId, after);
           await pushStudent(iid, uid, "⚠️ Запис недоступний", "Майстер тимчасово не приймає нові записи.", {
             url: "https://juno-booking-client.web.app/cabinet/bookings",
           }).catch(() => {});
@@ -415,6 +492,7 @@ exports.onBookingChanged = onValueWritten(
       }
       const slotUpd = await buildSlotUpdates(iid, after, false);
       if (Object.keys(slotUpd).length) await iRef(iid).update(slotUpd).catch(() => {});
+      if (after.groupKey && after.status !== "personal" && !(await ensureGroupSeat(iid, uid, bookingId, after).catch((e) => { console.error("ensureGroupSeat failed", e); return true; }))) return;
       if (after.packageId && after.status !== "personal") await consumePackage(iid, uid, bookingId, after).catch((e) => console.error("consumePackage failed", e));
       await iRef(iid, `activeStudents/${uid}`).set(true).catch(() => {});
       await iRef(iid, `recentStudents/${uid}`).set(Date.now()).catch(() => {});
@@ -446,11 +524,10 @@ exports.onBookingChanged = onValueWritten(
     // Клієнт скасував — звільняємо слоти
     if (after.cancelledBy === "student" && before.cancelledBy !== "student") {
       console.log(`onBookingChanged: student cancel iid=${iid} uid=${uid}`);
-      const slotUpd = await buildSlotUpdates(iid, before, true, uid);
-      if (Object.keys(slotUpd).length) await iRef(iid).update(slotUpd).catch(() => {});
+      const freed = await freeBookingSlots(iid, uid, bookingId, before);
       await releasePackage(iid, uid, bookingId, before);
       await pushAdmin(iid, "❌ Запис скасовано", `${name} · ${date} о ${time}`, { url: adminLink() });
-      if (date !== "—" && time !== "—") {
+      if (freed && date !== "—" && time !== "—") {
         const freedDurationHours = before.durationHours || (before.durMin ? before.durMin / 60 : 1);
         await inviteNextInQueue(iid, `${date}_${time}`, [], freedDurationHours).catch(() => {});
       }
@@ -482,8 +559,7 @@ exports.onBookingChanged = onValueWritten(
     // слоти — це й розбивало злитий годинний слот на 30-хв фрагменти.
     if (after.status === "cancelled" && before.status !== "cancelled" && after.cancelledBy === "admin") {
       console.log(`onBookingChanged: admin cancelled iid=${iid} uid=${uid}`);
-      const slotUpd = await buildSlotUpdates(iid, before, true, uid);
-      if (Object.keys(slotUpd).length) await iRef(iid).update(slotUpd).catch(() => {});
+      const freed = await freeBookingSlots(iid, uid, bookingId, before);
       await releasePackage(iid, uid, bookingId, before);
       const cancelVars = { "ім'я": name, "дата": date, "час": time };
       const usedCancelTpl = await sendActiveTemplates(iid, uid, "auto_cancel", cancelVars).catch(() => false);
@@ -493,7 +569,7 @@ exports.onBookingChanged = onValueWritten(
         });
         await saveNotification(iid, uid, "❌ Запис скасовано", `${date} о ${time}`, "booking_cancelled");
       }
-      if (date !== "—" && time !== "—") {
+      if (freed && date !== "—" && time !== "—") {
         const freedDurationHours = before.durationHours || (before.durMin ? before.durMin / 60 : 1);
         await inviteNextInQueue(iid, `${date}_${time}`, [], freedDurationHours).catch(() => {});
       }
@@ -504,8 +580,7 @@ exports.onBookingChanged = onValueWritten(
     // і сам звільняє старі слоти. Якщо правила БД його не пустили (слоти заброньовано до появи bookedBy) —
     // звільняємо тут. Слоти, зайняті вже кимось іншим (bookedBy), buildSlotUpdates не чіпає.
     if (after.cancelledBy === "reschedule" && before.cancelledBy !== "reschedule") {
-      const slotUpd = await buildSlotUpdates(iid, before, true, uid);
-      if (Object.keys(slotUpd).length) await iRef(iid).update(slotUpd).catch(() => {});
+      await freeBookingSlots(iid, uid, bookingId, before);
       return;
     }
 
@@ -1388,8 +1463,8 @@ async function deleteStudentData(iid, uid) {
   const bookings = (await iRef(iid, `bookings/${uid}`).get()).val() || {};
   for (const b of Object.values(bookings)) {
     if (!b || b.status === "cancelled" || b.cancelledBy || !b.date || b.date < today) continue;
-    const upd = await buildSlotUpdates(iid, b, true, uid).catch(() => ({}));
-    if (Object.keys(upd).length) await iRef(iid).update(upd).catch(() => {});
+    const bId = Object.keys(bookings).find((k) => bookings[k] === b);
+    await freeBookingSlots(iid, uid, bId, b).catch(() => {});
   }
   // 2) видаляємо вузли клієнта
   const updates = {};

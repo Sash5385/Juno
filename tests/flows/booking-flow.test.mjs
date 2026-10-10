@@ -340,6 +340,53 @@ const mm = (t) => { const [h, m] = t.split(":").map(Number); return h * 60 + m; 
   await fire(UA, k4, bef4, await bk(UA, k4));
   check("скасування адміном повертає запис у пакет", (await usesN()) === 0);
 
+  console.log("── 14. Групові записи (місця, спільні слоти, звільнення останнім)");
+  await seedDays();
+  await adb.ref(`instructors/${IID}/admin_data/services`).set([{ id: "g1", name: "Група", duration: 60, price: 300, active: true, capacity: 2 }]);
+  const seatsNode = async () => (await adb.ref(`instructors/${IID}/groupSeats/${D1}/1000`).get()).val();
+  const bookGroup = async (uid, email, first) => {
+    await loginAs(email); await C.getUserProfile(uid);
+    if (first && !(await C.claimSlot(D1, "10:00", 1, 30))) return { err: "claim" };
+    const id = C.newBookingId(uid);
+    const seated = await C.joinGroupSeat(D1, "10:00", "g1", 2, id, uid);
+    if (!seated) return { err: "seat" };
+    await C.createBooking(uid, { id, groupKey: `${D1}_1000`, groupCap: 2, date: D1, time: "10:00", serviceType: "private", serviceId: "g1", serviceName: "Група", durationHours: 1, price: 300, studentName: "X", phone: "1" });
+    await fire(uid, id, null, await bk(uid, id));
+    return { id };
+  };
+  const g1 = await bookGroup(UA, "a@t.dev", true);
+  let nodeG = await seatsNode();
+  check("перший учасник створив групу (count 1, capacity 2) і зайняв слоти", !g1.err && nodeG?.count === 1 && nodeG?.capacity === 2 && clean(await day(D1)).slot1000.available === false);
+  const g2 = await bookGroup(UB, "b@t.dev", false);
+  nodeG = await seatsNode();
+  check("другий приєднався до групи (count 2), слоти не чіпали", !g2.err && nodeG?.count === 2 && Object.keys(nodeG.seats).length === 2, JSON.stringify(nodeG));
+  const g3 = await C.joinGroupSeat(D1, "10:00", "g1", 2, "extra", UB);
+  check("третього клієнтська транзакція не пускає (група повна)", g3 === false && (await seatsNode()).count === 2);
+  await loginAs("a@t.dev"); await C.getUserProfile(UA);
+  const tamper = await C.joinGroupSeat(D1, "10:00", "gX", 2, "x2", UA).catch(() => false);
+  check("інша послуга в цей час не приєднується", tamper === false);
+  // перший учасник скасовує — слоти лишаються, бо в групі є ще один
+  await act(UA, g1.id, () => C.cancelBooking(UA, g1.id));
+  nodeG = await seatsNode();
+  d = clean(await day(D1));
+  check("перший вийшов: місце звільнено (count 1), слоти групи лишились зайняті", nodeG?.count === 1 && !nodeG.seats[g1.id] && d.slot1000.available === false && d.slot1030.available === false, JSON.stringify([nodeG, show(d)]));
+  // останній виходить — слоти й вузол звільняються
+  await loginAs("b@t.dev"); await C.getUserProfile(UB);
+  await act(UB, g2.id, () => C.cancelBooking(UB, g2.id));
+  check("останній вийшов: групу видалено, день як був", (await seatsNode()) === null && JSON.stringify(clean(await day(D1))) === JSON.stringify(pristine), JSON.stringify(show(clean(await day(D1)))));
+  // запис майстра: сервер сам займає місце; перебір понад місткість відхиляється
+  await seedDays();
+  const mk = async (uid, id) => { await adb.ref(`instructors/${IID}/bookings/${uid}/${id}`).set({ id, date: D1, time: "10:00", startMin: 600, durMin: 60, durationHours: 1, status: "confirmed", createdBy: "admin", studentName: "X", serviceId: "g1", groupKey: `${D1}_1000`, groupCap: 2 }); await fire(uid, id, null, await bk(uid, id)); };
+  await mk(UA, "ma1"); await mk(UB, "mb1"); await mk(UA, "ma2");
+  nodeG = await seatsNode();
+  check("записи майстра: сервер створив групу і місця (2), третій запис відхилено", nodeG?.count === 2 && (await bk(UA, "ma2"))?.status === "cancelled" && (await bk(UA, "ma2"))?.cancelledBy === "group", JSON.stringify([nodeG, await bk(UA, "ma2")]));
+  // підроблена місткість у вузлі (клієнт записав capacity 30) не обходить реальну
+  await seedDays();
+  await adb.ref(`instructors/${IID}/groupSeats/${D1}/1000`).set({ serviceId: "g1", capacity: 30, count: 3, seats: { f1: UA, f2: UB, f3: UA } });
+  await adb.ref(`instructors/${IID}/bookings/${UA}/f3`).set({ id: "f3", date: D1, time: "10:00", status: "pending", serviceId: "g1", groupKey: `${D1}_1000`, durationHours: 1 });
+  await fire(UA, "f3", null, await bk(UA, "f3"));
+  check("підроблена capacity=30: третій запис понад реальні 2 відхиляється сервером", (await bk(UA, "f3"))?.cancelledBy === "group" && (await seatsNode()).count === 2, JSON.stringify(await seatsNode()));
+
   console.log(failed ? `\n${failed} FAILED` : "\nALL PASS");
   process.exit(failed ? 1 : 0);
 })().catch((e) => { console.error(e); process.exit(1); });

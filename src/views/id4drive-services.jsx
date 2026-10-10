@@ -4,6 +4,7 @@ import { iRef } from "../firebase";
 
 import { ThemeContext } from "../theme.js";
 import { UICss, Modal, Chip, Btn, Toggle, Pill, useFX } from "../ui";
+import { capacityOf, MAX_CAPACITY } from "../groups";
 import { rawAddons, normAddons, bufferOf, ADDON_MINUTES, BUFFER_OPTIONS, MAX_ADDONS } from "../addons";
 
 export const makePalette = ({GREEN, GOLD, BLUE, PURPLE, ACCENT, TEAL}) => [
@@ -84,10 +85,10 @@ function ServiceFormModal({ svc, onSave, onClose }) {
   const PALETTE = makePalette(theme);
   const { glow, shade } = useFX();
   const isNew = !svc;
-  const [form, setForm] = useState(svc ? {...svc, accessCats:svc.accessCats||["cat-all"], addons:rawAddons(svc.addons), bufferMin:bufferOf(svc)} : {
+  const [form, setForm] = useState(svc ? {...svc, accessCats:svc.accessCats||["cat-all"], addons:rawAddons(svc.addons), bufferMin:bufferOf(svc), capacity:capacityOf(svc)} : {
     id:`sv-${Date.now()}`,name:"",type:"school",duration:60,price:0,
     colorId:"green",active:true,archived:false,description:"",instructions:"",
-    accessCats:["cat-all"],lessons:0,income:0,addons:[],bufferMin:0,
+    accessCats:["cat-all"],lessons:0,income:0,addons:[],bufferMin:0,capacity:1,
   });
   const upd = (k,v) => setForm(f=>({...f,[k]:v}));
   // Допуслуги: назва, ціна (₴ додається до запису) і додатковий час (хв додаються до тривалості)
@@ -102,7 +103,7 @@ function ServiceFormModal({ svc, onSave, onClose }) {
     <Modal open onClose={onClose} sheet size="lg" title={isNew?"Нова послуга":"Редагування послуги"}
       footer={<>
         <Btn variant="ghost" flex={1} onClick={onClose}>Скасувати</Btn>
-        <Btn variant="primary" flex={1} disabled={!valid} onClick={()=>valid&&onSave({...form,price:Number(form.price)||0,addons:normAddons(form.addons),bufferMin:bufferOf(form)})}>
+        <Btn variant="primary" flex={1} disabled={!valid} onClick={()=>valid&&onSave({...form,price:Number(form.price)||0,addons:capacityOf(form)>1?[]:normAddons(form.addons),bufferMin:bufferOf(form),capacity:capacityOf(form)})}>
           {isNew?"Створити послугу":"Зберегти зміни"}
         </Btn>
       </>}>
@@ -195,8 +196,27 @@ function ServiceFormModal({ svc, onSave, onClose }) {
         )}
       </div>
 
-      {/* add-ons */}
+      {/* group capacity */}
       <div style={{marginBottom:14}}>
+        <div style={{fontSize:10,color:"rgba(255,255,255,0.55)",letterSpacing:1,marginBottom:8}}>МІСЦЬ У ГРУПІ</div>
+        <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+          {[1,2,3,4,6,8,10,12,20].map(v=>(
+            <button key={v} onClick={()=>upd("capacity",v)} style={{
+              padding:"6px 11px",borderRadius:9,border:"none",cursor:"pointer",fontSize:12,fontWeight:700,fontFamily:"inherit",
+              background:capacityOf(form)===v?`linear-gradient(165deg,${ACC_HI},${ACCENT})`:`linear-gradient(135deg,${SURF_HI},${SURFACE})`,
+              color:capacityOf(form)===v?"#fff":DIM,boxShadow:SO,
+            }}>{v===1?"Індивідуально":v}</button>
+          ))}
+        </div>
+        <div style={{fontSize:10,color:"rgba(255,255,255,0.55)",marginTop:6}}>
+          {capacityOf(form)>1
+            ? `Група до ${Math.min(capacityOf(form),MAX_CAPACITY)} клієнтів на один час: поки є місця, клієнти приєднуються до наявної групи. Ціна — за кожного учасника. Допуслуги для групових послуг не діють.`
+            : "Один клієнт на час. Оберіть більше місць, щоб послуга стала груповою."}
+        </div>
+      </div>
+
+      {/* add-ons */}
+      {capacityOf(form)<=1 && <div style={{marginBottom:14}}>
         <div style={{fontSize:10,color:"rgba(255,255,255,0.55)",letterSpacing:1,marginBottom:6}}>ДОПУСЛУГИ (опційно)</div>
         <div style={{display:"flex",flexDirection:"column",gap:8}}>
           {addons.map((a,i)=>(
@@ -245,7 +265,7 @@ function ServiceFormModal({ svc, onSave, onClose }) {
         <div style={{fontSize:10,color:"rgba(255,255,255,0.55)",marginTop:6}}>
           Клієнт відмічає допуслуги при записі: сума додається до ціни, хвилини — до тривалості запису.
         </div>
-      </div>
+      </div>}
 
       {/* buffer after booking */}
       <div style={{marginBottom:14}}>
@@ -435,6 +455,7 @@ function ServiceRow({ svc, onEdit, onToggle, onDelete, dragHandleProps, isDraggi
           {fmtDur(svc.duration)} · {svc.lessons} записів
           {normAddons(svc.addons).length>0 && <> · допуслуг: {normAddons(svc.addons).length}</>}
           {bufferOf(svc)>0 && <> · перерва {bufferOf(svc)} хв</>}
+          {capacityOf(svc)>1 && <> · група до {capacityOf(svc)}</>}
         </div>
         <div onClick={stop}><Toggle on={svc.active&&!svc.archived} onChange={v=>onToggle(svc.id,v)}/></div>
       </div>

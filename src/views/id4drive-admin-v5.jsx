@@ -4,6 +4,7 @@ import { update, get, onValue, off, remove, push as fbPush } from "firebase/data
 import { iRef, auth } from "../firebase";
 import { blockRangeUpdates, restoreRangeUpdates } from "../slotRules";
 import { normPackages, pickPackage } from "../packages";
+import { isGroupService, capacityOf, groupKeyOf } from "../groups";
 import { normAddons, bufferOf, bookingAddonTotals, pickAddons, addonsTotals, addonsSnapshot, addonsLabel } from "../addons";
 
 // Єдині правила timeslots під запис (див. slotRules.js): блокування ставить
@@ -1265,6 +1266,17 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   // ресайзити кожну годину окремо). Дані в Firebase й завжди були окремими
   // записами, тут міняється лише відображення.
   const mergeInfoMap = {};
+  // Групові записи (один час, одна послуга) показуємо ОДНІЄЮ карткою «Група N/M»: перший учасник — представник, решта сховані
+  const groupMap = useMemo(() => {
+    const by = {};
+    bookings.forEach(b => { if (b.groupKey && b.status !== "cancelled" && b.type !== "personal") (by[b.groupKey] ||= []).push(b); });
+    const map = {};
+    Object.values(by).forEach(list => {
+      list.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0) || String(a.id).localeCompare(String(b.id)));
+      list.forEach((b, i) => { map[b.id] = i === 0 ? { rep: true, members: list } : { hidden: true }; });
+    });
+    return map;
+  }, [bookings]);
   const [windowW, setWindowW] = useState(window.innerWidth);
   const [windowH, setWindowH] = useState(window.innerHeight);
   const PAST_DAYS = 365;
@@ -2723,6 +2735,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   };
 
   const handleAction = (action, b) => {
+    if (action === "openMember") { setLocalSelectedBooking(b); return; }
     if (action === "confirm") { setBookings(bs=>bs.map(x=>x.id===b.id?{...x,status:"confirmed"}:x)); return; }
     if (action === "cancel") {
       // Звільняємо timeslots одразу (миттєвий відгук і запис без акаунта, де
@@ -2738,7 +2751,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
           ks.forEach(k => update(iRef( `bookings/${mb.userId}/${k}`),
             { status:"cancelled", cancelledAt:Date.now(), cancelledBy:"admin" }).catch(()=>{}));
         }
-        if (mb.startMin !== undefined && mb.durMin) {
+        if (mb.startMin !== undefined && mb.durMin && !mb.groupKey) {
           try {
             await restoreSlotRange(mb.date || absDayToDateStr(mb.day), mb.startMin, mb.durMin + bufferOf(mb));
           } catch {}
@@ -3653,11 +3666,14 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                 // Сусідній (без розриву) запис того ж клієнта — "поглинутий" сусідньою карткою, не рендеримо окремо.
                 const mi = mergeInfoMap[origB.id];
                 if (mi?.hidden) return null;
+                const gi = groupMap[origB.id];
+                if (gi?.hidden) return null;
                 // Для першого запису об'єднаної групи — синтетична копія лише для геометрії/ціни картки
                 // (клік відкриває деталі саме origB, щоб модалка й дії лишались "чесними" для одного запису).
-                const b = mi?.mergedIds?.length
+                const b0 = mi?.mergedIds?.length
                   ? { ...origB, durMin: mi.mergedDurMin, _mergedIds: mi.mergedIds, _mergedPrice: mi.mergedPrice }
                   : origB;
+                const b = gi?.rep ? { ...b0, name: `👥 ${gi.members.length}/${origB.groupCap || "?"} · ${origB.name}` } : b0;
                 const wsMin = effectiveWorkStart * 60;
                 const weMin = effectiveWorkEnd * 60;
                 if (b.startMin >= weMin || b.startMin + b.durMin <= wsMin) return null;
@@ -3743,8 +3759,8 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                     <div
                       className={`slot-base ${(isBlock||isPersonal)?"":"slot-colored"} ${!isBlock&&!isPersonal&&isPending?"slot-pending-ring":""} ${!isBlock&&!isPersonal&&holdId===b.id?"slot-holding":""} ${!isBlock&&!isPersonal&&shineId===b.id&&!isDimmed?"shine-active":""}`}
                       onPointerDown={e=>{
-                        if (isLockedPast) {
-                          // Заблокований минулий запис — редагування/перенесення заборонено,
+                        if (isLockedPast || gi?.rep) {
+                          // Заблокований минулий запис (і групова картка: групу не тягнемо — учасників переносять поодинці) — редагування/перенесення заборонено,
                           // але свайп по картці все одно мусить гортати дні (як і по
                           // порожньому місцю), інакше день з минулими уроками "мертвий"
                           // для свайпу. Той самий шлях, що й для scheduleLocked.
@@ -3998,7 +4014,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                           // Звільняємо слоти за єдиними правилами (phantom видаляється,
                           // справжні повертаються як були) — раніше ВСІ позиції, включно
                           // з проміжними phantom, ставали окремими 30-хв слотами.
-                          if (b.startMin !== undefined && b.durMin) {
+                          if (b.startMin !== undefined && b.durMin && !b.groupKey) {
                             restoreSlotRange(b.date || absDayToDateStr(b.day), b.startMin, b.durMin + bufferOf(b)).catch(()=>{});
                           }
                           // Починаємо 2с відлік — затемнення → видалення
@@ -4841,6 +4857,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
             ...(b.addons?.length && { addons: b.addons, addonsPrice: b.addonsPrice || 0 }),
             ...(b.bufferMin > 0 && { bufferMin: b.bufferMin }),
             ...(b.packageId && { packageId: b.packageId, packageName: b.packageName || "" }),
+            ...(b.groupKey && { groupKey: b.groupKey, groupCap: b.groupCap || null }),
           };
           if (b.userId) {
             update(iRef( `bookings/${b.userId}/${b.id}`), fbData).catch(()=>{});
@@ -5562,6 +5579,23 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
               ))}
             </div>
           </div>
+
+          {/* Група: учасники (тап — відкрити окремий запис учасника) */}
+          {booking.groupKey && (() => {
+            const members = (bookings || []).filter(x => x.groupKey === booking.groupKey && x.status !== "cancelled");
+            return (
+              <div style={{margin:"10px 14px 0",padding:"10px 14px",borderRadius:14,background:`rgba(${GLOW},0.06)`,border:`1px solid ${BORDER}`,fontSize:12,color:TEXT}}>
+                <div style={{fontSize:9,fontWeight:700,letterSpacing:1,color:FAINT,textTransform:"uppercase",marginBottom:5}}>👥 Група: {members.length}{booking.groupCap ? ` з ${booking.groupCap}` : ""}</div>
+                {members.map(m => (
+                  <div key={m.id} onClick={() => m.id !== booking.id && onAction("openMember", m)} style={{display:"flex",alignItems:"center",gap:8,padding:"4px 0",cursor:m.id===booking.id?"default":"pointer"}}>
+                    <span style={{flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontWeight:m.id===booking.id?800:600}}>{m.name}</span>
+                    <span style={{color:DIM}}>{m.phone}</span>
+                    {m.id !== booking.id && <span style={{color:FAINT}}>›</span>}
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
 
           {/* Допуслуги й перерва запису (з послуги на момент запису) */}
           {(normAddons(booking.addons).length > 0 || bufferOf(booking) > 0 || booking.packageId) && (
@@ -6312,6 +6346,7 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
       ...(chosenAddons.length && { addons: addonsSnapshot(chosenAddons), addonsPrice: axTotals.price }),
       ...(bufferOf(selSvc) > 0 && { bufferMin: bufferOf(selSvc) }),
       ...(pkgOn && { packageId: availPkg.id, packageName: availPkg.name }),
+      ...(isGroupService(selSvc) && { groupKey: groupKeyOf(dateStr, fmtTime(timeVal)), groupCap: capacityOf(selSvc) }),
     });
     _close();
   };
@@ -6519,6 +6554,12 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
               })}
             </div>
           </div>
+
+          {selSvc && isGroupService(selSvc) && (
+            <div style={{padding:"9px 13px",borderRadius:12,background:`${BLUE}14`,border:`1px solid ${BLUE}30`,fontSize:12,color:TEXT_DIM,lineHeight:1.5}}>
+              👥 Групова послуга, до {capacityOf(selSvc)} місць. Запис приєднається до наявної групи на цей час або створить нову; якщо місць немає — його буде відхилено.
+            </div>
+          )}
 
           {/* ДОПУСЛУГИ — якщо в послуги вони є */}
           {selSvc && svcAddons.length > 0 && (

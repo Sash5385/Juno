@@ -58,8 +58,20 @@
             "$bookingId": {
               ".write": "auth != null && auth.uid === $uid && root.child('instructors/'+$iid+'/users/'+$uid).exists() && (!data.exists() || (newData.exists() && (!data.child('price').exists() || newData.child('price').exists()) && (!data.child('debtAmount').exists() || newData.child('debtAmount').exists()) && (!data.child('manualPrice').exists() || newData.child('manualPrice').exists()) && (!data.child('status').exists() || newData.child('status').exists()) && (!data.child('createdBy').exists() || newData.child('createdBy').exists()) && (!data.child('date').exists() || newData.child('date').exists()) && (!data.child('time').exists() || newData.child('time').exists()) && (!data.child('durationHours').exists() || newData.child('durationHours').exists()) && (!data.child('tag').exists() || newData.child('tag').exists()))) && (data.exists() || (newData.child('status').val() === 'pending' && !newData.child('createdBy').exists()))",
               "$key": {
-                ".validate": "auth.uid === $iid || newData.val() === data.val() || (!data.parent().exists() && ($key === 'id' || $key === 'date' || $key === 'time' || $key === 'serviceType' || $key === 'serviceId' || $key === 'serviceName' || $key === 'price' || $key === 'surcharge' || $key === 'discountAmt' || $key === 'durationHours' || $key === 'studentName' || $key === 'phone' || $key === 'studentNote' || $key === 'rescheduledFrom' || $key === 'addons' || $key === 'addonsPrice' || $key === 'bufferMin' || $key === 'packageId' || $key === 'packageName' || $key === 'packageUseId' || $key === 'createdAt' || ($key === 'status' && newData.val() === 'pending'))) || (data.parent().exists() && ($key === 'studentConfirmed' || $key === 'rating' || $key === 'goals' || $key === 'studentNote' || $key === 'cancelledAt' || ($key === 'cancelledBy' && (newData.val() === 'student' || newData.val() === 'reschedule')) || ($key === 'status' && newData.val() === 'cancelled')))"
+                ".validate": "auth.uid === $iid || newData.val() === data.val() || (!data.parent().exists() && ($key === 'id' || $key === 'date' || $key === 'time' || $key === 'serviceType' || $key === 'serviceId' || $key === 'serviceName' || $key === 'price' || $key === 'surcharge' || $key === 'discountAmt' || $key === 'durationHours' || $key === 'studentName' || $key === 'phone' || $key === 'studentNote' || $key === 'rescheduledFrom' || $key === 'addons' || $key === 'addonsPrice' || $key === 'bufferMin' || $key === 'packageId' || $key === 'packageName' || $key === 'packageUseId' || $key === 'groupKey' || $key === 'groupCap' || $key === 'createdAt' || ($key === 'status' && newData.val() === 'pending'))) || (data.parent().exists() && ($key === 'studentConfirmed' || $key === 'rating' || $key === 'goals' || $key === 'studentNote' || $key === 'cancelledAt' || ($key === 'cancelledBy' && (newData.val() === 'student' || newData.val() === 'reschedule')) || ($key === 'status' && newData.val() === 'cancelled')))"
               }
+            }
+          }
+        },
+        // Місця групових записів: { serviceId, capacity, count, seats: { bookingId: uid } }.
+        // Клієнт свого майстра може лише створити групу (count 1) або зайняти ОДНЕ місце (count +1, не вище capacity,
+        // своє місце = свій uid); зменшувати/видаляти може лише сервер (admin SDK) і майстер.
+        "groupSeats": {
+          ".read": "auth != null && (auth.uid === $iid || root.child('instructors/'+$iid+'/users/'+auth.uid).exists())",
+          "$date": {
+            "$time": {
+              ".write": "auth != null && (auth.uid === $iid || (root.child('instructors/'+$iid+'/users/'+auth.uid).exists() && ((!data.exists() && newData.child('count').val() === 1 && newData.child('capacity').val() >= 2 && newData.child('capacity').val() <= 30) || (data.exists() && newData.child('count').val() === data.child('count').val() + 1 && newData.child('count').val() <= data.child('capacity').val() && newData.child('capacity').val() === data.child('capacity').val() && newData.child('serviceId').val() === data.child('serviceId').val()))))",
+              "seats": { "$bid": { ".validate": "newData.isString() && (auth.uid === $iid || newData.val() === auth.uid || newData.val() === data.val())" } }
             }
           }
         },
