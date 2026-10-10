@@ -11,6 +11,7 @@ import { ThemeContext, getTheme } from "./theme.js";
 import { useMosaicSwitch, MosaicOverlay } from "./mosaic";
 import { APP_VERSION } from "./version.js";
 import { setTags } from "./tags";
+import { startTerms } from "./terms";
 
 export const LangContext = createContext('uk');
 
@@ -592,6 +593,7 @@ export default function App() {
   const [openInfos,  setOpenInfos]= useState({});
   const [settings,   setSettings] = useState(DEFAULT_SETTINGS);
   setTags(settings.tags); // живий список міток для всіх вкладок (Налаштування → Мітки)
+  useEffect(() => { startTerms(settings.direction); }, [settings.direction]); // слова напрямку (Налаштування → Профіль)
   const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [bookings,   setBookings] = useState(INITIAL_BOOKINGS);
   const [selectedBooking,  setSelectedBooking]  = useState(null);
@@ -827,6 +829,7 @@ export default function App() {
         stickyTimeEnabled:    settings.stickyTimeEnabled    ?? false,
         minBookingIntervalDays: settings.minBookingIntervalDays ?? 0,
         tags: settings.tags ?? null,
+        direction: settings.direction ?? "universal",
         slotFreedPushEnabled: settings.slotFreedPushEnabled ?? true,
         lockPastBookings: settings.lockPastBookings ?? false,
         showHelpBtn: settings.showHelpBtn ?? true,

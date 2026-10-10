@@ -33,8 +33,22 @@ function iRef(iid, path) {
   return db.ref(path ? `instructors/${iid}/${path}` : `instructors/${iid}`);
 }
 
+// Напрямок послуг майстра (admin_settings/direction) → слова «майстер/клієнт/запис» у сповіщеннях і чаті
+const { translate: translateTerms, normDirection } = require("./terms.cjs");
+const directionCache = new Map();
+async function getDirection(iid) {
+  const c = directionCache.get(iid);
+  if (c && Date.now() - c.t < 300000) return c.d;
+  let d = "universal";
+  try { d = normDirection((await iRef(iid, "admin_settings/direction").get()).val()); } catch { /* universal */ }
+  directionCache.set(iid, { d, t: Date.now() });
+  return d;
+}
+async function tr(iid, text) { return typeof text === "string" ? translateTerms(text, await getDirection(iid)) : text; }
+
 // Хелпер: зберегти сповіщення в RTDB для студента
 async function saveNotification(iid, uid, title, body, type = "system") {
+  title = await tr(iid, title); body = await tr(iid, body);
   const ts = Date.now();
   const time = new Date(ts).toLocaleTimeString("uk", { hour: "2-digit", minute: "2-digit" });
   const date = new Date(ts).toLocaleDateString("uk", { day: "2-digit", month: "2-digit", year: "numeric" });
@@ -50,6 +64,7 @@ function collectDeviceTokens(devicesVal) {
 // Хелпер: відправити push студенту (на всі зареєстровані пристрої —
 // студент міг заходити і з ПК, і з телефону, кожен пристрій має свій токен)
 async function pushStudent(iid, uid, title, body, data = {}) {
+  title = await tr(iid, title); body = await tr(iid, body);
   const snap = await iRef(iid, `users/${uid}/fcmTokens`).get();
   const devices = collectDeviceTokens(snap.val());
   if (!devices.length) return false;
@@ -136,6 +151,7 @@ function buildNewBookingBody(after, name, date, time) {
 
 // Хелпер: відправити push адміну (на всі зареєстровані пристрої)
 async function pushAdmin(iid, title, body, data = {}) {
+  title = await tr(iid, title); body = await tr(iid, body);
   const snap = await iRef(iid, "fcmTokens").get();
   const devices = collectDeviceTokens(snap.val());
   console.log(`pushAdmin: iid=${iid} devices=${devices.length}, title="${title}"`);
@@ -211,7 +227,7 @@ async function sendActiveTemplates(iid, uid, triggerId, vars = {}, filterFn = nu
   const fullVars = { ...vars, "майстер": masterName, "інструктор": masterName };
   let delivered = false;
   for (const tpl of matches) {
-    const text = renderTemplateBody(tpl.body, fullVars);
+    const text = await tr(iid, renderTemplateBody(tpl.body, fullVars));
     const time = new Date().toLocaleTimeString("uk", { hour: "2-digit", minute: "2-digit" });
     const ts = Date.now();
     // channel:"push" — шаблон налаштований як лише сповіщення, без запису в чат.
@@ -687,8 +703,8 @@ exports.unlockVipSlots = onSchedule("every 1 hours", async () => {
       await admin.messaging().sendEachForMulticast({
         tokens: tokens.slice(i, i + 500),
         data: {
-          title: "🚗 З'явились нові слоти!",
-          body: "Відкрились нові години для запису. Поспішай!",
+          title: await tr(iid, "📅 З'явились нові слоти!"),
+          body: await tr(iid, "Відкрились нові години для запису. Поспішай!"),
           url: "https://juno-booking-client.web.app/cabinet",
         },
         webpush: {
@@ -791,7 +807,7 @@ exports.flushSlotFreedQueue = onSchedule(
         // шаблону auto_queue (без запису в чат, щоб не заспамити чат усіх
         // клієнтів), а {ім'я} підставляємо нижче окремо для кожного клієнта.
         const tpl = await getActiveTemplateRaw(iid, "auto_queue").catch(() => null);
-        const rawTitle = tpl?.title || "🚗 Звільнився слот!";
+        const rawTitle = tpl?.title || "📅 Звільнився слот!";
         const rawBody  = tpl?.body  || `${dateFormatted} о ${time} — є вільне місце`;
         const url   = `https://juno-booking-client.web.app/cabinet?date=${date}`;
 
@@ -969,11 +985,11 @@ exports.sendLessonReminders = onSchedule(
             if (usedTpl24) {
               updates[`sentReminders/${uid}/${bookingId}/r24`] = true;
             } else {
-              const pushed = await pushStudent(iid, uid, "🚗 Нагадування про запис", `Завтра о ${b.time} — ${dateFmt}`, {
+              const pushed = await pushStudent(iid, uid, "⏰ Нагадування про запис", `Завтра о ${b.time} — ${dateFmt}`, {
                 url: "https://juno-booking-client.web.app/cabinet/bookings",
               }).catch(() => false);
               if (pushed) {
-                await saveNotification(iid, uid, "🚗 Нагадування про запис", `Завтра о ${b.time} — ${dateFmt}`, "reminder");
+                await saveNotification(iid, uid, "⏰ Нагадування про запис", `Завтра о ${b.time} — ${dateFmt}`, "reminder");
                 updates[`sentReminders/${uid}/${bookingId}/r24`] = true;
               }
             }
@@ -1076,8 +1092,8 @@ exports.onPushTask = onValueCreated(
     const d = new Date(date + "T00:00:00");
     const dateFmt = d.toLocaleDateString("uk", { day: "numeric", month: "long", weekday: "short" });
     const slotsStr = slotsArr.filter(Boolean).join(" та ");
-    const title = "🚗 Є вільний слот!";
-    const body = `${dateFmt} о ${slotsStr}${comment ? " — " + comment : ""}`;
+    const title = await tr(iid, "📅 Є вільний слот!");
+    const body = await tr(iid, `${dateFmt} о ${slotsStr}${comment ? " — " + comment : ""}`);
     const url = `https://juno-booking-client.web.app/cabinet?date=${date}${slotsArr[0] ? `&time=${encodeURIComponent(slotsArr[0])}` : ""}`;
 
     let sentCount = 0;

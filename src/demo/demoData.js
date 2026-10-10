@@ -329,6 +329,7 @@ export function buildDemoTree() {
     weekSchedule: [weekday, weekday, weekday, weekday, weekday, { enabled: true, start: 10, end: 16, lunchEnabled: false, lunchStart: 13, lunchEnd: 14 }, { enabled: false, start: 9, end: 18, lunchEnabled: false, lunchStart: 13, lunchEnd: 14 }],
     dateOverrides: [], pendingEnabled: true, lockPastBookings: false,
     theme: demoTheme(), language: "uk",
+    direction: (() => { try { return new URLSearchParams(window.location.search).get("dir") || "universal"; } catch { return "universal"; } })(), // ?demo=1&dir=education|consult|beauty
     queueAutoFifo: true, queueBroadcast: false, queueManual: false,
     studentCanReschedule: true, studentCanCancel: true, bookCutoffHours: 2, calendarOpenDays: 30, schoolCalendarOpenDays: 14, slotGenDays: 30,
     stickyTime: "both", showCompleteBtn: true, showSlotTimes: true, autoStudentColors: true,

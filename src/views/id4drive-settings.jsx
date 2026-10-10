@@ -1,7 +1,8 @@
 import { useState, useContext, useEffect, useRef } from "react";
 import { TAG_COLORS, TAG_ICONS, DEFAULT_TAGS, AUTO_TAG_IDS, normalizeTags } from "../tags";
+import { DIRECTIONS, DIRECTION_IDS, normDirection } from "../terms";
 import { createPortal } from "react-dom";
-import { get, update, onValue, off } from "firebase/database";
+import { get, set, update, onValue, off } from "firebase/database";
 import { uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import { signOut } from "firebase/auth";
 import { deleteAccountRequest } from "../deleteAccountApi";
@@ -35,6 +36,35 @@ const SEC_ICON_SVG = {
   reviews:    <><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></>,
   profile:    <><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></>,
 };
+// Стартові послуги й мітки для напрямків (додаються до наявних, нічого не замінюють)
+const DIRECTION_PRESETS = {
+  beauty: {
+    services: [
+      { name:"Стрижка", duration:60, price:500, colorId:"green" },
+      { name:"Манікюр", duration:90, price:600, colorId:"purple" },
+      { name:"Манікюр з покриттям", duration:120, price:800, colorId:"yellow" },
+      { name:"Брови", duration:60, price:400, colorId:"blue" },
+    ],
+    tags: [{ icon:"🔁", label:"Постійний клієнт", colorId:"green" }, { icon:"🎁", label:"Знижка", colorId:"gold" }],
+  },
+  education: {
+    services: [
+      { name:"Пробний урок", duration:30, price:0, colorId:"teal" },
+      { name:"Урок 60 хв", duration:60, price:400, colorId:"green" },
+      { name:"Урок 90 хв", duration:90, price:550, colorId:"yellow" },
+    ],
+    tags: [{ icon:"📝", label:"Домашнє завдання", colorId:"blue" }, { icon:"🎯", label:"Пробний", colorId:"purple" }],
+  },
+  consult: {
+    services: [
+      { name:"Експрес-консультація 30 хв", duration:30, price:300, colorId:"teal" },
+      { name:"Первинна консультація", duration:60, price:700, colorId:"green" },
+      { name:"Повторний сеанс", duration:60, price:600, colorId:"blue" },
+    ],
+    tags: [{ icon:"📋", label:"Анкета", colorId:"purple" }, { icon:"💬", label:"Онлайн", colorId:"teal" }],
+  },
+};
+
 function SecIcon({ id, color, active, isKava, size=34 }) {
   const gr = active ? color : (isKava ? SEC_INACTIVE_GR.kava : SEC_INACTIVE_GR.dark);
   return (
@@ -1292,6 +1322,44 @@ select{color-scheme:${isKava?"light":"dark"}}
 
       case "profile": return (
         <div>
+          <div data-notrans="1" style={{marginBottom:14,padding:"12px 12px 10px",borderRadius:14,background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,boxShadow:SO}}>
+            <div style={{fontSize:12,fontWeight:800,letterSpacing:1,color:TEAL,textTransform:"uppercase",marginBottom:4}}>🧭 Напрямок послуг</div>
+            <div style={{fontSize:11.5,color:FAINT,marginBottom:10,lineHeight:1.45}}>Змінює слова в усьому застосунку (і в клієнта): майстер, клієнт, запис. Сторінка перезавантажиться.</div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+              {DIRECTION_IDS.map(id => {
+                const dir = DIRECTIONS[id]; const on = normDirection(settings.direction) === id;
+                return (
+                  <button key={id} onClick={async ()=>{
+                    if (on) return;
+                    upd("direction", id);
+                    try { await update(iRef("admin_settings"), { direction: id }); } catch { /* ignore */ }
+                    setTimeout(()=>window.location.reload(), 300);
+                  }} style={{textAlign:"left",padding:"10px",borderRadius:12,cursor:"pointer",fontFamily:"inherit",
+                    border:on?`1.5px solid ${TEAL}`:`1px solid ${BORDER}`,background:on?"rgba(45,212,191,0.12)":"rgba(0,0,0,0.15)",color:TEXT}}>
+                    <div style={{fontSize:14,fontWeight:800}}>{dir.icon} {dir.name}</div>
+                    <div style={{fontSize:10.5,color:FAINT,marginTop:3,lineHeight:1.35}}>{dir.desc}</div>
+                  </button>
+                );
+              })}
+            </div>
+            {DIRECTION_PRESETS[normDirection(settings.direction)] && (
+              <button onClick={async ()=>{
+                const pr = DIRECTION_PRESETS[normDirection(settings.direction)];
+                if (!window.confirm("Додати стартові послуги й мітки для цього напрямку? Наявні не зміняться.")) return;
+                try {
+                  const cur = (await get(iRef("admin_data/services"))).val();
+                  const arr = Array.isArray(cur) ? cur : [];
+                  const stamp = Date.now().toString(36);
+                  const add = pr.services.map((sv,i)=>({ id:`sv_${stamp}${i}`, name:sv.name, type:"private", duration:sv.duration, price:sv.price, colorId:sv.colorId, active:true, archived:false, description:"", accessCats:["cat-all"], lessons:0, income:0, instructions:"" }));
+                  await set(iRef("admin_data/services"), [...arr, ...add]);
+                  const tags = normalizeTags(settings.tags);
+                  const newTags = pr.tags.filter(t=>!tags.some(x=>x.label===t.label)).map((t,i)=>({ id:`t${stamp}${i}`, ...t }));
+                  upd("tags", [...tags, ...newTags]);
+                  window.alert("Готово: послуги — вкладка «Послуги», мітки — Налаштування → Мітки.");
+                } catch { window.alert("Не вдалося додати. Спробуйте ще раз."); }
+              }} style={{marginTop:10,width:"100%",padding:"10px",borderRadius:12,border:`1px dashed ${GREEN}88`,cursor:"pointer",background:"transparent",color:GREEN,fontSize:13,fontWeight:700}}>+ Додати стартові послуги й мітки</button>
+            )}
+          </div>
           {showHint && <Info color={BLUE} title="Профіль майстра" text={"Це ваша візитка. Усе, що тут заповнено, клієнти бачать на сторінці запису.\n\n• Фото профілю — ваше фото (JPG або PNG, до 5 МБ).\n• Портфоліо — розповідь про себе та свої переваги (до 1500 символів). Показується угорі сторінки запису, довгий текст згортається кнопкою «Читати далі».\n• Фотоколаж — до 9 фото (ваші роботи, результати, робоче місце). На сторінці запису вони змінюються одне за одним у колажі.\n• Телефон — на нього працюють кнопки дзвінка, Viber, WhatsApp і Telegram на сторінці запису. Вводьте номер у форматі +380XXXXXXXXX.\n• Умови відвідування — ваші правила (наприклад, про скасування, запізнення, документи). Порожнє поле — блок на сайті просто не показується.\n• Локація на карті — знайдіть адресу або поставте мітку на карті: клієнти побачать, де вас знайти.\n• Посилання для запису — надішліть його клієнтам, щоб вони записувались самі. Кнопка «Встановити додаток» додає DrivePad на головний екран телефону."}/>}
 
           <ProfileCard color={ACCENT} icon="🧑‍🏫" title="ФОТО ПРОФІЛЮ">
