@@ -113,8 +113,7 @@ function StudentForm({ initial, onSave, onCancel, saveLabel="Зберегти" }
 // ─── STUDENT CARD (colorway card) ────────────────────────────────
 function StudentCard({ s, onSelect, settings }) {
   const theme = useContext(ThemeContext);
-  const { BG_DEEP, GREEN, GOLD, RED } = theme;
-  const { shade, glow } = useFX();
+  const { GREEN, GOLD, RED } = theme;
   // Колір картки клієнта — той самий, що обраний для послуги цього типу
   // (Стандарт/Індивідуальний) на вкладці «Послуги», а не фіксований GREEN/GOLD.
   const PALETTE = makePalette(theme);
@@ -130,26 +129,23 @@ function StudentCard({ s, onSelect, settings }) {
     <div
       onClick={() => onSelect(s)}
       style={{
-        position:"relative",overflow:"hidden",borderRadius:13,cursor:"pointer",
-        padding:"22px 11px 21px",display:"flex",alignItems:"center",gap:9,
-        background:`linear-gradient(155deg,color-mix(in srgb,${barColor} 48%,${BG_DEEP}) 0%,color-mix(in srgb,${barColor} 16%,${BG_DEEP}) 100%)`,
-        border:`1px solid color-mix(in srgb,${barColor} 42%,transparent)`,
-        boxShadow:`-2px 5px 13px ${shade(0.4)},inset 1px 1px 0 ${glow(0.15)}`,
+        position:"relative",overflow:"hidden",borderRadius:14,cursor:"pointer",
+        padding:"12px 12px",minHeight:64,display:"flex",alignItems:"center",gap:10,
+        background:`color-mix(in srgb,${barColor} 26%,transparent)`,
+        border:`1px solid color-mix(in srgb,${barColor} 55%,transparent)`,
+        backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",
         opacity:s.blocked?0.85:1,
       }}
     >
-      <div style={{position:"absolute",pointerEvents:"none",top:0,right:"6%",width:"55%",height:"45%",zIndex:1,
-        background:"radial-gradient(ellipse at top right,rgba(255,255,255,0.18) 0%,transparent 65%)"}}/>
-
-      <div style={{position:"relative",zIndex:2,width:34,height:34,borderRadius:11,flexShrink:0,
-        background:"rgba(0,0,0,0.25)",display:"flex",alignItems:"center",justifyContent:"center",
+      <div style={{position:"relative",zIndex:2,width:40,height:40,borderRadius:"50%",flexShrink:0,
+        background:"rgba(255,255,255,0.12)",border:"1px solid rgba(255,255,255,0.18)",display:"flex",alignItems:"center",justifyContent:"center",
         overflow:"hidden",fontSize:12,fontWeight:900,color:"#fff"}}>{s.photo ? <img src={s.photo} alt="" style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}/> : ini}</div>
 
       <div style={{position:"relative",zIndex:2,flex:1,minWidth:0}}>
-        <div style={{fontSize:12.5,fontWeight:800,color:"#fff",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+        <div style={{fontSize:14,fontWeight:700,color:"#fff",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
           {s.isVip && "👑 "}{s.name}{s.blocked && <span style={{fontSize:9,marginLeft:6}}>🚫</span>}
         </div>
-        <div style={{fontSize:10,color:"rgba(255,255,255,0.8)",fontWeight:700,marginTop:1}}>{typeLabel}</div>
+        <div style={{fontSize:11.5,color:"rgba(255,255,255,0.8)",fontWeight:500,marginTop:2}}>{typeLabel}</div>
       </div>
 
       <button onClick={e=>{e.stopPropagation();navTo("chats");}} style={{position:"relative",zIndex:2,background:"rgba(0,0,0,0.25)",border:"none",borderRadius:8,cursor:"pointer",width:26,height:26,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
@@ -637,7 +633,7 @@ function StudentDetailSheet({ settings, s, onClose, onUpdate, onDelete, onBlock,
 
 // ─── MAIN ────────────────────────────────────────────────────────
 export default function StudentsView({ studentJump, onStudentJumpHandled, bookings=[], settings } = {}) {
-  const { BG_DEEP, SURFACE, SURF_HI, BORDER, TEXT, DIM, FAINT, ACCENT, ACC_HI, GREEN, BLUE, SO, SI } = useContext(ThemeContext);
+  const { BG_DEEP, SURFACE, SURF_HI, BORDER, TEXT, DIM, FAINT, ACCENT, ACC_HI, GREEN, BLUE, SHEET, BTN_TX } = useContext(ThemeContext);
   const { ink } = useFX();
 
   const css = `
@@ -792,32 +788,32 @@ export default function StudentsView({ studentJump, onStudentJumpHandled, bookin
       <div style={{display:"flex",flexDirection:"column",gap:8,fontFamily:"ui-sans-serif,-apple-system,system-ui,sans-serif",color:TEXT}}>
 
         <div style={{display:"flex",alignItems:"center",marginBottom:2}}>
-          <div style={{fontSize:15,fontWeight:800,color:TEXT}}>Клієнти</div>
+          <div style={{fontSize:20,fontWeight:700,color:TEXT}}>Клієнти</div>
+          <div style={{marginLeft:"auto",fontSize:12,color:DIM}}>{list.length}</div>
         </div>
 
-        <div style={{background:BG_DEEP,borderRadius:11,boxShadow:SI,padding:"3px 11px",display:"flex",alignItems:"center",gap:7}}>
+        <div style={{background:SURFACE,border:`1px solid ${BORDER}`,backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",borderRadius:16,padding:"2px 14px",minHeight:48,display:"flex",alignItems:"center",gap:8}}>
           {ICONS.search}
           <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Ім'я або телефон…"
-            style={{flex:1,background:"transparent",border:"none",outline:"none",color:TEXT,padding:"9px 0",fontSize:13,minWidth:0,fontFamily:"inherit"}}/>
+            style={{flex:1,background:"transparent",border:"none",outline:"none",color:TEXT,padding:"11px 0",fontSize:14,minWidth:0,fontFamily:"inherit"}}/>
           {search && <button onClick={()=>setSearch("")} style={{background:"none",border:"none",cursor:"pointer",color:FAINT,fontSize:16,padding:0,lineHeight:1}}>×</button>}
         </div>
 
-        <div style={{display:"flex",gap:7}}>
+        <div style={{display:"flex",background:SURFACE,padding:3,borderRadius:14,border:`1px solid ${BORDER}`,backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)"}}>
           {[["all","Всі"],["school","Стандарт"],["private","Індивідуальний"]].map(([k,l])=>(
             <button key={k} onClick={()=>setFilterType(k)} style={{
-              flex:1,padding:"9px 4px",borderRadius:11,border:"none",cursor:"pointer",fontSize:11,fontWeight:700,fontFamily:"inherit",
-              background:filterType===k?`linear-gradient(145deg,${ACC_HI},${ACCENT})`:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,
-              color:filterType===k?"#fff":DIM,boxShadow:SO,
+              flex:1,padding:"10px 4px",borderRadius:11,border:"none",cursor:"pointer",fontSize:12,fontWeight:600,fontFamily:"inherit",
+              background:filterType===k?SURF_HI:"transparent",color:filterType===k?TEXT:DIM,boxShadow:filterType===k?"0 2px 8px rgba(0,0,0,.12)":"none",
             }}>{l}</button>
           ))}
         </div>
 
-        <div style={{display:"flex",gap:6,overflowX:"auto",paddingBottom:2}}>
+        <div style={{display:"flex",gap:6,overflowX:"auto",paddingBottom:2,scrollbarWidth:"none"}}>
           {[["name","Алфавіт"],["lastBooking","Останні записи"],["createdAt","Реєстрація"],["lessons","К-сть записів"]].map(([k,l])=>(
             <button key={k} onClick={()=>setSortMode(k)} style={{
-              flexShrink:0,padding:"8px 12px",borderRadius:11,border:"none",cursor:"pointer",fontSize:11,fontWeight:700,fontFamily:"inherit",whiteSpace:"nowrap",
-              background:sortMode===k?`linear-gradient(145deg,${ACC_HI},${ACCENT})`:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,
-              color:sortMode===k?"#fff":DIM,boxShadow:SO,
+              flexShrink:0,padding:"8px 13px",borderRadius:99,cursor:"pointer",fontSize:12,fontWeight:600,fontFamily:"inherit",whiteSpace:"nowrap",
+              border:`1px solid ${sortMode===k?"transparent":BORDER}`,backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",
+              background:sortMode===k?`linear-gradient(145deg,${ACC_HI},${ACCENT})`:SURFACE,color:sortMode===k?(BTN_TX||"#fff"):DIM,
             }}>{l}</button>
           ))}
         </div>
@@ -844,12 +840,12 @@ export default function StudentsView({ studentJump, onStudentJumpHandled, bookin
 
       {createPortal(
         <button onClick={()=>setShowNew(true)} aria-label="Додати клієнта" style={{
-          position:"fixed",right:18,bottom:104,zIndex:45,
+          position:"fixed",right:18,bottom:"calc(86px + env(safe-area-inset-bottom, 0px))",zIndex:45,
           display:"flex",alignItems:"center",gap:6,
-          background:`linear-gradient(145deg,#5b9bff,#2563eb)`,
-          border:"none",borderRadius:999,padding:"13px 18px",cursor:"pointer",
-          fontSize:14,fontWeight:800,color:"#fff",fontFamily:"inherit",
-          boxShadow:`0 6px 20px rgba(37,99,235,0.55), 0 2px 8px rgba(0,0,0,0.4)`,
+          background:`linear-gradient(145deg,${ACC_HI},${ACCENT})`,
+          border:"none",borderRadius:999,padding:"13px 20px",cursor:"pointer",
+          fontSize:14,fontWeight:700,color:BTN_TX||"#fff",fontFamily:"inherit",
+          boxShadow:`0 6px 16px ${ACCENT}59`,
         }}>
           <span style={{fontSize:20,lineHeight:1,marginTop:-2}}>+</span>
           Клієнт
@@ -866,8 +862,8 @@ export default function StudentsView({ studentJump, onStudentJumpHandled, bookin
         }}>
           <div className="sheet" onClick={e=>e.stopPropagation()} style={{
             position:"relative",
-            width:"100%",maxWidth:480,background:BG_DEEP,
-            borderRadius:"24px 24px 0 0",
+            width:"100%",maxWidth:480,background:SHEET||BG_DEEP,
+            borderRadius:"28px 28px 0 0",
             boxShadow:`0 -2px 0 ${BORDER}, 0 -16px 50px rgba(0,0,0,0.6)`,
             padding:"12px 16px calc(20px + env(safe-area-inset-bottom))",
             maxHeight:"88vh",overflowY:"auto",

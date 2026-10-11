@@ -213,8 +213,7 @@ function InfoRow({ label, value, theme, valueStyle = {} }) {
 
 export default function JournalView() {
   const theme = useContext(ThemeContext);
-  const { BG_DEEP, SURF_HI, SURFACE, BORDER, DIM, FAINT, ACCENT, ACC_HI, SO } = theme;
-  const shade = a => `rgba(${theme.SHADE},${a})`;
+  const { BG_DEEP, SURF_HI, SURFACE, BORDER, DIM, ACCENT } = theme;
   const glow  = a => `rgba(${theme.GLOW},${a})`;
 
   const EVENT_TYPES = {
@@ -302,19 +301,20 @@ export default function JournalView() {
 
       {/* Section tabs */}
       <div style={{
-        display:"flex",gap:4,marginBottom:12,
-        background:BG_DEEP,borderRadius:12,padding:4,
-        border:`1px solid ${BORDER}`,
+        display:"flex",gap:0,marginBottom:12,
+        background:SURFACE,borderRadius:14,padding:3,
+        border:`1px solid ${BORDER}`,backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",
       }}>
         {[
           ["all",   unreadCount > 0 ? `Всі записи · ${unreadCount}` : "Всі записи"],
           ["admin", "Дії майстра"],
         ].map(([id, lbl]) => (
           <button key={id} onClick={() => setSection(id)} style={{
-            flex:1,padding:"7px 10px",borderRadius:9,border:"none",
-            cursor:"pointer",fontSize:12,fontWeight:700,fontFamily:"inherit",
-            background: section === id ? ACCENT : "transparent",
-            color: section === id ? "#fff" : DIM,
+            flex:1,padding:"10px 10px",borderRadius:11,border:"none",
+            cursor:"pointer",fontSize:12,fontWeight:600,fontFamily:"inherit",
+            background: section === id ? SURF_HI : "transparent",
+            color: section === id ? theme.TEXT : DIM,
+            boxShadow: section === id ? "0 2px 8px rgba(0,0,0,.12)" : "none",
             transition:"all .15s",
           }}>{lbl}</button>
         ))}
@@ -322,7 +322,7 @@ export default function JournalView() {
 
       {/* Type filter — stat tiles */}
       <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:6 }}>
-        <span style={{fontSize:10,color:FAINT}}>{bySection.length} {noun(bySection.length)}</span>
+        <span style={{fontSize:12,color:DIM}}>{bySection.length} {noun(bySection.length)}</span>
       </div>
       <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:6, marginBottom:12 }}>
         {[
@@ -335,16 +335,14 @@ export default function JournalView() {
           const count  = bySection.filter(e => e.type === id).length;
           return (
             <button key={id} onClick={() => setTypeFilter(active ? "all" : id)} style={{
-              border: active ? `1px solid color-mix(in srgb,${color} 45%,transparent)` : "1px solid transparent",
-              cursor:"pointer",borderRadius:11,padding:"8px 6px",textAlign:"center",fontFamily:"inherit",
-              background: active
-                ? `linear-gradient(155deg,color-mix(in srgb,${color} 40%,${BG_DEEP}) 0%,color-mix(in srgb,${color} 14%,${BG_DEEP}) 100%)`
-                : `linear-gradient(145deg,${SURF_HI},${SURFACE})`,
-              boxShadow: active ? "none" : SO,
+              border: active ? `1px solid color-mix(in srgb,${color} 55%,transparent)` : `1px solid ${BORDER}`,
+              cursor:"pointer",borderRadius:16,padding:"10px 6px",textAlign:"center",fontFamily:"inherit",
+              background: active ? `color-mix(in srgb,${color} 26%,transparent)` : SURFACE,
+              backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",
               transition:"all .15s",
             }}>
-              <div style={{fontSize:15,fontWeight:800,color: active ? "#fff" : color}}>{count}</div>
-              <div style={{fontSize:9,fontWeight:700,letterSpacing:0.5,marginTop:2,color: active ? "rgba(255,255,255,0.8)" : FAINT}}>{lbl}</div>
+              <div style={{fontSize:22,fontWeight:800,color: active ? theme.TEXT : color}}>{count}</div>
+              <div style={{fontSize:10,fontWeight:600,letterSpacing:0.4,marginTop:2,color: DIM}}>{lbl}</div>
             </button>
           );
         })}
@@ -367,9 +365,9 @@ export default function JournalView() {
           {/* Day header */}
           <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6,paddingLeft:2}}>
             <div style={{width:28,height:3,borderRadius:2,background:glow(0.10),flexShrink:0}}/>
-            <span style={{fontSize:13,fontWeight:800,color:"#fff",letterSpacing:1,textTransform:"uppercase",flexShrink:0}}>{group.label}</span>
+            <span style={{fontSize:12,fontWeight:700,color:DIM,letterSpacing:0.8,textTransform:"uppercase",flexShrink:0}}>{group.label}</span>
             <div style={{flex:1,height:1,background:BORDER}}/>
-            <span style={{fontSize:9,color:FAINT,flexShrink:0}}>{group.evs.length} {noun(group.evs.length)}</span>
+            <span style={{fontSize:11,color:DIM,flexShrink:0}}>{group.evs.length} {noun(group.evs.length)}</span>
           </div>
 
           {/* Events — tinted cards, big time on the left */}
@@ -385,10 +383,11 @@ export default function JournalView() {
                 className="jrow"
                 onClick={() => setDetail(ev)}
                 style={{
-                  display:"flex",alignItems:"center",gap:10,padding:"10px 12px",
-                  borderRadius:13,marginBottom:6,
-                  background:`linear-gradient(155deg,color-mix(in srgb,${meta.color} 45%,${BG_DEEP}) 0%,color-mix(in srgb,${meta.color} 15%,${BG_DEEP}) 100%)`,
-                  border:`1px solid color-mix(in srgb,${meta.color} 40%,transparent)`,
+                  display:"flex",alignItems:"center",gap:10,padding:"11px 12px",minHeight:60,
+                  borderRadius:14,marginBottom:7,
+                  background:`color-mix(in srgb,${meta.color} 26%,transparent)`,
+                  border:`1px solid color-mix(in srgb,${meta.color} 55%,transparent)`,
+                  backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",
                 }}
               >
                 {/* Time */}
@@ -400,12 +399,12 @@ export default function JournalView() {
                 <div style={{flex:1,minWidth:0}}>
                   <div style={{display:"flex",alignItems:"center",gap:5}}>
                     <span style={{
-                      fontSize:12.5,fontWeight:isNew?800:700,color:"#fff",
+                      fontSize:14,fontWeight:isNew?700:600,color:"#fff",
                       overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",
                     }}>{ev.name}</span>
                     {isNew && <div style={{width:5,height:5,borderRadius:"50%",flexShrink:0,background:"#fff",boxShadow:"0 0 4px #fff"}}/>}
                   </div>
-                  <div style={{fontSize:10.5,marginTop:2,fontWeight:700,color:"rgba(255,255,255,0.8)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                  <div style={{fontSize:11.5,marginTop:2,fontWeight:500,color:"rgba(255,255,255,0.8)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
                     {prefix} {meta.label}
                     {ev.slot && <span> · {ev.slot}</span>}
                     {byLabel && <span> · {byLabel}</span>}
