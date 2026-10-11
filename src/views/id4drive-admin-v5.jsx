@@ -23,6 +23,7 @@ const blockSlotRange = async (dateStr, startMin, durMin, opts) => {
 
 import { ThemeContext, GREEN, BLUE, PURPLE, GOLD, RED, ACCENT, ACC_HI, SURFACE, SURF_HI, TEXT } from "../theme.js";
 import { useFX } from "../ui";
+import FogScope from "../FogScope";
 import { TAG_PRESETS, AUTO_TAG_IDS } from "../tags";
 import { MANUAL_DEFAULT_COLOR } from "../studentColors";
 // module-level aliases for vars used in ICONS (arrow fns, cannot use hooks)
@@ -4221,7 +4222,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
       />
     )}
 
-    <BookingModal booking={localSelectedBooking ? (bookings.find(x=>x.id===localSelectedBooking.id) || localSelectedBooking) : null} onClose={()=>setLocalSelectedBooking(null)}
+    <BookingModalFog booking={localSelectedBooking ? (bookings.find(x=>x.id===localSelectedBooking.id) || localSelectedBooking) : null} onClose={()=>setLocalSelectedBooking(null)}
       onAction={handleAction} settings={settings} bookings={bookings} onViewStudent={onViewStudent}
       autoTag={localSelectedBooking ? getAutoTag(localSelectedBooking) : null}
       mergeInfo={(() => {
@@ -4889,7 +4890,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
       );
     })()}
 
-    <NewBookingModal data={formData} onClose={()=>setFormData(null)}
+    <NewBookingModalFog data={formData} onClose={()=>setFormData(null)}
       onConfirm={b=>{
         if (b.id) {
           const fbData = {
@@ -5324,6 +5325,9 @@ function computeBookingPrice(b, services) {
   const discount = (b.discount || 0) * (baseMin / 60);
   return Math.max(0, Math.round(base + (b.surcharge || 0) - discount));
 }
+
+const BookingModalFog = (p) => <FogScope><BookingModal {...p}/></FogScope>;
+const NewBookingModalFog = (p) => <FogScope><NewBookingModal {...p}/></FogScope>;
 
 function BookingModal({ booking, onClose, onAction, settings, bookings, onViewStudent, mergeInfo, autoTag }) {
   const { BG, BG_DEEP, SURFACE, SURF_HI, SURF_LO, BORDER, TEXT, DIM, FAINT, ACCENT, ACC_HI, SO, SI , GLOW, SHADE, INK } = useContext(ThemeContext);
@@ -7847,10 +7851,10 @@ export default function App() {
         </div>
 
         {/* MODALS */}
-        <BookingModal booking={selectedBooking ? (bookings.find(x=>x.id===selectedBooking.id) || selectedBooking) : null} onClose={()=>setSelectedBooking(null)}
+        <BookingModalFog booking={selectedBooking ? (bookings.find(x=>x.id===selectedBooking.id) || selectedBooking) : null} onClose={()=>setSelectedBooking(null)}
           onAction={handleAction} settings={settings}
           autoTag={selectedBooking ? getAutoTag(selectedBooking) : null}/>
-        <NewBookingModal data={newBookingData} onClose={()=>setNewBookingData(null)}
+        <NewBookingModalFog data={newBookingData} onClose={()=>setNewBookingData(null)}
           onConfirm={handleNewBooking} bookings={bookings} settings={(() => {
             const sched = (settings.weekSchedule || []).filter(d => d.start != null);
             const eStart = sched.length ? Math.min(settings.workStart, ...sched.map(d=>d.start)) : settings.workStart;

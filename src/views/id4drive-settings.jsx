@@ -14,7 +14,6 @@ import { iRef, iStorageRef, iGalleryStorageRef, auth } from "../firebase";
 import { LangContext } from "../App";
 import { ThemeContext } from "../theme.js";
 import { UICss, useFX } from "../ui";
-import { FOG_STYLE } from "../uiStyles";
 import { createT } from "../lang";
 import { useLicense, licenseState } from "../hooks/useLicense";
 import { LicensePayPanel } from "../LicensePay";
@@ -723,15 +722,7 @@ function PhotoViewer({ photos, index, onClose }) {
 // Вузли instructors/{iid}, що стираються при повному скиданні. НЕ чіпаємо: license, users (зв'язок з клієнтами), fcmTokens, invites.
 const RESET_PATHS = ["bookings","bookings_by_phone","timeslots","slotBookings","queue","admin_settings","admin_data","chats","chatMeta","dayNotes","studentColors","reviews","pushTemplates","adminPush","templatePush","push_tasks","pushLog"];
 
-export default function SettingsView(props) {
-  return (
-    <ThemeContext.Provider value={FOG_STYLE.theme}>
-      <SettingsBody {...props}/>
-    </ThemeContext.Provider>
-  );
-}
-
-function SettingsBody({ settings, setSettings }) {
+export default function SettingsView({ settings, setSettings }) {
   const [confirm, confirmNode] = useConfirm();
   const { BG_DEEP, SURF_HI, SURFACE, SURF_LO, BORDER, TEXT, DIM, FAINT, ACCENT, ACC_HI, GREEN, BLUE, PURPLE, GOLD, RED, TEAL, SO, SI } = useContext(ThemeContext);
   const lang = useContext(LangContext);
@@ -1657,7 +1648,6 @@ select{color-scheme:${isKava?"light":"dark"}}
       <div style={{
         display:"flex", flexDirection:"column", gap:10,
         fontFamily:"Inter,ui-sans-serif,-apple-system,system-ui,sans-serif", color:TEXT,
-        background:FOG_STYLE.wrap, borderRadius:22, padding:10, margin:"-4px -4px 0",
         minHeight:"calc(100dvh - 190px)",
       }}>
 

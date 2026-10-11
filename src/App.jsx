@@ -8,6 +8,7 @@ import { setLicenseReadOnly } from "./firebaseDbGuard"
 import { LicenseBanner } from "./LicensePay"
 import { setGlobalLang, createT } from "./lang";
 import { ThemeContext, getTheme } from "./theme.js";
+import { FOG_STYLE } from "./uiStyles";
 import { useMosaicSwitch, MosaicOverlay } from "./mosaic";
 import { APP_VERSION } from "./version.js";
 import { setTags } from "./tags";
@@ -1194,6 +1195,7 @@ const pendingDeletesRef = React.useRef(new Set());
   useEffect(() => { setGlobalLang(lang); }, [lang]);
 
   const theme = getTheme(settings.theme);
+  const fogOn = displayedTab !== "schedule"; // «Туман» на всіх вкладках, крім «Записи»
   const css = makeCSS(theme);
 
   if (adminUser === undefined) return null;
@@ -1207,11 +1209,12 @@ const pendingDeletesRef = React.useRef(new Set());
     }}/>;
   }
   return (
-    <ThemeContext.Provider value={theme}>
+    <ThemeContext.Provider value={fogOn ? FOG_STYLE.theme : theme}>
     <LangContext.Provider value={lang}>
     <>
       <style>{css}</style>
-      {!theme.BG_IMAGE && (
+      {fogOn && <div style={{position:"fixed", inset:0, zIndex:0, pointerEvents:"none", background:FOG_STYLE.wrap}}/>}
+      {!fogOn && !theme.BG_IMAGE && (
         <div style={{
           position:"fixed", inset:0, zIndex:0, pointerEvents:"none",
           background:
@@ -1223,8 +1226,8 @@ const pendingDeletesRef = React.useRef(new Set());
       {/* position:fixed+inset:0 замість height:100dvh: в Android Chrome із системною панеллю навігації
           100dvh сягає під неї, а fixed-елементи (панель розділів «Налаштувань») — ні; навбар «з'їжджав» вниз. */}
       <div style={{
-        position:"fixed", inset:0, background:"transparent",color:theme.TEXT,
-        fontFamily:"ui-sans-serif,-apple-system,BlinkMacSystemFont,system-ui,sans-serif",
+        position:"fixed", inset:0, background:"transparent",color:fogOn ? FOG_STYLE.theme.TEXT : theme.TEXT,
+        fontFamily:fogOn ? "Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,system-ui,sans-serif" : "ui-sans-serif,-apple-system,BlinkMacSystemFont,system-ui,sans-serif",
         display:"flex",flexDirection:"column",
         zIndex:1,
       }}>
@@ -1237,14 +1240,14 @@ const pendingDeletesRef = React.useRef(new Set());
           padding: displayedTab==="schedule" ? "0 3px 11px" : "14px 14px 14px",
           display: displayedTab==="schedule" ? "flex" : "block",
           flexDirection:"column",
-          background: theme.BG_IMAGE ? "#d4ba96" : "transparent",
+          background: !fogOn && theme.BG_IMAGE ? "#d4ba96" : "transparent",
         }}>
           <Suspense fallback={<Loader/>}>
             <div className={displayedTab==="schedule" ? "view-fill" : "pc-wrap"}>
             <ViewRenderer tab={displayedTab} settings={settings} setSettings={setSettings} bookings={bookings} setBookings={handleSetBookings} onSlotClick={setSelectedBooking} onEmptySlotClick={setNewBookingData} openInfos={openInfos} toggleInfo={toggleInfo} activeDragIds={activeDragIds} navTo={switchTab} slotExistsRef={slotExistsRef} openSlotsRef={openSlotsRef} jumpTarget={jumpTarget} setJumpTarget={setJumpTarget} onViewStudent={onViewStudent} studentJump={studentJump} onStudentJumpHandled={()=>setStudentJump(null)}/>
             </div>
           </Suspense>
-          <MosaicOverlay phase={mosaicPhase} tileColor={theme.BG_IMAGE ? "#d4ba96" : theme.BG} speed={0.5}/>
+          <MosaicOverlay phase={mosaicPhase} tileColor={fogOn ? FOG_STYLE.theme.BG : (theme.BG_IMAGE ? "#d4ba96" : theme.BG)} speed={0.5}/>
         </div>
         <BottomNav active={tab} onChange={switchTab} settings={settings} chatUnread={chatUnread} journalUnread={journalUnread}/>
       </div>

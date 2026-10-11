@@ -5,7 +5,6 @@ import { iRef } from "../firebase";
 import { ThemeContext } from "../theme.js";
 import { UICss, Modal, Chip, Btn, Toggle, Pill, useFX } from "../ui";
 import { capacityOf, MAX_CAPACITY } from "../groups";
-import { UI_STYLES, loadFont } from "../uiStyles";
 import ServicesFog from "./ServicesFog";
 import { rawAddons, normAddons, bufferOf, ADDON_MINUTES, BUFFER_OPTIONS, MAX_ADDONS } from "../addons";
 
@@ -424,81 +423,6 @@ function ServiceCard({ svc, isDragging, onEdit, onToggle, onDelete, dragHandlePr
   );
 }
 
-// ─── SERVICE ROW (colorway card) ──────────────────────────────────
-function ServiceRow({ svc, onEdit, onToggle, onDelete, dragHandleProps, isDragging }) {
-  const theme = useContext(ThemeContext);
-  const { BG_DEEP, TEXT, DIM, GLASS } = theme;
-  const onC = GLASS ? TEXT : "#fff";
-  const onC2 = GLASS ? DIM : "rgba(255,255,255,0.8)";
-  const { shade, glow } = useFX();
-  const Ic = makeIc(theme);
-  const PALETTE = makePalette(theme);
-  const [open, setOpen] = useState(false);
-  const c = PALETTE.find(p=>p.id===svc.colorId)?.color || theme.GREEN;
-  const hasInstructions = svc.instructions && svc.instructions.trim();
-  const dimmed = !svc.active || svc.archived;
-  const stop = e => e.stopPropagation();
-  return (
-    <div className={`drag-item color-card ${isDragging?"dragging":""}`} onClick={()=>onEdit(svc)} style={{
-      position:"relative",overflow:"hidden",borderRadius:theme.CARD_R??14,marginBottom:8,padding:"9px 11px 8px",cursor:"pointer",
-      background:GLASS?`linear-gradient(155deg,color-mix(in srgb,${c} 38%,transparent) 0%,color-mix(in srgb,${c} 14%,transparent) 100%)`:`linear-gradient(155deg,color-mix(in srgb,${c} 50%,${BG_DEEP}) 0%,color-mix(in srgb,${c} 18%,${BG_DEEP}) 100%)`,
-      backdropFilter:GLASS?"blur(14px)":undefined,WebkitBackdropFilter:GLASS?"blur(14px)":undefined,
-      border:`1px solid color-mix(in srgb,${c} 45%,transparent)`,
-      boxShadow:`-2px 5px 13px ${shade(0.45)},inset 1px 1px 0 ${glow(0.15)}`,
-      opacity:dimmed?0.55:1,
-    }}>
-      <div style={{position:"absolute",pointerEvents:"none",top:0,right:"6%",width:"55%",height:"45%",zIndex:1,
-        background:"radial-gradient(ellipse at top right,rgba(255,255,255,0.18) 0%,transparent 65%)"}}/>
-
-      {!isProtectedService(svc) && (
-      <button onClick={e=>{stop(e);onDelete(svc);}} style={{
-        position:"absolute",top:6,right:6,zIndex:3,width:20,height:20,borderRadius:"50%",border:"none",cursor:"pointer",
-        background:theme.RED,color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",
-        boxShadow:`0 2px 6px ${shade(0.4)}`,
-      }}>
-        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      </button>
-      )}
-
-      <div style={{position:"relative",zIndex:2,display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8,paddingRight:22}}>
-        <div style={{display:"flex",alignItems:"center",gap:7,minWidth:0,flex:1}}>
-          <div onClick={stop} {...dragHandleProps} style={{cursor:"grab",touchAction:"none",opacity:0.6,flexShrink:0}}>{Ic.drag(18)}</div>
-          <div style={{minWidth:0}}>
-            <div style={{fontSize:13.5,fontWeight:800,color:onC,textShadow:GLASS?"none":`0 1px 3px ${shade(0.5)}`,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{svc.name}</div>
-            <div style={{fontSize:10,color:onC2,fontWeight:700,marginTop:1,display:"flex",gap:5,alignItems:"center",flexWrap:"wrap"}}>
-              <span>{svc.type==="school"?"📋 Стандарт":"👤 Індивідуальний"}</span>
-              {svc.archived && <Pill label="Архів" color={onC} bg="rgba(0,0,0,0.2)"/>}
-              {!svc.active && !svc.archived && <Pill label="Вимкнена" color={onC} bg="rgba(0,0,0,0.2)"/>}
-            </div>
-          </div>
-        </div>
-        <div style={{fontSize:15,fontWeight:800,color:onC,textShadow:GLASS?"none":`0 1px 3px ${shade(0.5)}`,flexShrink:0,whiteSpace:"nowrap"}}>{svc.price} ₴</div>
-      </div>
-
-      <div style={{position:"relative",zIndex:2,display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:6}}>
-        <div style={{fontSize:10.5,color:onC2,fontWeight:700}}>
-          {fmtDur(svc.duration)} · {svc.lessons} записів
-          {normAddons(svc.addons).length>0 && <> · допуслуг: {normAddons(svc.addons).length}</>}
-          {bufferOf(svc)>0 && <> · перерва {bufferOf(svc)} хв</>}
-          {capacityOf(svc)>1 && <> · група до {capacityOf(svc)}</>}
-          {rebookOf(svc)>0 && <> · нагадування {rebookOf(svc)} дн.</>}
-        </div>
-        <div onClick={stop}><Toggle on={svc.active&&!svc.archived} onChange={v=>onToggle(svc.id,v)}/></div>
-      </div>
-
-      {hasInstructions && (
-        <button onClick={e=>{stop(e);setOpen(v=>!v);}} style={{position:"relative",zIndex:2,background:"rgba(0,0,0,0.22)",border:"none",borderRadius:7,cursor:"pointer",marginTop:6,padding:"4px 7px",color:onC2,fontSize:10,fontWeight:700,display:"flex",alignItems:"center",gap:5,fontFamily:"inherit"}}>
-          📋 Інструкція
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" style={{transform:open?"rotate(180deg)":"none",transition:"transform .2s"}}><polyline points="6 9 12 15 18 9"/></svg>
-        </button>
-      )}
-      {open && hasInstructions && (
-        <div onClick={stop} style={{position:"relative",zIndex:2,marginTop:5,padding:"7px 9px",borderRadius:9,background:"rgba(0,0,0,0.22)",fontSize:11,color:onC,lineHeight:1.5}}>{svc.instructions}</div>
-      )}
-    </div>
-  );
-}
-
 // ─── DRAG REORDER ────────────────────────────────────────────────
 function useDragReorder(items, setItems) {
   const dragIdx = useRef(null);
@@ -526,22 +450,11 @@ function useDragReorder(items, setItems) {
 
 // ─── MAIN ────────────────────────────────────────────────────────
 export default function ServicesView() {
-  const appTheme = useContext(ThemeContext);
-  const [styleId, setStyleId] = useState(() => { try { return localStorage.getItem("ui_style_services") || ""; } catch { return ""; } });
-  const variant = UI_STYLES.find(v => v.id === styleId) || null;
-  useEffect(() => { if (variant) loadFont(variant.font); }, [variant]);
-  const pick = id => { setStyleId(id); try { id ? localStorage.setItem("ui_style_services", id) : localStorage.removeItem("ui_style_services"); } catch { /* storage недоступне */ } };
-  return (
-    <ThemeContext.Provider value={variant ? variant.theme : appTheme}>
-      <ServicesBody variant={variant} styleId={styleId} pick={pick}/>
-    </ThemeContext.Provider>
-  );
+  return <ServicesBody/>;
 }
 
-function ServicesBody({ variant, styleId, pick }) {
+function ServicesBody() {
   const theme = useContext(ThemeContext);
-  const { SURF_HI, SURFACE, TEXT, DIM, FAINT, ACCENT, ACC_HI, SO, BORDER } = theme;
-  const Ic = makeIc(theme);
   const css = `
 .slot-preview{position:relative;overflow:hidden;border-radius:14px}
 .slot-preview::before{content:'';position:absolute;pointer-events:none;top:2px;right:8%;width:50%;height:35%;background:radial-gradient(ellipse at top right,rgba(255,255,255,0.22) 0%,transparent 65%);border-radius:50%;filter:blur(1px);z-index:2}
@@ -553,7 +466,6 @@ function ServicesBody({ variant, styleId, pick }) {
 `;
   const [services,     setServices]     = useState(INIT_SERVICES);
   const [loaded,       setLoaded]       = useState(false);
-  const [showArchived, setShowArchived] = useState(false);
   const [editSvc,      setEditSvc]      = useState(null);
   const [deleteSvc,    setDeleteSvc]    = useState(null);
   const saveTimer = useRef(null);
@@ -570,65 +482,17 @@ function ServicesBody({ variant, styleId, pick }) {
     saveTimer.current=setTimeout(()=>set(iRef('admin_data/services'),services).catch(()=>{}),800);
   }, [services, loaded]);
 
-  const active   = services.filter(s=>!s.archived);
-  const archived = services.filter(s=>s.archived);
-  const shown    = showArchived ? services : active;
-
   const onToggle  = (id,val) => { dirtyRef.current = true; setServices(ss=>ss.map(s=>s.id===id?{...s,active:val,archived:false}:s)); };
   const onSave    = form => { dirtyRef.current = true; setServices(ss=>{const idx=ss.findIndex(s=>s.id===form.id);if(idx>=0){const n=[...ss];n[idx]=form;return n;}return[...ss,form];}); setEditSvc(null); };
   const onArchive = id => { if (PROTECTED_SERVICE_IDS.includes(id)) return; dirtyRef.current = true; setServices(ss=>ss.map(s=>s.id===id?{...s,archived:true,active:false}:s)); };
   const onDelete  = id => { if (PROTECTED_SERVICE_IDS.includes(id)) return; dirtyRef.current = true; setServices(ss=>ss.filter(s=>s.id!==id)); };
 
-  const isFog = variant?.id === "29";
   const fogColor = svc => (makePalette(theme).find(p=>p.id===svc.colorId)?.color || theme.GREEN);
-  const switcher = (()=>{ const seg = variant?.theme.TABS==="seg" && !isFog; return (
-        <div style={{display:"flex",gap:seg?0:6,overflowX:isFog?"visible":"auto",flexWrap:isFog?"wrap":"nowrap",paddingBottom:2,
-          ...(seg?{background:SURFACE,border:`1px solid ${BORDER}`,borderRadius:theme.BTN_R??14,padding:3,paddingBottom:3}:{})}}>
-          {[{id:"",name:"Зараз"},...UI_STYLES].map(v=>{ const on=styleId===v.id; return (
-            <button key={v.id||"off"} onClick={()=>pick(v.id)} style={{flexShrink:0,flex:seg?1:undefined,padding:"6px 11px",borderRadius:seg?Math.max(8,(theme.BTN_R??14)-3):99,border:seg?"none":`1px solid ${BORDER}`,cursor:"pointer",fontFamily:"inherit",fontSize:11,fontWeight:700,whiteSpace:"nowrap",
-              background:on?(theme.BTN_GRAD||`linear-gradient(145deg,${ACC_HI},${ACCENT})`):(seg?"transparent":`linear-gradient(145deg,${SURF_HI},${SURFACE})`),color:on?(theme.BTN_TX||"#fff"):DIM}}>{v.name}</button>
-          ); })}
-        </div>
-        ); })();
   return (
     <>
       <UICss/>
       <style>{css}</style>
-      <div style={{display:"flex",flexDirection:"column",gap:8,fontFamily:variant?.font?`'${variant.font}',ui-sans-serif,system-ui,sans-serif`:"ui-sans-serif,-apple-system,system-ui,sans-serif",color:TEXT,
-        ...(variant?{background:variant.wrap,borderRadius:22,padding:12,margin:"-4px -4px 0",minHeight:"calc(100% + 4px)"}:{})}}>
-        {isFog ? (
-          <ServicesFog services={services} colorOf={fogColor} fmt={fmtDur} capOf={capacityOf} isProtected={isProtectedService} onEdit={setEditSvc} onToggle={onToggle} onDelete={setDeleteSvc} onAdd={()=>setEditSvc(false)} getHandlers={getHandlers} styleSwitcher={switcher}/>
-        ) : (<>
-        {switcher}
-
-        <div onPointerMove={e=>getHandlers(0).onPointerMove(e)} onPointerUp={()=>getHandlers(0).onPointerUp()}>
-          {shown.map((svc,idx)=>(
-            <div key={svc.id} data-drag-idx={idx}>
-              <ServiceRow svc={svc} isDragging={false} onEdit={setEditSvc} onToggle={onToggle} onDelete={setDeleteSvc} dragHandleProps={getHandlers(idx)}/>
-            </div>
-          ))}
-        </div>
-
-        {shown.length===0 && (
-          <div style={{textAlign:"center",padding:"40px 20px",color:FAINT}}>
-            <div style={{fontSize:32,marginBottom:10}}>📋</div>
-            <div style={{fontSize:14,fontWeight:700}}>Немає послуг</div>
-          </div>
-        )}
-
-        {archived.length>0 && (
-          <button onClick={()=>setShowArchived(v=>!v)} style={{
-            width:"100%",padding:"11px",borderRadius:theme.BTN_R??12,border:"none",cursor:"pointer",fontSize:12,fontWeight:700,fontFamily:"inherit",
-            background:showArchived?`linear-gradient(165deg,#fb923c,#ea580c)`:`linear-gradient(135deg,${SURF_HI},${SURFACE})`,
-            color:showArchived?"#fff":DIM,boxShadow:SO,display:"flex",alignItems:"center",justifyContent:"center",gap:8,
-          }}>📦 Архів ({archived.length})</button>
-        )}
-
-        <Btn variant="primary" onClick={()=>setEditSvc(false)} style={{width:"100%",...(variant?{position:"sticky",bottom:10,zIndex:5,marginTop:8}:{})}}>
-          {Ic.plus(28)} Додати нову послугу
-        </Btn>
-        </>)}
-      </div>
+      <ServicesFog services={services} colorOf={fogColor} fmt={fmtDur} capOf={capacityOf} isProtected={isProtectedService} onEdit={setEditSvc} onToggle={onToggle} onDelete={setDeleteSvc} onAdd={()=>setEditSvc(false)} getHandlers={getHandlers}/>
 
       {editSvc!==null && <ServiceFormModal svc={editSvc||null} onSave={onSave} onClose={()=>setEditSvc(null)}/>}
       {deleteSvc && <DeleteConfirm svc={deleteSvc} onConfirm={onDelete} onArchive={onArchive} onClose={()=>setDeleteSvc(null)}/>}

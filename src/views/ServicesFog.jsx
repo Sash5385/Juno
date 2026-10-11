@@ -17,7 +17,7 @@ const TYPES = [
   { id: "group", label: "Група" },
 ];
 
-export default function ServicesFog({ services, colorOf, fmt, capOf, isProtected, onEdit, onToggle, onDelete, onAdd, getHandlers, styleSwitcher }) {
+export default function ServicesFog({ services, colorOf, fmt, capOf, isProtected, onEdit, onToggle, onDelete, onAdd, getHandlers }) {
   const theme = useContext(ThemeContext);
   const { TEXT, DIM, SURFACE, SURF_HI, BORDER, ACCENT, ACC_HI, BTN_GRAD, BTN_TX, SO } = theme;
   const [filter, setFilter] = useState("all");
@@ -82,10 +82,6 @@ export default function ServicesFog({ services, colorOf, fmt, capOf, isProtected
       <div style={{ borderRadius: 18, background: SURFACE, border: `1px solid ${BORDER}`, boxShadow: SO, padding: "9px 11px", backdropFilter: GL, WebkitBackdropFilter: GL }}>
         <div style={row}><span style={{ flex: 1, fontWeight: 600 }}>Активних послуг</span><span style={{ color: DIM, fontSize: 11 }}>{activeCount}</span></div>
         <div style={{ ...row, ...rowSep }}><span style={{ flex: 1, fontWeight: 600 }}>В архіві</span><span style={{ color: DIM, fontSize: 11 }}>{archCount}</span></div>
-        <div style={{ ...row, ...rowSep, alignItems: "flex-start", flexDirection: "column", gap: 6 }}>
-          <span style={{ fontWeight: 600 }}>Стиль оформлення</span>
-          {styleSwitcher}
-        </div>
       </div>
 
       {/* чипи типів */}
