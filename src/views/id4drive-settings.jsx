@@ -14,6 +14,7 @@ import { iRef, iStorageRef, iGalleryStorageRef, auth } from "../firebase";
 import { LangContext } from "../App";
 import { ThemeContext } from "../theme.js";
 import { UICss, useFX } from "../ui";
+import { FOG_STYLE } from "../uiStyles";
 import { createT } from "../lang";
 import { useLicense, licenseState } from "../hooks/useLicense";
 import { LicensePayPanel } from "../LicensePay";
@@ -22,27 +23,6 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
 const DAY_NAMES = ["Пн","Вт","Ср","Чт","Пт","Сб","Нд"];
-
-// ─── SECTION RAIL ICONS — той самий "3D pillow" стиль іконок, що й у
-// BottomNav (App.jsx: makeTabIcons/I3): кольоровий градієнт при активній
-// вкладці, темний неактивний фон, глянцевий блік зверху-справа. ───
-const SEC_INACTIVE_GR = { dark:"linear-gradient(135deg,#2e3034,#26282c)", kava:"linear-gradient(135deg,#6b3a22,#4a2210)" };
-const SEC_ICON_SVG = {
-  schedule:   <><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></>,
-  snap:       <><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></>,
-  restr:      <><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></>,
-  queue:      <><circle cx="12" cy="12" r="9"/><path d="M7.5 12.5l3 3 6-6.5"/></>,
-  sticky:     <><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.3"/></>,
-  auto:       <><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></>,
-  tags: <><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8Z"/><circle cx="7.5" cy="7.5" r="1.4"/></>,
-  salon: <><path d="M3 21V8l9-5 9 5v13"/><path d="M9 21v-6h6v6"/></>,
-  packages: <><path d="M3 8a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-2a2 2 0 0 0 0-4Z"/><path d="M14 6v12" strokeDasharray="2 2"/></>,
-  intake: <><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h4"/></>,
-  surcharges: <><circle cx="12" cy="12" r="9"/><path d="M12 7.5v9M15 9.7c0-1.1-1.2-2-3-2s-3 .9-3 1.9 1.3 1.5 3 1.8c1.7.3 3 .8 3 1.9s-1.2 1.9-3 1.9-3-.9-3-2"/></>,
-  push:       <><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></>,
-  reviews:    <><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></>,
-  profile:    <><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></>,
-};
 // Стартові послуги й мітки для напрямків (додаються до наявних, нічого не замінюють)
 const DIRECTION_PRESETS = {
   beauty: {
@@ -72,29 +52,18 @@ const DIRECTION_PRESETS = {
   },
 };
 
-function SecIcon({ id, color, active, isKava, size=34 }) {
-  const gr = active ? color : (isKava ? SEC_INACTIVE_GR.kava : SEC_INACTIVE_GR.dark);
-  return (
-    <div style={{
-      width:size, height:size, borderRadius:size*0.3, background:gr,
-      display:"inline-flex", alignItems:"center", justifyContent:"center",
-      position:"relative", overflow:"hidden", flexShrink:0,
-      boxShadow:"-2px 3px 8px rgba(0,0,0,0.4),inset 1px 1px 0 rgba(255,255,255,0.2),inset -1px -1px 0 rgba(0,0,0,0.25)",
-    }}>
-      <div style={{position:"absolute",top:0,right:0,width:"60%",height:"50%",background:"radial-gradient(ellipse at top right,rgba(255,255,255,0.35) 0%,transparent 70%)",pointerEvents:"none"}}/>
-      <svg width={size*0.55} height={size*0.55} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{position:"relative",zIndex:1}}>
-        {SEC_ICON_SVG[id]}
-      </svg>
-    </div>
-  );
-}
-
 // ─── MODULE-LEVEL ATOMS (stable references → no remount on settings change) ───
 
 function Toggle({ on, onChange, color }) {
-  const { ACC_HI, ACCENT, SURF_LO, BG_DEEP, SI } = useContext(ThemeContext);
+  const { ACCENT, SURF_LO, BG_DEEP, SI, FOG, SURF_HI, BORDER, DIM, BTN_GRAD } = useContext(ThemeContext);
   const { shade } = useFX();
   const c = color || ACCENT;
+  if (FOG) return (
+    <div onClick={()=>onChange(!on)} style={{width:44,height:26,borderRadius:99,cursor:"pointer",position:"relative",flexShrink:0,transition:"background .2s",
+      background:on?(BTN_GRAD||ACCENT):SURF_HI,border:`1px solid ${on?"transparent":BORDER}`}}>
+      <div style={{position:"absolute",top:3,left:on?21:3,width:18,height:18,borderRadius:"50%",background:on?"#fff":DIM,transition:"left .2s"}}/>
+    </div>
+  );
   return (
     <div onClick={()=>onChange(!on)} style={{
       width:44,height:24,borderRadius:12,cursor:"pointer",position:"relative",
@@ -111,9 +80,15 @@ function Toggle({ on, onChange, color }) {
 }
 
 function SmallToggle({ on, onChange, color }) {
-  const { ACC_HI, ACCENT, SURF_LO, BG_DEEP, SI } = useContext(ThemeContext);
+  const { ACCENT, SURF_LO, BG_DEEP, SI, FOG, SURF_HI, BORDER, DIM, BTN_GRAD } = useContext(ThemeContext);
   const { shade } = useFX();
   const c = color || ACCENT;
+  if (FOG) return (
+    <div onClick={()=>onChange(!on)} style={{width:38,height:22,borderRadius:99,cursor:"pointer",position:"relative",flexShrink:0,transition:"background .2s",
+      background:on?(BTN_GRAD||ACCENT):SURF_HI,border:`1px solid ${on?"transparent":BORDER}`}}>
+      <div style={{position:"absolute",top:2,left:on?18:2,width:16,height:16,borderRadius:"50%",background:on?"#fff":DIM,transition:"left .2s"}}/>
+    </div>
+  );
   return (
     <div onClick={()=>onChange(!on)} style={{
       width:32,height:18,borderRadius:9,cursor:"pointer",position:"relative",
@@ -130,8 +105,18 @@ function SmallToggle({ on, onChange, color }) {
 }
 
 function NumInput({ value, onChange, min=0, max=999, suffix="", step=1, compact }) {
-  const { BG_DEEP, SURF_HI, SURFACE, TEXT, SO, SI } = useContext(ThemeContext);
+  const { BG_DEEP, SURF_HI, SURFACE, TEXT, SO, SI, FOG, ACC_HI } = useContext(ThemeContext);
   const bs = compact ? 22 : 26;
+  if (FOG) {
+    const fb = { width:36,height:36,border:"none",cursor:"pointer",background:"transparent",color:ACC_HI,fontSize:18,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,padding:0 };
+    return (
+      <div style={{display:"flex",alignItems:"center",background:SURF_HI,borderRadius:12}}>
+        <button onClick={()=>onChange(Math.max(min,value-step))} style={fb}>−</button>
+        <span style={{fontSize:14,fontWeight:700,color:TEXT,minWidth:54,textAlign:"center"}}>{value}{suffix}</span>
+        <button onClick={()=>onChange(Math.min(max,value+step))} style={fb}>+</button>
+      </div>
+    );
+  }
   return (
     <div style={{display:"flex",alignItems:"center",gap:4,background:BG_DEEP,borderRadius:9,boxShadow:SI,padding: compact ? "3px 5px" : "4px 6px"}}>
       <button onClick={()=>onChange(Math.max(min,value-step))} style={{
@@ -165,8 +150,17 @@ function Radio({ on, onChange }) {
 }
 
 function Row({ label, hint, children, last, color, compact }) {
-  const { BG_DEEP, ACCENT } = useContext(ThemeContext);
+  const { BG_DEEP, ACCENT, FOG, TEXT, DIM } = useContext(ThemeContext);
   const c = color || ACCENT;
+  if (FOG) return (
+    <div className="fog-row" style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,minHeight:56,padding:"9px 0"}}>
+      <div style={{flex:1,minWidth:0}}>
+        <div style={{fontSize:14,fontWeight:600,color:TEXT}}>{label}</div>
+        {hint && <div style={{fontSize:11.5,color:DIM,marginTop:2,lineHeight:1.35}}>{hint}</div>}
+      </div>
+      <div style={{flexShrink:0}}>{children}</div>
+    </div>
+  );
   return (
     <div style={{
       display:"flex",alignItems:"center",justifyContent:"space-between",gap:12,
@@ -188,7 +182,16 @@ function Row({ label, hint, children, last, color, compact }) {
 // Кольорова картка-групувальник для «Профілю» — той самий градієнт-тінт
 // і бордер, що в Row (Сповіщення/Ліміти), тільки як контейнер на кілька полів.
 function ProfileCard({ color, icon, title, children }) {
-  const { BG_DEEP } = useContext(ThemeContext);
+  const { BG_DEEP, FOG, SURFACE, BORDER, TEXT } = useContext(ThemeContext);
+  if (FOG) return (
+    <div style={{borderRadius:18,padding:"12px 14px",marginBottom:12,background:SURFACE,border:`1px solid ${BORDER}`}}>
+      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
+        <span style={{fontSize:16}}>{icon}</span>
+        <span style={{fontSize:13,fontWeight:700,color:TEXT}}>{title}</span>
+      </div>
+      {children}
+    </div>
+  );
   return (
     <div style={{
       borderRadius:14,padding:"12px 14px",marginBottom:12,
@@ -205,7 +208,11 @@ function ProfileCard({ color, icon, title, children }) {
 }
 
 function Chip({ label, active, onClick }) {
-  const { ACC_HI, ACCENT, SURF_HI, SURFACE, DIM, SO } = useContext(ThemeContext);
+  const { ACC_HI, ACCENT, SURF_HI, SURFACE, DIM, SO, FOG, BORDER, BTN_TX } = useContext(ThemeContext);
+  if (FOG) return (
+    <button onClick={onClick} style={{padding:"8px 13px",borderRadius:99,cursor:"pointer",fontSize:12,fontWeight:600,fontFamily:"inherit",
+      border:`1px solid ${active?"transparent":BORDER}`,background:active?`linear-gradient(145deg,${ACC_HI},${ACCENT})`:SURFACE,color:active?BTN_TX:DIM}}>{label}</button>
+  );
   return (
     <button onClick={onClick} style={{
       padding:"6px 12px",borderRadius:9,border:"none",cursor:"pointer",fontSize:11,fontWeight:700,
@@ -231,7 +238,7 @@ function Info({ title, text, color }) {
 }
 
 function TimeInput({ value, onChange, min=0, max=24, compact=false }) {
-  const { BG_DEEP, TEXT, FAINT, SI } = useContext(ThemeContext);
+  const { BG_DEEP, TEXT, FAINT, SI, FOG, SURF_HI } = useContext(ThemeContext);
   const tm = Math.round((Number(value) || 0) * 60);        // хвилини від півночі — точність 1 хв
   const minM = Math.round(min * 60), maxM = Math.round(max * 60);
   const disp = `${String(Math.floor(tm / 60)).padStart(2,"0")}:${String(tm % 60).padStart(2,"0")}`;
@@ -256,7 +263,7 @@ function TimeInput({ value, onChange, min=0, max=24, compact=false }) {
       style={{width:bW,height:bH,border:"none",cursor:"pointer",background:"transparent",color:FAINT,fontSize:fS,padding:0,lineHeight:1,touchAction:"none"}}>{ch}</button>
   );
   return (
-    <div style={{display:"flex",alignItems:"center",background:BG_DEEP,borderRadius:7,boxShadow:SI,overflow:"hidden"}}>
+    <div style={{display:"flex",alignItems:"center",background:FOG?SURF_HI:BG_DEEP,borderRadius:FOG?12:7,boxShadow:FOG?"none":SI,overflow:"hidden"}}>
       {btn(-1,"‹")}
       <label style={{position:"relative",fontSize:dS,fontWeight:700,color:TEXT,minWidth:dW,textAlign:"center",cursor:"pointer"}}>
         {disp}
@@ -716,30 +723,26 @@ function PhotoViewer({ photos, index, onClose }) {
 // Вузли instructors/{iid}, що стираються при повному скиданні. НЕ чіпаємо: license, users (зв'язок з клієнтами), fcmTokens, invites.
 const RESET_PATHS = ["bookings","bookings_by_phone","timeslots","slotBookings","queue","admin_settings","admin_data","chats","chatMeta","dayNotes","studentColors","reviews","pushTemplates","adminPush","templatePush","push_tasks","pushLog"];
 
-export default function SettingsView({ settings, setSettings }) {
+export default function SettingsView(props) {
+  return (
+    <ThemeContext.Provider value={FOG_STYLE.theme}>
+      <SettingsBody {...props}/>
+    </ThemeContext.Provider>
+  );
+}
+
+function SettingsBody({ settings, setSettings }) {
   const [confirm, confirmNode] = useConfirm();
   const { BG_DEEP, SURF_HI, SURFACE, SURF_LO, BORDER, TEXT, DIM, FAINT, ACCENT, ACC_HI, GREEN, BLUE, PURPLE, GOLD, RED, TEAL, SO, SI } = useContext(ThemeContext);
   const lang = useContext(LangContext);
   const t = createT(lang);
-  const isKava = settings?.theme === "light";
+  const isKava = false; // «Туман» — завжди темне скло
 
-  // Реальна висота нижнього навбару (BottomNav у App.jsx, id="app-bottomnav"),
-  // щоб друга пігулка (SECTION RAIL) сідала точно над ним через fixed+portal —
-  // "мертво", без залежності від position:sticky в скрол-контейнері вкладки.
-  const [navH, setNavH] = useState(64);
-  useEffect(() => {
-    const el = document.getElementById('app-bottomnav');
-    if (!el) return;
-    const measure = () => setNavH(el.offsetHeight);
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
   const css = `
 input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:4px;border-radius:2px;background:${BG_DEEP};outline:none;box-shadow:${SI}}
 input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:9px;background:linear-gradient(145deg,${ACC_HI},${ACCENT});cursor:pointer;box-shadow:0 2px 6px rgba(255,90,60,0.5)}
 select{color-scheme:${isKava?"light":"dark"}}
+.fog-row + .fog-row{border-top:1px solid ${BORDER}}
 `;
   const upd = (k, v) => setSettings(s=>({...s,[k]:v}));
 
@@ -1002,21 +1005,6 @@ select{color-scheme:${isKava?"light":"dark"}}
     setInstallPrompt(null);
   };
 
-  // Реальна висота самої пігулки SECTION RAIL — спейсер у потоці має бути
-  // точно такий, інакше фіксована пігулка перекриває низ контенту секції
-  // (накладка при скролі до кінця довгих секцій).
-  const railRef = useRef(null);
-  const [railH, setRailH] = useState(90);
-  useEffect(() => {
-    const el = railRef.current;
-    if (!el) return;
-    const measure = () => setRailH(el.offsetHeight);
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [active]);
-
   const uk = lang !== "en";
   const [tagIconOpen, setTagIconOpen] = useState(null);
   const SECTIONS = [
@@ -1075,10 +1063,10 @@ select{color-scheme:${isKava?"light":"dark"}}
       case "snap": return (
         <div>
           {showHint && <Info color={TEAL} title={t('set.snap.info_t')} text={t('set.snap.info')}/>}
-          <div style={{borderRadius:10,padding:"10px",marginBottom:5,background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,boxShadow:SO}}>
+          <div style={{borderRadius:14,padding:"12px 14px",marginBottom:5,background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,boxShadow:SO}}>
             <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
-              <span style={{fontSize:12,color:DIM}}>{t('set.snap.label')}</span>
-              <span style={{fontSize:13,fontWeight:800,color:ACCENT}}>{settings.snapMin} {t('min')}</span>
+              <span style={{fontSize:14,fontWeight:600,color:TEXT}}>{t('set.snap.label')}</span>
+              <span style={{fontSize:15,fontWeight:800,color:ACCENT}}>{settings.snapMin} {t('min')}</span>
             </div>
             <input type="range" min={1} max={60} value={settings.snapMin} onChange={e=>upd("snapMin",+e.target.value)}/>
             <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:10}}>
@@ -1087,10 +1075,10 @@ select{color-scheme:${isKava?"light":"dark"}}
               ))}
             </div>
           </div>
-          <div style={{borderRadius:10,padding:"10px",background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,boxShadow:SO}}>
+          <div style={{borderRadius:14,padding:"12px 14px",background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,boxShadow:SO}}>
             <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
-              <span style={{fontSize:12,color:DIM}}>Крок слота (довгий тап)</span>
-              <span style={{fontSize:13,fontWeight:800,color:TEAL}}>{settings.slotCreateStep ?? 30} хв</span>
+              <span style={{fontSize:14,fontWeight:600,color:TEXT}}>Крок слота (довгий тап)</span>
+              <span style={{fontSize:15,fontWeight:800,color:TEAL}}>{settings.slotCreateStep ?? 30} хв</span>
             </div>
             <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
               {[5,10,15,30,60].map(v=>(
@@ -1098,17 +1086,17 @@ select{color-scheme:${isKava?"light":"dark"}}
               ))}
             </div>
           </div>
-          <div style={{borderRadius:10,padding:"10px",marginTop:5,background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,boxShadow:SO,display:"flex",alignItems:"center",justifyContent:"space-between",gap:10}}>
+          <div style={{borderRadius:14,padding:"12px 14px",marginTop:5,background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,boxShadow:SO,display:"flex",alignItems:"center",justifyContent:"space-between",gap:10}}>
             <div style={{minWidth:0}}>
-              <div style={{fontSize:12,color:DIM}}>Час у слоті</div>
-              <div style={{fontSize:10,color:DIM,opacity:0.7,marginTop:2}}>Показувати "з–до" всередині слотів у графіку</div>
+              <div style={{fontSize:14,fontWeight:600,color:TEXT}}>Час у слоті</div>
+              <div style={{fontSize:11.5,color:DIM,marginTop:2}}>Показувати "з–до" всередині слотів у графіку</div>
             </div>
             <Toggle color={svColor(settings.showSlotTimes !== false)} on={settings.showSlotTimes !== false} onChange={v=>upd("showSlotTimes",v)}/>
           </div>
-          <div style={{borderRadius:10,padding:"10px",marginTop:5,background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,boxShadow:SO,display:"flex",alignItems:"center",justifyContent:"space-between",gap:10}}>
+          <div style={{borderRadius:14,padding:"12px 14px",marginTop:5,background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,boxShadow:SO,display:"flex",alignItems:"center",justifyContent:"space-between",gap:10}}>
             <div style={{minWidth:0}}>
-              <div style={{fontSize:12,color:DIM}}>Автокольори клієнтів</div>
-              <div style={{fontSize:10,color:DIM,opacity:0.7,marginTop:2}}>Увімкнено — кольори слотів розподіляються автоматично. Вимкнено — колір задається вручну в картці клієнта</div>
+              <div style={{fontSize:14,fontWeight:600,color:TEXT}}>Автокольори клієнтів</div>
+              <div style={{fontSize:11.5,color:DIM,marginTop:2}}>Увімкнено — кольори слотів розподіляються автоматично. Вимкнено — колір задається вручну в картці клієнта</div>
             </div>
             <Toggle color={svColor(settings.autoStudentColors !== false)} on={settings.autoStudentColors !== false} onChange={v=>upd("autoStudentColors",v)}/>
           </div>
@@ -1160,16 +1148,24 @@ select{color-scheme:${isKava?"light":"dark"}}
         <div>
           {showHint && <Info color={GREEN} title={t('set.queue.info_t')} text={t('set.queue.info')}/>}
           <div style={{paddingTop:2}}>
-            <div style={{fontSize:9,color:"#fff",letterSpacing:1,textTransform:"uppercase",marginBottom:8,textAlign:"center"}}>{t('set.queue.mode')}</div>
-            {[
-              {k:"fifo",      label:t('set.queue.fifo'),   hint:t('set.queue.fifo_h')   },
-              {k:"broadcast", label:t('set.queue.bc'),     hint:t('set.queue.bc_h')     },
-              {k:"manual",    label:t('set.queue.manual'), hint:t('set.queue.manual_h') },
-            ].map((o,i,arr)=>(
-              <Row color={svColor(queueMode===o.k)} key={o.k} label={o.label} hint={o.hint} last={i===arr.length-1}>
-                <Radio on={queueMode===o.k} onChange={()=>setQueueMode(o.k)}/>
-              </Row>
-            ))}
+            <div style={{fontSize:11,color:DIM,letterSpacing:1,textTransform:"uppercase",marginBottom:8,fontWeight:700}}>{t('set.queue.mode')}</div>
+            {(() => {
+              const modes = [
+                {k:"fifo",      label:t('set.queue.fifo'),   hint:t('set.queue.fifo_h')   },
+                {k:"broadcast", label:t('set.queue.bc'),     hint:t('set.queue.bc_h')     },
+                {k:"manual",    label:t('set.queue.manual'), hint:t('set.queue.manual_h') },
+              ];
+              const cur = modes.find(o=>o.k===queueMode) || modes[2];
+              return (<>
+                <div style={{display:"flex",background:SURF_HI,padding:3,borderRadius:14,border:`1px solid ${BORDER}`}}>
+                  {modes.map(o=>(
+                    <button key={o.k} onClick={()=>setQueueMode(o.k)} style={{flex:1,padding:"11px 0",borderRadius:11,border:"none",cursor:"pointer",fontFamily:"inherit",fontSize:13,fontWeight:600,
+                      background:queueMode===o.k?`linear-gradient(145deg,${ACC_HI},${ACCENT})`:"transparent",color:queueMode===o.k?"#06182e":DIM}}>{o.label}</button>
+                  ))}
+                </div>
+                <div style={{marginTop:12,padding:"12px 14px",borderRadius:14,background:SURF_HI,fontSize:13,color:TEXT,lineHeight:1.5}}>{cur.hint}</div>
+              </>);
+            })()}
           </div>
         </div>
       );
@@ -1382,20 +1378,19 @@ select{color-scheme:${isKava?"light":"dark"}}
               : "Це повідомлення, які система надсилає клієнтам сама, без вашої участі. Самі тексти повідомлень можна змінити на вкладці «Шаблони».\n\n• Нагадування — за скільки годин до запису клієнт отримає нагадування. Можна задати до трьох, наприклад за 24 і за 2 години. Перемикач зліва вмикає або вимикає кожне окремо. Нагадування зменшують кількість пропущених записів.\n• Повідомлення про скасування — клієнт отримає повідомлення, якщо його запис скасували.\n• Пропозиція з черги — коли звільняється місце, клієнт із черги автоматично отримує пропозицію записатись (першому або всім, залежно від режиму черги).\n• Сповіщення при звільненні слоту — коли в найближчі 10 днів звільняється місце, про це одразу дізнаються всі клієнти."}
           />}
           <div style={{paddingTop:10,display:"flex",flexDirection:"column",gap:5}}>
-            <div style={{fontSize:9,color:"#fff",letterSpacing:1,textTransform:"uppercase",marginBottom:2,textAlign:"center"}}>{t('set.auto.reminder')}</div>
+            <div style={{fontSize:11,color:DIM,letterSpacing:1,textTransform:"uppercase",marginBottom:2,fontWeight:700}}>{t('set.auto.reminder')}</div>
             {reminders.map((r,i)=>(
               <div key={i} style={{
-                display:"flex",alignItems:"center",gap:8,
-                background:`linear-gradient(135deg,color-mix(in srgb,${svColor(r.enabled)} ${r.enabled?38:22}%,${BG_DEEP}) 0%,${BG_DEEP} 100%)`,
-                border:`1px solid color-mix(in srgb,${svColor(r.enabled)} ${r.enabled?35:25}%,transparent)`,
-                borderRadius:10,padding:"7px 10px",
+                display:"flex",alignItems:"center",gap:10,
+                background:SURF_HI,border:`1px solid ${BORDER}`,
+                borderRadius:14,padding:"9px 12px",minHeight:56,
               }}>
                 <SmallToggle color={svColor(r.enabled)} on={r.enabled} onChange={v=>updReminder(i,{enabled:v})}/>
-                <span style={{fontSize:12,color:DIM,flex:1}}>
-                  {lang==="en"?"Reminder":"Нагадування"} #{i+1}
-                </span>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:14,fontWeight:600,color:TEXT}}>{lang==="en"?"Reminder":"Нагадування"} #{i+1}</div>
+                  <div style={{fontSize:11.5,color:DIM,marginTop:2}}>{t('set.auto.rem_h')}</div>
+                </div>
                 <NumInput value={r.hoursBefore} onChange={v=>updReminder(i,{hoursBefore:v})} min={1} max={168} suffix={` ${t('hr')}`}/>
-                <span style={{fontSize:11,color:FAINT}}>{t('set.auto.rem_h')}</span>
               </div>
             ))}
           </div>
@@ -1661,28 +1656,46 @@ select{color-scheme:${isKava?"light":"dark"}}
       {confirmNode}
       <div style={{
         display:"flex", flexDirection:"column", gap:10,
-        fontFamily:"ui-sans-serif,-apple-system,system-ui,sans-serif", color:TEXT,
+        fontFamily:"Inter,ui-sans-serif,-apple-system,system-ui,sans-serif", color:TEXT,
+        background:FOG_STYLE.wrap, borderRadius:22, padding:10, margin:"-4px -4px 0",
+        minHeight:"calc(100dvh - 190px)",
       }}>
 
-        {/* PANEL — section content */}
-        <div style={{padding:"4px 4px 0", minWidth:0}}>
+        {/* SECTION CHIPS — розділи гортаються вбік (замість нижньої рейки іконок) */}
+        <div style={{display:"flex",gap:6,overflowX:"auto",scrollbarWidth:"none",paddingBottom:2,flexShrink:0}}>
+          {SECTIONS.map(sec => {
+            const isActive = active === sec.id;
+            return (
+              <button key={sec.id} onClick={()=>switchSection(sec.id)} style={{
+                flexShrink:0,whiteSpace:"nowrap",fontSize:12,fontWeight:600,fontFamily:"inherit",cursor:"pointer",padding:"8px 12px",borderRadius:99,
+                border:`1px solid ${isActive?"transparent":BORDER}`,backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",
+                background:isActive?`linear-gradient(145deg,${ACC_HI},${ACCENT})`:SURFACE,color:isActive?"#06182e":DIM,
+                boxShadow:isActive?`0 6px 16px ${ACCENT}59`:"none",
+              }}>{sec.icon} {sec.label}</button>
+            );
+          })}
+        </div>
+
+        {/* PANEL — section content (розтягується на всю висоту) */}
+        <div style={{minWidth:0,flex:1,display:"flex",flexDirection:"column"}}>
           <div style={{
-            position:"relative",
-            borderRadius:16,
-            boxShadow:`0 0 0 1.5px ${isKava?"rgba(0,0,0,0.14)":"rgba(255,255,255,0.18)"}, 0 8px 28px rgba(0,0,0,0.28)`,
-            background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,
+            position:"relative", flex:1,
+            borderRadius:18,
+            border:`1px solid ${BORDER}`,
+            boxShadow:SO,
+            background:SURFACE, backdropFilter:"blur(16px)", WebkitBackdropFilter:"blur(16px)",
             padding:"12px 14px 14px",
             overflow:"hidden",
           }}>
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
               {activeSec && (
-                <div style={{fontSize:14,fontWeight:800,color:activeSec.color,display:"flex",alignItems:"center",gap:8}}>
+                <div style={{fontSize:16,fontWeight:700,color:TEXT,display:"flex",alignItems:"center",gap:8}}>
                   <span>{activeSec.icon}</span>
                   <span>{activeSec.title}</span>
                 </div>
               )}
               <button onClick={()=>setShowHint(v=>!v)} style={{
-                width:28,height:28,borderRadius:8,border:"none",cursor:"pointer",flexShrink:0,
+                width:36,height:36,borderRadius:12,border:"none",cursor:"pointer",flexShrink:0,
                 background:showHint?`${GOLD}33`:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,
                 fontSize:15,display:"flex",alignItems:"center",justifyContent:"center",
                 boxShadow:SO,transition:"all .15s",
@@ -1693,59 +1706,7 @@ select{color-scheme:${isKava?"light":"dark"}}
           </div>
         </div>
 
-        {/* SECTION RAIL — друга пігулка, візуально ідентична нижньому навбару
-            (BottomNav у App.jsx: "скляні чипи" — той самий напівпрозорий фон,
-            радіус, бордер, тінь; активна секція підсвічена зеленою заливкою
-            чипу, без окремої рискою — так само як таби внизу).
-            Рендериться через portal у document.body з position:fixed і
-            bottom:navH (реальна виміряна висота #app-bottomnav) — тому
-            дійсно "мертво" прибита над навбаром і не рухається під час
-            скролу вмісту секції (на відміну від sticky, який пінився лише
-            всередині скрол-контейнера вкладки). Спейсер після версії
-            (не тут!) звільняє місце в потоці — якщо покласти його одразу
-            після PANEL, версія й 40px-спейсер підуть услід за ним і
-            опиняться рівно під фіксованою пігулкою, невидимі. */}
       </div>
-
-      {createPortal(
-        <div ref={railRef} style={{
-          position:"fixed", left:0, right:0, bottom:navH, zIndex:50,
-          padding:"6px 3px 0", pointerEvents:"none",
-        }}>
-          <div style={{
-            background: isKava ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.04)",
-            backdropFilter:"blur(20px)", WebkitBackdropFilter:"blur(20px)",
-            borderRadius:16,
-            border:`1px solid ${BORDER}`,
-            boxShadow: isKava
-              ? "0 8px 24px rgba(92,42,26,0.14)"
-              : "0 8px 24px rgba(0,0,0,0.45)",
-            display:"flex", gap:2, padding:3,
-            pointerEvents:"auto",
-          }}>
-            {SECTIONS.map(sec => {
-              const isActive = active === sec.id;
-              return (
-                <button key={sec.id} onClick={()=>switchSection(sec.id)} title={sec.title} style={{
-                  flex:"1 1 0", minWidth:0, padding:"8px 2px 7px",
-                  background: isActive ? `color-mix(in srgb, ${GREEN} 18%, transparent)` : "transparent",
-                  border:"none", cursor:"pointer", borderRadius:11,
-                  display:"flex", flexDirection:"column", alignItems:"center", gap:4,
-                  position:"relative", fontFamily:"inherit",
-                }}>
-                  <SecIcon id={sec.id} color={sec.color} active={isActive} isKava={isKava}/>
-                  <span style={{
-                    fontSize:9, fontWeight:700,
-                    color: isActive ? GREEN : (isKava ? DIM : FAINT),
-                    whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", maxWidth:"100%",
-                  }}>{sec.label}</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>,
-        document.body
-      )}
 
       {installPrompt && !installed && (
         <button onClick={handleInstallClick} style={{
@@ -1895,7 +1856,7 @@ select{color-scheme:${isKava?"light":"dark"}}
           </div>
         </div>
       )}
-      <div style={{height:railH + 16}}/>
+      <div style={{height:16}}/>
     </>
   );
 }

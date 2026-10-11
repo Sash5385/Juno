@@ -27,7 +27,7 @@ export const UI_STYLES = [
   { id: "26", name: "26 · Лагуна", font: "Inter", wrap: "linear-gradient(170deg,#e6f4ff,#d6ecff 60%,#e8f9ff)",
     theme: { ...DARK, ...light, BG: "#e6f4ff", BG_DEEP: "#d8ebfb", TEXT: "#17324d", DIM: "#6d8aa6", FAINT: "#9bb3c8", ACCENT: "#3b8ff0", ACC_HI: "#7cc0ff", LBL: "rgba(23,50,77,0.6)", ...shape(14, 16, "seg", "#fff", { ACCENT: "#3b8ff0", ACC_HI: "#7cc0ff" }), SHEET: "linear-gradient(180deg,#f2f9ff,#dcefff)" } },
   { id: "29", name: "29 · Туман", font: "Inter", wrap: "radial-gradient(circle at 0% 0%,rgba(96,165,250,.35),transparent 48%),radial-gradient(circle at 100% 80%,rgba(129,140,248,.3),transparent 50%),#10141c",
-    theme: { ...DARK, ...dark, BG: "#10141c", BG_DEEP: "#0b0f16", TEXT: "#e8edf6", DIM: "#8c98ae", FAINT: "#5f6b80", ACCENT: "#60a5fa", ACC_HI: "#93c5fd", SHEET: "linear-gradient(180deg,#1a2132,#10141c)", ...shape(16, 18, "seg", "#06182e", { ACCENT: "#60a5fa", ACC_HI: "#93c5fd" }) } },
+    theme: { ...DARK, ...dark, BG: "#10141c", BG_DEEP: "#0b0f16", TEXT: "#e8edf6", DIM: "#8c98ae", FAINT: "#5f6b80", ACCENT: "#60a5fa", ACC_HI: "#93c5fd", FOG: true, SHEET: "linear-gradient(180deg,#1a2132,#10141c)", ...shape(16, 18, "seg", "#06182e", { ACCENT: "#60a5fa", ACC_HI: "#93c5fd" }) } },
   { id: "39", name: "39 · Захід", font: "Poppins", wrap: "radial-gradient(circle at 100% 0%,rgba(251,146,100,.4),transparent 50%),radial-gradient(circle at 0% 90%,rgba(236,72,153,.32),transparent 50%),#1c1020",
     theme: { ...DARK, ...dark, BG: "#1c1020", BG_DEEP: "#150a18", TEXT: "#fdeee8", DIM: "#b99aa6", FAINT: "#826574", ACCENT: "#fb8a6b", ACC_HI: "#fbbf6b", SHEET: "linear-gradient(180deg,#2c1a30,#1c1020)", ...shape(99, 20, "pill", "#2a0f10", { ACCENT: "#fb8a6b", ACC_HI: "#fbbf6b" }) } },
 ];
@@ -41,3 +41,6 @@ export function loadFont(name) {
   l.id = id; l.rel = "stylesheet"; l.href = `https://fonts.googleapis.com/css2?family=${FONT_URL[name]}&display=swap`;
   document.head.appendChild(l);
 }
+
+// «Туман» як постійний стиль сторінок (Налаштування): тема + фон-обгортка
+export const FOG_STYLE = UI_STYLES.find(v => v.id === "29");
