@@ -220,27 +220,29 @@ function BottomNav({ active, onChange, settings, chatUnread, journalUnread }) {
   // "Щільний ряд скляних чипів" (обраний варіант дизайну) — компактні чипи в
   // напівпрозорій рамці; активна вкладка підсвічується зеленим (theme.GREEN),
   // іконки лишають власний фірмовий колір із tabIcons (не чіпаємо).
-  const navBg = isKava ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.04)";
+  const navBg = isKava ? "rgba(255,255,255,0.5)" : "rgba(30,38,56,0.82)";
   const navShadow = isKava
     ? "0 8px 24px rgba(92,42,26,0.14)"
-    : "0 8px 24px rgba(0,0,0,0.45)";
+    : "0 10px 22px rgba(0,0,0,0.4)";
   const labelInactive = isKava ? theme.DIM : FAINT;
-  const activeBg = `color-mix(in srgb, ${theme.GREEN} 18%, transparent)`;
+  const navAccent = isKava ? theme.GREEN : "#60a5fa";
+  const activeBg = `color-mix(in srgb, ${navAccent} ${isKava ? 18 : 26}%, transparent)`;
 
   return (
     <div id="app-bottomnav" style={{
       flexShrink:0,
-      padding:`0 3px calc(10px + env(safe-area-inset-bottom, 0px))`,
+      padding:`0 12px calc(12px + env(safe-area-inset-bottom, 0px))`,
       background: isKava ? "#d4ba96" : "transparent",
       zIndex:50,
       pointerEvents:"none",
     }}>
       <div style={{
         background:navBg,
-        borderRadius:16,
-        border:`1px solid ${theme.BORDER}`,
+        backdropFilter:"blur(16px)", WebkitBackdropFilter:"blur(16px)",
+        borderRadius:28,
+        border:`1px solid ${isKava ? theme.BORDER : "rgba(255,255,255,0.14)"}`,
         boxShadow:navShadow,
-        display:"flex", gap:2, padding:3,
+        display:"flex", gap:2, padding:4,
         pointerEvents:"auto",
       }}>
         {visible.map(t=>{
@@ -250,7 +252,7 @@ function BottomNav({ active, onChange, settings, chatUnread, journalUnread }) {
           <button key={t.id} onClick={()=>onChange(t.id)} style={{
             flex:"1 1 0",minWidth:0,padding:"8px 2px 7px",
             background: isActive ? activeBg : "transparent",
-            border:"none",cursor:"pointer",borderRadius:11,
+            border:"none",cursor:"pointer",borderRadius:22,
             display:"flex",flexDirection:"column",alignItems:"center",gap:4,
             position:"relative"
           }}>
@@ -265,7 +267,7 @@ function BottomNav({ active, onChange, settings, chatUnread, journalUnread }) {
                 }}>{badgeCount}</div>
               )}
             </div>
-            <span style={{fontSize:9,fontWeight:700,color:isActive?theme.GREEN:labelInactive,whiteSpace:"nowrap"}}>{tl(t.lk)}</span>
+            <span style={{fontSize:9,fontWeight:700,color:isActive?navAccent:labelInactive,whiteSpace:"nowrap"}}>{tl(t.lk)}</span>
           </button>
           );
         })}
