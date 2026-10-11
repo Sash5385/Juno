@@ -15,16 +15,21 @@ const dark = {
   BORDER: "rgba(255,255,255,0.14)", SO: "0 6px 20px rgba(0,0,0,0.25)", GLASS: true,
 };
 
+// Форма кнопок / карток / перемикача та градієнт кнопок (за макетами): BTN_R радіус кнопок, CARD_R карток, TABS pill|seg
+function shape(btnR, cardR, tabs, btnTx, c) {
+  return { BTN_R: btnR, CARD_R: cardR, CHIP_R: 99, MODAL_R: 28, TABS: tabs, BTN_TX: btnTx, BTN_GRAD: `linear-gradient(165deg,${c.ACC_HI},${c.ACCENT})`, BTN_SH: `0 6px 16px ${c.ACCENT}59` };
+}
+
 export const UI_STYLES = [
-  { id: "1",  name: "1 · Графіт", theme: { ...DARK }, wrap: "radial-gradient(circle at 8% 0%,rgba(239,68,68,.16),transparent 48%),radial-gradient(circle at 100% 40%,rgba(168,85,247,.12),transparent 46%)", font: null },
+  { id: "1",  name: "1 · Графіт", theme: { ...DARK, ...shape(14, 14, "pill", "#fff", DARK) }, wrap: "radial-gradient(circle at 8% 0%,rgba(239,68,68,.16),transparent 48%),radial-gradient(circle at 100% 40%,rgba(168,85,247,.12),transparent 46%)", font: null },
   { id: "21", name: "21 · Імла", font: "Manrope", wrap: "linear-gradient(160deg,#e9e4ff,#dbeafe 55%,#f5e8ff)",
-    theme: { ...DARK, ...light, BG: "#e9e4ff", BG_DEEP: "#e2dcfb", TEXT: "#2f2a4a", DIM: "#7a739b", FAINT: "#a59fc4", ACCENT: "#8b7cf6", ACC_HI: "#b7a6ff", LBL: "rgba(47,42,74,0.6)", SHEET: "linear-gradient(180deg,#f3efff,#e4eaff)" } },
+    theme: { ...DARK, ...light, BG: "#e9e4ff", BG_DEEP: "#e2dcfb", TEXT: "#2f2a4a", DIM: "#7a739b", FAINT: "#a59fc4", ACCENT: "#8b7cf6", ACC_HI: "#b7a6ff", LBL: "rgba(47,42,74,0.6)", ...shape(18, 20, "pill", "#fff", { ACCENT: "#8b7cf6", ACC_HI: "#b7a6ff" }), SHEET: "linear-gradient(180deg,#f3efff,#e4eaff)" } },
   { id: "26", name: "26 · Лагуна", font: "Inter", wrap: "linear-gradient(170deg,#e6f4ff,#d6ecff 60%,#e8f9ff)",
-    theme: { ...DARK, ...light, BG: "#e6f4ff", BG_DEEP: "#d8ebfb", TEXT: "#17324d", DIM: "#6d8aa6", FAINT: "#9bb3c8", ACCENT: "#3b8ff0", ACC_HI: "#7cc0ff", LBL: "rgba(23,50,77,0.6)", SHEET: "linear-gradient(180deg,#f2f9ff,#dcefff)" } },
+    theme: { ...DARK, ...light, BG: "#e6f4ff", BG_DEEP: "#d8ebfb", TEXT: "#17324d", DIM: "#6d8aa6", FAINT: "#9bb3c8", ACCENT: "#3b8ff0", ACC_HI: "#7cc0ff", LBL: "rgba(23,50,77,0.6)", ...shape(14, 16, "seg", "#fff", { ACCENT: "#3b8ff0", ACC_HI: "#7cc0ff" }), SHEET: "linear-gradient(180deg,#f2f9ff,#dcefff)" } },
   { id: "29", name: "29 · Туман", font: "Inter", wrap: "radial-gradient(circle at 0% 0%,rgba(96,165,250,.35),transparent 48%),radial-gradient(circle at 100% 80%,rgba(129,140,248,.3),transparent 50%),#10141c",
-    theme: { ...DARK, ...dark, BG: "#10141c", BG_DEEP: "#0b0f16", TEXT: "#e8edf6", DIM: "#8c98ae", FAINT: "#5f6b80", ACCENT: "#60a5fa", ACC_HI: "#93c5fd", SHEET: "linear-gradient(180deg,#1a2132,#10141c)" } },
+    theme: { ...DARK, ...dark, BG: "#10141c", BG_DEEP: "#0b0f16", TEXT: "#e8edf6", DIM: "#8c98ae", FAINT: "#5f6b80", ACCENT: "#60a5fa", ACC_HI: "#93c5fd", SHEET: "linear-gradient(180deg,#1a2132,#10141c)", ...shape(16, 18, "seg", "#06182e", { ACCENT: "#60a5fa", ACC_HI: "#93c5fd" }) } },
   { id: "39", name: "39 · Захід", font: "Poppins", wrap: "radial-gradient(circle at 100% 0%,rgba(251,146,100,.4),transparent 50%),radial-gradient(circle at 0% 90%,rgba(236,72,153,.32),transparent 50%),#1c1020",
-    theme: { ...DARK, ...dark, BG: "#1c1020", BG_DEEP: "#150a18", TEXT: "#fdeee8", DIM: "#b99aa6", FAINT: "#826574", ACCENT: "#fb8a6b", ACC_HI: "#fbbf6b", SHEET: "linear-gradient(180deg,#2c1a30,#1c1020)" } },
+    theme: { ...DARK, ...dark, BG: "#1c1020", BG_DEEP: "#150a18", TEXT: "#fdeee8", DIM: "#b99aa6", FAINT: "#826574", ACCENT: "#fb8a6b", ACC_HI: "#fbbf6b", SHEET: "linear-gradient(180deg,#2c1a30,#1c1020)", ...shape(99, 20, "pill", "#2a0f10", { ACCENT: "#fb8a6b", ACC_HI: "#fbbf6b" }) } },
 ];
 
 const FONT_URL = { Manrope: "Manrope:wght@500;700;800", Inter: "Inter:wght@500;700;800", Poppins: "Poppins:wght@500;600;700" };

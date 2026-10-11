@@ -438,7 +438,7 @@ function ServiceRow({ svc, onEdit, onToggle, onDelete, dragHandleProps, isDraggi
   const stop = e => e.stopPropagation();
   return (
     <div className={`drag-item color-card ${isDragging?"dragging":""}`} onClick={()=>onEdit(svc)} style={{
-      position:"relative",overflow:"hidden",borderRadius:14,marginBottom:8,padding:"9px 11px 8px",cursor:"pointer",
+      position:"relative",overflow:"hidden",borderRadius:theme.CARD_R??14,marginBottom:8,padding:"9px 11px 8px",cursor:"pointer",
       background:GLASS?`linear-gradient(155deg,color-mix(in srgb,${c} 38%,transparent) 0%,color-mix(in srgb,${c} 14%,transparent) 100%)`:`linear-gradient(155deg,color-mix(in srgb,${c} 50%,${BG_DEEP}) 0%,color-mix(in srgb,${c} 18%,${BG_DEEP}) 100%)`,
       backdropFilter:GLASS?"blur(14px)":undefined,WebkitBackdropFilter:GLASS?"blur(14px)":undefined,
       border:`1px solid color-mix(in srgb,${c} 45%,transparent)`,
@@ -583,12 +583,15 @@ function ServicesBody({ variant, styleId, pick }) {
       <style>{css}</style>
       <div style={{display:"flex",flexDirection:"column",gap:8,fontFamily:variant?.font?`'${variant.font}',ui-sans-serif,system-ui,sans-serif`:"ui-sans-serif,-apple-system,system-ui,sans-serif",color:TEXT,
         ...(variant?{background:variant.wrap,borderRadius:22,padding:12,margin:"-4px -4px 0",minHeight:"calc(100% + 4px)"}:{})}}>
-        <div style={{display:"flex",gap:6,overflowX:"auto",paddingBottom:2}}>
-          {[{id:"",name:"Зараз"},...UI_STYLES].map(v=>(
-            <button key={v.id||"off"} onClick={()=>pick(v.id)} style={{flexShrink:0,padding:"6px 11px",borderRadius:99,border:`1px solid ${BORDER}`,cursor:"pointer",fontFamily:"inherit",fontSize:11,fontWeight:700,whiteSpace:"nowrap",
-              background:styleId===v.id?`linear-gradient(145deg,${ACC_HI},${ACCENT})`:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,color:styleId===v.id?"#fff":DIM}}>{v.name}</button>
-          ))}
+        {(()=>{ const seg = variant?.theme.TABS==="seg"; return (
+        <div style={{display:"flex",gap:seg?0:6,overflowX:"auto",paddingBottom:2,
+          ...(seg?{background:SURFACE,border:`1px solid ${BORDER}`,borderRadius:theme.BTN_R??14,padding:3,paddingBottom:3}:{})}}>
+          {[{id:"",name:"Зараз"},...UI_STYLES].map(v=>{ const on=styleId===v.id; return (
+            <button key={v.id||"off"} onClick={()=>pick(v.id)} style={{flexShrink:0,flex:seg?1:undefined,padding:"6px 11px",borderRadius:seg?Math.max(8,(theme.BTN_R??14)-3):99,border:seg?"none":`1px solid ${BORDER}`,cursor:"pointer",fontFamily:"inherit",fontSize:11,fontWeight:700,whiteSpace:"nowrap",
+              background:on?(theme.BTN_GRAD||`linear-gradient(145deg,${ACC_HI},${ACCENT})`):(seg?"transparent":`linear-gradient(145deg,${SURF_HI},${SURFACE})`),color:on?(theme.BTN_TX||"#fff"):DIM}}>{v.name}</button>
+          ); })}
         </div>
+        ); })()}
 
         <div onPointerMove={e=>getHandlers(0).onPointerMove(e)} onPointerUp={()=>getHandlers(0).onPointerUp()}>
           {shown.map((svc,idx)=>(
@@ -607,13 +610,13 @@ function ServicesBody({ variant, styleId, pick }) {
 
         {archived.length>0 && (
           <button onClick={()=>setShowArchived(v=>!v)} style={{
-            width:"100%",padding:"11px",borderRadius:12,border:"none",cursor:"pointer",fontSize:12,fontWeight:700,fontFamily:"inherit",
+            width:"100%",padding:"11px",borderRadius:theme.BTN_R??12,border:"none",cursor:"pointer",fontSize:12,fontWeight:700,fontFamily:"inherit",
             background:showArchived?`linear-gradient(165deg,#fb923c,#ea580c)`:`linear-gradient(135deg,${SURF_HI},${SURFACE})`,
             color:showArchived?"#fff":DIM,boxShadow:SO,display:"flex",alignItems:"center",justifyContent:"center",gap:8,
           }}>📦 Архів ({archived.length})</button>
         )}
 
-        <Btn variant="primary" onClick={()=>setEditSvc(false)} style={{width:"100%"}}>
+        <Btn variant="primary" onClick={()=>setEditSvc(false)} style={{width:"100%",...(variant?{position:"sticky",bottom:10,zIndex:5,marginTop:8}:{})}}>
           {Ic.plus(28)} Додати нову послугу
         </Btn>
       </div>

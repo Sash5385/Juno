@@ -154,10 +154,10 @@ export function Field({ label, value, onChange, placeholder, type = "text", text
 
 // ── Chip: selectable colour chip ───────────────────────────────
 export function Chip({ active, color, onClick, children }) {
-  const { SURF_HI, SURFACE, DIM, SO } = useContext(ThemeContext);
+  const { SURF_HI, SURFACE, DIM, SO, CHIP_R } = useContext(ThemeContext);
   return (
     <button onClick={onClick} style={{
-      padding: "7px 12px", borderRadius: RADIUS.chip + 1, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 700, fontFamily: "inherit",
+      padding: "7px 12px", borderRadius: CHIP_R ?? RADIUS.chip + 1, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 700, fontFamily: "inherit",
       background: active ? `linear-gradient(145deg,${color}55,${color}22)` : `linear-gradient(145deg,${SURF_HI},${SURFACE})`,
       color: active ? color : DIM, boxShadow: SO,
     }}>{children}</button>
@@ -166,15 +166,15 @@ export function Chip({ active, color, onClick, children }) {
 
 // ── Btn: primary (accent) / ghost ──────────────────────────────
 export function Btn({ children, onClick, variant = "primary", accent, disabled = false, flex, style = {} }) {
-  const { SURF_HI, SURFACE, DIM, FAINT, ACCENT, SO } = useContext(ThemeContext);
+  const { SURF_HI, SURFACE, DIM, FAINT, ACCENT, SO, BTN_R, BTN_GRAD, BTN_TX, BTN_SH } = useContext(ThemeContext);
   const { glow } = useFX();
   const c = accent || ACCENT;
-  const base = { border: "none", cursor: disabled ? "default" : "pointer", borderRadius: RADIUS.button, padding: PAD.button, fontSize: 13, fontWeight: 700, fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, ...(flex != null ? { flex } : {}), ...style };
+  const base = { border: "none", cursor: disabled ? "default" : "pointer", borderRadius: BTN_R ?? RADIUS.button, padding: PAD.button, fontSize: 13, fontWeight: 700, fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, ...(flex != null ? { flex } : {}), ...style };
   if (variant === "primary" && !disabled) {
     return (
       <button onClick={onClick} style={{ ...base,
-        background: `linear-gradient(165deg,${c},color-mix(in srgb,${c} 65%,#000))`,
-        color: "#fff", boxShadow: `0 4px 14px ${softA(c, 0.4)},inset 1px 1px 0 ${glow(0.2)}`,
+        background: BTN_GRAD && !accent ? BTN_GRAD : `linear-gradient(165deg,${c},color-mix(in srgb,${c} 65%,#000))`,
+        color: BTN_GRAD && !accent ? BTN_TX : "#fff", boxShadow: BTN_SH && !accent ? BTN_SH : `0 4px 14px ${softA(c, 0.4)},inset 1px 1px 0 ${glow(0.2)}`,
       }}>{children}</button>
     );
   }
@@ -200,15 +200,15 @@ export function StatTile({ value, label, color }) {
 // size: "sm"|"md"|"lg" or a number (px). sheet=true → bottom sheet.
 // icon: optional emoji shown in header icon box.
 export function Modal({ open, onClose, children, size = "md", sheet = true, title, icon, grabber = true, pad = true, footer, maxH }) {
-  const { SURF_HI, SURFACE, BG, TEXT, FAINT, BORDER, SHEET } = useContext(ThemeContext);
+  const { SURF_HI, SURFACE, BG, TEXT, FAINT, BORDER, SHEET, MODAL_R } = useContext(ThemeContext);
   const { shade, ink } = useFX();
   useBackClose(open, onClose);
   if (!open) return null;
   const W = typeof size === "number" ? size : ({ sm: 380, md: 460, lg: 560 }[size] ?? size);
   const bodyPad = !pad ? 0 : footer ? "14px 20px" : sheet ? "14px 20px 28px" : "14px 20px 16px";
   const containerStyle = sheet
-    ? { maxWidth: W, width: "100%", margin: "0 auto", background: SHEET || `linear-gradient(180deg,${SURFACE},${BG})`, borderRadius: `${RADIUS.modal}px ${RADIUS.modal}px 0 0`, overflow: "hidden", display: "flex", flexDirection: "column", maxHeight: maxH || "92vh" }
-    : { maxWidth: W, width: "100%", margin: "0 16px", background: SHEET || panel(SURF_HI, SURFACE), borderRadius: RADIUS.modal, overflow: "hidden", boxShadow: `0 20px 60px ${shade(0.6)}`, display: "flex", flexDirection: "column", maxHeight: maxH || "88vh" };
+    ? { maxWidth: W, width: "100%", margin: "0 auto", background: SHEET || `linear-gradient(180deg,${SURFACE},${BG})`, borderRadius: `${MODAL_R ?? RADIUS.modal}px ${MODAL_R ?? RADIUS.modal}px 0 0`, overflow: "hidden", display: "flex", flexDirection: "column", maxHeight: maxH || "92vh" }
+    : { maxWidth: W, width: "100%", margin: "0 16px", background: SHEET || panel(SURF_HI, SURFACE), borderRadius: MODAL_R ?? RADIUS.modal, overflow: "hidden", boxShadow: `0 20px 60px ${shade(0.6)}`, display: "flex", flexDirection: "column", maxHeight: maxH || "88vh" };
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 200, background: shade(SCRIM), backdropFilter: "blur(8px)", display: "flex", alignItems: sheet ? "flex-end" : "center", justifyContent: "center" }}>
       <div onClick={e => e.stopPropagation()} className={sheet ? "modal-sheet-in" : "modal-pop-in"} style={containerStyle}>
