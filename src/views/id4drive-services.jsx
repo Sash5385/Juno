@@ -154,7 +154,7 @@ function ServiceFormModal({ svc, onSave, onClose }) {
           <div style={{display:"flex",gap:5,marginTop:6,flexWrap:"wrap"}}>
             {[30,60,90,120,180].map(v=>(
               <button key={v} onClick={()=>upd("duration",v)} style={{
-                padding:"4px 8px",borderRadius:8,border:"none",cursor:"pointer",fontSize:11,fontWeight:700,fontFamily:"inherit",
+                padding:"4px 8px",borderRadius:theme.CHIP_R??8,border:"none",cursor:"pointer",fontSize:11,fontWeight:700,fontFamily:"inherit",
                 background:form.duration===v?`linear-gradient(165deg,${ACC_HI},${ACCENT})`:`linear-gradient(135deg,${SURF_HI},${SURFACE})`,
                 color:form.duration===v?"#fff":DIM,boxShadow:SO,
               }}>{v}</button>
@@ -187,7 +187,7 @@ function ServiceFormModal({ svc, onSave, onClose }) {
           </Inset>
           {(form.nextPrice != null || form.nextPriceFrom) && (
             <button onClick={()=>{upd("nextPrice",null);upd("nextPriceFrom",null);}} style={{
-              width:32,height:32,borderRadius:9,border:"none",cursor:"pointer",
+              width:32,height:32,borderRadius:theme.BTN_R!=null?Math.min(theme.BTN_R,16):9,border:"none",cursor:"pointer",
               background:`${ACCENT}1f`,color:ACCENT,fontSize:14,fontWeight:800,
             }}>✕</button>
           )}
@@ -205,7 +205,7 @@ function ServiceFormModal({ svc, onSave, onClose }) {
         <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
           {REBOOK_OPTIONS.map(v=>(
             <button key={v} onClick={()=>upd("rebookDays",v)} style={{
-              padding:"6px 11px",borderRadius:9,border:"none",cursor:"pointer",fontSize:12,fontWeight:700,fontFamily:"inherit",
+              padding:"6px 11px",borderRadius:theme.CHIP_R??9,border:"none",cursor:"pointer",fontSize:12,fontWeight:700,fontFamily:"inherit",
               background:rebookOf(form)===v?`linear-gradient(165deg,${ACC_HI},${ACCENT})`:`linear-gradient(135deg,${SURF_HI},${SURFACE})`,
               color:rebookOf(form)===v?"#fff":DIM,boxShadow:SO,
             }}>{v===0?"Вимкнено":`${v} дн.`}</button>
@@ -222,7 +222,7 @@ function ServiceFormModal({ svc, onSave, onClose }) {
         <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
           {[1,2,3,4,6,8,10,12,20].map(v=>(
             <button key={v} onClick={()=>upd("capacity",v)} style={{
-              padding:"6px 11px",borderRadius:9,border:"none",cursor:"pointer",fontSize:12,fontWeight:700,fontFamily:"inherit",
+              padding:"6px 11px",borderRadius:theme.CHIP_R??9,border:"none",cursor:"pointer",fontSize:12,fontWeight:700,fontFamily:"inherit",
               background:capacityOf(form)===v?`linear-gradient(165deg,${ACC_HI},${ACCENT})`:`linear-gradient(135deg,${SURF_HI},${SURFACE})`,
               color:capacityOf(form)===v?"#fff":DIM,boxShadow:SO,
             }}>{v===1?"Індивідуально":v}</button>
@@ -245,7 +245,7 @@ function ServiceFormModal({ svc, onSave, onClose }) {
                 <input value={a.name||""} maxLength={40} onChange={e=>setAddon(i,{name:e.target.value})} placeholder="Назва допуслуги..."
                   style={{flex:1,minWidth:0,background:"transparent",border:"none",outline:"none",color:TEXT,fontSize:14,fontWeight:800,padding:"6px 0",fontFamily:"inherit"}}/>
                 <button onClick={()=>delAddon(i)} aria-label="Видалити допуслугу" style={{
-                  width:28,height:28,borderRadius:8,border:"none",cursor:"pointer",flexShrink:0,
+                  width:28,height:28,borderRadius:theme.BTN_R!=null?Math.min(theme.BTN_R,14):8,border:"none",cursor:"pointer",flexShrink:0,
                   background:`${ACCENT}1f`,color:ACCENT,fontSize:13,fontWeight:800,
                 }}>✕</button>
               </div>
@@ -270,7 +270,7 @@ function ServiceFormModal({ svc, onSave, onClose }) {
               <div style={{display:"flex",gap:4,marginTop:6,flexWrap:"wrap"}}>
                 {[0,...ADDON_MINUTES.filter(v=>v>0&&v<=60)].map(v=>(
                   <button key={v} onClick={()=>setAddon(i,{minutes:v})} style={{
-                    padding:"3px 8px",borderRadius:7,border:"none",cursor:"pointer",fontSize:10,fontWeight:700,fontFamily:"inherit",
+                    padding:"3px 8px",borderRadius:theme.CHIP_R??7,border:"none",cursor:"pointer",fontSize:10,fontWeight:700,fontFamily:"inherit",
                     background:Number(a.minutes||0)===v?`linear-gradient(165deg,${ACC_HI},${ACCENT})`:`linear-gradient(135deg,${SURF_HI},${SURFACE})`,
                     color:Number(a.minutes||0)===v?"#fff":DIM,boxShadow:SO,
                   }}>{v===0?"без часу":`+${v}`}</button>
@@ -293,7 +293,7 @@ function ServiceFormModal({ svc, onSave, onClose }) {
         <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
           {BUFFER_OPTIONS.map(v=>(
             <button key={v} onClick={()=>upd("bufferMin",v)} style={{
-              padding:"6px 11px",borderRadius:9,border:"none",cursor:"pointer",fontSize:12,fontWeight:700,fontFamily:"inherit",
+              padding:"6px 11px",borderRadius:theme.CHIP_R??9,border:"none",cursor:"pointer",fontSize:12,fontWeight:700,fontFamily:"inherit",
               background:bufferOf(form)===v?`linear-gradient(165deg,${ACC_HI},${ACCENT})`:`linear-gradient(135deg,${SURF_HI},${SURFACE})`,
               color:bufferOf(form)===v?"#fff":DIM,boxShadow:SO,
             }}>{v===0?"Без перерви":`${v} хв`}</button>
@@ -326,7 +326,8 @@ function ServiceFormModal({ svc, onSave, onClose }) {
 
 // ─── DELETE CONFIRM MODAL ────────────────────────────────────────
 function DeleteConfirm({ svc, onConfirm, onArchive, onClose }) {
-  const { TEXT, DIM } = useContext(ThemeContext);
+  const theme = useContext(ThemeContext);
+  const { TEXT, DIM } = theme;
   return (
     <Modal open onClose={onClose} sheet size="md">
       <div style={{textAlign:"center",marginBottom:20}}>
@@ -336,12 +337,12 @@ function DeleteConfirm({ svc, onConfirm, onArchive, onClose }) {
       </div>
       <div style={{display:"flex",flexDirection:"column",gap:10}}>
         <button onClick={()=>{onArchive(svc.id);onClose();}} style={{
-          padding:"14px",borderRadius:14,border:"none",cursor:"pointer",fontFamily:"inherit",
+          padding:"14px",borderRadius:theme.BTN_R??14,border:"none",cursor:"pointer",fontFamily:"inherit",
           background:`linear-gradient(165deg,#fb923c,#ea580c)`,color:"#fff",fontSize:13,fontWeight:700,
           boxShadow:`-2px 5px 14px rgba(251,146,60,0.4),inset 1px 1px 0 rgba(255,255,255,0.3)`,
         }}>📦 Архівувати (зберегти статистику)</button>
         <button onClick={()=>{onConfirm(svc.id);onClose();}} style={{
-          padding:"14px",borderRadius:14,border:"none",cursor:"pointer",fontFamily:"inherit",
+          padding:"14px",borderRadius:theme.BTN_R??14,border:"none",cursor:"pointer",fontFamily:"inherit",
           background:`linear-gradient(165deg,#f87171,#dc2626)`,color:"#fff",fontSize:13,fontWeight:700,
           boxShadow:`-2px 5px 14px rgba(239,68,68,0.4),inset 1px 1px 0 rgba(255,255,255,0.3)`,
         }}>🗑 Видалити назавжди</button>
