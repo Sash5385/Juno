@@ -6,6 +6,7 @@ import { ThemeContext } from "../theme.js";
 import { UICss, Modal, Chip, Btn, Toggle, Pill, useFX } from "../ui";
 import { capacityOf, MAX_CAPACITY } from "../groups";
 import { UI_STYLES, loadFont } from "../uiStyles";
+import ServicesFog from "./ServicesFog";
 import { rawAddons, normAddons, bufferOf, ADDON_MINUTES, BUFFER_OPTIONS, MAX_ADDONS } from "../addons";
 
 export const makePalette = ({GREEN, GOLD, BLUE, PURPLE, ACCENT, TEAL}) => [
@@ -578,21 +579,27 @@ function ServicesBody({ variant, styleId, pick }) {
   const onArchive = id => { if (PROTECTED_SERVICE_IDS.includes(id)) return; dirtyRef.current = true; setServices(ss=>ss.map(s=>s.id===id?{...s,archived:true,active:false}:s)); };
   const onDelete  = id => { if (PROTECTED_SERVICE_IDS.includes(id)) return; dirtyRef.current = true; setServices(ss=>ss.filter(s=>s.id!==id)); };
 
-  return (
-    <>
-      <UICss/>
-      <style>{css}</style>
-      <div style={{display:"flex",flexDirection:"column",gap:8,fontFamily:variant?.font?`'${variant.font}',ui-sans-serif,system-ui,sans-serif`:"ui-sans-serif,-apple-system,system-ui,sans-serif",color:TEXT,
-        ...(variant?{background:variant.wrap,borderRadius:22,padding:12,margin:"-4px -4px 0",minHeight:"calc(100% + 4px)"}:{})}}>
-        {(()=>{ const seg = variant?.theme.TABS==="seg"; return (
-        <div style={{display:"flex",gap:seg?0:6,overflowX:"auto",paddingBottom:2,
+  const isFog = variant?.id === "29";
+  const fogColor = svc => (makePalette(theme).find(p=>p.id===svc.colorId)?.color || theme.GREEN);
+  const switcher = (()=>{ const seg = variant?.theme.TABS==="seg" && !isFog; return (
+        <div style={{display:"flex",gap:seg?0:6,overflowX:isFog?"visible":"auto",flexWrap:isFog?"wrap":"nowrap",paddingBottom:2,
           ...(seg?{background:SURFACE,border:`1px solid ${BORDER}`,borderRadius:theme.BTN_R??14,padding:3,paddingBottom:3}:{})}}>
           {[{id:"",name:"Зараз"},...UI_STYLES].map(v=>{ const on=styleId===v.id; return (
             <button key={v.id||"off"} onClick={()=>pick(v.id)} style={{flexShrink:0,flex:seg?1:undefined,padding:"6px 11px",borderRadius:seg?Math.max(8,(theme.BTN_R??14)-3):99,border:seg?"none":`1px solid ${BORDER}`,cursor:"pointer",fontFamily:"inherit",fontSize:11,fontWeight:700,whiteSpace:"nowrap",
               background:on?(theme.BTN_GRAD||`linear-gradient(145deg,${ACC_HI},${ACCENT})`):(seg?"transparent":`linear-gradient(145deg,${SURF_HI},${SURFACE})`),color:on?(theme.BTN_TX||"#fff"):DIM}}>{v.name}</button>
           ); })}
         </div>
-        ); })()}
+        ); })();
+  return (
+    <>
+      <UICss/>
+      <style>{css}</style>
+      <div style={{display:"flex",flexDirection:"column",gap:8,fontFamily:variant?.font?`'${variant.font}',ui-sans-serif,system-ui,sans-serif`:"ui-sans-serif,-apple-system,system-ui,sans-serif",color:TEXT,
+        ...(variant?{background:variant.wrap,borderRadius:22,padding:12,margin:"-4px -4px 0",minHeight:"calc(100% + 4px)"}:{})}}>
+        {isFog ? (
+          <ServicesFog services={services} colorOf={fogColor} fmt={fmtDur} capOf={capacityOf} isProtected={isProtectedService} onEdit={setEditSvc} onToggle={onToggle} onDelete={setDeleteSvc} onAdd={()=>setEditSvc(false)} getHandlers={getHandlers} styleSwitcher={switcher}/>
+        ) : (<>
+        {switcher}
 
         <div onPointerMove={e=>getHandlers(0).onPointerMove(e)} onPointerUp={()=>getHandlers(0).onPointerUp()}>
           {shown.map((svc,idx)=>(
@@ -620,6 +627,7 @@ function ServicesBody({ variant, styleId, pick }) {
         <Btn variant="primary" onClick={()=>setEditSvc(false)} style={{width:"100%",...(variant?{position:"sticky",bottom:10,zIndex:5,marginTop:8}:{})}}>
           {Ic.plus(28)} Додати нову послугу
         </Btn>
+        </>)}
       </div>
 
       {editSvc!==null && <ServiceFormModal svc={editSvc||null} onSave={onSave} onClose={()=>setEditSvc(null)}/>}
