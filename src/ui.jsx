@@ -200,15 +200,15 @@ export function StatTile({ value, label, color }) {
 // size: "sm"|"md"|"lg" or a number (px). sheet=true → bottom sheet.
 // icon: optional emoji shown in header icon box.
 export function Modal({ open, onClose, children, size = "md", sheet = true, title, icon, grabber = true, pad = true, footer, maxH }) {
-  const { SURF_HI, SURFACE, BG, TEXT, FAINT, BORDER } = useContext(ThemeContext);
+  const { SURF_HI, SURFACE, BG, TEXT, FAINT, BORDER, SHEET } = useContext(ThemeContext);
   const { shade, ink } = useFX();
   useBackClose(open, onClose);
   if (!open) return null;
   const W = typeof size === "number" ? size : ({ sm: 380, md: 460, lg: 560 }[size] ?? size);
   const bodyPad = !pad ? 0 : footer ? "14px 20px" : sheet ? "14px 20px 28px" : "14px 20px 16px";
   const containerStyle = sheet
-    ? { maxWidth: W, width: "100%", margin: "0 auto", background: `linear-gradient(180deg,${SURFACE},${BG})`, borderRadius: `${RADIUS.modal}px ${RADIUS.modal}px 0 0`, overflow: "hidden", display: "flex", flexDirection: "column", maxHeight: maxH || "92vh" }
-    : { maxWidth: W, width: "100%", margin: "0 16px", background: panel(SURF_HI, SURFACE), borderRadius: RADIUS.modal, overflow: "hidden", boxShadow: `0 20px 60px ${shade(0.6)}`, display: "flex", flexDirection: "column", maxHeight: maxH || "88vh" };
+    ? { maxWidth: W, width: "100%", margin: "0 auto", background: SHEET || `linear-gradient(180deg,${SURFACE},${BG})`, borderRadius: `${RADIUS.modal}px ${RADIUS.modal}px 0 0`, overflow: "hidden", display: "flex", flexDirection: "column", maxHeight: maxH || "92vh" }
+    : { maxWidth: W, width: "100%", margin: "0 16px", background: SHEET || panel(SURF_HI, SURFACE), borderRadius: RADIUS.modal, overflow: "hidden", boxShadow: `0 20px 60px ${shade(0.6)}`, display: "flex", flexDirection: "column", maxHeight: maxH || "88vh" };
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 200, background: shade(SCRIM), backdropFilter: "blur(8px)", display: "flex", alignItems: sheet ? "flex-end" : "center", justifyContent: "center" }}>
       <div onClick={e => e.stopPropagation()} className={sheet ? "modal-sheet-in" : "modal-pop-in"} style={containerStyle}>
