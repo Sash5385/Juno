@@ -44,7 +44,8 @@ if (kind === "admin") {
 }
 
 for (const tab of TABS[kind]) {
-  const btn = page.locator("button", { hasText: tab }).last();
+  // у навбарі адмінки підписи сховані (стиль «Плитки») — шукаємо за aria-label або за текстом кнопки
+  const btn = page.locator(`button[aria-label="${tab}"], button:has-text("${tab}")`).last();
   const found = (await btn.count()) > 0;
   check(`tab «${tab}» exists`, found);
   if (!found) continue;
