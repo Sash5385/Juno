@@ -89,12 +89,11 @@ function slotLabel(key) {
 }
 
 function CardShell({ color, children }) {
-  const { BG_DEEP } = useContext(ThemeContext);
   const { shade, glow } = useFX();
   return (
     <div className="fade-in" style={{
       position:"relative", flexShrink:0, borderRadius:14, overflow:"hidden",
-      background:`linear-gradient(155deg,color-mix(in srgb,${color} 46%,${BG_DEEP}) 0%,color-mix(in srgb,${color} 16%,${BG_DEEP}) 100%)`,
+      background:`color-mix(in srgb,${color} 26%,transparent)`,backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",
       border:`1px solid color-mix(in srgb,${color} 42%,transparent)`,
       boxShadow:`-2px 5px 13px ${shade(0.45)},inset 1px 1px 0 ${glow(0.15)}`,
     }}>

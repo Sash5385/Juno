@@ -135,8 +135,8 @@ function Conversation({ contact, messages, onSend, isBroadcast }) {
 const BROADCAST_ID = "__broadcast__";
 
 export default function ChatsView() {
-  const { BG, BG_DEEP, SURFACE, SURF_HI, SURF_LO, BORDER, TEXT, DIM, FAINT, ACCENT, SO, SI } = useContext(ThemeContext);
-  const { shade, glow, ink } = useFX();
+  const { SURFACE, SURF_HI, BORDER, TEXT, DIM, FAINT, ACCENT, SO } = useContext(ThemeContext);
+  const { shade, ink } = useFX();
 
   const css = `
 .bubble-out{
@@ -322,12 +322,12 @@ export default function ChatsView() {
 
         {/* ── SEARCH ── */}
         <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:9}}>
-          <div style={{flex:1,background:BG_DEEP,borderRadius:11,boxShadow:SI,padding:"4px 11px",display:"flex",alignItems:"center",gap:7}}>
+          <div style={{flex:1,background:SURFACE,border:`1px solid ${BORDER}`,backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",borderRadius:16,padding:"2px 14px",minHeight:48,display:"flex",alignItems:"center",gap:8}}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={FAINT} strokeWidth="2.2" strokeLinecap="round">
               <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
             </svg>
             <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Пошук клієнта…"
-              style={{flex:1,background:"transparent",border:"none",outline:"none",color:TEXT,padding:"8px 0",fontSize:13,fontFamily:"inherit"}}/>
+              style={{flex:1,background:"transparent",border:"none",outline:"none",color:TEXT,padding:"11px 0",fontSize:14,fontFamily:"inherit"}}/>
             {search && <button onClick={()=>setSearch("")} style={{background:"none",border:"none",cursor:"pointer",color:FAINT,fontSize:16,padding:0,lineHeight:1}}>×</button>}
           </div>
           {totalUnread > 0 && (
@@ -340,7 +340,7 @@ export default function ChatsView() {
         {/* ── BROADCAST ── */}
         {!search && (
           <div style={{
-            background:`linear-gradient(155deg,color-mix(in srgb,#a855f7 50%,${BG_DEEP}) 0%,color-mix(in srgb,#a855f7 18%,${BG_DEEP}) 100%)`,
+            background:`color-mix(in srgb,#a855f7 26%,transparent)`,backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",
             borderRadius:14,overflow:"hidden",marginBottom:6,boxShadow:SO,
             border:`1px solid color-mix(in srgb,#a855f7 ${broadcastOpen?55:38}%,transparent)`}}>
             <div className={`chat-row${broadcastOpen?" broadcast-open":""}`} onClick={()=>toggle(BROADCAST_ID)}
@@ -387,7 +387,7 @@ export default function ChatsView() {
             const hueColor   = `hsl(${c.hue},60%,50%)`;
             return (
               <div key={c.id} style={{
-                background:`linear-gradient(155deg,color-mix(in srgb,${hueColor} 50%,${BG_DEEP}) 0%,color-mix(in srgb,${hueColor} 18%,${BG_DEEP}) 100%)`,
+                background:`color-mix(in srgb,${hueColor} 26%,transparent)`,backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",
                 borderRadius:14,overflow:"hidden",boxShadow:SO,
                 border:`1px solid ${isDeleting?"rgba(239,68,68,0.5)":isOpen?"rgba(255,255,255,0.35)":`color-mix(in srgb,${hueColor} 38%,transparent)`}`,
                 transition:"border-color .2s",

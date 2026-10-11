@@ -4,7 +4,7 @@ import { iRef } from "../firebase";
 import { LangContext } from "../App";
 import { createT } from "../lang";
 
-import { ThemeContext, GOLD, GREEN, RED, TEAL, BLUE, PURPLE, BG_DEEP } from "../theme.js";
+import { ThemeContext, GOLD, GREEN, RED, TEAL, BLUE, PURPLE } from "../theme.js";
 import { UICss, Modal, Chip, Btn, Toggle, Pill, useFX } from "../ui";
 
 // ─── CSS (template-specific only; base lives in UICss) ───────────
@@ -386,7 +386,7 @@ function TemplateCard({ tpl, onEdit, onSend, onToggle, onDelete }) {
   return (
     <div className="fade-in" onClick={()=>onEdit(tpl)} style={{
       position:"relative",overflow:"hidden",borderRadius:13,padding:"8px 10px 7px",cursor:"pointer",
-      background:`linear-gradient(155deg,color-mix(in srgb,${cat.color} 50%,${BG_DEEP}) 0%,color-mix(in srgb,${cat.color} 18%,${BG_DEEP}) 100%)`,
+      background:`color-mix(in srgb,${cat.color} 26%,transparent)`,backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",
       border:`1px solid color-mix(in srgb,${cat.color} 45%,transparent)`,
       boxShadow:`-2px 5px 13px ${shade(0.45)},inset 1px 1px 0 ${glow(0.15)}`,
       opacity:dimmed?0.55:1,
@@ -515,7 +515,7 @@ function SimpleRow({ emoji, title, hint, color, active, onToggle, onEdit, snippe
   return (
     <div className="fade-in" onClick={onEdit} style={{
       position:"relative",overflow:"hidden",borderRadius:14,padding:"11px 13px",cursor:"pointer",
-      background:`linear-gradient(155deg,color-mix(in srgb,${color} 38%,${BG_DEEP}) 0%,color-mix(in srgb,${color} 14%,${BG_DEEP}) 100%)`,
+      background:`color-mix(in srgb,${color} 26%,transparent)`,backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",
       border:`1px solid color-mix(in srgb,${color} 40%,transparent)`,
       boxShadow:`-2px 5px 13px ${shade(0.45)},inset 1px 1px 0 ${glow(0.15)}`,
       opacity:active===false?0.6:1,

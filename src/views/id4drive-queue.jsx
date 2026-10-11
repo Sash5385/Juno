@@ -89,7 +89,7 @@ function QueueRow({ item, pos, onInvite, onBooked, onArchive, onDelete, dragHand
   return (
     <div className={`drag-item fade-in ${isDragging?"dragging":""}`} style={{
       position:"relative", borderRadius:14, marginBottom:8, overflow:"hidden",
-      background:`linear-gradient(155deg,color-mix(in srgb,${st.color} 50%,${BG_DEEP}) 0%,color-mix(in srgb,${st.color} 18%,${BG_DEEP}) 100%)`,
+      background:`color-mix(in srgb,${st.color} 26%,transparent)`,backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",
       border:`1px solid color-mix(in srgb,${st.color} 45%,transparent)`,
       boxShadow:`-2px 5px 13px ${shade(0.45)},inset 1px 1px 0 ${glow(0.15)}`,
     }}>
@@ -114,15 +114,15 @@ function QueueRow({ item, pos, onInvite, onBooked, onArchive, onDelete, dragHand
           }}>{pos}</div>
         </div>
         <div style={{flex:1,minWidth:0}}>
-          <div style={{fontSize:13,fontWeight:800,color:"#fff",textShadow:`0 1px 3px ${shade(0.5)}`,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{item.name}</div>
-          <div style={{fontSize:10,color:FAINT,marginTop:2,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+          <div style={{fontSize:14.5,fontWeight:700,color:"#fff",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{item.name}</div>
+          <div style={{fontSize:11.5,color:"rgba(255,255,255,0.75)",marginTop:2,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
             {item.phone}
             {svcLabel && ` · ${svcLabel}${hrs ? ` ${hrs}г` : ""}`}
           </div>
         </div>
         <div style={{textAlign:"right",flexShrink:0}}>
-          <div style={{fontSize:9.5,fontWeight:800,color:st.color}}>{st.label}</div>
-          <div style={{fontSize:9.5,color:FAINT,marginTop:2}}>{fmtWait(item.addedAt)}</div>
+          <div style={{fontSize:11,fontWeight:700,color:st.color}}>{st.label}</div>
+          <div style={{fontSize:11,color:"rgba(255,255,255,0.7)",marginTop:2}}>{fmtWait(item.addedAt)}</div>
         </div>
       </div>
 
@@ -130,7 +130,7 @@ function QueueRow({ item, pos, onInvite, onBooked, onArchive, onDelete, dragHand
       {item.status !== "archived" && (
         <div style={{display:"grid",gridTemplateColumns:`repeat(${item.status==="waiting"?4:item.status==="offered"?3:2},1fr)`,borderTop:`1px solid ${BORDER}`}}>
           {item.status === "waiting" && (
-            <button onClick={onInvite} style={{padding:"8px 0",border:"none",borderRight:`1px solid ${BORDER}`,cursor:"pointer",background:"transparent",color:PURPLE,fontSize:11,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",gap:5}}>
+            <button onClick={onInvite} style={{padding:"11px 0",border:"none",borderRight:`1px solid ${BORDER}`,cursor:"pointer",background:"transparent",color:PURPLE,fontSize:12,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",gap:5}}>
               <div className="icon3d" style={{width:22,height:22,background:"linear-gradient(165deg,#c084fc,#7c3aed)",borderRadius:7}}>
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" style={{position:"relative",zIndex:1}}><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
               </div>
@@ -170,7 +170,7 @@ function QueueRow({ item, pos, onInvite, onBooked, onArchive, onDelete, dragHand
 
 // ─── MAIN ────────────────────────────────────────────────────────
 export default function QueueView({ settings }) {
-  const { DIM, FAINT, GOLD, GREEN, PURPLE, BLUE, ACCENT, TEAL, BG_DEEP } = useContext(ThemeContext);
+  const { DIM, FAINT, GOLD, GREEN, PURPLE, BLUE, TEAL } = useContext(ThemeContext);
   const [all,       setAll]       = useState([]);
 
   const colorIdMap = useMemo(() => ({
@@ -246,7 +246,7 @@ export default function QueueView({ settings }) {
           ].map((s,i)=>(
             <div key={i} style={{
               borderRadius:11, padding:"10px 6px", textAlign:"center",
-              background:`linear-gradient(155deg,color-mix(in srgb,${s.color} 22%,${BG_DEEP}),color-mix(in srgb,${s.color} 6%,${BG_DEEP}))`,
+              background:`color-mix(in srgb,${s.color} 18%,transparent)`,backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",
               border:`1px solid color-mix(in srgb,${s.color} 32%,transparent)`,
             }}>
               <div style={{fontSize:18,fontWeight:900,color:"#fff"}}>{s.value}</div>

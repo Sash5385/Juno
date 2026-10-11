@@ -529,7 +529,7 @@ export default function StatsView() {
           ].map((k, i) => (
             <Card key={i} className="fu" style={{
               padding:"10px 9px",
-              background:`linear-gradient(155deg,color-mix(in srgb,${k.color} 20%,${BG_DEEP}),color-mix(in srgb,${k.color} 6%,${BG_DEEP}))`,
+              background:`color-mix(in srgb,${k.color} 18%,transparent)`,backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",
               border:`1px solid color-mix(in srgb,${k.color} 30%,transparent)`,
               textAlign:"center",
             }}>
@@ -632,7 +632,7 @@ export default function StatsView() {
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7}}>
           <Card className="fu" style={{
             padding:"12px",
-            background:`linear-gradient(155deg,color-mix(in srgb,${GREEN} 14%,${BG_DEEP}),color-mix(in srgb,${GREEN} 3%,${BG_DEEP}))`,
+            background:`color-mix(in srgb,${GREEN} 18%,transparent)`,backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",
             border:`1px solid color-mix(in srgb,${GREEN} 24%,transparent)`,
           }}>
             <div style={{fontSize:9,color:"rgba(255,255,255,0.6)",letterSpacing:1,textTransform:"uppercase",fontWeight:700,marginBottom:7}}>Розподіл</div>
@@ -660,7 +660,7 @@ export default function StatsView() {
 
           <Card className="fu" style={{
             padding:"12px",
-            background:`linear-gradient(155deg,color-mix(in srgb,${GOLD} 14%,${BG_DEEP}),color-mix(in srgb,${GOLD} 3%,${BG_DEEP}))`,
+            background:`color-mix(in srgb,${GOLD} 18%,transparent)`,backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",
             border:`1px solid color-mix(in srgb,${GOLD} 24%,transparent)`,
           }}>
             <div style={{fontSize:9,color:"rgba(255,255,255,0.6)",letterSpacing:1,textTransform:"uppercase",fontWeight:700,marginBottom:7}}>{byPeriodLabel}</div>
@@ -686,7 +686,7 @@ export default function StatsView() {
         {popularSlots.length > 0 && (
           <Card className="fu" style={{
             padding:"12px 13px",
-            background:`linear-gradient(155deg,color-mix(in srgb,${GOLD} 14%,${BG_DEEP}),color-mix(in srgb,${GOLD} 3%,${BG_DEEP}))`,
+            background:`color-mix(in srgb,${GOLD} 18%,transparent)`,backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",
             border:`1px solid color-mix(in srgb,${GOLD} 24%,transparent)`,
           }}>
             <div style={{fontSize:9,color:"rgba(255,255,255,0.6)",letterSpacing:1,textTransform:"uppercase",fontWeight:700,marginBottom:10}}>Популярні слоти</div>
