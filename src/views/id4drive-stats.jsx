@@ -207,7 +207,13 @@ function trendPct(cur, prev) {
 
 // ─── CHIP ────────────────────────────────────────────────────────
 const Chip = ({label, active, onClick, color}) => {
-  const { ACC_HI, ACCENT, SURF_HI, SURFACE, DIM, SO } = useContext(ThemeContext);
+  const { ACC_HI, ACCENT, SURF_HI, SURFACE, DIM, SO, FOG, TEXT } = useContext(ThemeContext);
+  if (FOG && !color) return (
+    <button onClick={onClick} style={{
+      flex:1, padding:"9px 2px", borderRadius:11, border:"none", cursor:"pointer", fontSize:12, fontWeight:600, fontFamily:"inherit", textAlign:"center", whiteSpace:"nowrap",
+      background: active ? SURF_HI : "transparent", color: active ? TEXT : DIM, boxShadow: active ? "0 2px 8px rgba(0,0,0,.12)" : "none",
+    }}>{label}</button>
+  );
   return (
     <button onClick={onClick} style={{
       flex:1, padding:"7px 4px", borderRadius:9, border:"none", cursor:"pointer", fontSize:11, fontWeight:700, fontFamily:"inherit", textAlign:"center",
@@ -441,7 +447,7 @@ export default function StatsView() {
       <div style={{display:"flex",flexDirection:"column",gap:8,fontFamily:"ui-sans-serif,-apple-system,system-ui,sans-serif",color:TEXT}}>
 
         {/* ── PERIOD ── */}
-        <div style={{display:"flex",gap:6}}>
+        <div style={{display:"flex",gap:0,background:SURFACE,padding:3,borderRadius:14,border:`1px solid ${BORDER}`,backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)"}}>
           {[["day","День"],["week",t('st2.week')],["month",t('st2.month')],["year",t('st2.year')],["custom","Період"]].map(([k,l])=>(
             <Chip key={k} label={l} active={period===k} onClick={()=>setPeriod(k)}/>
           ))}
@@ -533,14 +539,14 @@ export default function StatsView() {
               border:`1px solid color-mix(in srgb,${k.color} 30%,transparent)`,
               textAlign:"center",
             }}>
-              <div style={{fontSize:8,color:"rgba(255,255,255,0.6)",letterSpacing:0.6,textTransform:"uppercase",fontWeight:700,marginBottom:6}}>{k.label}</div>
-              <div style={{fontSize:18,fontWeight:900,color:"#fff",letterSpacing:-0.3,lineHeight:1.05}}>{k.value}</div>
+              <div style={{fontSize:10.5,color:"rgba(255,255,255,0.7)",letterSpacing:0.6,textTransform:"uppercase",fontWeight:600,marginBottom:6}}>{k.label}</div>
+              <div style={{fontSize:21,fontWeight:800,color:"#fff",letterSpacing:-0.3,lineHeight:1.05,whiteSpace:"nowrap"}}>{k.value}</div>
               {(k.extra || (k.trend != null && k.trend !== 0)) && (
                 <div style={{display:"flex",justifyContent:"center",alignItems:"center",gap:5,marginTop:5,flexWrap:"wrap"}}>
-                  {k.extra && <span style={{fontSize:9,color:"rgba(255,255,255,0.55)",fontWeight:700}}>{k.extra}</span>}
+                  {k.extra && <span style={{fontSize:10.5,color:"rgba(255,255,255,0.65)",fontWeight:600}}>{k.extra}</span>}
                   {k.trend != null && k.trend !== 0 && (
                     <span style={{
-                      fontSize:8, fontWeight:800, padding:"1px 5px", borderRadius:5,
+                      fontSize:10, fontWeight:700, padding:"2px 7px", borderRadius:99,
                       color:k.trend>=0?GREEN:RED,
                       background:k.trend>=0?`${GREEN}1f`:`${RED}1f`,
                     }}>{k.trend>=0?"+":""}{k.trend}%</span>
@@ -554,7 +560,7 @@ export default function StatsView() {
         {/* ── INCOME GOAL ── */}
         <Card className="fu" style={{padding:"12px 13px"}}>
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:editingGoal?10:incomeGoal?9:4}}>
-            <div style={{fontSize:9,color:FAINT,letterSpacing:1,textTransform:"uppercase",fontWeight:700}}>🎯 Ціль місяця</div>
+            <div style={{fontSize:11,color:DIM,letterSpacing:1,textTransform:"uppercase",fontWeight:700}}>🎯 Ціль місяця</div>
             {!editingGoal && (
               <button onClick={()=>{setGoalInput(String(incomeGoal||""));setEditingGoal(true);}} style={{
                 padding:"3px 8px",borderRadius:6,border:"none",cursor:"pointer",fontSize:10,fontWeight:700,fontFamily:"inherit",

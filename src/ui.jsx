@@ -50,7 +50,7 @@ export const softA = (c, a) => `color-mix(in srgb, ${c} ${Math.round(a*100)}%, t
 
 // ── shared global CSS (icon3d, animations, scrollbar) ──────────
 export function UICss() {
-  const { GLOW, SHADE, BORDER, SURF_LO, GREEN } = useContext(ThemeContext);
+  const { GLOW, SHADE, BORDER, SURF_LO, GREEN, BTN_GRAD } = useContext(ThemeContext);
   return <style>{`
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 ::-webkit-scrollbar{width:6px;height:6px}
@@ -60,7 +60,7 @@ export function UICss() {
 .icon3d::before{content:'';position:absolute;top:0;right:0;width:60%;height:50%;background:radial-gradient(ellipse at top right,rgba(${GLOW},0.4) 0%,transparent 70%);pointer-events:none}
 .icon3d>svg{position:relative;z-index:1;filter:drop-shadow(0 1px 2px rgba(${SHADE},0.4))}
 .ui-toggle{width:46px;height:26px;border-radius:13px;cursor:pointer;position:relative;transition:background .2s;background:${SURF_LO};box-shadow:inset 2px 2px 5px rgba(${SHADE},0.4);flex-shrink:0}
-.ui-toggle.on{background:linear-gradient(165deg,${GREEN},color-mix(in srgb,${GREEN} 70%,#000))}
+.ui-toggle.on{background:${BTN_GRAD || `linear-gradient(165deg,${GREEN},color-mix(in srgb,${GREEN} 70%,#000))`}}
 .ui-toggle-thumb{position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:10px;background:linear-gradient(135deg,#fff,#ccc);transition:left .2s;box-shadow:-1px 2px 4px rgba(${SHADE},0.3)}
 .ui-toggle.on .ui-toggle-thumb{left:23px}
 .drag-item{transition:transform .12s,box-shadow .12s;touch-action:none}

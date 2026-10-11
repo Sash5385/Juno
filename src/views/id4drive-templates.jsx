@@ -510,28 +510,26 @@ function SimpleEditModal({ tpl, onSave, onClose }) {
 
 // ─── РЯДОК «СИТУАЦІЇ» у простому режимі ────────────────────────────
 function SimpleRow({ emoji, title, hint, color, active, onToggle, onEdit, snippet, action, children }) {
-  const { shade, glow } = useFX();
   const stop = e => e.stopPropagation();
   return (
     <div className="fade-in" onClick={onEdit} style={{
-      position:"relative",overflow:"hidden",borderRadius:14,padding:"11px 13px",cursor:"pointer",
+      position:"relative",overflow:"hidden",borderRadius:16,padding:"14px 14px",cursor:"pointer",
       background:`color-mix(in srgb,${color} 26%,transparent)`,backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",
-      border:`1px solid color-mix(in srgb,${color} 40%,transparent)`,
-      boxShadow:`-2px 5px 13px ${shade(0.45)},inset 1px 1px 0 ${glow(0.15)}`,
+      border:`1px solid color-mix(in srgb,${color} 55%,transparent)`,
       opacity:active===false?0.6:1,
     }}>
       <div style={{display:"flex",alignItems:"center",gap:9}}>
         <span style={{fontSize:20,flexShrink:0,lineHeight:1}}>{emoji}</span>
         <div style={{flex:1,minWidth:0}}>
-          <div style={{fontSize:14,fontWeight:800,color:"#fff"}}>{title}</div>
-          <div style={{fontSize:11,color:"rgba(255,255,255,0.7)",fontWeight:600,marginTop:1}}>{hint}</div>
+          <div style={{fontSize:15,fontWeight:700,color:"#fff"}}>{title}</div>
+          <div style={{fontSize:12,color:"rgba(255,255,255,0.75)",fontWeight:500,marginTop:2}}>{hint}</div>
         </div>
         {onToggle && <div onClick={stop}><Toggle on={active} onChange={onToggle}/></div>}
         {action}
       </div>
       {snippet && (
         <div style={{
-          marginTop:8,fontSize:11.5,lineHeight:1.4,color:"rgba(255,255,255,0.6)",
+          marginTop:10,fontSize:12.5,lineHeight:1.45,color:"rgba(255,255,255,0.7)",
           display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden",
         }}>{snippet}</div>
       )}
@@ -606,7 +604,7 @@ export default function TemplatesView() {
       <div style={{display:"flex",flexDirection:"column",gap:8,fontFamily:"ui-sans-serif,-apple-system,system-ui,sans-serif",color:TEXT}}>
 
         {/* ── ПРОСТИЙ РЕЖИМ: що і коли надсилається ── */}
-        <div style={{fontSize:12,color:FAINT,padding:"0 2px 2px"}}>
+        <div style={{fontSize:13,color:FAINT,padding:"0 2px 4px",lineHeight:1.45}}>
           Що і коли надсилається клієнтам. Вимкніть непотрібне або натисніть, щоб змінити текст.
         </div>
         <div style={{display:"flex",flexDirection:"column",gap:8}}>
@@ -617,12 +615,12 @@ export default function TemplatesView() {
               <div style={{display:"flex",flexDirection:"column",gap:6,marginTop:9}} onClick={e=>e.stopPropagation()}>
                 {reminders.map(r=>(
                   <div key={r.id} onClick={()=>setSimpleTpl(r)} style={{
-                    display:"flex",alignItems:"center",gap:8,padding:"7px 10px",borderRadius:10,cursor:"pointer",
-                    background:"rgba(0,0,0,0.22)",opacity:r.active?1:0.55,
+                    display:"flex",alignItems:"center",gap:8,padding:"10px 12px",borderRadius:14,cursor:"pointer",
+                    background:"rgba(255,255,255,0.1)",opacity:r.active?1:0.55,
                   }}>
                     <div style={{flex:1,minWidth:0}}>
-                      <div style={{fontSize:12.5,fontWeight:800,color:"#fff"}}>За {r.reminderHours ?? 24} год до запису</div>
-                      <div style={{fontSize:11,color:"rgba(255,255,255,0.6)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{snip(r)}</div>
+                      <div style={{fontSize:13.5,fontWeight:700,color:"#fff"}}>За {r.reminderHours ?? 24} год до запису</div>
+                      <div style={{fontSize:12,color:"rgba(255,255,255,0.65)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{snip(r)}</div>
                     </div>
                     <div onClick={e=>e.stopPropagation()}><Toggle on={r.active} onChange={v=>onToggle(r.id,v)}/></div>
                   </div>
@@ -640,8 +638,8 @@ export default function TemplatesView() {
                 onToggle={manual ? undefined : (v=>onToggle(tpl.id,v))}
                 action={manual ? (
                   <button onClick={e=>{e.stopPropagation();setSendTpl(tpl);}} style={{
-                    padding:"7px 11px",border:"none",borderRadius:9,cursor:"pointer",fontFamily:"inherit",
-                    background:"rgba(0,0,0,0.28)",color:"#fff",fontSize:11,fontWeight:800,flexShrink:0,
+                    padding:"9px 15px",border:"none",borderRadius:99,cursor:"pointer",fontFamily:"inherit",
+                    background:"rgba(255,255,255,0.16)",color:"#fff",fontSize:12,fontWeight:700,flexShrink:0,
                   }}>Надіслати</button>
                 ) : null}/>
             );
@@ -651,13 +649,13 @@ export default function TemplatesView() {
         {/* ── ДОДАТКОВО: свої шаблони, канали, умови ── */}
         <div style={{marginTop:6}}>
           <div onClick={()=>setAdvOpen(o=>!o)} style={{
-            display:"flex",alignItems:"center",gap:9,padding:"12px 13px",borderRadius:14,cursor:"pointer",
-            background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.1)",
+            display:"flex",alignItems:"center",gap:9,padding:"14px 14px",borderRadius:16,cursor:"pointer",
+            background:"rgba(255,255,255,0.07)",border:"1px solid rgba(255,255,255,0.14)",backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",
           }}>
             <span style={{fontSize:18}}>⚙️</span>
             <div style={{flex:1,minWidth:0}}>
-              <div style={{fontSize:14,fontWeight:800,color:TEXT}}>Додатково</div>
-              <div style={{fontSize:11,color:FAINT,marginTop:1}}>Свої шаблони, канали, умови відправки</div>
+              <div style={{fontSize:15,fontWeight:700,color:TEXT}}>Додатково</div>
+              <div style={{fontSize:12,color:FAINT,marginTop:2}}>Свої шаблони, канали, умови відправки</div>
             </div>
             <span style={{color:FAINT,fontSize:12}}>{advOpen?"▲":"▼"}</span>
           </div>
