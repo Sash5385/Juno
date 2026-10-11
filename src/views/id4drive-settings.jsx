@@ -377,6 +377,7 @@ function WeekScheduleEditor({ weekSchedule, updDay, setWeek }) {
   const day = weekSchedule[sel];
   const lS = day.lunchStart ?? 12, lE = day.lunchEnd ?? 13;
   const fmt = x => `${String(Math.floor(x)).padStart(2,"0")}:${x % 1 >= 0.5 ? "30" : "00"}`;
+  const fmtHM = h => { const m = Math.round(h * 60); const H = Math.floor(m / 60), M = m % 60; return M ? `${H} год ${M} хв` : `${H} год`; };
   const hrs = d => d.enabled ? Math.max(0, d.end - d.start - (d.lunchEnabled ? Math.max(0, (d.lunchEnd ?? 13) - (d.lunchStart ?? 12)) : 0)) : 0;
   const total = weekSchedule.reduce((s, d) => s + hrs(d), 0);
   const pct = x => `${(Math.max(0, Math.min(24, x)) / 24) * 100}%`;
@@ -413,7 +414,7 @@ function WeekScheduleEditor({ weekSchedule, updDay, setWeek }) {
               transform:on?"translateY(-2px)":"none",transition:"all .15s",
             }}>
               <span style={{fontSize:14,fontWeight:800,color:on?"#0b1a08":d.enabled?"#fff":FAINT}}>{n}</span>
-              <span style={{fontSize:10,fontWeight:700,color:on?"#0b1a08":FAINT}}>{d.enabled ? `${hrs(d)}г` : "—"}</span>
+              <span style={{fontSize:10,fontWeight:700,color:on?"#0b1a08":FAINT}}>{d.enabled ? `${Math.round(hrs(d) * 10) / 10}г` : "—"}</span>
             </button>
           );
         })}
@@ -426,7 +427,7 @@ function WeekScheduleEditor({ weekSchedule, updDay, setWeek }) {
               {day.enabled ? <>{fmt(day.start)} <span style={{color:GREEN}}>→</span> {fmt(day.end)}</> : "Вихідний день"}
             </div>
             <div style={{fontSize:12,color:DIM,marginTop:3}}>
-              {DAY_NAMES[sel]}{day.enabled ? ` · ${hrs(day)} год роботи${day.lunchEnabled?` · перерва ${fmt(lS)}–${fmt(lE)}`:""}` : ""}
+              {DAY_NAMES[sel]}{day.enabled ? ` · ${fmtHM(hrs(day))} роботи${day.lunchEnabled?` · перерва ${fmt(lS)}–${fmt(lE)}`:""}` : ""}
             </div>
           </div>
           <Toggle color={day.enabled?GREEN:RED} on={day.enabled} onChange={v=>updDay(sel,{enabled:v})}/>
@@ -478,7 +479,7 @@ function WeekScheduleEditor({ weekSchedule, updDay, setWeek }) {
           Копіювати {DAY_NAMES[sel]} на всі робочі дні
         </button>
       )}
-      <div style={{textAlign:"center",fontSize:12,color:DIM,marginTop:10}}>Усього <b style={{color:TEXT}}>{total} год</b> на тиждень</div>
+      <div style={{textAlign:"center",fontSize:12,color:DIM,marginTop:10}}>Усього <b style={{color:TEXT}}>{fmtHM(total)}</b> на тиждень</div>
     </div>
   );
 }
