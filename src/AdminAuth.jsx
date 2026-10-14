@@ -7,6 +7,7 @@ import { LOGIN_CSS } from "./loginStyles";
 import { APP_VERSION } from "./version";
 import { DEMO, DEMO_USER } from "./demo/demoMode.js";
 import { deleteAccountRequest } from "./deleteAccountApi";
+import { ACCOUNT_SOLO, ACCOUNT_SALON, ownerRow } from "./workspace";
 
 // Вендор SaaS (ви) — бачить усіх майстрів замість власного кабінету.
 const VENDOR_EMAIL = "sash5385@gmail.com";
@@ -257,6 +258,7 @@ export function InstructorSetupScreen({ onDone }) {
   const [phone,      setPhone]      = useState("");
   const [address,    setAddress]    = useState("");
   const [experience, setExperience] = useState("");
+  const [accountType, setAccountType] = useState(ACCOUNT_SOLO);
   const [slug,       setSlug]       = useState("");
   const [slugError,  setSlugError]  = useState("");
   const [saving,     setSaving]     = useState(false);
@@ -310,7 +312,9 @@ export function InstructorSetupScreen({ onDone }) {
       // Ліцензія вже може існувати (напр. після скидання даних) — правила дозволяють майстру
       // лише створити trial, а не перезаписати наявну, тому тоді пишемо тільки профіль.
       const licSnap = await get(iRef("license/status"));
-      const payload = { "admin_settings/profile": profile };
+      const payload = { "admin_settings/profile": profile, "admin_settings/accountType": accountType };
+      // Салон: власник одразу стає першим майстром у складі простору
+      if (accountType === ACCOUNT_SALON) payload[`staff/${iid}`] = ownerRow(profile.name);
       if (!licSnap.exists()) {
         payload["license/status"] = "trial";
         payload["license/trialEndsAt"] = Date.now() + TRIAL_DAYS * 24 * 3600 * 1000;
@@ -338,8 +342,22 @@ export function InstructorSetupScreen({ onDone }) {
         </div>
 
         <div style={{ marginBottom:14 }}>
-          <div style={LBL}>Ім'я та прізвище *</div>
-          <input value={name} onChange={e=>handleNameChange(e.target.value)} placeholder="Олександр Коваленко" style={INP}/>
+          <div style={LBL}>Як ви працюєте *</div>
+          <div style={{ display:"flex", background:BG_DEEP, border:`1px solid ${BORDER}`, borderRadius:12, padding:3 }}>
+            {[[ACCOUNT_SOLO,"Один майстер"],[ACCOUNT_SALON,"Салон"]].map(([k,l]) => (
+              <button key={k} type="button" onClick={()=>setAccountType(k)} disabled={saving} style={{
+                flex:1, padding:"10px 6px", borderRadius:10, border:"none", cursor:"pointer", fontFamily:"inherit", fontSize:13, fontWeight:700,
+                background: accountType===k ? "linear-gradient(135deg,#ff7a5c,#ff5a3c)" : "transparent", color: accountType===k ? "#fff" : DIM,
+              }}>{l}</button>
+            ))}
+          </div>
+          <div style={{ fontSize:11, color:DIM, marginTop:6 }}>
+            {accountType===ACCOUNT_SALON ? "Кілька майстрів в одному акаунті: у кожного свій календар, клієнти спільні. Майстрів додасте пізніше." : "Ви працюєте самі: один календар, свої клієнти."}
+          </div>
+        </div>
+        <div style={{ marginBottom:14 }}>
+          <div style={LBL}>{accountType===ACCOUNT_SALON ? "Назва салону *" : "Ім'я та прізвище *"}</div>
+          <input value={name} onChange={e=>handleNameChange(e.target.value)} placeholder={accountType===ACCOUNT_SALON ? "Салон Краса" : "Олександр Коваленко"} style={INP}/>
         </div>
         <div style={{ marginBottom:14 }}>
           <div style={LBL}>Телефон *</div>
