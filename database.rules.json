@@ -76,7 +76,16 @@
         },
         // Слоти інших майстрів салону: timeslots_m/{masterId}/{date}/{slotId}. Читає хто завгодно (як timeslots); пише власник
         // (клієнтські правила запису в них — на етапі «клієнтський бік»).
-        "timeslots_m": { ".read": true },
+        "timeslots_m": {
+          ".read": true,
+          "$mid": { ".write": "auth != null && auth.uid === $mid && root.child('instructors/'+$iid+'/staff/'+auth.uid+'/role').val() === 'master'" }
+        },
+        "slotBookings_m": {
+          "$mid": {
+            ".read": "auth != null && auth.uid === $mid && root.child('instructors/'+$iid+'/staff/'+auth.uid+'/role').val() === 'master'",
+            ".write": "auth != null && auth.uid === $mid && root.child('instructors/'+$iid+'/staff/'+auth.uid+'/role').val() === 'master'"
+          }
+        },
         "timeslots": {
           ".read": true,
           "$date": {
@@ -104,7 +113,8 @@
           }
         },
         "bookings": {
-          ".read": "auth != null && (auth.token.email === 'sash5385@gmail.com' && auth.token.email_verified === true)",
+          // Майстер салону (staff, role master) читає записи простору (клієнти спільні); пише лише свої (masterId = його uid) — див. $bookingId
+          ".read": "auth != null && ((auth.token.email === 'sash5385@gmail.com' && auth.token.email_verified === true) || root.child('instructors/'+$iid+'/staff/'+auth.uid+'/role').val() === 'master')",
           "$uid": {
             ".read": "auth != null && (auth.uid === $uid || auth.uid === $iid)",
             ".write": "auth != null && auth.uid === $iid",
@@ -112,9 +122,9 @@
             // studentConfirmed/rating/goals/studentNote або скасовує (status "cancelled"). Ціна, борг,
             // мітки, дата/час тощо після створення незмінні, видалити запис чи ці поля теж не можна.
             "$bookingId": {
-              ".write": "auth != null && auth.uid === $uid && root.child('instructors/'+$iid+'/users/'+$uid).exists() && (!data.exists() || (newData.exists() && (!data.child('price').exists() || newData.child('price').exists()) && (!data.child('masterId').exists() || newData.child('masterId').exists()) && (!data.child('debtAmount').exists() || newData.child('debtAmount').exists()) && (!data.child('manualPrice').exists() || newData.child('manualPrice').exists()) && (!data.child('status').exists() || newData.child('status').exists()) && (!data.child('createdBy').exists() || newData.child('createdBy').exists()) && (!data.child('date').exists() || newData.child('date').exists()) && (!data.child('time').exists() || newData.child('time').exists()) && (!data.child('durationHours').exists() || newData.child('durationHours').exists()) && (!data.child('tag').exists() || newData.child('tag').exists()))) && (data.exists() || (newData.child('status').val() === 'pending' && !newData.child('createdBy').exists()))",
+              ".write": "(auth != null && auth.uid === $uid && root.child('instructors/'+$iid+'/users/'+$uid).exists() && (!data.exists() || (newData.exists() && (!data.child('price').exists() || newData.child('price').exists()) && (!data.child('masterId').exists() || newData.child('masterId').exists()) && (!data.child('debtAmount').exists() || newData.child('debtAmount').exists()) && (!data.child('manualPrice').exists() || newData.child('manualPrice').exists()) && (!data.child('status').exists() || newData.child('status').exists()) && (!data.child('createdBy').exists() || newData.child('createdBy').exists()) && (!data.child('date').exists() || newData.child('date').exists()) && (!data.child('time').exists() || newData.child('time').exists()) && (!data.child('durationHours').exists() || newData.child('durationHours').exists()) && (!data.child('tag').exists() || newData.child('tag').exists()))) && (data.exists() || (newData.child('status').val() === 'pending' && !newData.child('createdBy').exists()))) || (auth != null && root.child('instructors/'+$iid+'/staff/'+auth.uid+'/role').val() === 'master' && (newData.exists() ? newData.child('masterId').val() === auth.uid : data.child('masterId').val() === auth.uid) && (!data.exists() || data.child('masterId').val() === auth.uid))",
               "$key": {
-                ".validate": "auth.uid === $iid || newData.val() === data.val() || (!data.parent().exists() && ($key === 'id' || $key === 'date' || $key === 'time' || $key === 'serviceType' || $key === 'serviceId' || $key === 'serviceName' || $key === 'price' || $key === 'surcharge' || $key === 'discountAmt' || $key === 'durationHours' || $key === 'studentName' || $key === 'phone' || $key === 'studentNote' || $key === 'rescheduledFrom' || $key === 'addons' || $key === 'addonsPrice' || $key === 'bufferMin' || $key === 'packageId' || $key === 'packageName' || $key === 'packageUseId' || $key === 'groupKey' || $key === 'groupCap' || ($key === 'masterId' && newData.isString() && root.child('instructors/'+$iid+'/staff/'+newData.val()).exists()) || $key === 'createdAt' || ($key === 'status' && newData.val() === 'pending'))) || (data.parent().exists() && ($key === 'studentConfirmed' || $key === 'rating' || $key === 'goals' || $key === 'studentNote' || $key === 'cancelledAt' || ($key === 'cancelledBy' && (newData.val() === 'student' || newData.val() === 'reschedule')) || ($key === 'status' && newData.val() === 'cancelled')))"
+                ".validate": "auth.uid === $iid || (root.child('instructors/'+$iid+'/staff/'+auth.uid+'/role').val() === 'master' && ($key !== 'masterId' || (newData.isString() && root.child('instructors/'+$iid+'/staff/'+newData.val()).exists()))) || newData.val() === data.val() || (!data.parent().exists() && ($key === 'id' || $key === 'date' || $key === 'time' || $key === 'serviceType' || $key === 'serviceId' || $key === 'serviceName' || $key === 'price' || $key === 'surcharge' || $key === 'discountAmt' || $key === 'durationHours' || $key === 'studentName' || $key === 'phone' || $key === 'studentNote' || $key === 'rescheduledFrom' || $key === 'addons' || $key === 'addonsPrice' || $key === 'bufferMin' || $key === 'packageId' || $key === 'packageName' || $key === 'packageUseId' || $key === 'groupKey' || $key === 'groupCap' || ($key === 'masterId' && newData.isString() && root.child('instructors/'+$iid+'/staff/'+newData.val()).exists()) || $key === 'createdAt' || ($key === 'status' && newData.val() === 'pending'))) || (data.parent().exists() && ($key === 'studentConfirmed' || $key === 'rating' || $key === 'goals' || $key === 'studentNote' || $key === 'cancelledAt' || ($key === 'cancelledBy' && (newData.val() === 'student' || newData.val() === 'reschedule')) || ($key === 'status' && newData.val() === 'cancelled')))"
               }
             }
           }
@@ -154,11 +164,13 @@
           }
         },
         "users": {
+          // Майстер салону бачить клієнтів простору і може створити картку гостя (guest_…), чужі картки не змінює
+          ".read": "auth != null && root.child('instructors/'+$iid+'/staff/'+auth.uid+'/role').val() === 'master'",
           "$uid": {
             ".read": "auth != null && (auth.uid === $uid || auth.uid === $iid)",
             // Клієнт НЕ може змінювати isVip/discount/hoursOffset/lessonBalance/blocked/customPrice/notes/badges…
             // — лише власну анкету й службові гілки нижче. Майстер (auth.uid === $iid) пише все.
-            ".write": "auth != null && auth.uid === $iid",
+            ".write": "auth != null && (auth.uid === $iid || (root.child('instructors/'+$iid+'/staff/'+auth.uid+'/role').val() === 'master' && $uid.beginsWith('guest_') && !data.exists()))",
             "profile":       { ".write": "auth != null && auth.uid === $uid",
                              "photo": { ".validate": "newData.val() === null || (newData.isString() && newData.val().length < 30000 && newData.val().beginsWith('data:image/'))" } },
             "welcomeSent":   { ".write": "auth != null && auth.uid === $uid" },
@@ -229,7 +241,7 @@
           }
         },
         "license": {
-          ".read": "auth != null && (auth.uid === $iid || (auth.token.email === 'sash5385@gmail.com' && auth.token.email_verified === true))",
+          ".read": "auth != null && (auth.uid === $iid || root.child('instructors/'+$iid+'/staff/'+auth.uid+'/role').val() === 'master' || (auth.token.email === 'sash5385@gmail.com' && auth.token.email_verified === true))",
           ".write": "auth != null && (auth.token.email === 'sash5385@gmail.com' && auth.token.email_verified === true)",
           "status": {
             ".validate": "(auth.token.email === 'sash5385@gmail.com' && auth.token.email_verified === true) || (!data.exists() && newData.val() === 'trial')"

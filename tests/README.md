@@ -36,7 +36,7 @@ bash tests/flows/run.sh        # потрібен клонований DrivePad-
 пакети: `node tests/addons/packages.test.mjs` (+ блок PACKAGES у rules-тесті);
 нагадування про повторний запис: `node functions/test/rebook.test.js`;
 салон: `node tests/addons/salon.test.mjs` (+ блок SALON у rules-тесті);
-робочий простір (салон: тип акаунта, склад, masterId): `node tests/addons/workspace.test.mjs` (+ блоки WORKSPACE і WORKSPACE INVITES у rules-тесті: запрошення майстра, staff_index);
+робочий простір (салон: тип акаунта, склад, masterId): `node tests/addons/workspace.test.mjs` (+ блоки WORKSPACE, WORKSPACE INVITES і MASTER SESSION у rules-тесті: запрошення майстра, staff_index, що можна й чого не можна майстру салону);
 групи: `node tests/addons/groups.test.mjs` (+ блок GROUP SEATS у rules-тесті);
 у `booking-flow` — блок 15 (салон: запис майстра блокує слоти його календаря timeslots_m/{masterId}, слоти власника не зачеплені), блоки 12 (допуслуги/перерва), 13 (пакети), 14 (групи) (запис з допуслугою+перервою, скасування, закритий майстром слот у перерві, чужий запис одразу після, серверне блокування перерви).
 

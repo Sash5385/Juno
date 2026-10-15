@@ -16,7 +16,7 @@ import { startTerms } from "./terms";
 import { bufferOf, bookingAddonTotals } from "./addons";
 import { rememberSalonInvite } from "./salon";
 import { rememberWorkspaceInvite, storedWorkspaceInvite, forgetWorkspaceInvite, isSalon, normStaff, masterOf } from "./workspace";
-import { JoinSalonScreen, MasterWaitScreen } from "./JoinSalonScreen";
+import { JoinSalonScreen, MasterProfileView } from "./JoinSalonScreen";
 
 export const LangContext = createContext('uk');
 
@@ -527,9 +527,9 @@ const DEFAULT_SETTINGS = {
 };
 
 // ─── VIEW RENDERER ───────────────────────────────────────────────
-function ViewRenderer({ masterKey, scheduleBookings, scheduleSetBookings, tab, settings, setSettings, bookings, setBookings, onSlotClick, onEmptySlotClick, openInfos, toggleInfo, activeDragIds, navTo, slotExistsRef, openSlotsRef, jumpTarget, setJumpTarget, onViewStudent, studentJump, onStudentJumpHandled }) {
+function ViewRenderer({ ws, onWs, masterKey, scheduleBookings, scheduleSetBookings, tab, settings, setSettings, bookings, setBookings, onSlotClick, onEmptySlotClick, openInfos, toggleInfo, activeDragIds, navTo, slotExistsRef, openSlotsRef, jumpTarget, setJumpTarget, onViewStudent, studentJump, onStudentJumpHandled }) {
   if (tab === "schedule")  return <ScheduleView key={masterKey} settings={settings} setSettings={setSettings} bookings={scheduleBookings || bookings} setBookings={scheduleSetBookings || setBookings} onSlotClick={onSlotClick} onEmptySlotClick={onEmptySlotClick} activeDragIds={activeDragIds} navTo={navTo} slotExistsRef={slotExistsRef} openSlotsRef={openSlotsRef} jumpTarget={jumpTarget} setJumpTarget={setJumpTarget} onViewStudent={onViewStudent}/>;
-  if (tab === "settings")  return <SettingsView settings={settings} setSettings={setSettings}/>;
+  if (tab === "settings")  return ws ? <MasterProfileView ws={ws} onLeft={() => onWs(null)}/> : <SettingsView settings={settings} setSettings={setSettings}/>;
   if (tab === "bookings")  return <BookingsView settings={settings} bookings={bookings}/>;
   if (tab === "queue")     return <QueueView settings={settings}/>;
   if (tab === "students")  return <StudentsView studentJump={studentJump} onStudentJumpHandled={onStudentJumpHandled} bookings={bookings} settings={settings}/>;
@@ -556,11 +556,47 @@ function dayIdxToDate(dayIdx) {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
 
+const MASTER_TABS = ["schedule", "students", "settings"];
+
 // ─── MAIN APP ────────────────────────────────────────────────────
+// Зовнішній шар: до входу в застосунок з'ясовуємо, чий це простір. Майстер салону (staff_index/{uid} → чужий iid + рядок у складі)
+// працює в просторі власника (iid = власник) лише зі своїм календарем; решта — у власному просторі. Усе нижче монтується ПІСЛЯ цього,
+// тож усі підписки одразу читають потрібний instructors/{iid}.
 export default function App() {
   const adminUser = useAdminAuth();
   const vendor = isVendor(adminUser);
-  const license = useLicense(vendor ? null : adminUser?.uid);
+  const uid = adminUser?.uid || null;
+  const [wsState, setWsState] = useState({ uid: null, ws: undefined }); // ws: undefined — з'ясовуємо, null — власний простір, об'єкт — майстер салону
+  useEffect(() => {
+    if (!uid || vendor) return undefined;
+    let alive = true;
+    (async () => {
+      let ws = null;
+      try {
+        // Без з'єднання get може довго висіти — чекаємо індекс не довше 8 с, далі працюємо як у власному просторі
+        const idx = (await Promise.race([get(ref(db, `staff_index/${uid}`)), new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 8000))])).val();
+        if (idx?.iid && idx.iid !== uid) {
+          const row = (await get(ref(db, `instructors/${idx.iid}/staff/${uid}`))).val();
+          if (row?.role === "master") {
+            const salonName = (await get(ref(db, `instructors/${idx.iid}/admin_settings/profile/name`)).catch(() => null))?.val() || "";
+            ws = { iid: idx.iid, name: row.name, salonName };
+          }
+        }
+      } catch { /* немає індексу — власний простір */ }
+      setCurrentIid(ws ? ws.iid : uid);
+      if (alive) setWsState({ uid, ws });
+    })();
+    return () => { alive = false; };
+  }, [uid, vendor]);
+  const setWs = ws => { setCurrentIid(ws ? ws.iid : uid); setWsState({ uid, ws }); };
+  if (uid && !vendor && wsState.uid !== uid) return null; // ще з'ясовуємо простір
+  const ws = uid && !vendor ? wsState.ws : null;
+  return <AdminApp key={ws ? ws.iid : "own"} adminUser={adminUser} ws={ws} onWs={setWs}/>;
+}
+
+function AdminApp({ adminUser, ws, onWs }) {
+  const vendor = isVendor(adminUser);
+  const license = useLicense(vendor ? null : (ws?.iid || adminUser?.uid));
   const licState = useLicenseState(license);
   // Режим читання: guard у firebaseDbGuard.js відхиляє записи в instructors/{iid}/… (крім license/fcmTokens)
   useEffect(() => {
@@ -573,7 +609,6 @@ export default function App() {
     window.addEventListener("unhandledrejection", h);
     return () => window.removeEventListener("unhandledrejection", h);
   }, []);
-  const [masterWs, setMasterWs] = useState(null); // { iid, name, salonName } — вхід майстра салону
   const [joinToken, setJoinToken] = useState(() => storedWorkspaceInvite());
   const [profileReady, setProfileReady] = useState(null); // null=перевіряємо, false=потрібне налаштування, true=готово
   const { needRefresh, updateServiceWorker, isUpdating } = useAppUpdate()
@@ -584,29 +619,14 @@ export default function App() {
   // Вендор (ви) не має власного тенанта — бачить SuperAdminScreen замість цього.
   useEffect(() => {
     if (!adminUser?.uid || vendor) { setProfileReady(null); return; }
-    setCurrentIid(adminUser.uid);
+    if (ws) { setProfileReady(true); return undefined; } // майстер салону: власного профілю немає, працює в просторі власника
     let alive = true;
-    (async () => {
-      // Майстер салону (staff_index/{uid} → чужий простір і його рядок у складі): окремий вхід, а не власний профіль
-      try {
-        const idx = (await get(ref(db, `staff_index/${adminUser.uid}`))).val();
-        if (idx?.iid && idx.iid !== adminUser.uid) {
-          const row = (await get(ref(db, `instructors/${idx.iid}/staff/${adminUser.uid}`))).val();
-          if (row?.role === "master") {
-            const salonName = (await get(ref(db, `instructors/${idx.iid}/admin_settings/profile/name`)).catch(() => null))?.val() || "";
-            if (alive) { setMasterWs({ iid: idx.iid, name: row.name, salonName }); setProfileReady(true); }
-            return;
-          }
-        }
-      } catch { /* немає індексу — звичайний майстер */ }
-      if (alive) setMasterWs(null);
-      get(iRef("admin_settings/profile")).then(snap => {
-        const p = snap.val();
-        if (alive) setProfileReady(!!(p && p.name));
-      }).catch(() => { if (alive) setProfileReady(false); });
-    })();
+    get(iRef("admin_settings/profile")).then(snap => {
+      const p = snap.val();
+      if (alive) setProfileReady(!!(p && p.name));
+    }).catch(() => { if (alive) setProfileReady(false); });
     return () => { alive = false; };
-  }, [adminUser, vendor]);
+  }, [adminUser, vendor, ws]);
   // Deep-link з push-сповіщення (?date=&time=&uid=&bookingId=) — одразу відкриваємо розклад на потрібній даті
   const [jumpTarget, setJumpTarget] = useState(() => {
     const p = new URLSearchParams(window.location.search);
@@ -622,7 +642,10 @@ export default function App() {
     if (!uid) return null;
     return { uid, openHistory: false, ts: Date.now() };
   });
-  const [tab,        setTab]      = useState(() => (jumpTarget ? "schedule" : studentJump ? "students" : (localStorage.getItem("admin_tab") || "schedule")));
+  const [tab,        setTab]      = useState(() => {
+    const t0 = jumpTarget ? "schedule" : studentJump ? "students" : (localStorage.getItem("admin_tab") || "schedule");
+    return ws && !MASTER_TABS.includes(t0) ? "schedule" : t0; // майстер салону не відкриває чужих розділів
+  });
   const [displayedTab, mosaicPhase] = useMosaicSwitch(tab, 0.5);
   useEffect(() => {
     if (jumpTarget || studentJump) window.history.replaceState(null, "", window.location.pathname);
@@ -817,7 +840,7 @@ export default function App() {
   // Sync all settings to Firebase (guarded until load completes to avoid overwriting with defaults)
   const settingsSyncTimer = React.useRef(null);
   useEffect(() => {
-    if (!adminUser || vendor || !settingsLoaded) return;
+    if (!adminUser || vendor || !settingsLoaded || ws) return; // майстер салону не пише налаштування власника
     clearTimeout(settingsSyncTimer.current);
     settingsSyncTimer.current = setTimeout(() => {
       update(iRef( 'admin_settings'), {
@@ -883,17 +906,19 @@ export default function App() {
   // ── Салон: склад майстрів і активний календар ──────────────────────────────────────────
   // Власник перемикає календарі майстрів; кожен має свій корінь слотів (timeslots_m/{id}), записи — з masterId.
   // «Один майстер» (accountType solo) цього блоку не торкається: masterId = власник, фільтр не діє.
-  const ownerIid = adminUser?.uid || null;
-  const salonOn = isSalon(settings);
+  const ownerIid = ws?.iid || adminUser?.uid || null;
+  const salonOn = !!ws || isSalon(settings);
   const [staffAll, setStaffList] = useState([]);
   const [pickedMaster, setPickedMaster] = useState(null);
   useEffect(() => {
     if (!adminUser?.uid || vendor || !salonOn) return undefined;
-    return onValue(iRef("staff"), snap => setStaffList(normStaff(snap.val(), adminUser.uid)), () => {});
-  }, [adminUser, vendor, salonOn]);
+    return onValue(iRef("staff"), snap => setStaffList(normStaff(snap.val(), ownerIid)), () => {});
+  }, [adminUser, vendor, salonOn, ownerIid]);
   const staffList = salonOn ? staffAll : [];
-  const masterId = salonOn && pickedMaster && staffList.some(m => m.id === pickedMaster) ? pickedMaster : ownerIid;
+  const masterId = ws ? adminUser.uid : (salonOn && pickedMaster && staffList.some(m => m.id === pickedMaster) ? pickedMaster : ownerIid);
   setActiveMaster(masterId); // до дочірніх компонентів, щоб їхні ефекти одразу читали слоти потрібного майстра
+  // Майстер салону бачить лише розклад, клієнтів і свій профіль
+  const navSettings = ws ? { ...settings, navTabs: MASTER_TABS } : settings;
   const inMasterScope = b => !salonOn || masterOf(b, ownerIid) === masterId;
   const scheduleBookings = salonOn ? bookings.filter(inMasterScope) : bookings;
   // Розклад бачить лише записи свого майстра, тож його setBookings не має «видаляти» чужі: зливаємо результат із рештою,
@@ -1264,9 +1289,8 @@ const pendingDeletesRef = React.useRef(new Set());
   if (adminUser === null) return <LoginScreen/>;
   if (vendor) return <SuperAdminScreen/>;
   if (profileReady === null) return null;
-  if (masterWs) return <MasterWaitScreen ws={masterWs} onLeft={() => { setMasterWs(null); setProfileReady(false); }}/>;
   if (profileReady === false && joinToken) {
-    return <JoinSalonScreen token={joinToken} onDone={ws => { setMasterWs(ws); setProfileReady(true); setJoinToken(""); }} onCancel={() => { forgetWorkspaceInvite(); setJoinToken(""); }}/>;
+    return <JoinSalonScreen token={joinToken} onDone={joined => { setJoinToken(""); onWs(joined); }} onCancel={() => { forgetWorkspaceInvite(); setJoinToken(""); }}/>;
   }
   if (profileReady === false) {
     return <InstructorSetupScreen onDone={profile => {
@@ -1297,7 +1321,7 @@ const pendingDeletesRef = React.useRef(new Set());
         display:"flex",flexDirection:"column",
         zIndex:1,
       }}>
-        <TopBar tab={tab} onChange={switchTab} settings={settings} setSettings={setSettings}/>
+        <TopBar tab={tab} onChange={switchTab} settings={navSettings} setSettings={setSettings}/>
         <LicenseBanner state={licState}/>
         <div className="tab-anim" key={`${displayedTab}-${tabVisits[displayedTab]||0}`} style={{
           position:"relative",
@@ -1311,12 +1335,12 @@ const pendingDeletesRef = React.useRef(new Set());
           {salonOn && staffList.length > 1 && displayedTab === "schedule" && <MasterTabs staff={staffList} active={masterId} onPick={setPickedMaster}/>}
           <Suspense fallback={<Loader/>}>
             <div className={displayedTab==="schedule" ? "view-fill" : "pc-wrap"}>
-            <ViewRenderer masterKey={masterId} scheduleBookings={scheduleBookings} scheduleSetBookings={scheduleSetBookings} tab={displayedTab} settings={settings} setSettings={setSettings} bookings={bookings} setBookings={handleSetBookings} onSlotClick={setSelectedBooking} onEmptySlotClick={setNewBookingData} openInfos={openInfos} toggleInfo={toggleInfo} activeDragIds={activeDragIds} navTo={switchTab} slotExistsRef={slotExistsRef} openSlotsRef={openSlotsRef} jumpTarget={jumpTarget} setJumpTarget={setJumpTarget} onViewStudent={onViewStudent} studentJump={studentJump} onStudentJumpHandled={()=>setStudentJump(null)}/>
+            <ViewRenderer ws={ws} onWs={onWs} masterKey={masterId} scheduleBookings={scheduleBookings} scheduleSetBookings={scheduleSetBookings} tab={displayedTab} settings={settings} setSettings={setSettings} bookings={bookings} setBookings={handleSetBookings} onSlotClick={setSelectedBooking} onEmptySlotClick={setNewBookingData} openInfos={openInfos} toggleInfo={toggleInfo} activeDragIds={activeDragIds} navTo={switchTab} slotExistsRef={slotExistsRef} openSlotsRef={openSlotsRef} jumpTarget={jumpTarget} setJumpTarget={setJumpTarget} onViewStudent={onViewStudent} studentJump={studentJump} onStudentJumpHandled={()=>setStudentJump(null)}/>
             </div>
           </Suspense>
           <MosaicOverlay phase={mosaicPhase} tileColor={fogOn ? FOG_STYLE.theme.BG : (theme.BG_IMAGE ? "#d4ba96" : theme.BG)} speed={0.5}/>
         </div>
-        <BottomNav active={tab} onChange={switchTab} settings={settings} chatUnread={chatUnread} journalUnread={journalUnread}/>
+        <BottomNav active={tab} onChange={switchTab} settings={navSettings} chatUnread={chatUnread} journalUnread={journalUnread}/>
       </div>
       {needRefresh && (
         <div className={`update-banner${isUpdating ? ' update-banner--loading' : ''}`} onClick={updateServiceWorker}>

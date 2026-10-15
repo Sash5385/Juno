@@ -71,9 +71,10 @@ export function JoinSalonScreen({ token, onDone, onCancel }) {
   );
 }
 
-// Поки календар майстра салону не готовий (наступне оновлення) — коротка сторінка-очікування з виходом із салону.
-export function MasterWaitScreen({ ws, onLeft }) {
+// Вкладка «Налаштування» для майстра салону: хто я, вихід з акаунта й вихід із салону (власник бачить майстрів у розділі «Майстри»).
+export function MasterProfileView({ ws, onLeft }) {
   const [busy, setBusy] = useState(false);
+  const [sure, setSure] = useState(false);
   const leave = async () => {
     const uid = auth.currentUser?.uid;
     if (!uid) return;
@@ -85,14 +86,21 @@ export function MasterWaitScreen({ ws, onLeft }) {
     } catch { setBusy(false); }
   };
   return (
-    <div style={wrap}><div style={card}>
-      <div style={{ textAlign: "center" }}>
-        <div style={{ fontSize: 13, color: DIM }}>Ви майстер салону</div>
-        <div style={{ fontSize: 22, fontWeight: 800, margin: "4px 0 14px" }}>{ws.salonName || "салон"}</div>
-        <div style={{ fontSize: 14, lineHeight: 1.55, color: DIM, marginBottom: 22 }}>Вас додано до складу. Власник уже бачить вас у розділі «Майстри». Ваш календар і клієнти з'являться в наступному оновленні.</div>
-        <button onClick={() => signOut(auth).catch(() => {})} style={primary(false)}>Вийти</button>
-        <button onClick={leave} disabled={busy} style={{ ...ghost, marginTop: 14, paddingBottom: 0 }}>{busy ? "…" : "Вийти із салону"}</button>
-      </div>
-    </div></div>
+    <div style={{ borderRadius: 18, border: `1px solid ${BORDER}`, background: SURFACE, backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)", padding: 20, color: TEXT, fontFamily: "Inter,ui-sans-serif,system-ui,sans-serif" }}>
+      <div style={{ fontSize: 13, color: DIM }}>Ви майстер салону</div>
+      <div style={{ fontSize: 22, fontWeight: 800, margin: "4px 0 2px" }}>{ws.salonName || "салон"}</div>
+      <div style={{ fontSize: 14, color: DIM, marginBottom: 20 }}>{ws.name}</div>
+      <div style={{ fontSize: 13, lineHeight: 1.55, color: DIM, marginBottom: 20 }}>Тут ваш календар і клієнти салону. Налаштування салону, послуги й статистику веде власник.</div>
+      <button onClick={() => signOut(auth).catch(() => {})} style={primary(false)}>Вийти з акаунта</button>
+      {!sure
+        ? <button onClick={() => setSure(true)} style={{ ...ghost, marginTop: 14, paddingBottom: 0 }}>Вийти із салону</button>
+        : <div style={{ marginTop: 14, fontSize: 13, color: DIM, lineHeight: 1.5 }}>
+            Ваші записи лишаться в салоні, але ви більше не зможете їх бачити. Вийти?
+            <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
+              <button onClick={leave} disabled={busy} style={{ ...primary(busy), flex: 1 }}>{busy ? "…" : "Так, вийти"}</button>
+              <button onClick={() => setSure(false)} style={{ ...ghost, flex: 1, padding: 12, border: `1px solid ${BORDER}`, borderRadius: 12 }}>Ні</button>
+            </div>
+          </div>}
+    </div>
   );
 }
