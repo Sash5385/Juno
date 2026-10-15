@@ -348,9 +348,26 @@ export function buildDemoTree() {
     services: SERVICES,
   };
 
+  // ?demo=1&salon=1 — демо салону: власник + двоє майстрів, частина записів розкидана між ними
+  let salonExtra = {};
+  try {
+    if (new URLSearchParams(window.location.search).get("salon") === "1") {
+      const staff = {
+        [DEMO_UID]: { role: "owner", name: "Андрій", color: "#60a5fa", joinedAt: nowTs },
+        "demo-master-1": { role: "master", name: "Олена", color: "#f472b6", joinedAt: nowTs },
+        "demo-master-2": { role: "master", name: "Ігор", color: "#34d399", joinedAt: nowTs },
+      };
+      admin_settings.accountType = "salon";
+      let n = 0;
+      Object.values(bookings).forEach(list => Object.values(list || {}).forEach(b => { if (b && b.status !== "cancelled" && n++ % 3) b.masterId = n % 2 ? "demo-master-1" : "demo-master-2"; }));
+      salonExtra = { staff, masters: Object.fromEntries(Object.entries(staff).map(([id, m]) => [id, { name: m.name, color: m.color, owner: m.role === "owner" }])) };
+    }
+  } catch { /* лише демо */ }
+
   return {
     instructors: {
       [DEMO_UID]: {
+        ...salonExtra,
         admin_settings,
         admin_data: { services: SERVICES },
         users, bookings, timeslots, queue, dayNotes, chats, chatMeta, reviews, notifications,

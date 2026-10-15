@@ -26,6 +26,7 @@ const ScheduleView  = lazy(()=>import("./views/id4drive-admin-v5").then(m=>({def
 const SettingsView  = lazy(()=>import("./views/id4drive-settings"))
 const BookingsView  = lazy(()=>import("./views/id4drive-bookings"))
 const StudentsView  = lazy(()=>import("./views/id4drive-students"))
+const AllMastersView = lazy(()=>import("./views/AllMastersView"))
 const ServicesView  = lazy(()=>import("./views/id4drive-services"))
 const ChatsView     = lazy(()=>import("./views/id4drive-chats"))
 const TemplatesView = lazy(()=>import("./views/id4drive-templates"))
@@ -214,11 +215,13 @@ const TAB_TITLES = {
 
 // ─── BOTTOM NAV ──────────────────────────────────────────────────
 // Салон: перемикач календарів майстрів над розкладом (власник бачить усіх, обраний майстер — свій календар)
+const ALL_MASTERS = "__all";
 function MasterTabs({ staff, active, onPick }) {
   const theme = useContext(ThemeContext);
+  const tabs = [{ id: ALL_MASTERS, name: "Усі", color: "#94a3b8" }, ...staff];
   return (
     <div style={{display:"flex",gap:6,overflowX:"auto",scrollbarWidth:"none",padding:"2px 6px 8px",flexShrink:0}}>
-      {staff.map(m => {
+      {tabs.map(m => {
         const on = m.id === active;
         return (
           <button key={m.id} onClick={() => onPick(m.id)} style={{
@@ -528,7 +531,8 @@ const DEFAULT_SETTINGS = {
 };
 
 // ─── VIEW RENDERER ───────────────────────────────────────────────
-function ViewRenderer({ ws, onWs, masterKey, scheduleSettings, scheduleBookings, scheduleSetBookings, tab, settings, setSettings, bookings, setBookings, onSlotClick, onEmptySlotClick, openInfos, toggleInfo, activeDragIds, navTo, slotExistsRef, openSlotsRef, jumpTarget, setJumpTarget, onViewStudent, studentJump, onStudentJumpHandled }) {
+function ViewRenderer({ allMode, staffList, onPickMaster, ws, onWs, masterKey, scheduleSettings, scheduleBookings, scheduleSetBookings, tab, settings, setSettings, bookings, setBookings, onSlotClick, onEmptySlotClick, openInfos, toggleInfo, activeDragIds, navTo, slotExistsRef, openSlotsRef, jumpTarget, setJumpTarget, onViewStudent, studentJump, onStudentJumpHandled }) {
+  if (tab === "schedule" && allMode) return <AllMastersView bookings={bookings} staff={staffList} settings={settings} onPick={onPickMaster}/>;
   if (tab === "schedule")  return <ScheduleView key={masterKey} settings={scheduleSettings || settings} setSettings={setSettings} bookings={scheduleBookings || bookings} setBookings={scheduleSetBookings || setBookings} onSlotClick={onSlotClick} onEmptySlotClick={onEmptySlotClick} activeDragIds={activeDragIds} navTo={navTo} slotExistsRef={slotExistsRef} openSlotsRef={openSlotsRef} jumpTarget={jumpTarget} setJumpTarget={setJumpTarget} onViewStudent={onViewStudent}/>;
   if (tab === "settings")  return ws ? <MasterProfileView ws={ws} onLeft={() => onWs(null)}/> : <SettingsView settings={settings} setSettings={setSettings}/>;
   if (tab === "bookings")  return <BookingsView settings={settings} bookings={bookings}/>;
@@ -927,6 +931,7 @@ function AdminApp({ adminUser, ws, onWs }) {
     set(iRef("masters"), pub).catch(() => { lastMastersRef.current = ""; });
   }, [ws, adminUser, vendor, salonOn, staffAll]);
   const masterId = ws ? adminUser.uid : (salonOn && pickedMaster && staffList.some(m => m.id === pickedMaster) ? pickedMaster : ownerIid);
+  const allMode = salonOn && !ws && staffList.length > 1 && pickedMaster === ALL_MASTERS; // огляд усіх майстрів (лише перегляд)
   setMasterTokenUid(ws ? adminUser?.uid : null);
   setActiveMaster(masterId); // до дочірніх компонентів, щоб їхні ефекти одразу читали слоти потрібного майстра
   // Власні графік і ціни майстра (master_settings/{id}) — лише для календаря цього майстра
@@ -1354,10 +1359,10 @@ const pendingDeletesRef = React.useRef(new Set());
           flexDirection:"column",
           background: !fogOn && theme.BG_IMAGE ? "#d4ba96" : "transparent",
         }}>
-          {salonOn && staffList.length > 1 && displayedTab === "schedule" && <MasterTabs staff={staffList} active={masterId} onPick={setPickedMaster}/>}
+          {salonOn && staffList.length > 1 && displayedTab === "schedule" && <MasterTabs staff={staffList} active={allMode ? ALL_MASTERS : masterId} onPick={setPickedMaster}/>}
           <Suspense fallback={<Loader/>}>
             <div className={displayedTab==="schedule" ? "view-fill" : "pc-wrap"}>
-            <ViewRenderer ws={ws} onWs={onWs} masterKey={masterId} scheduleSettings={scheduleSettings} scheduleBookings={scheduleBookings} scheduleSetBookings={scheduleSetBookings} tab={displayedTab} settings={settings} setSettings={setSettings} bookings={bookings} setBookings={handleSetBookings} onSlotClick={setSelectedBooking} onEmptySlotClick={setNewBookingData} openInfos={openInfos} toggleInfo={toggleInfo} activeDragIds={activeDragIds} navTo={switchTab} slotExistsRef={slotExistsRef} openSlotsRef={openSlotsRef} jumpTarget={jumpTarget} setJumpTarget={setJumpTarget} onViewStudent={onViewStudent} studentJump={studentJump} onStudentJumpHandled={()=>setStudentJump(null)}/>
+            <ViewRenderer allMode={allMode} staffList={staffList} onPickMaster={setPickedMaster} ws={ws} onWs={onWs} masterKey={masterId} scheduleSettings={scheduleSettings} scheduleBookings={scheduleBookings} scheduleSetBookings={scheduleSetBookings} tab={displayedTab} settings={settings} setSettings={setSettings} bookings={bookings} setBookings={handleSetBookings} onSlotClick={setSelectedBooking} onEmptySlotClick={setNewBookingData} openInfos={openInfos} toggleInfo={toggleInfo} activeDragIds={activeDragIds} navTo={switchTab} slotExistsRef={slotExistsRef} openSlotsRef={openSlotsRef} jumpTarget={jumpTarget} setJumpTarget={setJumpTarget} onViewStudent={onViewStudent} studentJump={studentJump} onStudentJumpHandled={()=>setStudentJump(null)}/>
             </div>
           </Suspense>
           <MosaicOverlay phase={mosaicPhase} tileColor={fogOn ? FOG_STYLE.theme.BG : (theme.BG_IMAGE ? "#d4ba96" : theme.BG)} speed={0.5}/>
