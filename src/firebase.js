@@ -19,6 +19,9 @@ export const slotRoot = () => (_master ? `timeslots_m/${_master}` : "timeslots")
 export const slotBookingsRoot = () => (_master ? `slotBookings_m/${_master}` : "slotBookings");
 // Поля нового запису від імені активного майстра (для власника/«Один майстер» порожньо — masterOf дає власника)
 export const newBookingMasterFields = () => (_master ? { masterId: _master } : {});
+// Майстер салону зберігає push-токен у staffTokens/{uid}/{deviceId} (власний вузол fcmTokens йому не дозволений)
+let _masterToken = null;
+export const setMasterTokenUid = (uid) => { _masterToken = uid || null; };
 export const iRef = (path) => ref(db, path ? `instructors/${_iid}/${path}` : `instructors/${_iid}`);
 
 const firebaseConfig = {
@@ -111,7 +114,7 @@ export async function registerAdminFCM() {
 
     if (token) {
       const deviceId = getDeviceId();
-      await set(iRef(`fcmTokens/${deviceId}`), token);
+      await set(iRef(_masterToken ? `staffTokens/${_masterToken}/${deviceId}` : `fcmTokens/${deviceId}`), token);
       console.log("FCM token saved to instructors/" + _iid + "/fcmTokens/" + deviceId);
     } else {
       console.warn("FCM: empty token returned");

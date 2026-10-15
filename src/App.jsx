@@ -1,6 +1,6 @@
 import React, { useState, useEffect, lazy, Suspense, createContext, useContext } from "react";
 import { ref, onValue, update, push, remove, get, set } from "firebase/database";
-import { iRef, db, slotRoot, setActiveMaster, setCurrentIid, registerAdminFCM, onAdminForegroundMessage } from "./firebase";
+import { iRef, db, slotRoot, setActiveMaster, setMasterTokenUid, setCurrentIid, registerAdminFCM, onAdminForegroundMessage } from "./firebase";
 import { useAdminAuth, LoginScreen, InstructorSetupScreen, isVendor, SuperAdminScreen } from "./AdminAuth";
 import { useAppUpdate } from "./hooks/useAppUpdate"
 import { useLicense, useLicenseState } from "./hooks/useLicense"
@@ -926,6 +926,7 @@ function AdminApp({ adminUser, ws, onWs }) {
     set(iRef("masters"), pub).catch(() => { lastMastersRef.current = ""; });
   }, [ws, adminUser, vendor, salonOn, staffAll]);
   const masterId = ws ? adminUser.uid : (salonOn && pickedMaster && staffList.some(m => m.id === pickedMaster) ? pickedMaster : ownerIid);
+  setMasterTokenUid(ws ? adminUser?.uid : null);
   setActiveMaster(masterId); // до дочірніх компонентів, щоб їхні ефекти одразу читали слоти потрібного майстра
   // Майстер салону бачить лише розклад, клієнтів і свій профіль
   const navSettings = ws ? { ...settings, navTabs: MASTER_TABS } : settings;

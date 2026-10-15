@@ -268,6 +268,12 @@
             ".write": "auth != null && auth.uid === $iid"
           }
         },
+        // Пристрої для push майстру салону: staffTokens/{masterId}/{deviceId} — пише лише сам майстр (staff), читає сервер
+        "staffTokens": {
+          "$mid": {
+            "$deviceId": { ".write": "auth != null && auth.uid === $mid && root.child('instructors/'+$iid+'/staff/'+auth.uid+'/role').val() === 'master'" }
+          }
+        },
         "license": {
           ".read": "auth != null && (auth.uid === $iid || root.child('instructors/'+$iid+'/staff/'+auth.uid+'/role').val() === 'master' || (auth.token.email === 'sash5385@gmail.com' && auth.token.email_verified === true))",
           ".write": "auth != null && (auth.token.email === 'sash5385@gmail.com' && auth.token.email_verified === true)",

@@ -165,13 +165,31 @@ function buildNewBookingBody(after, name, date, time) {
   return lines.join("\n");
 }
 
-// Хелпер: відправити push адміну (на всі зареєстровані пристрої)
+// Хелпер: відправити push адміну (на всі зареєстровані пристрої власника)
 async function pushAdmin(iid, title, body, data = {}) {
+  return pushToStaffDevices(iid, "fcmTokens", title, body, data);
+}
+
+// Push майстру салону (пристрої майстра лежать у staffTokens/{masterId}); власник і «Один майстер» — pushAdmin
+async function pushMaster(iid, masterId, title, body, data = {}) {
+  if (!masterId || masterId === iid) return pushAdmin(iid, title, body, data);
+  return pushToStaffDevices(iid, `staffTokens/${masterId}`, title, body, data);
+}
+
+// Подія запису: власник отримує завжди, майстер салону (masterId запису) — додатково на свої пристрої
+async function pushBookingStaff(iid, booking, title, body, data = {}) {
+  const res = await pushAdmin(iid, title, body, data);
+  const m = booking && typeof booking.masterId === "string" ? booking.masterId : null;
+  if (m && m !== iid) await pushMaster(iid, m, title, body, data).catch(() => false);
+  return res;
+}
+
+async function pushToStaffDevices(iid, tokensPath, title, body, data = {}) {
   title = await tr(iid, title); body = await tr(iid, body);
-  const snap = await iRef(iid, "fcmTokens").get();
+  const snap = await iRef(iid, tokensPath).get();
   const devices = collectDeviceTokens(snap.val());
-  console.log(`pushAdmin: iid=${iid} devices=${devices.length}, title="${title}"`);
-  if (!devices.length) { console.warn(`pushAdmin: no tokens at instructors/${iid}/fcmTokens`); return false; }
+  console.log(`pushAdmin: iid=${iid} path=${tokensPath} devices=${devices.length}, title="${title}"`);
+  if (!devices.length) { console.warn(`pushAdmin: no tokens at instructors/${iid}/${tokensPath}`); return false; }
   const link = data.url || "https://juno-booking-admin.web.app";
   let sent = false;
   for (const [deviceId, token] of devices) {
@@ -192,7 +210,7 @@ async function pushAdmin(iid, title, body, data = {}) {
       // Якщо токен протухнув — очищаємо щоб не повторювати помилку
       if (e.code === "messaging/registration-token-not-registered" ||
           e.code === "messaging/invalid-registration-token") {
-        await iRef(iid, `fcmTokens/${deviceId}`).remove().catch(() => {});
+        await iRef(iid, `${tokensPath}/${deviceId}`).remove().catch(() => {});
         console.warn(`pushAdmin: stale token removed for device=${deviceId}`);
       }
     }
@@ -514,9 +532,9 @@ exports.onBookingChanged = onValueWritten(
         if (after.rescheduledFrom) {
           // Клієнт переніс запис (старий запис скасовано з cancelledBy="reschedule", новий створено
           // з rescheduledFrom) — це не новий запис, а перенесення: кажемо з якого дня на який.
-          await pushAdmin(iid, "🔁 Запис перенесено", buildRescheduleBody(after, name, date, time), { url: adminLink() });
+          await pushBookingStaff(iid, after, "🔁 Запис перенесено", buildRescheduleBody(after, name, date, time), { url: adminLink() });
         } else {
-          await pushAdmin(iid, "📋 Новий запис", buildNewBookingBody(after, name, date, time), { url: adminLink() });
+          await pushBookingStaff(iid, after, "📋 Новий запис", buildNewBookingBody(after, name, date, time), { url: adminLink() });
         }
       }
       return;
@@ -529,7 +547,7 @@ exports.onBookingChanged = onValueWritten(
       console.log(`onBookingChanged: student cancel iid=${iid} uid=${uid}`);
       const freed = await freeBookingSlots(iid, uid, bookingId, before);
       await releasePackage(iid, uid, bookingId, before);
-      await pushAdmin(iid, "❌ Запис скасовано", `${name} · ${date} о ${time}`, { url: adminLink() });
+      await pushBookingStaff(iid, before, "❌ Запис скасовано", `${name} · ${date} о ${time}`, { url: adminLink() });
       if (freed && date !== "—" && time !== "—") {
         const freedDurationHours = before.durationHours || (before.durMin ? before.durMin / 60 : 1);
         await inviteNextInQueue(iid, `${date}_${time}`, [], freedDurationHours).catch(() => {});
@@ -590,7 +608,7 @@ exports.onBookingChanged = onValueWritten(
     // Студент підтвердив присутність
     if (after.studentConfirmed && !before.studentConfirmed) {
       console.log(`onBookingChanged: student confirmed iid=${iid} uid=${uid}`);
-      await pushAdmin(iid, "✅ Підтвердив присутність", `${name} · ${date} о ${time}`, { url: adminLink() });
+      await pushBookingStaff(iid, after, "✅ Підтвердив присутність", `${name} · ${date} о ${time}`, { url: adminLink() });
       return;
     }
 
@@ -616,7 +634,7 @@ exports.onBookingChanged = onValueWritten(
     const noteAfter = String(after.studentNote || "").trim();
     if (noteAfter && noteAfter !== noteBefore && after.status !== "cancelled" && after.createdBy !== "admin") {
       console.log(`onBookingChanged: student note changed iid=${iid} uid=${uid}`);
-      await pushAdmin(iid, "💬 Коментар до запису", `${name} · ${date} о ${time}\n${noteAfter}`, { url: adminLink() });
+      await pushBookingStaff(iid, after, "💬 Коментар до запису", `${name} · ${date} о ${time}\n${noteAfter}`, { url: adminLink() });
     }
   }
 );
@@ -906,6 +924,43 @@ exports.onSlotFreed = onValueWritten(
   }
 );
 
+// Те саме для календаря майстра салону (timeslots_m/{mid}): слот звільнився → пуш клієнтам через 5 хв, якщо ще вільний
+exports.onMasterSlotFreed = onValueWritten(
+  { ref: "instructors/{iid}/timeslots_m/{mid}/{date}/{slotId}", region: "europe-west1" },
+  async (event) => {
+    const before = event.data.before?.val();
+    const after  = event.data.after?.val();
+    if (before?.available === true) return;
+    if (!after || after.available !== true) return;
+
+    const { iid, mid, date, slotId } = event.params;
+    const enabledSnap = await iRef(iid, "admin_settings/slotFreedPushEnabled").get();
+    if (enabledSnap.exists() && enabledSnap.val() === false) return;
+
+    const slotDate = new Date(date + "T00:00:00");
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const diffDays = Math.round((slotDate - today) / 86400000);
+    if (diffDays < 0 || diffDays > 10) return;
+    const time = after.time;
+    if (!time) return;
+
+    await iRef(iid, `slotFreedQueue/${mid}__${date}_${time}`).set({
+      date, time, master: mid, sendAfter: Date.now() + 5 * 60 * 1000,
+    }).catch(() => {});
+
+    // Phone-only запис у цьому слоті майстра — скасовуємо, як і для календаря власника
+    const sb = await iRef(iid, `slotBookings_m/${mid}/${date}/${slotId}`).get();
+    if (sb.exists()) {
+      const { phone, bookingId } = sb.val();
+      if (phone && bookingId) {
+        await iRef(iid, `bookings_by_phone/${phone}/${bookingId}`).update({ status: "cancelled", cancelledAt: Date.now(), cancelledBy: "admin" }).catch(() => {});
+        await iRef(iid, `slotBookings_m/${mid}/${date}/${slotId}`).remove().catch(() => {});
+      }
+    }
+  }
+);
+
 // Кожну хвилину: відправляємо відкладені пуші про звільнені слоти
 exports.flushSlotFreedQueue = onSchedule(
   { schedule: "every 1 minutes", region: "europe-west1" },
@@ -937,12 +992,12 @@ exports.flushSlotFreedQueue = onSchedule(
       const lastNotifData = inst?.lastSlotNotif || {};
       const RATE_LIMIT_MS = 30 * 60 * 1000;
 
-      for (const { key, date, time } of tasks) {
+      for (const { key, date, time, master } of tasks) {
         await iRef(iid, `slotFreedQueue/${key}`).remove().catch(() => {});
 
-        // Перевіряємо що слот ще вільний
+        // Перевіряємо що слот ще вільний (у календарі власника або майстра салону)
         const slotId = `slot${time.replace(":", "")}`;
-        const slotSnap = await iRef(iid, `timeslots/${date}/${slotId}`).get();
+        const slotSnap = await iRef(iid, `${slotsRootOf(iid, master)}/${date}/${slotId}`).get();
         const slot = slotSnap.val();
         if (!slot || slot.available !== true) continue;
 
@@ -954,12 +1009,12 @@ exports.flushSlotFreedQueue = onSchedule(
         const tpl = await getActiveTemplateRaw(iid, "auto_queue").catch(() => null);
         const rawTitle = tpl?.title || "📅 Звільнився слот!";
         const rawBody  = tpl?.body  || `${dateFormatted} о ${time} — є вільне місце`;
-        const url   = `https://juno-booking-client.web.app/cabinet?date=${date}`;
+        const url   = `https://juno-booking-client.web.app/cabinet?date=${date}${master && master !== iid ? `&master=${master}` : ""}`;
 
         for (const uid of notifyUids) {
           if (lastNotifData[uid] && now - lastNotifData[uid] < RATE_LIMIT_MS) continue;
           const profileSnap = await iRef(iid, `users/${uid}/profile`).get().catch(() => null);
-          const vars = { "дата": dateFormatted, "час": time, "ім'я": profileSnap?.val()?.name || "Клієнт", "майстер": inst?.admin_settings?.profile?.name || "", "інструктор": inst?.admin_settings?.profile?.name || "" };
+          const vars = { "дата": dateFormatted, "час": time, "ім'я": profileSnap?.val()?.name || "Клієнт", "майстер": (master && inst?.staff?.[master]?.name) || inst?.admin_settings?.profile?.name || "", "інструктор": inst?.admin_settings?.profile?.name || "" };
           const title = renderTemplateBody(rawTitle, vars);
           const body  = renderTemplateBody(rawBody, vars);
           const sent = await pushStudent(iid, uid, title, body, { url, date, time }).catch(() => false);
@@ -1214,8 +1269,8 @@ exports.sendPersonalEventReminders = onSchedule(
           const dateFmt = new Date(ev.date + "T00:00:00").toLocaleDateString("uk", {
             day: "numeric", month: "long", weekday: "short",
           });
-          await pushAdmin(
-            iid,
+          await pushMaster(
+            iid, ev.masterId,
             `⏰ ${ev.name || "Нагадування"}`,
             `${dateFmt} о ${ev.time}${ev.note ? " · " + ev.note : ""}`,
             { url: `https://juno-booking-admin.web.app/?date=${ev.date}`, alarm: "1" }

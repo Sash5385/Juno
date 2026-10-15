@@ -331,6 +331,13 @@ await t("student of other tenant claims slot in master's calendar", X, () => upd
 await t("master blocks own slot (adminBlocked)", A, () => update(R(MA, TM + "slot1000"), { available: false, adminBlocked: true }));
 await t("master sets surcharge on own slot", A, () => update(R(MA, TM + "slot1000"), { surcharge: 100 }));
 await t("other master writes Anna's slot", X, () => update(R(MB, TM + "slot1000"), { available: true }));
+console.log("── STAFF TOKENS (push майстру салону)");
+await t("master saves own push token", A, () => set(R(MA, "instructors/inst1/staffTokens/mAnna/dev1"), "tok"));
+await t("master saves token into another master's node", X, () => set(R(MA, "instructors/inst1/staffTokens/mBob/dev1"), "tok"));
+await t("master removes own push token", A, () => remove(R(MA, "instructors/inst1/staffTokens/mAnna/dev1")));
+await t("student writes staffTokens", X, () => set(R(S1, "instructors/inst1/staffTokens/mAnna/dev2"), "tok"));
+await t("outsider writes staffTokens", X, () => set(R(as("outsider"), "instructors/inst1/staffTokens/outsider/dev1"), "tok"));
+await t("master reads staffTokens", X, () => get(R(MA, "instructors/inst1/staffTokens")));
 console.log("── SYSTEM (error log)");
 await t("instructor reads system/errorLog", X, () => get(R(I1, "system/errorLog")));
 await t("anonymous writes system/errorLog", X, () => set(R(anon, "system/errorLog/x"), { message: "spam" }));
