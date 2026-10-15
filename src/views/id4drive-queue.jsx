@@ -22,7 +22,7 @@ function fmtWait(ts) {
 // slotKey формату `${YYYY-MM-DD}_${H:MM}` (див. webID4client/src/firebase/iRef.js joinQueue)
 function isSlotPast(slotKey) {
   if (!slotKey) return false;
-  const [datePart, timePart] = slotKey.split("_");
+  const [datePart, timePart] = String(slotKey).split("~").pop().split("_"); // у календарі майстра ключ має префікс «{masterId}~»
   if (!datePart || !timePart) return false;
   const [h, m] = timePart.split(":").map(Number);
   const dt = new Date(datePart);

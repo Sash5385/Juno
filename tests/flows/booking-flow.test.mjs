@@ -459,6 +459,42 @@ const mm = (t) => { const [h, m] = t.split(":").map(Number); return h * 60 + m; 
   check("скасування звільнило слоти календаря майстра", Object.values(mdC).every((n) => n.available === true && !n.phantom && !n.bookedBy), show(mdC));
   check("слоти власника (зайняті іншим клієнтом) скасування не чіпало", clean(await day(D1)).slot1000?.available === false);
 
+  // ── 17. Салон: черга очікування у календарі майстра (ключ з префіксом майстра)
+  console.log("── 17. Салон: черга очікування в календарі майстра");
+  await seedDays();
+  const MQ = "masterQ";
+  await adb.ref(`instructors/${IID}/timeslots_m/${MQ}`).set({ [D1]: grid(30) });
+  await adb.ref(`instructors/${IID}/staff/${MQ}`).set({ role: "master", name: "Ія", color: "#f472b6", joinedAt: Date.now() });
+  const qk = `${MQ}~${D1}_10:00`;
+  const mq = async (d) => (await adb.ref(`instructors/${IID}/timeslots_m/${MQ}/${d}`).get()).val() || {};
+  await loginAs("a@t.dev"); await C.getUserProfile(UA);
+  C.setClientMaster(MQ);
+  const okQ = await C.claimSlot(D1, "10:00", 1, 30);
+  const keyQ = okQ ? await C.createBooking(UA, { date: D1, time: "10:00", serviceType: "private", serviceName: "Приватний", durationHours: 1, price: 600, studentName: "A", phone: "1", masterId: MQ }) : null;
+  await fire(UA, keyQ, null, await bk(UA, keyQ));
+  await loginAs("b@t.dev"); await C.getUserProfile(UB);
+  await C.joinQueue(UB, D1, "10:00", "private", 1, "B", "2");
+  const qEntry = async () => (await adb.ref(`instructors/${IID}/queue/${qk}/entries/${UB}`).get()).val();
+  check("клієнт став у чергу з ключем майстра", (await qEntry())?.status === "waiting" && (await adb.ref(`instructors/${IID}/queue/${D1}_10:00`).get()).val() === null, JSON.stringify(await qEntry()));
+  // A скасовує — сервер запрошує першого в черзі саме з черги МАЙСТРА
+  await loginAs("a@t.dev"); await C.getUserProfile(UA);
+  C.setClientMaster(null);
+  await act(UA, keyQ, () => C.cancelBooking(UA, keyQ));
+  check("скасування запрошує першого в черзі майстра (status offered)", (await qEntry())?.status === "offered", JSON.stringify(await qEntry()));
+  // тригер запрошення резервує слот у календарі майстра і кладе пропозицію клієнтові
+  const waitingE = { ...(await qEntry()), status: "waiting" };
+  await fns.onQueueInvite.run({ data: { before: { val: () => waitingE }, after: { val: () => ({ ...waitingE, status: "offered" }) } }, params: { iid: IID, slotKey: qk, uid: UB } });
+  const offerNode = (await adb.ref(`instructors/${IID}/users/${UB}/queueOffers/${qk}`).get()).val();
+  const slotQ = (await mq(D1)).slot1000;
+  check("пропозиція зарезервована в календарі майстра, а не власника", !!slotQ?.offeredTo?.[UB] && offerNode?.date === D1 && offerNode?.time === "10:00" && !(await day(D1)).slot1000?.offeredTo, JSON.stringify({ slotQ, offerNode }));
+  // клієнт приймає пропозицію: бронь у календарі майстра з masterId
+  await loginAs("b@t.dev"); await C.getUserProfile(UB);
+  C.setClientMaster(null); // як у кабінеті: корінь береться з ключа пропозиції
+  await C.claimQueueOffer(UB, qk, { date: D1, time: "10:00" }, { name: "B", phone: "2" });
+  const bookedQ = Object.values((await adb.ref(`instructors/${IID}/bookings/${UB}`).get()).val() || {}).find((x) => x.date === D1 && x.time === "10:00");
+  const after17 = clean(await mq(D1));
+  check("приймання пропозиції: бронь має masterId, слоти майстра зайняті, пропозиція знята", bookedQ?.masterId === MQ && after17.slot1000?.available === false && !after17.slot1000?.offeredTo?.[UB] && (await qEntry())?.status === "booked", JSON.stringify({ bookedQ, s: after17.slot1000 }));
+
   console.log(failed ? `\n${failed} FAILED` : "\nALL PASS");
   process.exit(failed ? 1 : 0);
 })().catch((e) => { console.error(e); process.exit(1); });

@@ -83,7 +83,7 @@ function fmtWait(ts, now) {
 
 // slotKey "2026-10-05_11:00" → "05.10 · 11:00"
 function slotLabel(key) {
-  const [d, t] = String(key || "").split("_");
+  const [d, t] = String(key || "").split("~").pop().split("_");
   const p = (d || "").split("-");
   return p.length === 3 ? `${p[2]}.${p[1]}${t ? ` · ${t}` : ""}` : String(key || "").replace("_", " ");
 }

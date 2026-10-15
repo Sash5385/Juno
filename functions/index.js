@@ -98,6 +98,17 @@ async function pushStudent(iid, uid, title, body, data = {}) {
   return sent;
 }
 
+// Ключ черги: власник/«Один майстер» — "2026-06-10_09:00", календар майстра салону — "{masterId}~2026-06-10_09:00"
+const queueKeyOf = (iid, master, date, time) => `${master && master !== iid ? master + "~" : ""}${date}_${time}`;
+function parseSlotKey(key) {
+  const s = String(key || "");
+  const i = s.indexOf("~");
+  const master = i > 0 ? s.slice(0, i) : null;
+  const rest = i > 0 ? s.slice(i + 1) : s;
+  const sep = rest.lastIndexOf("_");
+  return { master, date: rest.slice(0, sep), time: rest.slice(sep + 1) };
+}
+
 // Хелпер: запросити наступного в черзі для слота.
 // freedDurationHours — тривалість щойно скасованого запису: якщо відома,
 // саме на неї треба записати клієнта з черги, а не на його власний вибір при
@@ -550,7 +561,7 @@ exports.onBookingChanged = onValueWritten(
       await pushBookingStaff(iid, before, "❌ Запис скасовано", `${name} · ${date} о ${time}`, { url: adminLink() });
       if (freed && date !== "—" && time !== "—") {
         const freedDurationHours = before.durationHours || (before.durMin ? before.durMin / 60 : 1);
-        await inviteNextInQueue(iid, `${date}_${time}`, [], freedDurationHours).catch(() => {});
+        await inviteNextInQueue(iid, queueKeyOf(iid, before.masterId, date, time), [], freedDurationHours).catch(() => {});
       }
       return;
     }
@@ -592,7 +603,7 @@ exports.onBookingChanged = onValueWritten(
       }
       if (freed && date !== "—" && time !== "—") {
         const freedDurationHours = before.durationHours || (before.durMin ? before.durMin / 60 : 1);
-        await inviteNextInQueue(iid, `${date}_${time}`, [], freedDurationHours).catch(() => {});
+        await inviteNextInQueue(iid, queueKeyOf(iid, before.masterId, date, time), [], freedDurationHours).catch(() => {});
       }
       return;
     }
@@ -718,16 +729,14 @@ exports.onQueueInvite = onValueUpdated(
     if (!after || after.status !== "offered" || before?.status === "offered") return;
 
     const { iid, uid } = event.params;
-    const slotKey = event.params.slotKey; // "2026-06-10_09:00"
-    const sep = slotKey.lastIndexOf("_");
-    const date = slotKey.slice(0, sep);
-    const time = slotKey.slice(sep + 1);
+    const slotKey = event.params.slotKey; // "2026-06-10_09:00" або "{masterId}~2026-06-10_09:00"
+    const { master, date, time } = parseSlotKey(slotKey);
     if (!date || !time) return;
     const slotId = `slot${time.replace(":", "")}`;
 
     // Додаємо uid до offeredTo зі строком дії (перший → теж залишається)
     const until = Date.now() + OFFER_WINDOW_MS;
-    await iRef(iid, `timeslots/${date}/${slotId}/offeredTo/${uid}`).set({ until }).catch(() => {});
+    await iRef(iid, `${slotsRootOf(iid, master)}/${date}/${slotId}/offeredTo/${uid}`).set({ until }).catch(() => {});
 
     // In-app сповіщення: клієнт підписаний на цей шлях. Якщо запрошення
     // прийшло від скасування конкретного запису — offerDurationHours несе
@@ -737,7 +746,7 @@ exports.onQueueInvite = onValueUpdated(
       ...(after.offerDurationHours ? { durationHours: after.offerDurationHours } : {}),
     }).catch(() => {});
 
-    const url = `https://juno-booking-client.web.app/cabinet?date=${date}&time=${encodeURIComponent(time)}`;
+    const url = `https://juno-booking-client.web.app/cabinet?date=${date}&time=${encodeURIComponent(time)}${master ? `&master=${master}` : ""}`;
     const pushTitle = "🎉 Слот зарезервовано для вас!";
     const pushBody = `${date} о ${time} — у вас 30 хвилин щоб записатись`;
     await pushStudent(iid, uid, pushTitle, pushBody, { url, date, time, slotKey });
@@ -756,8 +765,10 @@ exports.cascadeQueueInvites = onSchedule({ schedule: "every 10 minutes", region:
   for (const [iid, inst] of Object.entries(instructors)) {
 
     if (isLicenseReadonly(inst?.license)) continue;
-    const data = inst?.timeslots || {};
+    // Календарі: власника (timeslots) і кожного майстра салону (timeslots_m/{mid}); ключ черги майстра — з префіксом «{mid}~»
+    const calendars = [[null, inst?.timeslots || {}], ...Object.entries(inst?.timeslots_m || {}).map(([mid, d]) => [mid, d || {}])];
 
+    for (const [master, data] of calendars) {
     for (const [date, dateSlots] of Object.entries(data)) {
       if (!dateSlots || typeof dateSlots !== "object") continue;
       for (const [slotId, slot] of Object.entries(dateSlots)) {
@@ -766,7 +777,7 @@ exports.cascadeQueueInvites = onSchedule({ schedule: "every 10 minutes", region:
 
         const time = slot.time;
         if (!time) continue;
-        const slotKey = `${date}_${time}`;
+        const slotKey = queueKeyOf(iid, master, date, time);
 
         const expiredUids = [];
         for (const [uid, offer] of Object.entries(slot.offeredTo)) {
@@ -787,40 +798,51 @@ exports.cascadeQueueInvites = onSchedule({ schedule: "every 10 minutes", region:
         await inviteNextInQueue(iid, slotKey, alreadyOffered);
       }
     }
+    }
   }
 });
 
-// Адмін відкрив заблокований слот → запрошуємо першого в черзі
+// Адмін відкрив заблокований слот → запрошуємо першого в черзі (календар власника і календарі майстрів салону)
+async function inviteFirstOnOpen(iid, master, date, slotId, before, after) {
+  if (!before || !after) return;
+  // Тригер тільки: adminBlocked true → false, available → true
+  if (before.adminBlocked !== true) return;
+  if (after.adminBlocked !== false || after.available !== true) return;
+
+  let time = after.time;
+  if (!time) {
+    const m = slotId.match(/^slot(\d{2})(\d{2})$/);
+    if (!m) return;
+    time = `${m[1]}:${m[2]}`;
+  }
+
+  const slotKey = queueKeyOf(iid, master, date, time);
+  const qSnap = await iRef(iid, `queue/${slotKey}/entries`).get();
+  if (!qSnap.exists()) return;
+
+  const entries = Object.entries(qSnap.val())
+    .map(([uid, e]) => ({ uid, ...e }))
+    .filter(e => e.status === "waiting")
+    .sort((a, b) => (a.addedAt || 0) - (b.addedAt || 0));
+
+  if (!entries.length) return;
+  // Ставимо першого як "offered" → onQueueInvite відправить push і зарезервує слот
+  await iRef(iid, `queue/${slotKey}/entries/${entries[0].uid}`).update({ status: "offered" });
+}
+
 exports.onAdminSlotOpened = onValueWritten(
   { ref: "instructors/{iid}/timeslots/{date}/{slotId}", region: "europe-west1" },
   async (event) => {
-    const before = event.data.before?.val();
-    const after  = event.data.after?.val();
-    if (!before || !after) return;
-    // Тригер тільки: adminBlocked true → false, available → true
-    if (before.adminBlocked !== true) return;
-    if (after.adminBlocked !== false || after.available !== true) return;
-
     const { iid, date, slotId } = event.params;
-    let time = after.time;
-    if (!time) {
-      const m = slotId.match(/^slot(\d{2})(\d{2})$/);
-      if (!m) return;
-      time = `${m[1]}:${m[2]}`;
-    }
+    await inviteFirstOnOpen(iid, null, date, slotId, event.data.before?.val(), event.data.after?.val());
+  }
+);
 
-    const slotKey = `${date}_${time}`;
-    const qSnap = await iRef(iid, `queue/${slotKey}/entries`).get();
-    if (!qSnap.exists()) return;
-
-    const entries = Object.entries(qSnap.val())
-      .map(([uid, e]) => ({ uid, ...e }))
-      .filter(e => e.status === "waiting")
-      .sort((a, b) => (a.addedAt || 0) - (b.addedAt || 0));
-
-    if (!entries.length) return;
-    // Ставимо першого як "offered" → onQueueInvite відправить push і зарезервує слот
-    await iRef(iid, `queue/${slotKey}/entries/${entries[0].uid}`).update({ status: "offered" });
+exports.onMasterSlotOpened = onValueWritten(
+  { ref: "instructors/{iid}/timeslots_m/{mid}/{date}/{slotId}", region: "europe-west1" },
+  async (event) => {
+    const { iid, mid, date, slotId } = event.params;
+    await inviteFirstOnOpen(iid, mid, date, slotId, event.data.before?.val(), event.data.after?.val());
   }
 );
 
