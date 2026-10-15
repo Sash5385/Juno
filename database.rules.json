@@ -65,6 +65,19 @@
         // Власник (uid === iid) — завжди роль owner; майстри — лише master. Читає власник і сам склад; пише лише власник.
         // Публічний список майстрів салону (для сторінки запису клієнта): { masterId: { name, color, owner } } — синхронізує застосунок власника зі складом
         "masters": { ".read": true },
+        // Власні налаштування майстра салону: { weekSchedule, workStart, workEnd, lunch*, svc: { serviceId: { price, duration, active } } }.
+        // Читає хто завгодно (клієнт бачить ціни й години майстра), пише власник або сам майстер. Нема запису — діють налаштування салону.
+        "master_settings": {
+          ".read": true,
+          "$mid": {
+            ".write": "auth != null && (auth.uid === $iid || (auth.uid === $mid && root.child('instructors/'+$iid+'/staff/'+auth.uid+'/role').val() === 'master'))",
+            "svc": { "$sid": {
+              "price":    { ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 1000000" },
+              "duration": { ".validate": "newData.isNumber() && newData.val() >= 5 && newData.val() <= 1440" },
+              "active":   { ".validate": "newData.isBoolean()" }
+            } }
+          }
+        },
         "staff": {
           ".read": "auth != null && (auth.uid === $iid || data.child(auth.uid).exists())",
           "$mid": {

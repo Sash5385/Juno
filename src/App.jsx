@@ -15,6 +15,7 @@ import { setTags } from "./tags";
 import { startTerms } from "./terms";
 import { bufferOf, bookingAddonTotals } from "./addons";
 import { rememberSalonInvite } from "./salon";
+import { applyMasterSettings } from "./masterSettings";
 import { rememberWorkspaceInvite, storedWorkspaceInvite, forgetWorkspaceInvite, isSalon, normStaff, masterOf } from "./workspace";
 import { JoinSalonScreen, MasterProfileView } from "./JoinSalonScreen";
 
@@ -527,8 +528,8 @@ const DEFAULT_SETTINGS = {
 };
 
 // ─── VIEW RENDERER ───────────────────────────────────────────────
-function ViewRenderer({ ws, onWs, masterKey, scheduleBookings, scheduleSetBookings, tab, settings, setSettings, bookings, setBookings, onSlotClick, onEmptySlotClick, openInfos, toggleInfo, activeDragIds, navTo, slotExistsRef, openSlotsRef, jumpTarget, setJumpTarget, onViewStudent, studentJump, onStudentJumpHandled }) {
-  if (tab === "schedule")  return <ScheduleView key={masterKey} settings={settings} setSettings={setSettings} bookings={scheduleBookings || bookings} setBookings={scheduleSetBookings || setBookings} onSlotClick={onSlotClick} onEmptySlotClick={onEmptySlotClick} activeDragIds={activeDragIds} navTo={navTo} slotExistsRef={slotExistsRef} openSlotsRef={openSlotsRef} jumpTarget={jumpTarget} setJumpTarget={setJumpTarget} onViewStudent={onViewStudent}/>;
+function ViewRenderer({ ws, onWs, masterKey, scheduleSettings, scheduleBookings, scheduleSetBookings, tab, settings, setSettings, bookings, setBookings, onSlotClick, onEmptySlotClick, openInfos, toggleInfo, activeDragIds, navTo, slotExistsRef, openSlotsRef, jumpTarget, setJumpTarget, onViewStudent, studentJump, onStudentJumpHandled }) {
+  if (tab === "schedule")  return <ScheduleView key={masterKey} settings={scheduleSettings || settings} setSettings={setSettings} bookings={scheduleBookings || bookings} setBookings={scheduleSetBookings || setBookings} onSlotClick={onSlotClick} onEmptySlotClick={onEmptySlotClick} activeDragIds={activeDragIds} navTo={navTo} slotExistsRef={slotExistsRef} openSlotsRef={openSlotsRef} jumpTarget={jumpTarget} setJumpTarget={setJumpTarget} onViewStudent={onViewStudent}/>;
   if (tab === "settings")  return ws ? <MasterProfileView ws={ws} onLeft={() => onWs(null)}/> : <SettingsView settings={settings} setSettings={setSettings}/>;
   if (tab === "bookings")  return <BookingsView settings={settings} bookings={bookings}/>;
   if (tab === "queue")     return <QueueView settings={settings}/>;
@@ -928,6 +929,16 @@ function AdminApp({ adminUser, ws, onWs }) {
   const masterId = ws ? adminUser.uid : (salonOn && pickedMaster && staffList.some(m => m.id === pickedMaster) ? pickedMaster : ownerIid);
   setMasterTokenUid(ws ? adminUser?.uid : null);
   setActiveMaster(masterId); // до дочірніх компонентів, щоб їхні ефекти одразу читали слоти потрібного майстра
+  // Власні графік і ціни майстра (master_settings/{id}) — лише для календаря цього майстра
+  const [masterMs, setMasterMs] = useState(null);
+  const msTarget = salonOn && masterId !== ownerIid ? masterId : null;
+  useEffect(() => {
+    if (!msTarget || !adminUser?.uid) return undefined;
+    return onValue(iRef(`master_settings/${msTarget}`), snap => setMasterMs({ id: msTarget, v: snap.val() }), () => {});
+  }, [msTarget, adminUser?.uid]);
+  const scheduleSettings = React.useMemo(
+    () => (msTarget && masterMs?.id === msTarget && masterMs.v ? applyMasterSettings(settings, masterMs.v) : settings),
+    [settings, msTarget, masterMs]);
   // Майстер салону бачить лише розклад, клієнтів і свій профіль
   const navSettings = ws ? { ...settings, navTabs: MASTER_TABS } : settings;
   const inMasterScope = b => !salonOn || masterOf(b, ownerIid) === masterId;
@@ -1346,7 +1357,7 @@ const pendingDeletesRef = React.useRef(new Set());
           {salonOn && staffList.length > 1 && displayedTab === "schedule" && <MasterTabs staff={staffList} active={masterId} onPick={setPickedMaster}/>}
           <Suspense fallback={<Loader/>}>
             <div className={displayedTab==="schedule" ? "view-fill" : "pc-wrap"}>
-            <ViewRenderer ws={ws} onWs={onWs} masterKey={masterId} scheduleBookings={scheduleBookings} scheduleSetBookings={scheduleSetBookings} tab={displayedTab} settings={settings} setSettings={setSettings} bookings={bookings} setBookings={handleSetBookings} onSlotClick={setSelectedBooking} onEmptySlotClick={setNewBookingData} openInfos={openInfos} toggleInfo={toggleInfo} activeDragIds={activeDragIds} navTo={switchTab} slotExistsRef={slotExistsRef} openSlotsRef={openSlotsRef} jumpTarget={jumpTarget} setJumpTarget={setJumpTarget} onViewStudent={onViewStudent} studentJump={studentJump} onStudentJumpHandled={()=>setStudentJump(null)}/>
+            <ViewRenderer ws={ws} onWs={onWs} masterKey={masterId} scheduleSettings={scheduleSettings} scheduleBookings={scheduleBookings} scheduleSetBookings={scheduleSetBookings} tab={displayedTab} settings={settings} setSettings={setSettings} bookings={bookings} setBookings={handleSetBookings} onSlotClick={setSelectedBooking} onEmptySlotClick={setNewBookingData} openInfos={openInfos} toggleInfo={toggleInfo} activeDragIds={activeDragIds} navTo={switchTab} slotExistsRef={slotExistsRef} openSlotsRef={openSlotsRef} jumpTarget={jumpTarget} setJumpTarget={setJumpTarget} onViewStudent={onViewStudent} studentJump={studentJump} onStudentJumpHandled={()=>setStudentJump(null)}/>
             </div>
           </Suspense>
           <MosaicOverlay phase={mosaicPhase} tileColor={fogOn ? FOG_STYLE.theme.BG : (theme.BG_IMAGE ? "#d4ba96" : theme.BG)} speed={0.5}/>

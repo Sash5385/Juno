@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
+const MasterOverrides = lazy(() => import("./views/MasterOverrides"));
 import { ref, get, set, remove } from "firebase/database";
 import { signOut } from "firebase/auth";
 import { db, auth } from "./firebase";
@@ -86,6 +87,7 @@ export function MasterProfileView({ ws, onLeft }) {
     } catch { setBusy(false); }
   };
   return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
     <div style={{ borderRadius: 18, border: `1px solid ${BORDER}`, background: SURFACE, backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)", padding: 20, color: TEXT, fontFamily: "Inter,ui-sans-serif,system-ui,sans-serif" }}>
       <div style={{ fontSize: 13, color: DIM }}>Ви майстер салону</div>
       <div style={{ fontSize: 22, fontWeight: 800, margin: "4px 0 2px" }}>{ws.salonName || "салон"}</div>
@@ -101,6 +103,8 @@ export function MasterProfileView({ ws, onLeft }) {
               <button onClick={() => setSure(false)} style={{ ...ghost, flex: 1, padding: 12, border: `1px solid ${BORDER}`, borderRadius: 12 }}>Ні</button>
             </div>
           </div>}
+    </div>
+    <Suspense fallback={null}><MasterOverrides mid={auth.currentUser?.uid} /></Suspense>
     </div>
   );
 }

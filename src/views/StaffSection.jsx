@@ -1,9 +1,10 @@
-import { useState, useEffect, useContext } from "react";
+import { useState, useEffect, useContext, lazy, Suspense } from "react";
 import { onValue, update, set, remove } from "firebase/database";
 import { iRef, db, auth } from "../firebase";
 import { ref } from "firebase/database";
 import { ThemeContext } from "../theme.js";
 import { useConfirm } from "../ConfirmModal";
+const MasterOverrides = lazy(() => import("./MasterOverrides"));
 import {
   ACCOUNT_SALON, MAX_MASTERS, MASTER_COLORS, accountTypeOf, normStaff, ownerRow,
   newWorkspaceToken, workspaceInviteUrl, WS_INVITE_DAYS,
@@ -17,6 +18,7 @@ export default function StaffSection({ settings, upd }) {
   const salon = accountTypeOf(settings) === ACCOUNT_SALON;
   const [staff, setStaff] = useState([]);
   const [edit, setEdit] = useState(null); // { id, name, color }
+  const [ovFor, setOvFor] = useState(null); // майстер, чиї графік і ціни відкриті
   const [invite, setInvite] = useState(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
@@ -115,10 +117,12 @@ export default function StaffSection({ settings, upd }) {
                   <div style={{ fontSize: 14.5, fontWeight: 600, color: TEXT, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.name}</div>
                   <div style={{ fontSize: 11.5, color: FAINT }}>{m.owner ? "власник" : "майстер"}</div>
                 </div>
+                {!m.owner && <button onClick={() => setOvFor(ovFor === m.id ? null : m.id)} style={{ ...btn(false), padding: "8px 12px", fontSize: 12 }}>{ovFor === m.id ? "Сховати" : "Графік і ціни"}</button>}
                 <button onClick={() => setEdit({ id: m.id, name: m.name, color: m.color })} style={{ ...btn(false), padding: "8px 12px", fontSize: 12 }}>Змінити</button>
                 {!m.owner && <button aria-label={`Прибрати ${m.name}`} onClick={() => removeMaster(m)} style={{ ...btn(false, RED), padding: "8px 12px", fontSize: 12 }}>✕</button>}
               </div>
             )}
+            {ovFor === m.id && !m.owner && <div style={{ marginTop: 12 }}><Suspense fallback={null}><MasterOverrides mid={m.id} /></Suspense></div>}
           </div>
         ))}
       </div>

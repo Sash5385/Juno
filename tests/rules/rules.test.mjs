@@ -338,6 +338,16 @@ await t("master removes own push token", A, () => remove(R(MA, "instructors/inst
 await t("student writes staffTokens", X, () => set(R(S1, "instructors/inst1/staffTokens/mAnna/dev2"), "tok"));
 await t("outsider writes staffTokens", X, () => set(R(as("outsider"), "instructors/inst1/staffTokens/outsider/dev1"), "tok"));
 await t("master reads staffTokens", X, () => get(R(MA, "instructors/inst1/staffTokens")));
+console.log("── MASTER SETTINGS (власні графік і ціни майстра)");
+const MS = "instructors/inst1/master_settings/";
+await t("master edits own schedule", A, () => update(R(MA, MS + "mAnna"), { weekSchedule: [{ enabled: true, start: 9, end: 17 }], workStart: 9, workEnd: 17 }));
+await t("master sets own service price", A, () => update(R(MA, MS + "mAnna"), { "svc/s1": { price: 700, duration: 60, active: true } }));
+await t("master edits ANOTHER master's settings", X, () => update(R(MA, MS + "mBob"), { workStart: 8 }));
+await t("owner edits a master's settings", A, () => update(R(I1, MS + "mAnna"), { "svc/s1": { price: 650, duration: 45 } }));
+await t("student writes master settings", X, () => update(R(S1, MS + "mAnna"), { workStart: 8 }));
+await t("anonymous reads master settings", A, () => get(R(anon, MS + "mAnna")));
+await t("negative price rejected", X, () => update(R(MA, MS + "mAnna"), { "svc/s1": { price: -5, duration: 60 } }));
+await t("absurd duration rejected", X, () => update(R(MA, MS + "mAnna"), { "svc/s1": { price: 100, duration: 2 } }));
 console.log("── SYSTEM (error log)");
 await t("instructor reads system/errorLog", X, () => get(R(I1, "system/errorLog")));
 await t("anonymous writes system/errorLog", X, () => set(R(anon, "system/errorLog/x"), { message: "spam" }));

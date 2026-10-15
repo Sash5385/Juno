@@ -55,7 +55,7 @@ const DIRECTION_PRESETS = {
 
 // ─── MODULE-LEVEL ATOMS (stable references → no remount on settings change) ───
 
-function Toggle({ on, onChange, color }) {
+export function Toggle({ on, onChange, color }) {
   const { ACCENT, SURF_LO, BG_DEEP, SI, FOG, SURF_HI, BORDER, DIM, BTN_GRAD } = useContext(ThemeContext);
   const { shade } = useFX();
   const c = color || ACCENT;
@@ -105,7 +105,7 @@ function SmallToggle({ on, onChange, color }) {
   );
 }
 
-function NumInput({ value, onChange, min=0, max=999, suffix="", step=1, compact }) {
+export function NumInput({ value, onChange, min=0, max=999, suffix="", step=1, compact }) {
   const { BG_DEEP, SURF_HI, SURFACE, TEXT, SO, SI, FOG, ACC_HI } = useContext(ThemeContext);
   const bs = compact ? 22 : 26;
   if (FOG) {
@@ -373,7 +373,7 @@ function daySlotStarts(d) {
   return out;
 }
 
-function WeekScheduleEditor({ weekSchedule, updDay, setWeek }) {
+export function WeekScheduleEditor({ weekSchedule, updDay, setWeek }) {
   const { BG_DEEP, SURF_HI, SURFACE, TEXT, DIM, FAINT, GREEN, RED, GOLD, ACCENT, SI, SO } = useContext(ThemeContext);
   const [sel, setSel] = useState(0);
   const day = weekSchedule[sel];

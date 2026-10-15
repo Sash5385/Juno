@@ -34,6 +34,7 @@ bash tests/flows/run.sh        # потрібен клонований DrivePad-
 **Допуслуги і перерва:** `node tests/addons/addons.test.mjs` (розрахунки допуслуг, `slotRules` з перервою — клієнтська/адмінська/серверна копії дають однаковий результат);
 анкета клієнта: `node tests/addons/intake.test.mjs` (+ блок INTAKE у rules-тесті);
 пакети: `node tests/addons/packages.test.mjs` (+ блок PACKAGES у rules-тесті);
+графік і ціни майстра салону: `node tests/addons/master-settings.test.mjs` (+ блок MASTER SETTINGS у rules-тесті);
 нагадування про повторний запис: `node functions/test/rebook.test.js`;
 салон: `node tests/addons/salon.test.mjs` (+ блок SALON у rules-тесті);
 робочий простір (салон: тип акаунта, склад, masterId): `node tests/addons/workspace.test.mjs` (+ блоки WORKSPACE, WORKSPACE INVITES і MASTER SESSION і CLIENT SLOTS IN MASTER CALENDAR у rules-тесті: запрошення майстра, staff_index, що можна й чого не можна майстру салону);
