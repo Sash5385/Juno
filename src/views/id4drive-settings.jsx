@@ -4,6 +4,7 @@ import { FIELD_TYPES, MAX_FIELDS } from "../intake";
 import { MAX_TEMPLATES } from "../packages";
 import SalonSection from "./SalonSection";
 import StaffSection from "./StaffSection";
+import { accountTypeOf, ACCOUNT_SALON } from "../workspace";
 import { useConfirm } from "../ConfirmModal";
 import { DIRECTIONS, DIRECTION_IDS, normDirection } from "../terms";
 import { createPortal } from "react-dom";
@@ -1009,13 +1010,13 @@ select{color-scheme:${isKava?"light":"dark"}}
     { id:"surcharges", icon:"💰", color:GOLD,   title:"Надбавки",              label:uk?"Збори":"Fees"   },
     { id:"tags",       icon:"🏷️", color:TEAL,   title:uk?"Мітки записів":"Booking tags", label:uk?"Мітки":"Tags" },
     { id:"staff",      icon:"👥", color:BLUE,   title:"Майстри",               label:"Майстри"           },
-    { id:"salon",      icon:"🏢", color:BLUE,   title:"Салон",                 label:"Салон"             },
+    { id:"salon",      icon:"🏢", color:BLUE,   title:"Спільна сторінка майстрів", label:"Спільна сторінка"  },
     { id:"packages",   icon:"🎫", color:GOLD,   title:"Пакети записів",        label:"Пакети"            },
     { id:"intake",     icon:"📋", color:PURPLE, title:"Анкета клієнта",        label:"Анкета"            },
     { id:"push",       icon:"🔔", color:GREEN,  title:"Сповіщення",            label:"Сповіщення"        },
     { id:"reviews",    icon:"⭐", color:GOLD,   title:"Відгуки клієнтів",         label:"Відгуки"           },
     { id:"profile",    icon:"👤", color:BLUE,   title:"Профіль майстра",   label:"Профіль"           },
-  ];
+  ].filter(sec => !(sec.id === "salon" && accountTypeOf(settings) === ACCOUNT_SALON)); // акаунт-салон керує майстрами в розділі «Майстри»
 
   function renderSection(id) {
     const secColor = SECTIONS.find(s=>s.id===id)?.color || ACCENT;

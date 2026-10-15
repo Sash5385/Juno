@@ -1,6 +1,7 @@
 import { useState, useEffect, useContext, useRef } from "react";
 import { onValue, get, update } from "firebase/database";
-import { iRef } from "../firebase";
+import { iRef, auth } from "../firebase";
+import { normStaff, masterOf } from "../workspace";
 import { LangContext } from "../App";
 import { createT } from "../lang";
 
@@ -229,7 +230,9 @@ export default function StatsView() {
   const lang = useContext(LangContext);
   const t = createT(lang);
   const [period,     setPeriod]    = useState("month");
-  const [bookings,   setBookings]  = useState([]);
+  const [bookingsRaw, setBookings] = useState([]);
+  const [staff,      setStaff]     = useState([]);   // салон: склад майстрів (порожній — «Один майстер»)
+  const [masterFilter, setMasterFilter] = useState(""); // "" — усі майстри
   const [services,   setServices]  = useState([]);
   const [topBy,      setTopBy]     = useState("paid");
   const [selectedDays, setSelectedDays] = useState(() => new Set());
@@ -271,6 +274,11 @@ export default function StatsView() {
   }, []);
 
   useEffect(() => {
+    const owner = auth.currentUser?.uid || "";
+    return onValue(iRef("staff"), snap => setStaff(snap.exists() ? normStaff(snap.val(), owner) : []), () => {});
+  }, []);
+
+  useEffect(() => {
     return onValue(iRef( "admin_settings/services"), snap => {
       const d = snap.val();
       setServices(Array.isArray(d) ? d : []);
@@ -281,11 +289,17 @@ export default function StatsView() {
     get(iRef( "admin_settings/incomeGoal")).then(s => { if (s.exists()) setIncomeGoal(s.val() || 0); }).catch(() => {});
   }, []);
 
-  const data     = period === "week"   ? computeWeekData(bookings, 0, services)
-                 : period === "year"   ? computeYearData(bookings, 0, services)
-                 : period === "day"    ? computeDayData(bookings, 0, services)
-                 : period === "custom" ? computeSelectedDaysData(bookings, selectedDays, services)
-                 :                       computeMonthData(bookings, 0, services);
+  // Салон: фільтр по майстру (записи без masterId — власника)
+  const ownerUid = auth.currentUser?.uid || "";
+  const bookings = masterFilter ? bookingsRaw.filter(b => masterOf(b, ownerUid) === masterFilter) : bookingsRaw;
+  const periodData = (list) => period === "week"   ? computeWeekData(list, 0, services)
+                 : period === "year"   ? computeYearData(list, 0, services)
+                 : period === "day"    ? computeDayData(list, 0, services)
+                 : period === "custom" ? computeSelectedDaysData(list, selectedDays, services)
+                 :                       computeMonthData(list, 0, services);
+  const perMaster = staff.length > 1 ? staff.map(m => ({ m, ...periodSum(periodData(bookingsRaw.filter(b => masterOf(b, ownerUid) === m.id))) })) : [];
+
+  const data     = periodData(bookings);
 
   const prevData = period === "custom" ? data
                  : period === "week"   ? computeWeekData(bookings, -1, services)
@@ -453,6 +467,23 @@ export default function StatsView() {
           ))}
         </div>
 
+        {/* ── САЛОН: фільтр по майстру ── */}
+        {staff.length > 1 && (
+          <div style={{display:"flex",gap:6,overflowX:"auto",scrollbarWidth:"none"}}>
+            {[{ id:"", name:"Усі майстри", color:ACCENT }, ...staff].map(m => {
+              const on = masterFilter === m.id;
+              return (
+                <button key={m.id || "all"} onClick={()=>setMasterFilter(m.id)} style={{
+                  flexShrink:0,display:"flex",alignItems:"center",gap:7,padding:"8px 13px",borderRadius:99,cursor:"pointer",fontFamily:"inherit",fontSize:12.5,fontWeight:600,whiteSpace:"nowrap",
+                  border:`1px solid ${on ? m.color : BORDER}`,background:on?`color-mix(in srgb,${m.color} 26%,transparent)`:SURFACE,color:on?TEXT:DIM,
+                }}>
+                  {m.id && <span style={{width:10,height:10,borderRadius:"50%",background:m.color}}/>}{m.name}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         {/* ── CALENDAR (завжди відкритий — швидкий вибір місяця/тижня/дня) ── */}
         <Card className="fu" style={{padding:"12px"}}>
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:9}}>
@@ -556,6 +587,21 @@ export default function StatsView() {
             </Card>
           ))}
         </div>
+
+        {/* ── ПО МАЙСТРАХ (салон, усі майстри) ── */}
+        {perMaster.length > 0 && !masterFilter && (
+          <Card className="fu" style={{padding:"12px 13px"}}>
+            <div style={{fontSize:11,color:DIM,letterSpacing:1,textTransform:"uppercase",fontWeight:700,marginBottom:8}}>По майстрах</div>
+            {perMaster.map(({ m, income, lessons }) => (
+              <div key={m.id} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 0",borderTop:`1px solid ${BORDER}`}}>
+                <span style={{width:11,height:11,borderRadius:"50%",background:m.color,flexShrink:0}}/>
+                <span style={{flex:1,minWidth:0,fontSize:14,fontWeight:600,color:TEXT,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.name}</span>
+                <span style={{fontSize:12,color:DIM}}>{lessons} зап.</span>
+                <span style={{fontSize:14,fontWeight:700,color:TEXT,minWidth:70,textAlign:"right"}}>{fmtK(income)}</span>
+              </div>
+            ))}
+          </Card>
+        )}
 
         {/* ── INCOME GOAL ── */}
         <Card className="fu" style={{padding:"12px 13px"}}>
