@@ -387,6 +387,37 @@ const mm = (t) => { const [h, m] = t.split(":").map(Number); return h * 60 + m; 
   await fire(UA, "f3", null, await bk(UA, "f3"));
   check("підроблена capacity=30: третій запис понад реальні 2 відхиляється сервером", (await bk(UA, "f3"))?.cancelledBy === "group" && (await seatsNode()).count === 2, JSON.stringify(await seatsNode()));
 
+  // ── 15. Салон: запис майстра салону блокує слоти САМЕ його календаря (timeslots_m/{masterId}), слоти власника не чіпає
+  console.log("── 15. Салон: слоти по майстрах (timeslots_m)");
+  await seedDays();
+  const MID = "masterX";
+  const mday = async (d) => (await adb.ref(`instructors/${IID}/timeslots_m/${MID}/${d}`).get()).val() || {};
+  await adb.ref(`instructors/${IID}/timeslots_m/${MID}`).set({ [D1]: grid(30) });
+  const ownerBefore = JSON.stringify(clean(await day(D1)));
+  const mset = async (id, extra) => { await adb.ref(`instructors/${IID}/bookings/${UA}/${id}`).set({ id, date: D1, time: "10:00", startMin: 600, durMin: 60, durationHours: 1, status: "confirmed", createdBy: "admin", studentName: "X", masterId: MID, ...extra }); };
+  await mset("sm1");
+  await fire(UA, "sm1", null, await bk(UA, "sm1"));
+  let md = clean(await mday(D1));
+  check("запис майстра блокує слоти 10:00–11:00 у його календарі", md.slot1000?.available === false && md.slot1030?.available === false && md.slot1100?.available === true, show(md));
+  check("слоти власника в цей час не зачеплені", JSON.stringify(clean(await day(D1))) === ownerBefore);
+  // перенесення на 12:00 того ж майстра
+  const bfSm = await bk(UA, "sm1");
+  await adb.ref(`instructors/${IID}/bookings/${UA}/sm1`).update({ time: "12:00", startMin: 720 });
+  await fire(UA, "sm1", bfSm, await bk(UA, "sm1"));
+  md = clean(await mday(D1));
+  check("перенесення: старий час звільнено, новий зайнято — усе в календарі майстра", md.slot1000?.available === true && md.slot1200?.available === false && md.slot1230?.available === false, show(md));
+  check("слоти власника і після перенесення не зачеплені", JSON.stringify(clean(await day(D1))) === ownerBefore);
+  // скасування адміном
+  const bSm = await bk(UA, "sm1");
+  await adb.ref(`instructors/${IID}/bookings/${UA}/sm1`).update({ status: "cancelled", cancelledBy: "admin" });
+  await fire(UA, "sm1", bSm, await bk(UA, "sm1"));
+  md = clean(await mday(D1));
+  check("скасування: календар майстра повернувся до початкового", Object.keys(md).length === Object.keys(grid(30)).length && Object.values(md).every((n) => n.available === true && !n.phantom) && JSON.stringify(clean(await day(D1))) === ownerBefore, show(md));
+  // запис без masterId (власник) іде в timeslots, як і раніше
+  await mset("so1", { masterId: null });
+  await fire(UA, "so1", null, await bk(UA, "so1"));
+  check("запис без masterId займає слоти власника, не майстра", clean(await day(D1)).slot1000?.available === false && clean(await mday(D1)).slot1000?.available === true);
+
   console.log(failed ? `\n${failed} FAILED` : "\nALL PASS");
   process.exit(failed ? 1 : 0);
 })().catch((e) => { console.error(e); process.exit(1); });

@@ -10,6 +10,15 @@ import { DEMO } from "./demo/demoMode.js";
 let _iid = null;
 export const setCurrentIid = (id) => { _iid = id; };
 export const getCurrentIid = () => _iid;
+// Салон: календар одного майстра за раз. Слоти власника (або акаунта «Один майстер») — instructors/{iid}/timeslots (як завжди),
+// слоти іншого майстра — instructors/{iid}/timeslots_m/{masterId}. slotRoot()/slotBookingsRoot() повертають потрібний корінь.
+let _master = null;
+export const setActiveMaster = (id) => { _master = id && id !== _iid ? id : null; };
+export const getActiveMaster = () => _master || _iid;
+export const slotRoot = () => (_master ? `timeslots_m/${_master}` : "timeslots");
+export const slotBookingsRoot = () => (_master ? `slotBookings_m/${_master}` : "slotBookings");
+// Поля нового запису від імені активного майстра (для власника/«Один майстер» порожньо — masterOf дає власника)
+export const newBookingMasterFields = () => (_master ? { masterId: _master } : {});
 export const iRef = (path) => ref(db, path ? `instructors/${_iid}/${path}` : `instructors/${_iid}`);
 
 const firebaseConfig = {

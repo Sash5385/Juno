@@ -1,6 +1,6 @@
 import React, { useState, useEffect, lazy, Suspense, createContext, useContext } from "react";
 import { ref, onValue, update, push, remove, get } from "firebase/database";
-import { iRef, db, setCurrentIid, registerAdminFCM, onAdminForegroundMessage } from "./firebase";
+import { iRef, db, slotRoot, setActiveMaster, setCurrentIid, registerAdminFCM, onAdminForegroundMessage } from "./firebase";
 import { useAdminAuth, LoginScreen, InstructorSetupScreen, isVendor, SuperAdminScreen } from "./AdminAuth";
 import { useAppUpdate } from "./hooks/useAppUpdate"
 import { useLicense, useLicenseState } from "./hooks/useLicense"
@@ -15,7 +15,7 @@ import { setTags } from "./tags";
 import { startTerms } from "./terms";
 import { bufferOf, bookingAddonTotals } from "./addons";
 import { rememberSalonInvite } from "./salon";
-import { rememberWorkspaceInvite, storedWorkspaceInvite, forgetWorkspaceInvite } from "./workspace";
+import { rememberWorkspaceInvite, storedWorkspaceInvite, forgetWorkspaceInvite, isSalon, normStaff, masterOf } from "./workspace";
 import { JoinSalonScreen, MasterWaitScreen } from "./JoinSalonScreen";
 
 export const LangContext = createContext('uk');
@@ -212,6 +212,28 @@ const TAB_TITLES = {
 
 
 // ─── BOTTOM NAV ──────────────────────────────────────────────────
+// Салон: перемикач календарів майстрів над розкладом (власник бачить усіх, обраний майстер — свій календар)
+function MasterTabs({ staff, active, onPick }) {
+  const theme = useContext(ThemeContext);
+  return (
+    <div style={{display:"flex",gap:6,overflowX:"auto",scrollbarWidth:"none",padding:"2px 6px 8px",flexShrink:0}}>
+      {staff.map(m => {
+        const on = m.id === active;
+        return (
+          <button key={m.id} onClick={() => onPick(m.id)} style={{
+            flexShrink:0,display:"flex",alignItems:"center",gap:7,padding:"7px 13px",borderRadius:99,cursor:"pointer",fontFamily:"inherit",fontSize:12.5,fontWeight:600,whiteSpace:"nowrap",
+            border:`1px solid ${on ? m.color : theme.BORDER}`,
+            background: on ? `color-mix(in srgb,${m.color} 28%,transparent)` : "rgba(255,255,255,0.05)",
+            color: on ? theme.TEXT : theme.DIM,
+          }}>
+            <span style={{width:10,height:10,borderRadius:"50%",background:m.color,flexShrink:0}}/>{m.name}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function BottomNav({ active, onChange, settings, chatUnread, journalUnread }) {
   const lang = useContext(LangContext);
   const tl = createT(lang);
@@ -505,8 +527,8 @@ const DEFAULT_SETTINGS = {
 };
 
 // ─── VIEW RENDERER ───────────────────────────────────────────────
-function ViewRenderer({ tab, settings, setSettings, bookings, setBookings, onSlotClick, onEmptySlotClick, openInfos, toggleInfo, activeDragIds, navTo, slotExistsRef, openSlotsRef, jumpTarget, setJumpTarget, onViewStudent, studentJump, onStudentJumpHandled }) {
-  if (tab === "schedule")  return <ScheduleView settings={settings} setSettings={setSettings} bookings={bookings} setBookings={setBookings} onSlotClick={onSlotClick} onEmptySlotClick={onEmptySlotClick} activeDragIds={activeDragIds} navTo={navTo} slotExistsRef={slotExistsRef} openSlotsRef={openSlotsRef} jumpTarget={jumpTarget} setJumpTarget={setJumpTarget} onViewStudent={onViewStudent}/>;
+function ViewRenderer({ masterKey, scheduleBookings, scheduleSetBookings, tab, settings, setSettings, bookings, setBookings, onSlotClick, onEmptySlotClick, openInfos, toggleInfo, activeDragIds, navTo, slotExistsRef, openSlotsRef, jumpTarget, setJumpTarget, onViewStudent, studentJump, onStudentJumpHandled }) {
+  if (tab === "schedule")  return <ScheduleView key={masterKey} settings={settings} setSettings={setSettings} bookings={scheduleBookings || bookings} setBookings={scheduleSetBookings || setBookings} onSlotClick={onSlotClick} onEmptySlotClick={onEmptySlotClick} activeDragIds={activeDragIds} navTo={navTo} slotExistsRef={slotExistsRef} openSlotsRef={openSlotsRef} jumpTarget={jumpTarget} setJumpTarget={setJumpTarget} onViewStudent={onViewStudent}/>;
   if (tab === "settings")  return <SettingsView settings={settings} setSettings={setSettings}/>;
   if (tab === "bookings")  return <BookingsView settings={settings} bookings={bookings}/>;
   if (tab === "queue")     return <QueueView settings={settings}/>;
@@ -858,6 +880,35 @@ export default function App() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settings, adminUser, settingsLoaded]);
 
+  // ── Салон: склад майстрів і активний календар ──────────────────────────────────────────
+  // Власник перемикає календарі майстрів; кожен має свій корінь слотів (timeslots_m/{id}), записи — з masterId.
+  // «Один майстер» (accountType solo) цього блоку не торкається: masterId = власник, фільтр не діє.
+  const ownerIid = adminUser?.uid || null;
+  const salonOn = isSalon(settings);
+  const [staffAll, setStaffList] = useState([]);
+  const [pickedMaster, setPickedMaster] = useState(null);
+  useEffect(() => {
+    if (!adminUser?.uid || vendor || !salonOn) return undefined;
+    return onValue(iRef("staff"), snap => setStaffList(normStaff(snap.val(), adminUser.uid)), () => {});
+  }, [adminUser, vendor, salonOn]);
+  const staffList = salonOn ? staffAll : [];
+  const masterId = salonOn && pickedMaster && staffList.some(m => m.id === pickedMaster) ? pickedMaster : ownerIid;
+  setActiveMaster(masterId); // до дочірніх компонентів, щоб їхні ефекти одразу читали слоти потрібного майстра
+  const inMasterScope = b => !salonOn || masterOf(b, ownerIid) === masterId;
+  const scheduleBookings = salonOn ? bookings.filter(inMasterScope) : bookings;
+  // Розклад бачить лише записи свого майстра, тож його setBookings не має «видаляти» чужі: зливаємо результат із рештою,
+  // а нові записи позначаємо masterId (для власника — без поля).
+  const scheduleSetBookings = fn => {
+    if (!salonOn) return handleSetBookings(fn); // handleSetBookings оголошено нижче — викликається лише пізніше
+    return handleSetBookings(prev => {
+      const mine = prev.filter(inMasterScope);
+      const nextMine = typeof fn === "function" ? fn(mine) : fn;
+      const known = new Set(prev.map(b => b.id));
+      const tagged = nextMine.map(b => (known.has(b.id) || masterId === ownerIid ? b : { ...b, masterId }));
+      return [...tagged, ...prev.filter(b => !inMasterScope(b))];
+    });
+  };
+
   // Load bookings from Firebase
   const processBookingsSnap = React.useCallback((data) => {
     if (!data) return;
@@ -990,7 +1041,7 @@ const pendingDeletesRef = React.useRef(new Set());
           // слоти — не створюємо нові вузли в днях без розкладу, інакше
           // перетягування «спавнить» вільні слоти в чужих днях.
           if (onlyExisting && !existsForDate?.has(`${h}:${m}`)) continue;
-          const key = `timeslots/${date}/slot${h}${m}`;
+          const key = `${slotRoot()}/${date}/slot${h}${m}`;
           // Вузол, якого нема в сітці дня, створюється лише під запис —
           // позначаємо phantom, щоб при звільненні видалити, а не оживити.
           if (!existsForDate?.has(`${h}:${m}`)) upd[`${key}/phantom`] = true;
@@ -1022,7 +1073,7 @@ const pendingDeletesRef = React.useRef(new Set());
           const m = String(cur % 60).padStart(2, "0");
           // Перерва після запису: відкриваємо лише справжні слоти сітки, не закриті майстром; нічого не видаляємо
           if (cur >= endMin && (!existsForDate?.has(`${h}:${m}`) || openSlotsRef.current[date]?.[`${h}:${m}`]?.adminBlocked)) continue;
-          const key = `timeslots/${date}/slot${h}${m}`;
+          const key = `${slotRoot()}/${date}/slot${h}${m}`;
           // Слот, що належить сітці дня (:00 та :30 — обидва канонічні),
           // відновлюємо available:true. Вузол поза сіткою (phantom, створений
           // лише на час бронювання) — видаляємо повністю, щоб не спавнились
@@ -1257,9 +1308,10 @@ const pendingDeletesRef = React.useRef(new Set());
           flexDirection:"column",
           background: !fogOn && theme.BG_IMAGE ? "#d4ba96" : "transparent",
         }}>
+          {salonOn && staffList.length > 1 && displayedTab === "schedule" && <MasterTabs staff={staffList} active={masterId} onPick={setPickedMaster}/>}
           <Suspense fallback={<Loader/>}>
             <div className={displayedTab==="schedule" ? "view-fill" : "pc-wrap"}>
-            <ViewRenderer tab={displayedTab} settings={settings} setSettings={setSettings} bookings={bookings} setBookings={handleSetBookings} onSlotClick={setSelectedBooking} onEmptySlotClick={setNewBookingData} openInfos={openInfos} toggleInfo={toggleInfo} activeDragIds={activeDragIds} navTo={switchTab} slotExistsRef={slotExistsRef} openSlotsRef={openSlotsRef} jumpTarget={jumpTarget} setJumpTarget={setJumpTarget} onViewStudent={onViewStudent} studentJump={studentJump} onStudentJumpHandled={()=>setStudentJump(null)}/>
+            <ViewRenderer masterKey={masterId} scheduleBookings={scheduleBookings} scheduleSetBookings={scheduleSetBookings} tab={displayedTab} settings={settings} setSettings={setSettings} bookings={bookings} setBookings={handleSetBookings} onSlotClick={setSelectedBooking} onEmptySlotClick={setNewBookingData} openInfos={openInfos} toggleInfo={toggleInfo} activeDragIds={activeDragIds} navTo={switchTab} slotExistsRef={slotExistsRef} openSlotsRef={openSlotsRef} jumpTarget={jumpTarget} setJumpTarget={setJumpTarget} onViewStudent={onViewStudent} studentJump={studentJump} onStudentJumpHandled={()=>setStudentJump(null)}/>
             </div>
           </Suspense>
           <MosaicOverlay phase={mosaicPhase} tileColor={fogOn ? FOG_STYLE.theme.BG : (theme.BG_IMAGE ? "#d4ba96" : theme.BG)} speed={0.5}/>

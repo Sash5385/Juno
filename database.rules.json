@@ -74,6 +74,9 @@
         "admin_data": {
           "services": { ".read": true }
         },
+        // Слоти інших майстрів салону: timeslots_m/{masterId}/{date}/{slotId}. Читає хто завгодно (як timeslots); пише власник
+        // (клієнтські правила запису в них — на етапі «клієнтський бік»).
+        "timeslots_m": { ".read": true },
         "timeslots": {
           ".read": true,
           "$date": {

@@ -281,7 +281,7 @@ async function getActiveTemplateRaw(iid, triggerId) {
 // buffer — перерва після запису (service.bufferMin → booking.bufferMin), хв: слоти за записом теж займаються,
 // але в тривалість запису вона не входить.
 function bookingRange(bookingData) {
-  const { date, time, durationHours, durMin, startMin, bufferMin } = bookingData || {};
+  const { date, time, durationHours, durMin, startMin, bufferMin, masterId } = bookingData || {};
   if (!date || (!time && startMin == null)) return null;
   let start;
   if (startMin != null) {
@@ -292,11 +292,14 @@ function bookingRange(bookingData) {
   }
   const buf = Number(bufferMin);
   const buffer = Number.isFinite(buf) && buf > 0 ? Math.min(120, Math.round(buf)) : 0;
-  return { date, start, dur: durMin ?? ((durationHours || 1) * 60), buffer };
+  return { date, start, dur: durMin ?? ((durationHours || 1) * 60), buffer, master: typeof masterId === "string" && masterId ? masterId : null };
 }
 
-async function readSlotDay(iid, date) {
-  const snap = await iRef(iid, `timeslots/${date}`).get().catch(() => null);
+// Корінь слотів: власник/«Один майстер» — timeslots, інший майстер салону — timeslots_m/{masterId}
+const slotsRootOf = (iid, master) => (master && master !== iid ? `timeslots_m/${master}` : "timeslots");
+
+async function readSlotDay(iid, date, master = null) {
+  const snap = await iRef(iid, `${slotsRootOf(iid, master)}/${date}`).get().catch(() => null);
   return snap?.val() || {};
 }
 
@@ -308,8 +311,8 @@ async function readSlotDay(iid, date) {
 async function buildSlotUpdates(iid, bookingData, available, uid = null) {
   const r = bookingRange(bookingData);
   if (!r) return {};
-  const day = await readSlotDay(iid, r.date);
-  const prefix = `timeslots/${r.date}/`;
+  const day = await readSlotDay(iid, r.date, r.master);
+  const prefix = `${slotsRootOf(iid, r.master)}/${r.date}/`;
   if (!available) return blockRangeUpdates(day, prefix, r.start, r.dur, { bufferMin: r.buffer });
   // Слот, який зайняв (bookedBy) інший клієнт, не звільняємо: запис-«накладка» на чужий час
   // не повинен відкривати чужий слот при скасуванні. bookedBy знімаємо зі звільнених.
@@ -325,13 +328,13 @@ async function buildRescheduleSlotUpdates(iid, before, after) {
   const updates = {};
   let newDay = null;
   if (newR) {
-    newDay = await readSlotDay(iid, newR.date);
-    Object.assign(updates, blockRangeUpdates(newDay, `timeslots/${newR.date}/`, newR.start, newR.dur, { bufferMin: newR.buffer }));
+    newDay = await readSlotDay(iid, newR.date, newR.master);
+    Object.assign(updates, blockRangeUpdates(newDay, `${slotsRootOf(iid, newR.master)}/${newR.date}/`, newR.start, newR.dur, { bufferMin: newR.buffer }));
   }
   if (oldR) {
-    const sameDay = newR && newR.date === oldR.date;
-    const oldDay = sameDay ? newDay : await readSlotDay(iid, oldR.date);
-    Object.assign(updates, restoreRangeUpdates(oldDay, `timeslots/${oldR.date}/`, oldR.start, oldR.dur + oldR.buffer, {
+    const sameDay = newR && newR.date === oldR.date && newR.master === oldR.master;
+    const oldDay = sameDay ? newDay : await readSlotDay(iid, oldR.date, oldR.master);
+    Object.assign(updates, restoreRangeUpdates(oldDay, `${slotsRootOf(iid, oldR.master)}/${oldR.date}/`, oldR.start, oldR.dur + oldR.buffer, {
       skipRange: sameDay ? { start: newR.start, end: newR.start + newR.dur + newR.buffer } : null,
       extra: { bookedBy: null },
     }));

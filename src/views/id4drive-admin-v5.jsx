@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useLayoutEffect, useMemo, useContext } from "react";
 import { createPortal } from "react-dom";
 import { update, get, onValue, off, remove, push as fbPush } from "firebase/database";
-import { iRef, auth } from "../firebase";
+import { iRef, auth, slotRoot, slotBookingsRoot, newBookingMasterFields } from "../firebase";
 import { blockRangeUpdates, restoreRangeUpdates } from "../slotRules";
 import { normPackages, pickPackage } from "../packages";
 import { isGroupService, capacityOf, groupKeyOf } from "../groups";
@@ -11,13 +11,13 @@ import { normAddons, bufferOf, bookingAddonTotals, pickAddons, addonsTotals, add
 // phantom на позиції без власного документа, звільнення видаляє phantom і
 // повертає справжні слоти такими, якими вони були ДО запису.
 const restoreSlotRange = async (dateStr, startMin, durMin, extra) => {
-  const snap = await get(iRef(`timeslots/${dateStr}`));
-  const upd = restoreRangeUpdates(snap.val() || {}, `timeslots/${dateStr}/`, startMin, durMin, { extra });
+  const snap = await get(iRef(`${slotRoot()}/${dateStr}`));
+  const upd = restoreRangeUpdates(snap.val() || {}, `${slotRoot()}/${dateStr}/`, startMin, durMin, { extra });
   if (Object.keys(upd).length) await update(iRef("/"), upd);
 };
 const blockSlotRange = async (dateStr, startMin, durMin, opts) => {
-  const snap = await get(iRef(`timeslots/${dateStr}`));
-  const upd = blockRangeUpdates(snap.val() || {}, `timeslots/${dateStr}/`, startMin, durMin, opts);
+  const snap = await get(iRef(`${slotRoot()}/${dateStr}`));
+  const upd = blockRangeUpdates(snap.val() || {}, `${slotRoot()}/${dateStr}/`, startMin, durMin, opts);
   if (Object.keys(upd).length) await update(iRef("/"), upd);
 };
 
@@ -1372,7 +1372,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   }, []);
 
   useEffect(() => {
-    const r = iRef( "timeslots");
+    const r = iRef(slotRoot());
     const unsub = onValue(r, snap => {
       const val = snap.val() || {};
       const slots = {};
@@ -1466,7 +1466,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
           if (coveringBk) {
             const hh = String(h).padStart(2, "0");
             const mm = String(m).padStart(2, "0");
-            upd[`timeslots/${date}/slot${hh}${mm}/available`] = false;
+            upd[`${slotRoot()}/${date}/slot${hh}${mm}/available`] = false;
           }
         });
       });
@@ -1483,7 +1483,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
             const hh = String(Math.floor(cur / 60)).padStart(2, "0");
             const mm = String(cur % 60).padStart(2, "0");
             // Лише для існуючих документів — інакше запис у видалений phantom створював би огризок
-            if (rawSlotIdsRef.current[date]?.has(`slot${hh}${mm}`)) upd[`timeslots/${date}/slot${hh}${mm}/bookingStart`] = cur === b.startMin;
+            if (rawSlotIdsRef.current[date]?.has(`slot${hh}${mm}`)) upd[`${slotRoot()}/${date}/slot${hh}${mm}/bookingStart`] = cur === b.startMin;
           }
         });
       });
@@ -1530,8 +1530,8 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
       const m = String(min % 60).padStart(2, "0");
       const id = `slot${h}${m}`;
       if (!existing[id]?.adminBlocked) {
-        updates[`timeslots/${dateStr}/${id}/time`] = `${h}:${m}`;
-        updates[`timeslots/${dateStr}/${id}/available`] = true;
+        updates[`${slotRoot()}/${dateStr}/${id}/time`] = `${h}:${m}`;
+        updates[`${slotRoot()}/${dateStr}/${id}/available`] = true;
       }
     }
     const intervalMin = settings.snapMin ?? 30;
@@ -1544,15 +1544,15 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
           const m = String(cur % 60).padStart(2, "0");
           const id = `slot${h}${m}`;
           // Перерва після запису: лише слоти, що щойно згенерувались у сітці дня (без phantom і без закритих майстром)
-          if (cur >= bEnd && updates[`timeslots/${dateStr}/${id}/available`] !== true) continue;
+          if (cur >= bEnd && updates[`${slotRoot()}/${dateStr}/${id}/available`] !== true) continue;
           // Слот поза згенерованою сіткою (запис за межами робочих годин) —
           // позначаємо phantom для довідки; при скасуванні все одно стає вільним.
-          if (!(`timeslots/${dateStr}/${id}/available` in updates)) {
-            updates[`timeslots/${dateStr}/${id}/phantom`] = true;
+          if (!(`${slotRoot()}/${dateStr}/${id}/available` in updates)) {
+            updates[`${slotRoot()}/${dateStr}/${id}/phantom`] = true;
           }
-          updates[`timeslots/${dateStr}/${id}/available`] = false;
-          updates[`timeslots/${dateStr}/${id}/time`] = `${h}:${m}`;
-          updates[`timeslots/${dateStr}/${id}/bookingStart`] = cur === b.startMin;
+          updates[`${slotRoot()}/${dateStr}/${id}/available`] = false;
+          updates[`${slotRoot()}/${dateStr}/${id}/time`] = `${h}:${m}`;
+          updates[`${slotRoot()}/${dateStr}/${id}/bookingStart`] = cur === b.startMin;
         }
       });
     let free = 0, blocked = 0;
@@ -1566,7 +1566,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
     const dateStr = absDayToDateStr(absDay);
     setGenLoadingDays(s => new Set([...s, absDay]));
     try {
-      await remove(iRef( `timeslots/${dateStr}`));
+      await remove(iRef( `${slotRoot()}/${dateStr}`));
       const result = computeDayUpdates(dateStr, {}, true);
       if (result && Object.keys(result.updates).length) {
         await update(iRef(), result.updates);
@@ -1583,11 +1583,11 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
       // Прибираємо лише справді вільні (available:true) слоти — те, що
       // додав автозаповнення. Слоти, зайняті записом чи вручну заблоковані
       // адміном (available:false), не чіпаємо, щоб не "звільнити" зайнятий час.
-      const snap = await get(iRef( `timeslots/${dateStr}`));
+      const snap = await get(iRef( `${slotRoot()}/${dateStr}`));
       const day = snap.val() || {};
       const upd = {};
       Object.entries(day).forEach(([slotId, slot]) => {
-        if (slot?.available === true) upd[`timeslots/${dateStr}/${slotId}`] = null;
+        if (slot?.available === true) upd[`${slotRoot()}/${dateStr}/${slotId}`] = null;
       });
       if (Object.keys(upd).length) await update(iRef(), upd);
     } finally {
@@ -1609,7 +1609,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
       await update(iRef(), Object.fromEntries(entries.slice(i, i + CHUNK_SIZE)));
     }
   };
-  // Видалення ЦІЛОГО дня (`timeslots/{date} = null`) прибирає одразу десятки
+  // Видалення ЦІЛОГО дня (`${slotRoot()}/{date} = null`) прибирає одразу десятки
   // дочірніх слот-записів — на кожному з яких висить той самий Cloud Function
   // тригер. Один multi-path update() з N такими піддеревами зачіпає стільки ж
   // реальних записів, скільки й генерація, і так само може впертися у
@@ -1617,7 +1617,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   // а не кількість самих ключів. Тому видаляємо дні ПО ОДНОМУ послідовно.
   const clearDaysRange = async (limit) => {
     for (let d = 0; d <= limit; d++) {
-      await remove(iRef( `timeslots/${absDayToDateStr(d)}`));
+      await remove(iRef( `${slotRoot()}/${absDayToDateStr(d)}`));
     }
   };
 
@@ -1669,16 +1669,16 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   const toggleSlotFree = (dateStr, time, slot) => {
     const slotId = `slot${time.replace(":", "")}`;
     if (slot.adminBlocked) {
-      update(iRef( `timeslots/${dateStr}/${slotId}`), { available: true, adminBlocked: false, time }).catch(() => {});
+      update(iRef( `${slotRoot()}/${dateStr}/${slotId}`), { available: true, adminBlocked: false, time }).catch(() => {});
     } else {
-      update(iRef( `timeslots/${dateStr}/${slotId}`), { available: false, adminBlocked: true, vipOnly: false, privateOnly: false, surcharge: null, time }).catch(() => {});
+      update(iRef( `${slotRoot()}/${dateStr}/${slotId}`), { available: false, adminBlocked: true, vipOnly: false, privateOnly: false, surcharge: null, time }).catch(() => {});
     }
   };
 
   // Повне видалення слота — прибирає запис із Firebase, комірка зникає з сітки
   const deleteSlot = (dateStr, time) => {
     const slotId = `slot${time.replace(":", "")}`;
-    remove(iRef( `timeslots/${dateStr}/${slotId}`)).catch(() => {});
+    remove(iRef( `${slotRoot()}/${dateStr}/${slotId}`)).catch(() => {});
   };
 
   // Довгий тап: VIP, приватний, надбавка або скидання
@@ -1689,37 +1689,37 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
     if (option === "vip") {
       if (isClosed) {
         // Закритий VIP — залишаємо закритим, додаємо VIP прапор
-        update(iRef( `timeslots/${dateStr}/${slotId}`), { vipOnly: true }).catch(() => {});
+        update(iRef( `${slotRoot()}/${dateStr}/${slotId}`), { vipOnly: true }).catch(() => {});
       } else {
-        update(iRef( `timeslots/${dateStr}/${slotId}`), { available: true, adminBlocked: false, vipOnly: true }).catch(() => {});
+        update(iRef( `${slotRoot()}/${dateStr}/${slotId}`), { available: true, adminBlocked: false, vipOnly: true }).catch(() => {});
       }
     } else if (option === "private") {
       if (isClosed) {
-        update(iRef( `timeslots/${dateStr}/${slotId}`), { privateOnly: true }).catch(() => {});
+        update(iRef( `${slotRoot()}/${dateStr}/${slotId}`), { privateOnly: true }).catch(() => {});
       } else {
-        update(iRef( `timeslots/${dateStr}/${slotId}`), { available: true, adminBlocked: false, privateOnly: true }).catch(() => {});
+        update(iRef( `${slotRoot()}/${dateStr}/${slotId}`), { available: true, adminBlocked: false, privateOnly: true }).catch(() => {});
       }
     } else if (option === "reset") {
       if (isClosed) {
-        update(iRef( `timeslots/${dateStr}/${slotId}`), { vipOnly: false, privateOnly: false, surcharge: null, fixedPrice: null }).catch(() => {});
+        update(iRef( `${slotRoot()}/${dateStr}/${slotId}`), { vipOnly: false, privateOnly: false, surcharge: null, fixedPrice: null }).catch(() => {});
       } else {
-        update(iRef( `timeslots/${dateStr}/${slotId}`), { available: true, adminBlocked: false, vipOnly: false, privateOnly: false, surcharge: null, fixedPrice: null }).catch(() => {});
+        update(iRef( `${slotRoot()}/${dateStr}/${slotId}`), { available: true, adminBlocked: false, vipOnly: false, privateOnly: false, surcharge: null, fixedPrice: null }).catch(() => {});
       }
     } else if (option === "surcharge_remove") {
-      update(iRef( `timeslots/${dateStr}/${slotId}`), { surcharge: null }).catch(() => {});
+      update(iRef( `${slotRoot()}/${dateStr}/${slotId}`), { surcharge: null }).catch(() => {});
     } else if (option && typeof option === "object" && option.fixedPrice != null) {
       // Фіксована ціна повністю замінює тарифну — незалежна від VIP/Індивідуальний слот,
       // тому не чіпаємо ці прапорці, лише available/adminBlocked за тим самим
       // патерном, що й VIP/Індивідуальний слот.
       if (isClosed) {
-        update(iRef( `timeslots/${dateStr}/${slotId}`), { fixedPrice: option.fixedPrice }).catch(() => {});
+        update(iRef( `${slotRoot()}/${dateStr}/${slotId}`), { fixedPrice: option.fixedPrice }).catch(() => {});
       } else {
-        update(iRef( `timeslots/${dateStr}/${slotId}`), { available: true, adminBlocked: false, fixedPrice: option.fixedPrice }).catch(() => {});
+        update(iRef( `${slotRoot()}/${dateStr}/${slotId}`), { available: true, adminBlocked: false, fixedPrice: option.fixedPrice }).catch(() => {});
       }
     } else if (option === "fixedPrice_remove") {
-      update(iRef( `timeslots/${dateStr}/${slotId}`), { fixedPrice: null }).catch(() => {});
+      update(iRef( `${slotRoot()}/${dateStr}/${slotId}`), { fixedPrice: null }).catch(() => {});
     } else {
-      update(iRef( `timeslots/${dateStr}/${slotId}`), { surcharge: option }).catch(() => {});
+      update(iRef( `${slotRoot()}/${dateStr}/${slotId}`), { surcharge: option }).catch(() => {});
     }
     setSlotOptions(null);
   };
@@ -1841,7 +1841,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
       // Закриваємо день — прибираємо вже згенеровані слоти. Інакше стара
       // сітка (available:true) лишається в Firebase і день і далі показує
       // "відкриті" слоти та їх видно клієнту, попри позначку "закрито".
-      remove(iRef( `timeslots/${dateStr}`)).catch(()=>{});
+      remove(iRef( `${slotRoot()}/${dateStr}`)).catch(()=>{});
     }
   };
 
@@ -2376,7 +2376,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
             const m = draggedMeta.startMinutes + i;
             const sh = String(Math.floor(m / 60)).padStart(2, "0");
             const sm = String(m % 60).padStart(2, "0");
-            oldUpd[`timeslots/${oldDateStr}/slot${sh}${sm}`] = null;
+            oldUpd[`${slotRoot()}/${oldDateStr}/slot${sh}${sm}`] = null;
           }
           if (Object.keys(oldUpd).length) update(iRef(), oldUpd).catch(() => {});
           blockPersonalSlots(newDateStr, finalB.startMin, finalB.durMin);
@@ -2610,11 +2610,11 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
       const oldSlotId = `slot${fd.time.replace(":", "")}`;
       const newSlotId = `slot${h}${m}`;
       const updates = {};
-      updates[`timeslots/${fd.dateStr}/${oldSlotId}`] = null;
-      updates[`timeslots/${fd.dateStr}/${newSlotId}/available`] = true;
-      updates[`timeslots/${fd.dateStr}/${newSlotId}/time`] = newTime;
-      updates[`timeslots/${fd.dateStr}/${newSlotId}/durMin`] = durMin;
-      absorbedTimes.forEach(t => { updates[`timeslots/${fd.dateStr}/slot${t.replace(":", "")}`] = null; });
+      updates[`${slotRoot()}/${fd.dateStr}/${oldSlotId}`] = null;
+      updates[`${slotRoot()}/${fd.dateStr}/${newSlotId}/available`] = true;
+      updates[`${slotRoot()}/${fd.dateStr}/${newSlotId}/time`] = newTime;
+      updates[`${slotRoot()}/${fd.dateStr}/${newSlotId}/durMin`] = durMin;
+      absorbedTimes.forEach(t => { updates[`${slotRoot()}/${fd.dateStr}/slot${t.replace(":", "")}`] = null; });
       update(iRef(), updates).catch(() => {});
       navigator.vibrate?.(20);
     };
@@ -2677,7 +2677,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
       const lunch = lunchForDate(fr.dateStr);
       if (lunch.enabled && startMin < lunch.end && newEnd > lunch.start) { navigator.vibrate?.([10,10,10]); return; }
       const slotId = `slot${fr.time.replace(":", "")}`;
-      const updates = { [`timeslots/${fr.dateStr}/${slotId}/durMin`]: fr.newDur };
+      const updates = { [`${slotRoot()}/${fr.dateStr}/${slotId}/durMin`]: fr.newDur };
       // Ріст поглинає наступні вільні слоти, у які «в’їхав» новий розмір, —
       // прибираємо їхні окремі документи, щоб не лишалось «розрізаних» дублікатів.
       const daySlots = (openSlotsRef?.current || {})[fr.dateStr] || {};
@@ -2687,7 +2687,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
         const [h2, m2] = t.split(":").map(Number);
         const tm = h2 * 60 + m2;
         if (tm > startMin && tm < newEnd) {
-          updates[`timeslots/${fr.dateStr}/slot${t.replace(":", "")}`] = null;
+          updates[`${slotRoot()}/${fr.dateStr}/slot${t.replace(":", "")}`] = null;
           absorbedTimes.push(t);
         }
       });
@@ -2918,7 +2918,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
     const dateStr = absDayToDateStr(day);
     const hh = String(Math.floor(startMin / 60)).padStart(2, "0");
     const mm = String(startMin % 60).padStart(2, "0");
-    update(iRef( `timeslots/${dateStr}/slot${hh}${mm}`), {
+    update(iRef( `${slotRoot()}/${dateStr}/slot${hh}${mm}`), {
       time: `${hh}:${mm}`, available: true, vipOnly: true,
     }).catch(() => {});
   };
@@ -4335,7 +4335,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
           <button onClick={()=>{
             const hh = String(Math.floor(addSlotPos.startMin/60)).padStart(2,'0');
             const mm = String(addSlotPos.startMin%60).padStart(2,'0');
-            update(iRef( `timeslots/${addSlotPos.dateStr}/slot${hh}${mm}`), {
+            update(iRef( `${slotRoot()}/${addSlotPos.dateStr}/slot${hh}${mm}`), {
               available: true, time: `${hh}:${mm}`, lunchOverride: true // ручне відкриття: клієнт не ховає слот фільтром обіду/шаблону
             }).catch(()=>{});
             setAddSlotPos(null);
@@ -4486,7 +4486,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                   // цей слот своїм окремим фільтром обідньої перерви (він
                   // фільтрує за часом незалежно від того, чи слот реально
                   // існує в базі) — адмін відкрив його вручну саме на цей час.
-                  update(iRef( `timeslots/${_menu.dateStr}/slot${_hh}${_mm}`), { available: true, time: `${_hh}:${_mm}`, lunchOverride: true }).catch(()=>{});
+                  update(iRef( `${slotRoot()}/${_menu.dateStr}/slot${_hh}${_mm}`), { available: true, time: `${_hh}:${_mm}`, lunchOverride: true }).catch(()=>{});
                   _closeLtm();
                 }} style={{
                   flex:1,padding:"16px 8px",borderRadius:16,border:"none",cursor:"pointer",fontFamily:"inherit",
@@ -4870,7 +4870,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                   const dateStr = v._dateStr || absDayToDateStr(v.day);
                   const hh = String(Math.floor(v.startMin / 60)).padStart(2, "0");
                   const mm = String(v.startMin % 60).padStart(2, "0");
-                  update(iRef( `timeslots/${dateStr}/slot${hh}${mm}`), { vipOnly: false }).catch(() => {});
+                  update(iRef( `${slotRoot()}/${dateStr}/slot${hh}${mm}`), { vipOnly: false }).catch(() => {});
                   _closeVip();
                 }} style={{
                   width:"100%",padding:"14px",borderRadius:18,border:"none",cursor:"pointer",
@@ -4900,6 +4900,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
             serviceId: b.serviceId, serviceType: b.type, type: b.type,
             status: b.status, hours: b.hoursDone || 0,
             createdAt: Date.now(), createdBy: "admin",
+            ...newBookingMasterFields(),
             ...(b.note && { note: b.note }),
             ...(b.addons?.length && { addons: b.addons, addonsPrice: b.addonsPrice || 0 }),
             ...(b.bufferMin > 0 && { bufferMin: b.bufferMin }),
@@ -4960,6 +4961,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
           type: "personal", status: "personal",
           reminderHours: b.reminderHours || null, reminderSent: false,
           createdAt: Date.now(), createdBy: "admin",
+          ...newBookingMasterFields(),
         };
         update(iRef( `bookings/personal/${b.id}`), fbData).catch(() => {});
         blockPersonalSlots(b.date, b.startMin, b.durMin);
@@ -5202,8 +5204,8 @@ function CreateSlotSheet({ data, settings, onClose }) {
       const h = String(Math.floor(m / 60)).padStart(2, '0');
       const mn = String(m % 60).padStart(2, '0');
       const id = `slot${h}${mn}`;
-      updates[`timeslots/${dateStr}/${id}/time`] = `${h}:${mn}`;
-      updates[`timeslots/${dateStr}/${id}/available`] = true;
+      updates[`${slotRoot()}/${dateStr}/${id}/time`] = `${h}:${mn}`;
+      updates[`${slotRoot()}/${dateStr}/${id}/available`] = true;
     }
     await update(iRef(), updates).catch(() => {});
     setSaving(false);
@@ -7665,13 +7667,13 @@ export default function App() {
       if (b.userId && b.id) {
         if (b.date && b.startMin !== undefined && b.durMin) {
           // Відновлюємо лише слоти сітки; phantom-вузли видаляємо
-          get(iRef( `timeslots/${b.date}`)).then(s => {
+          get(iRef( `${slotRoot()}/${b.date}`)).then(s => {
             const day = s.val() || {};
             const upd = {};
             for (let i = 0; i < b.durMin; i += 30) {
               const sm = b.startMin + i;
               const hh = String(Math.floor(sm/60)).padStart(2,'0'), mm = String(sm%60).padStart(2,'0');
-              const path = `timeslots/${b.date}/slot${hh}${mm}`;
+              const path = `${slotRoot()}/${b.date}/slot${hh}${mm}`;
               const node = day[`slot${hh}${mm}`];
               if (!node || node.phantom) { upd[path] = null; continue; }
               upd[`${path}/available`] = true; upd[`${path}/time`] = `${hh}:${mm}`; upd[`${path}/bookingStart`] = null;
@@ -7702,6 +7704,7 @@ export default function App() {
         serviceId: b.serviceId, serviceType: b.type, type: b.type,
         status: b.status, tsc: b.tsc || "", hours: b.hoursDone || 0,
         createdAt: Date.now(), createdBy: "admin",
+        ...newBookingMasterFields(),
         ...(b.note && { note: b.note }),
         ...(b.debtAmount > 0 && { debtAmount: b.debtAmount }),
         ...(b.tag && { tag: b.tag, tagManual: true }),
@@ -7716,14 +7719,14 @@ export default function App() {
             const slotMin = b.startMin + i;
             const sh = String(Math.floor(slotMin / 60)).padStart(2, '0');
             const sm = String(slotMin % 60).padStart(2, '0');
-            update(iRef( `slotBookings/${b.date}/slot${sh}${sm}`), {phone, bookingId: b.id}).catch(()=>{});
+            update(iRef( `${slotBookingsRoot()}/${b.date}/slot${sh}${sm}`), {phone, bookingId: b.id}).catch(()=>{});
           }
         }
       }
     }
     if (b.date && b.startMin !== undefined && b.durMin) {
       // Вузли поза сіткою дня позначаємо phantom — при скасуванні видаляться
-      get(iRef( `timeslots/${b.date}`)).then(s => {
+      get(iRef( `${slotRoot()}/${b.date}`)).then(s => {
         const day = s.val() || {};
         const slotUpd = {};
         for (let i = 0; i < b.durMin; i += 30) {
@@ -7731,12 +7734,12 @@ export default function App() {
           const sh = String(Math.floor(slotMin / 60)).padStart(2, '0');
           const sm = String(slotMin % 60).padStart(2, '0');
           const id = `slot${sh}${sm}`;
-          if (!day[id]) slotUpd[`timeslots/${b.date}/${id}/phantom`] = true;
-          slotUpd[`timeslots/${b.date}/${id}/available`] = false;
-          slotUpd[`timeslots/${b.date}/${id}/time`] = `${sh}:${sm}`;
+          if (!day[id]) slotUpd[`${slotRoot()}/${b.date}/${id}/phantom`] = true;
+          slotUpd[`${slotRoot()}/${b.date}/${id}/available`] = false;
+          slotUpd[`${slotRoot()}/${b.date}/${id}/time`] = `${sh}:${sm}`;
           // Явний прапорець реального старту бронювання — клієнт показує лише
           // його, а не кожен 30-хвилинний блок.
-          slotUpd[`timeslots/${b.date}/${id}/bookingStart`] = i === 0;
+          slotUpd[`${slotRoot()}/${b.date}/${id}/bookingStart`] = i === 0;
         }
         update(iRef(), slotUpd).catch(() => {});
       }).catch(() => {});
