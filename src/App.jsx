@@ -1,5 +1,5 @@
 import React, { useState, useEffect, lazy, Suspense, createContext, useContext } from "react";
-import { ref, onValue, update, push, remove, get } from "firebase/database";
+import { ref, onValue, update, push, remove, get, set } from "firebase/database";
 import { iRef, db, slotRoot, setActiveMaster, setCurrentIid, registerAdminFCM, onAdminForegroundMessage } from "./firebase";
 import { useAdminAuth, LoginScreen, InstructorSetupScreen, isVendor, SuperAdminScreen } from "./AdminAuth";
 import { useAppUpdate } from "./hooks/useAppUpdate"
@@ -915,6 +915,16 @@ function AdminApp({ adminUser, ws, onWs }) {
     return onValue(iRef("staff"), snap => setStaffList(normStaff(snap.val(), ownerIid)), () => {});
   }, [adminUser, vendor, salonOn, ownerIid]);
   const staffList = salonOn ? staffAll : [];
+  // Публічний список майстрів для сторінки запису клієнта (клієнти склад не читають): власник дзеркалить у instructors/{iid}/masters
+  const lastMastersRef = React.useRef("");
+  useEffect(() => {
+    if (ws || !adminUser?.uid || vendor || !salonOn || staffAll.length === 0) return;
+    const pub = Object.fromEntries(staffAll.map(m => [m.id, { name: m.name, color: m.color, owner: m.owner }]));
+    const key = JSON.stringify(pub);
+    if (key === lastMastersRef.current) return;
+    lastMastersRef.current = key;
+    set(iRef("masters"), pub).catch(() => { lastMastersRef.current = ""; });
+  }, [ws, adminUser, vendor, salonOn, staffAll]);
   const masterId = ws ? adminUser.uid : (salonOn && pickedMaster && staffList.some(m => m.id === pickedMaster) ? pickedMaster : ownerIid);
   setActiveMaster(masterId); // до дочірніх компонентів, щоб їхні ефекти одразу читали слоти потрібного майстра
   // Майстер салону бачить лише розклад, клієнтів і свій профіль

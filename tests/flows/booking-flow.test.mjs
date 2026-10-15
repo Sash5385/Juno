@@ -418,6 +418,47 @@ const mm = (t) => { const [h, m] = t.split(":").map(Number); return h * 60 + m; 
   await fire(UA, "so1", null, await bk(UA, "so1"));
   check("запис без masterId займає слоти власника, не майстра", clean(await day(D1)).slot1000?.available === false && clean(await mday(D1)).slot1000?.available === true);
 
+  // ── 16. Салон, клієнтський бік: клієнт обирає майстра, слоти й запис йдуть у календар майстра, скасування звільняє саме його слоти
+  console.log("── 16. Салон: клієнт бронює у календарі майстра (реальний db.js)");
+  await seedDays();
+  const MID2 = "masterY";
+  await adb.ref(`instructors/${IID}/timeslots_m/${MID2}`).set({ [D1]: grid(30) });
+  await adb.ref(`instructors/${IID}/staff/${MID2}`).set({ role: "master", name: "Анна", color: "#34d399", joinedAt: Date.now() });
+  await adb.ref(`instructors/${IID}/masters`).set({ [IID]: { name: "Власник", color: "#60a5fa", owner: true }, [MID2]: { name: "Анна", color: "#34d399", owner: false } });
+  const mday2 = async (d) => (await adb.ref(`instructors/${IID}/timeslots_m/${MID2}/${d}`).get()).val() || {};
+  const ownerPristine = JSON.stringify(clean(await day(D1)));
+  await loginAs("a@t.dev"); await C.getUserProfile(UA);
+  let list = null;
+  const unsubM = C.subscribeMasters((l) => { list = l; });
+  await new Promise((r) => setTimeout(r, 400)); unsubM();
+  check("клієнт бачить публічний список майстрів (власник першим)", list?.length === 2 && list[0].owner === true && list[1].id === MID2, JSON.stringify(list));
+  C.setClientMaster(MID2);
+  const gotM = await C.getSlotsForDate(D1);
+  check("слоти для дати читаються з календаря майстра", Object.keys(gotM).length === Object.keys(grid(30)).length);
+  const okM = await C.claimSlot(D1, "10:00", 1, 30);
+  const keyM = okM ? await C.createBooking(UA, { date: D1, time: "10:00", serviceType: "private", serviceName: "Приватний", durationHours: 1, price: 600, studentName: "X", phone: "1", masterId: MID2 }) : null;
+  await fire(UA, keyM, null, await bk(UA, keyM));
+  const mdB = clean(await mday2(D1));
+  check("клієнт зайняв 10:00–11:00 у календарі майстра, запис має masterId", okM && (await bk(UA, keyM))?.masterId === MID2 && mdB.slot1000?.available === false && mdB.slot1000?.bookedBy === UA && mdB.slot1030?.available === false && mdB.slot1100?.available === true, show(mdB));
+  check("слоти власника не зачеплені", JSON.stringify(clean(await day(D1))) === ownerPristine);
+  // той самий час у власника вільний — інший клієнт може його взяти
+  C.setClientMaster(null);
+  await loginAs("b@t.dev"); await C.getUserProfile(UB);
+  const okOwner = await C.claimSlot(D1, "10:00", 1, 30);
+  check("той самий час у календарі власника вільний (календарі незалежні)", okOwner === true && clean(await day(D1)).slot1000?.available === false);
+  await C.cancelBooking(UB, "nonexistent").catch(() => {});
+  // другий клієнт у календарі МАЙСТРА на зайнятий час отримує відмову
+  C.setClientMaster(MID2);
+  const clash = await C.claimSlot(D1, "10:00", 1, 30);
+  check("зайнятий час у календарі майстра не береться вдруге", clash === false);
+  // скасування клієнтом звільняє слоти майстра (за masterId запису), а не власника
+  C.setClientMaster(null); // корінь «забули» — cancelBooking бере його із запису
+  await loginAs("a@t.dev"); await C.getUserProfile(UA);
+  await act(UA, keyM, () => C.cancelBooking(UA, keyM));
+  const mdC = clean(await mday2(D1));
+  check("скасування звільнило слоти календаря майстра", Object.values(mdC).every((n) => n.available === true && !n.phantom && !n.bookedBy), show(mdC));
+  check("слоти власника (зайняті іншим клієнтом) скасування не чіпало", clean(await day(D1)).slot1000?.available === false);
+
   console.log(failed ? `\n${failed} FAILED` : "\nALL PASS");
   process.exit(failed ? 1 : 0);
 })().catch((e) => { console.error(e); process.exit(1); });

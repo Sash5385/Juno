@@ -63,6 +63,8 @@
         },
         // Склад робочого простору (салон): { uid: { role: 'owner' | 'master', name, color, joinedAt } }.
         // Власник (uid === iid) — завжди роль owner; майстри — лише master. Читає власник і сам склад; пише лише власник.
+        // Публічний список майстрів салону (для сторінки запису клієнта): { masterId: { name, color, owner } } — синхронізує застосунок власника зі складом
+        "masters": { ".read": true },
         "staff": {
           ".read": "auth != null && (auth.uid === $iid || data.child(auth.uid).exists())",
           "$mid": {
@@ -78,7 +80,33 @@
         // (клієнтські правила запису в них — на етапі «клієнтський бік»).
         "timeslots_m": {
           ".read": true,
-          "$mid": { ".write": "auth != null && auth.uid === $mid && root.child('instructors/'+$iid+'/staff/'+auth.uid+'/role').val() === 'master'" }
+          // Слоти майстра салону: як timeslots — майстер салону (staff) і власник пишуть усе, клієнт цього простору лише бронює/звільняє СВОЇ слоти (ті самі обмеження)
+          "$mid": {
+            ".write": "auth != null && auth.uid === $mid && root.child('instructors/'+$iid+'/staff/'+auth.uid+'/role').val() === 'master'",
+            "$date": {
+            "$slotId": {
+              // Майстер — усе. Клієнт лише свого майстра (є users/{uid}):
+              //  • адмінські поля слота (adminBlocked/vipOnly/privateOnly/surcharge/fixedPrice/lunchOverride/durMin/personal) незмінні й не видаляються;
+              //  • новий слот — лише як зайнятий (phantom); видалити можна тільки власний phantom (bookedBy);
+              //  • ЗАЙНЯТИЙ слот чіпає лише той, хто його зайняв (bookedBy === uid): чужий слот не звільнити і не перезаписати;
+              //  • bookedBy можна виставити лише собі; слот, зарезервований для іншого (reservedFor) до reservedUntil, не зайняти.
+              // Звільнення слотів при скасуванні і так робить сервер (onBookingChanged, admin SDK).
+              ".write": "auth != null && ((auth.uid === $iid || (auth.uid === $mid && root.child('instructors/'+$iid+'/staff/'+auth.uid+'/role').val() === 'master')) || (root.child('instructors/'+$iid+'/users/'+auth.uid).exists() && (data.exists() || newData.child('available').val() === false) && (newData.exists() || (data.child('phantom').val() === true && data.child('bookedBy').val() === auth.uid)) && (data.child('available').val() !== false || data.child('bookedBy').val() === auth.uid) && (newData.child('bookedBy').val() === data.child('bookedBy').val() || newData.child('bookedBy').val() === auth.uid || newData.child('bookedBy').val() === null) && (!data.child('reservedFor').exists() || data.child('reservedFor').val() === auth.uid || data.child('reservedUntil').val() < now) && newData.child('adminBlocked').val() === data.child('adminBlocked').val() && newData.child('vipOnly').val() === data.child('vipOnly').val() && newData.child('privateOnly').val() === data.child('privateOnly').val() && newData.child('surcharge').val() === data.child('surcharge').val() && newData.child('fixedPrice').val() === data.child('fixedPrice').val() && newData.child('lunchOverride').val() === data.child('lunchOverride').val() && newData.child('durMin').val() === data.child('durMin').val() && newData.child('personal').val() === data.child('personal').val()))",
+              "viewing":   { "$uid": { ".write": "auth != null && auth.uid === $uid" } },
+              // Гілки черги: клієнт прибирає лише СВОЇ маркери (пропозиція/резерв), коли забирає або відхиляє слот
+              "offeredTo": { "$uid": { ".write": "auth != null && auth.uid === $uid" } },
+              "reservedFor":   { ".write": "auth != null && data.val() === auth.uid" },
+              "reservedUntil": { ".write": "auth != null && root.child('instructors/'+$iid+'/timeslots/'+$date+'/'+$slotId+'/reservedFor').val() === auth.uid" },
+              "vipOnly":       { ".validate": "(auth.uid === $iid || (auth.uid === $mid && root.child('instructors/'+$iid+'/staff/'+auth.uid+'/role').val() === 'master')) || newData.val() === data.val()" },
+              "adminBlocked":  { ".validate": "(auth.uid === $iid || (auth.uid === $mid && root.child('instructors/'+$iid+'/staff/'+auth.uid+'/role').val() === 'master')) || newData.val() === data.val()" },
+              "privateOnly":   { ".validate": "(auth.uid === $iid || (auth.uid === $mid && root.child('instructors/'+$iid+'/staff/'+auth.uid+'/role').val() === 'master')) || newData.val() === data.val()" },
+              "surcharge":     { ".validate": "(auth.uid === $iid || (auth.uid === $mid && root.child('instructors/'+$iid+'/staff/'+auth.uid+'/role').val() === 'master')) || newData.val() === data.val()" },
+              "fixedPrice":    { ".validate": "(auth.uid === $iid || (auth.uid === $mid && root.child('instructors/'+$iid+'/staff/'+auth.uid+'/role').val() === 'master')) || newData.val() === data.val()" },
+              "lunchOverride": { ".validate": "(auth.uid === $iid || (auth.uid === $mid && root.child('instructors/'+$iid+'/staff/'+auth.uid+'/role').val() === 'master')) || newData.val() === data.val()" },
+              "durMin":        { ".validate": "(auth.uid === $iid || (auth.uid === $mid && root.child('instructors/'+$iid+'/staff/'+auth.uid+'/role').val() === 'master')) || newData.val() === data.val()" }
+            }
+          }
+          }
         },
         "slotBookings_m": {
           "$mid": {
