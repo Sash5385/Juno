@@ -486,9 +486,9 @@ export default function StatsView() {
 
         {/* ── CALENDAR (завжди відкритий — швидкий вибір місяця/тижня/дня) ── */}
         <Card className="fu" style={{padding:"12px"}}>
-          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:9}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:11}}>
             <button onClick={()=>calGoMonth(-1)} style={{
-              width:34,height:34,borderRadius:9,border:"none",cursor:"pointer",fontFamily:"inherit",
+              width:36,height:36,borderRadius:99,border:`1px solid ${BORDER}`,cursor:"pointer",fontFamily:"inherit",
               background:SURF_HI,color:DIM,fontSize:18,fontWeight:700,lineHeight:1,
             }}>‹</button>
             <button onClick={calPickMonth} title="Обрати весь місяць" style={{
@@ -496,13 +496,13 @@ export default function StatsView() {
               fontSize:13,fontWeight:800,color:TEXT,textTransform:"capitalize",padding:"4px 10px",borderRadius:8,
             }}>{calMonthLabel}</button>
             <button onClick={()=>calGoMonth(1)} style={{
-              width:34,height:34,borderRadius:9,border:"none",cursor:"pointer",fontFamily:"inherit",
+              width:36,height:36,borderRadius:99,border:`1px solid ${BORDER}`,cursor:"pointer",fontFamily:"inherit",
               background:SURF_HI,color:DIM,fontSize:18,fontWeight:700,lineHeight:1,
             }}>›</button>
           </div>
           <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3,marginBottom:4}}>
             {["Пн","Вт","Ср","Чт","Пт","Сб","Нд"].map(d=>(
-              <div key={d} style={{textAlign:"center",fontSize:8,color:FAINT,fontWeight:700,textTransform:"uppercase"}}>{d}</div>
+              <div key={d} style={{textAlign:"center",fontSize:10,color:FAINT,fontWeight:700,textTransform:"uppercase"}}>{d}</div>
             ))}
           </div>
           <div
@@ -524,23 +524,23 @@ export default function StatsView() {
               const isSel = period === "custom" && selectedDays.has(dateStr);
               const inPreview = calDragPreview && day >= Math.min(calDragPreview.start,calDragPreview.end) && day <= Math.max(calDragPreview.start,calDragPreview.end);
               let bg = SURF_HI, color = DIM;
-              if (n > 0) { const tier = calTierColor(n); bg = `${tier}22`; color = tier; }
+              if (n > 0) { const tier = calTierColor(n); bg = `color-mix(in srgb,${tier} 22%,transparent)`; color = tier; }
               if (inPreview) { bg = `${ACCENT}45`; color = ACCENT; }
               return (
                 <button key={day} data-cal-day={day} style={{
-                  height:26, borderRadius:6, cursor:"pointer", fontFamily:"inherit",
-                  border: isToday ? `1.5px solid ${ACCENT}` : inPreview ? `1px solid ${ACCENT}` : "none",
-                  background: isSel ? ACCENT : bg,
+                  height:34, borderRadius:11, cursor:"pointer", fontFamily:"inherit",
+                  border: isToday ? `1.5px solid ${ACCENT}` : inPreview ? `1px solid ${ACCENT}` : `1px solid ${BORDER}`,
+                  background: isSel ? `linear-gradient(145deg,${ACC_HI},${ACCENT})` : bg,
                   color: isSel ? "#04231f" : color,
-                  fontSize:10, fontWeight:700,
+                  fontSize:12, fontWeight:700,
                 }}>{day}</button>
               );
             })}
           </div>
           <div style={{display:"flex",gap:10,justifyContent:"center",marginTop:8}}>
             {[[RED,"мало"],[GOLD,"середньо"],[GREEN,"багато"]].map(([c,l])=>(
-              <span key={l} style={{fontSize:8,color:FAINT,fontWeight:700,display:"flex",alignItems:"center",gap:3}}>
-                <i style={{width:6,height:6,borderRadius:2,background:c,display:"inline-block"}}/>{l}
+              <span key={l} style={{fontSize:10,color:FAINT,fontWeight:700,display:"flex",alignItems:"center",gap:4}}>
+                <i style={{width:8,height:8,borderRadius:3,background:c,display:"inline-block"}}/>{l}
               </span>
             ))}
           </div>
@@ -687,7 +687,7 @@ export default function StatsView() {
             background:`color-mix(in srgb,${GREEN} 18%,transparent)`,backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",
             border:`1px solid color-mix(in srgb,${GREEN} 24%,transparent)`,
           }}>
-            <div style={{fontSize:9,color:"rgba(255,255,255,0.6)",letterSpacing:1,textTransform:"uppercase",fontWeight:700,marginBottom:7}}>Розподіл</div>
+            <div style={{fontSize:10.5,color:"rgba(255,255,255,0.65)",letterSpacing:1,textTransform:"uppercase",fontWeight:700,marginBottom:7}}>Розподіл</div>
             {(() => {
               const totalRatio = totalSchool + totalPrivate;
               const schoolPct = totalRatio ? Math.round((totalSchool/totalRatio)*100) : 0;
@@ -696,12 +696,12 @@ export default function StatsView() {
                   {[[GREEN,"Стандарт",totalSchool,schoolPct],[GOLD,"Індивідуальний",totalPrivate,100-schoolPct]].map(([c,l,v,pct])=>(
                     <div key={l} style={{display:"flex",alignItems:"center",gap:5}}>
                       <i style={{width:7,height:7,borderRadius:2,background:c,flexShrink:0}}/>
-                      <span style={{flex:1,fontSize:9.5,color:"rgba(255,255,255,0.7)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{l}</span>
+                      <span style={{flex:1,fontSize:11,color:"rgba(255,255,255,0.75)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{l}</span>
                       <span style={{fontSize:12,fontWeight:900,color:c}}>{v}</span>
-                      <span style={{fontSize:8.5,color:"rgba(255,255,255,0.5)",width:26,textAlign:"right",flexShrink:0}}>{pct}%</span>
+                      <span style={{fontSize:10,color:"rgba(255,255,255,0.55)",width:30,textAlign:"right",flexShrink:0}}>{pct}%</span>
                     </div>
                   ))}
-                  <div style={{display:"flex",height:6,borderRadius:4,overflow:"hidden",boxShadow:SI,marginTop:1}}>
+                  <div style={{display:"flex",height:8,borderRadius:99,overflow:"hidden",marginTop:2}}>
                     <div style={{width:`${totalRatio?schoolPct:50}%`,background:GREEN,transition:"width .5s ease"}}/>
                     <div style={{width:`${totalRatio?100-schoolPct:50}%`,background:GOLD,transition:"width .5s ease"}}/>
                   </div>
@@ -715,18 +715,18 @@ export default function StatsView() {
             background:`color-mix(in srgb,${GOLD} 18%,transparent)`,backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",
             border:`1px solid color-mix(in srgb,${GOLD} 24%,transparent)`,
           }}>
-            <div style={{fontSize:9,color:"rgba(255,255,255,0.6)",letterSpacing:1,textTransform:"uppercase",fontWeight:700,marginBottom:7}}>{byPeriodLabel}</div>
+            <div style={{fontSize:10.5,color:"rgba(255,255,255,0.65)",letterSpacing:1,textTransform:"uppercase",fontWeight:700,marginBottom:7}}>{byPeriodLabel}</div>
             <div style={{display:"flex",flexDirection:"column",gap:4,maxHeight:140,overflowY:"auto",paddingRight:2}}>
               {data.map((d, i) => {
                 const maxI = Math.max(...data.map(x => x.income), 1);
                 const pct  = d.income / maxI;
                 return (
                   <div key={i} style={{display:"flex",alignItems:"center",gap:6}}>
-                    <span style={{fontSize:8.5,color:"rgba(255,255,255,0.55)",fontWeight:700,width:16,textAlign:"right",flexShrink:0}}>{d.label}</span>
-                    <div style={{flex:1,height:4,background:BG_DEEP,borderRadius:3,boxShadow:SI,overflow:"hidden"}}>
+                    <span style={{fontSize:10,color:"rgba(255,255,255,0.6)",fontWeight:700,width:18,textAlign:"right",flexShrink:0}}>{d.label}</span>
+                    <div style={{flex:1,height:6,background:"rgba(255,255,255,.1)",borderRadius:99,overflow:"hidden"}}>
                       <div style={{height:"100%",width:`${pct*100}%`,borderRadius:3,background:`linear-gradient(90deg,${GOLD},${GREEN})`,transition:"width .5s ease"}}/>
                     </div>
-                    <span style={{fontSize:8.5,color:GOLD,fontWeight:800,width:32,textAlign:"right",flexShrink:0}}>{d.income ? fmtK(d.income) : <span style={{color:FAINT}}>—</span>}</span>
+                    <span style={{fontSize:10,color:GOLD,fontWeight:800,width:46,textAlign:"right",flexShrink:0,whiteSpace:"nowrap"}}>{d.income ? fmtK(d.income) : <span style={{color:FAINT}}>—</span>}</span>
                   </div>
                 );
               })}
@@ -741,14 +741,14 @@ export default function StatsView() {
             background:`color-mix(in srgb,${GOLD} 18%,transparent)`,backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",
             border:`1px solid color-mix(in srgb,${GOLD} 24%,transparent)`,
           }}>
-            <div style={{fontSize:9,color:"rgba(255,255,255,0.6)",letterSpacing:1,textTransform:"uppercase",fontWeight:700,marginBottom:10}}>Популярні слоти</div>
+            <div style={{fontSize:10.5,color:"rgba(255,255,255,0.65)",letterSpacing:1,textTransform:"uppercase",fontWeight:700,marginBottom:10}}>Популярні слоти</div>
             {popularSlots.map((s, i) => {
               const maxCount = popularSlots[0].count;
               const pct = s.count / maxCount;
               return (
                 <div key={s.hour} style={{display:"flex",alignItems:"center",gap:8,marginBottom:7}}>
                   <span style={{fontSize:11,color:i===0?GOLD:FAINT,fontWeight:700,width:36,flexShrink:0}}>{s.hour}</span>
-                  <div style={{flex:1,height:6,background:BG_DEEP,borderRadius:3,boxShadow:SI,overflow:"hidden"}}>
+                  <div style={{flex:1,height:8,background:"rgba(255,255,255,.1)",borderRadius:99,overflow:"hidden"}}>
                     <div style={{height:"100%",width:`${pct*100}%`,borderRadius:3,
                       background:i===0?`linear-gradient(90deg,${GOLD},${GREEN})`:`linear-gradient(90deg,${PURPLE},${ACCENT})`,
                       transition:"width .5s ease"}}/>
