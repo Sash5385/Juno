@@ -55,6 +55,8 @@ const makeCSS = (theme) => {
 body,html{margin:0;padding:0;background:${theme.BG}${theme.BG_IMAGE ? `;background-image:${theme.BG_IMAGE};background-size:cover;background-position:center top;background-attachment:fixed;background-repeat:no-repeat` : ""}}
 ::-webkit-scrollbar{width:5px;height:5px}
 ::-webkit-scrollbar-thumb{background:${scrollThumb};border-radius:3px}
+/* підказка в полі — відтінок власного кольору тексту поля (читається і на темному, і на світлому тлі) */
+input::placeholder,textarea::placeholder{color:color-mix(in srgb,currentColor 68%,transparent);opacity:1}
 @keyframes spin{to{transform:rotate(360deg)}}
 .spinner{width:32px;height:32px;border:3px solid ${spinnerBorder};border-top-color:${theme.ACCENT};border-radius:50%;animation:spin .8s linear infinite}
 /* transform:none, а НЕ translateY(0) — критично.
@@ -281,7 +283,7 @@ function BottomNav({ active, onChange, settings, chatUnread, journalUnread }) {
               {badgeCount > 0 && (
                 <div data-help="navbadge" style={{
                   position:"absolute",top:-6,right:-8,
-                  background:theme.ACCENT,color:"#fff",borderRadius:10,
+                  background:theme.ACCENT,color:theme.BTN_TX||"#fff",borderRadius:10,
                   padding:"1px 5px",fontSize:9,fontWeight:800,
                   boxShadow:`0 0 8px ${theme.ACCENT}88`,lineHeight:1.4
                 }}>{badgeCount}</div>
@@ -329,7 +331,7 @@ function QueueStrip({ tab, onChange }) {
       </span>
       {waiting > 0 && (
         <span style={{
-          background:"linear-gradient(145deg,#c084fc,#7c3aed)",
+          background:"linear-gradient(145deg,#9333ea,#6d28d9)",
           color:"#fff",borderRadius:8,padding:"1px 8px",
           fontSize:11,fontWeight:800,
           boxShadow:"0 0 8px rgba(192,132,252,0.5)",
@@ -1342,7 +1344,7 @@ const pendingDeletesRef = React.useRef(new Set());
       )}
       {/* position:fixed+inset:0 замість height:100dvh: в Android Chrome із системною панеллю навігації
           100dvh сягає під неї, а fixed-елементи (панель розділів «Налаштувань») — ні; навбар «з'їжджав» вниз. */}
-      <div style={{
+      <div id="app-shell" style={{
         position:"fixed", inset:0, background:"transparent",color:fogOn ? FOG_STYLE.theme.TEXT : theme.TEXT,
         fontFamily:fogOn ? "Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,system-ui,sans-serif" : "ui-sans-serif,-apple-system,BlinkMacSystemFont,system-ui,sans-serif",
         display:"flex",flexDirection:"column",

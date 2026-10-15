@@ -70,7 +70,7 @@ function getHours(item, svc) {
 }
 
 function QueueRow({ item, pos, onInvite, onBooked, onArchive, onDelete, dragHandleProps, isDragging, svcMap }) {
-  const { BORDER, FAINT, GOLD, GREEN, PURPLE, RED, BG_DEEP } = useContext(ThemeContext);
+  const { BORDER, FAINT, GOLD, GREEN, PURPLE, BG_DEEP, TEXT } = useContext(ThemeContext);
   const { shade, glow } = useFX();
 
   const STATUS_CFG = {
@@ -79,6 +79,8 @@ function QueueRow({ item, pos, onInvite, onBooked, onArchive, onDelete, dragHand
     booked:   { label:"Записаний", color:GREEN  },
     archived: { label:"Архів",     color:FAINT  },
   };
+
+  const ACT_BTN = extra => ({padding:"8px 2px",border:"none",cursor:"pointer",background:"transparent",color:TEXT,fontSize:11,fontWeight:700,fontFamily:"inherit",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:4,minWidth:0,...extra});
 
   const svc = (svcMap || SERVICES)[item.svcId] || {};
   const st  = STATUS_CFG[item.status] || STATUS_CFG.waiting;
@@ -103,26 +105,26 @@ function QueueRow({ item, pos, onInvite, onBooked, onArchive, onDelete, dragHand
             width:36,height:36,borderRadius:11,
             background:`linear-gradient(155deg,${st.color},color-mix(in srgb,${st.color} 40%,#000))`,
             display:"flex",alignItems:"center",justifyContent:"center",
-            fontSize:13,fontWeight:900,color:"#fff",
+            fontSize:13,fontWeight:900,color:"#fff",textShadow:"0 1px 2px rgba(0,0,0,0.55)",
             boxShadow:`-2px 3px 8px color-mix(in srgb,${st.color} 40%,transparent)`,
           }}>{initials}</div>
           <div style={{
-            position:"absolute",top:-5,left:-5,width:15,height:15,borderRadius:5,
-            background:BG_DEEP,color:st.color,fontSize:8.5,fontWeight:900,
+            position:"absolute",top:-6,left:-6,minWidth:18,height:18,padding:"0 3px",borderRadius:6,
+            background:BG_DEEP,color:`color-mix(in srgb,${st.color} 55%,#fff)`,fontSize:11,fontWeight:900,
             display:"flex",alignItems:"center",justifyContent:"center",
             border:`1px solid color-mix(in srgb,${st.color} 45%,transparent)`,
           }}>{pos}</div>
         </div>
         <div style={{flex:1,minWidth:0}}>
-          <div style={{fontSize:14.5,fontWeight:700,color:"#fff",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{item.name}</div>
-          <div style={{fontSize:11.5,color:"rgba(255,255,255,0.75)",marginTop:2,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+          <div style={{fontSize:14.5,fontWeight:700,color:"#fff",overflowWrap:"anywhere"}}>{item.name}</div>
+          <div style={{fontSize:11.5,color:"rgba(255,255,255,0.85)",marginTop:2,overflowWrap:"anywhere"}}>
             {item.phone}
             {svcLabel && ` · ${svcLabel}${hrs ? ` ${hrs}г` : ""}`}
           </div>
         </div>
         <div style={{textAlign:"right",flexShrink:0}}>
-          <div style={{fontSize:11,fontWeight:700,color:st.color}}>{st.label}</div>
-          <div style={{fontSize:11,color:"rgba(255,255,255,0.7)",marginTop:2}}>{fmtWait(item.addedAt)}</div>
+          <div style={{fontSize:11,fontWeight:700,color:`color-mix(in srgb,${st.color} 55%,#fff)`}}>{st.label}</div>
+          <div style={{fontSize:11,color:"rgba(255,255,255,0.8)",marginTop:2}}>{fmtWait(item.addedAt)}</div>
         </div>
       </div>
 
@@ -130,7 +132,7 @@ function QueueRow({ item, pos, onInvite, onBooked, onArchive, onDelete, dragHand
       {item.status !== "archived" && (
         <div style={{display:"grid",gridTemplateColumns:`repeat(${item.status==="waiting"?4:item.status==="offered"?3:2},1fr)`,borderTop:`1px solid ${BORDER}`}}>
           {item.status === "waiting" && (
-            <button onClick={onInvite} style={{padding:"11px 0",border:"none",borderRight:`1px solid ${BORDER}`,cursor:"pointer",background:"transparent",color:PURPLE,fontSize:12,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",gap:5}}>
+            <button onClick={onInvite} style={ACT_BTN({borderRight:`1px solid ${BORDER}`})}>
               <div className="icon3d" style={{width:22,height:22,background:"linear-gradient(165deg,#c084fc,#7c3aed)",borderRadius:7}}>
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" style={{position:"relative",zIndex:1}}><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
               </div>
@@ -138,20 +140,20 @@ function QueueRow({ item, pos, onInvite, onBooked, onArchive, onDelete, dragHand
             </button>
           )}
           {(item.status === "waiting" || item.status === "offered") && (
-            <button onClick={onBooked} style={{padding:"8px 0",border:"none",borderRight:`1px solid ${BORDER}`,cursor:"pointer",background:"transparent",color:GREEN,fontSize:11,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",gap:5}}>
+            <button onClick={onBooked} style={ACT_BTN({borderRight:`1px solid ${BORDER}`})}>
               <div className="icon3d" style={{width:22,height:22,background:"linear-gradient(165deg,#9ee07a,#5fb83d)",borderRadius:7}}>
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" style={{position:"relative",zIndex:1}}><polyline points="5 12 10 17 19 8"/></svg>
               </div>
               Записаний
             </button>
           )}
-          <button onClick={onArchive} style={{padding:"8px 0",border:"none",borderRight:`1px solid ${BORDER}`,cursor:"pointer",background:"transparent",color:FAINT,fontSize:11,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",gap:5}}>
+          <button onClick={onArchive} style={ACT_BTN({borderRight:`1px solid ${BORDER}`})}>
             <div className="icon3d" style={{width:22,height:22,background:`linear-gradient(165deg,#5a5e66,#3a3e44)`,borderRadius:7}}>
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" style={{position:"relative",zIndex:1}}><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
             </div>
             Архів
           </button>
-          <button onClick={onDelete} style={{padding:"8px 0",border:"none",cursor:"pointer",background:"transparent",color:`${RED}cc`,fontSize:11,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",gap:5}}>
+          <button onClick={onDelete} style={ACT_BTN({})}>
             <div className="icon3d" style={{width:22,height:22,background:`linear-gradient(165deg,#f87171,#dc2626)`,borderRadius:7}}>
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" style={{position:"relative",zIndex:1}}><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
             </div>
@@ -161,7 +163,7 @@ function QueueRow({ item, pos, onInvite, onBooked, onArchive, onDelete, dragHand
       )}
       {item.status === "archived" && (
         <div style={{display:"flex",justifyContent:"flex-end",padding:"4px 10px 7px",borderTop:`1px solid ${BORDER}`}}>
-          <button onClick={onDelete} style={{background:"none",border:"none",cursor:"pointer",color:RED,fontSize:11,fontWeight:700}}>🗑 Видалити</button>
+          <button onClick={onDelete} style={{background:"none",border:"none",cursor:"pointer",color:"#f87171",fontSize:12,fontWeight:700,padding:"8px 6px",fontFamily:"inherit"}}>🗑 Видалити</button>
         </div>
       )}
     </div>
@@ -250,7 +252,7 @@ export default function QueueView({ settings }) {
               border:`1px solid color-mix(in srgb,${s.color} 32%,transparent)`,
             }}>
               <div style={{fontSize:18,fontWeight:900,color:"#fff"}}>{s.value}</div>
-              <div style={{fontSize:9,color:"rgba(255,255,255,0.6)",marginTop:2,letterSpacing:0.5}}>{s.label.toUpperCase()}</div>
+              <div style={{fontSize:11,color:"rgba(255,255,255,0.78)",marginTop:2,letterSpacing:0.3}}>{s.label.toUpperCase()}</div>
             </div>
           ))}
         </div>

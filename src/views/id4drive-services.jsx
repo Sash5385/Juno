@@ -70,7 +70,7 @@ function SlotPreview({ svc, height=80 }) {
       display:"flex",flexDirection:"column",justifyContent:"space-between",
     }}>
       <div style={{fontSize:12,fontWeight:800,color:"#fff",textShadow:`0 1px 2px ${shade(0.5)}`,position:"relative",zIndex:3}}>{svc.name}</div>
-      <div style={{fontSize:10,color:"rgba(255,255,255,0.8)",fontWeight:700,position:"relative",zIndex:3}}>{fmtDur(svc.duration)} · {svc.price||0} ₴</div>
+      <div style={{fontSize:11,color:"rgba(255,255,255,0.94)",fontWeight:700,position:"relative",zIndex:3}}>{fmtDur(svc.duration)} · {svc.price||0} ₴</div>
     </div>
   );
 }
@@ -84,7 +84,7 @@ function Inset({ children, style={} }) {
 // ─── SERVICE FORM MODAL ──────────────────────────────────────────
 function ServiceFormModal({ svc, onSave, onClose }) {
   const theme = useContext(ThemeContext);
-  const { SURF_HI, SURFACE, BG_DEEP, TEXT, DIM, ACCENT, ACC_HI, GOLD, SO } = theme;
+  const { SURF_HI, SURFACE, BG_DEEP, TEXT, DIM, ACCENT, ACC_HI, GOLD, SO, BTN_TX } = theme;
   const PALETTE = makePalette(theme);
   const { glow, shade } = useFX();
   const isNew = !svc;
@@ -116,17 +116,17 @@ function ServiceFormModal({ svc, onSave, onClose }) {
       }}>
       {/* slot preview */}
       <div style={{marginBottom:16}}>
-        <div style={{fontSize:10,color:theme.LBL||"rgba(255,255,255,0.55)",letterSpacing:1.5,textTransform:"uppercase",marginBottom:8}}>ПОПЕРЕДНІЙ ПЕРЕГЛЯД СЛОТУ</div>
+        <div style={{fontSize:11,color:theme.LBL||"rgba(255,255,255,0.74)",letterSpacing:1.5,textTransform:"uppercase",marginBottom:8}}>ПОПЕРЕДНІЙ ПЕРЕГЛЯД СЛОТУ</div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
           <SlotPreview svc={form} height={72}/>
           <SlotPreview svc={{...form,duration:form.duration*2}} height={72}/>
         </div>
-        <div style={{fontSize:10,color:theme.LBL||"rgba(255,255,255,0.55)",marginTop:4,textAlign:"center"}}>1 слот · 2 слоти (подвійний)</div>
+        <div style={{fontSize:11,color:theme.LBL||"rgba(255,255,255,0.74)",marginTop:4,textAlign:"center"}}>1 слот · 2 слоти (подвійний)</div>
       </div>
 
       {/* name */}
       <div style={{marginBottom:14}}>
-        <div style={{fontSize:10,color:theme.LBL||"rgba(255,255,255,0.55)",letterSpacing:1,marginBottom:6}}>НАЗВА</div>
+        <div style={{fontSize:11,color:theme.LBL||"rgba(255,255,255,0.74)",letterSpacing:1,marginBottom:6}}>НАЗВА</div>
         <Inset style={{padding:"4px 14px"}}>
           <input value={form.name} onChange={e=>upd("name",e.target.value)} placeholder="Назва послуги..."
             style={{width:"100%",background:"transparent",border:"none",outline:"none",color:TEXT,fontSize:15,fontWeight:800,padding:"10px 0",fontFamily:"inherit"}}/>
@@ -135,7 +135,7 @@ function ServiceFormModal({ svc, onSave, onClose }) {
 
       {/* type */}
       <div style={{marginBottom:14}}>
-        <div style={{fontSize:10,color:theme.LBL||"rgba(255,255,255,0.55)",letterSpacing:1,marginBottom:8}}>ТИП</div>
+        <div style={{fontSize:11,color:theme.LBL||"rgba(255,255,255,0.74)",letterSpacing:1,marginBottom:8}}>ТИП</div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
           <Chip active={form.type==="school"}  color={theme.GREEN} onClick={()=>upd("type","school")}>📋 Стандарт</Chip>
           <Chip active={form.type==="private"} color={GOLD}        onClick={()=>upd("type","private")}>👤 Індивідуальний</Chip>
@@ -145,7 +145,7 @@ function ServiceFormModal({ svc, onSave, onClose }) {
       {/* duration + price */}
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
         <div>
-          <div style={{fontSize:10,color:theme.LBL||"rgba(255,255,255,0.55)",letterSpacing:1,marginBottom:6}}>ТРИВАЛІСТЬ (хв)</div>
+          <div style={{fontSize:11,color:theme.LBL||"rgba(255,255,255,0.74)",letterSpacing:1,marginBottom:6}}>ТРИВАЛІСТЬ (хв)</div>
           <Inset style={{padding:"10px 14px",display:"flex",alignItems:"center",gap:6}}>
             <input type="number" value={form.duration} min={5} max={480} onChange={e=>upd("duration",+e.target.value)}
               style={{flex:1,background:"transparent",border:"none",outline:"none",color:TEXT,fontSize:18,fontWeight:800,width:60,fontFamily:"inherit"}}/>
@@ -154,15 +154,15 @@ function ServiceFormModal({ svc, onSave, onClose }) {
           <div style={{display:"flex",gap:5,marginTop:6,flexWrap:"wrap"}}>
             {[30,60,90,120,180].map(v=>(
               <button key={v} onClick={()=>upd("duration",v)} style={{
-                padding:"4px 8px",borderRadius:theme.CHIP_R??8,border:"none",cursor:"pointer",fontSize:11,fontWeight:700,fontFamily:"inherit",
+                flex:"1 1 auto",padding:"7px 8px",borderRadius:theme.CHIP_R??8,border:"none",cursor:"pointer",fontSize:11,fontWeight:700,fontFamily:"inherit",
                 background:form.duration===v?`linear-gradient(165deg,${ACC_HI},${ACCENT})`:`linear-gradient(135deg,${SURF_HI},${SURFACE})`,
-                color:form.duration===v?"#fff":DIM,boxShadow:SO,
+                color:form.duration===v?(BTN_TX||"#fff"):TEXT,boxShadow:SO,
               }}>{v}</button>
             ))}
           </div>
         </div>
         <div>
-          <div style={{fontSize:10,color:theme.LBL||"rgba(255,255,255,0.55)",letterSpacing:1,marginBottom:6}}>ЦІНА (₴)</div>
+          <div style={{fontSize:11,color:theme.LBL||"rgba(255,255,255,0.74)",letterSpacing:1,marginBottom:6}}>ЦІНА (₴)</div>
           <Inset style={{padding:"10px 14px",display:"flex",alignItems:"center",gap:6}}>
             <input type="number" value={form.price} min={0} onChange={e=>upd("price",e.target.value===""?"":+e.target.value)}
               style={{flex:1,background:"transparent",border:"none",outline:"none",color:GOLD,fontSize:18,fontWeight:800,width:80,fontFamily:"inherit"}}/>
@@ -173,7 +173,7 @@ function ServiceFormModal({ svc, onSave, onClose }) {
 
       {/* scheduled price change */}
       <div style={{marginBottom:14}}>
-        <div style={{fontSize:10,color:theme.LBL||"rgba(255,255,255,0.55)",letterSpacing:1,marginBottom:6}}>ЗАПЛАНОВАНА ЗМІНА ЦІНИ (опційно)</div>
+        <div style={{fontSize:11,color:theme.LBL||"rgba(255,255,255,0.74)",letterSpacing:1,marginBottom:6}}>ЗАПЛАНОВАНА ЗМІНА ЦІНИ (опційно)</div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr auto",gap:10,alignItems:"center"}}>
           <Inset style={{padding:"8px 12px"}}>
             <input type="date" value={form.nextPriceFrom||""} onChange={e=>upd("nextPriceFrom", e.target.value||null)}
@@ -193,7 +193,7 @@ function ServiceFormModal({ svc, onSave, onClose }) {
           )}
         </div>
         {form.nextPrice != null && form.nextPriceFrom && (
-          <div style={{fontSize:10,color:theme.LBL||"rgba(255,255,255,0.55)",marginTop:6}}>
+          <div style={{fontSize:11,color:theme.LBL||"rgba(255,255,255,0.74)",marginTop:6}}>
             З {form.nextPriceFrom} ціна автоматично стане {form.nextPrice}₴ для записів з цією датою й пізніше.
           </div>
         )}
@@ -201,34 +201,34 @@ function ServiceFormModal({ svc, onSave, onClose }) {
 
       {/* rebook reminder */}
       <div style={{marginBottom:14}}>
-        <div style={{fontSize:10,color:theme.LBL||"rgba(255,255,255,0.55)",letterSpacing:1,marginBottom:8}}>НАГАДАТИ ПРО ПОВТОРНИЙ ЗАПИС</div>
+        <div style={{fontSize:11,color:theme.LBL||"rgba(255,255,255,0.74)",letterSpacing:1,marginBottom:8}}>НАГАДАТИ ПРО ПОВТОРНИЙ ЗАПИС</div>
         <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
           {REBOOK_OPTIONS.map(v=>(
             <button key={v} onClick={()=>upd("rebookDays",v)} style={{
-              padding:"6px 11px",borderRadius:theme.CHIP_R??9,border:"none",cursor:"pointer",fontSize:12,fontWeight:700,fontFamily:"inherit",
+              flex:"1 1 auto",padding:"8px 11px",borderRadius:theme.CHIP_R??9,border:"none",cursor:"pointer",fontSize:12,fontWeight:700,fontFamily:"inherit",
               background:rebookOf(form)===v?`linear-gradient(165deg,${ACC_HI},${ACCENT})`:`linear-gradient(135deg,${SURF_HI},${SURFACE})`,
-              color:rebookOf(form)===v?"#fff":DIM,boxShadow:SO,
+              color:rebookOf(form)===v?(BTN_TX||"#fff"):TEXT,boxShadow:SO,
             }}>{v===0?"Вимкнено":`${v} дн.`}</button>
           ))}
         </div>
-        <div style={{fontSize:10,color:theme.LBL||"rgba(255,255,255,0.55)",marginTop:6}}>
+        <div style={{fontSize:11,color:theme.LBL||"rgba(255,255,255,0.74)",marginTop:6}}>
           {rebookOf(form)>0 ? `Через ${rebookOf(form)} дн. після візиту клієнт отримає пуш «Час записатись знову» (лише якщо в нього немає майбутнього запису; раз за візит).` : "Клієнтам не нагадується."}
         </div>
       </div>
 
       {/* group capacity */}
       <div style={{marginBottom:14}}>
-        <div style={{fontSize:10,color:theme.LBL||"rgba(255,255,255,0.55)",letterSpacing:1,marginBottom:8}}>МІСЦЬ У ГРУПІ</div>
+        <div style={{fontSize:11,color:theme.LBL||"rgba(255,255,255,0.74)",letterSpacing:1,marginBottom:8}}>МІСЦЬ У ГРУПІ</div>
         <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
           {[1,2,3,4,6,8,10,12,20].map(v=>(
             <button key={v} onClick={()=>upd("capacity",v)} style={{
-              padding:"6px 11px",borderRadius:theme.CHIP_R??9,border:"none",cursor:"pointer",fontSize:12,fontWeight:700,fontFamily:"inherit",
+              flex:"1 1 auto",padding:"8px 11px",borderRadius:theme.CHIP_R??9,border:"none",cursor:"pointer",fontSize:12,fontWeight:700,fontFamily:"inherit",
               background:capacityOf(form)===v?`linear-gradient(165deg,${ACC_HI},${ACCENT})`:`linear-gradient(135deg,${SURF_HI},${SURFACE})`,
-              color:capacityOf(form)===v?"#fff":DIM,boxShadow:SO,
+              color:capacityOf(form)===v?(BTN_TX||"#fff"):TEXT,boxShadow:SO,
             }}>{v===1?"Індивідуально":v}</button>
           ))}
         </div>
-        <div style={{fontSize:10,color:theme.LBL||"rgba(255,255,255,0.55)",marginTop:6}}>
+        <div style={{fontSize:11,color:theme.LBL||"rgba(255,255,255,0.74)",marginTop:6}}>
           {capacityOf(form)>1
             ? `Група до ${Math.min(capacityOf(form),MAX_CAPACITY)} клієнтів на один час: поки є місця, клієнти приєднуються до наявної групи. Ціна — за кожного учасника. Допуслуги для групових послуг не діють.`
             : "Один клієнт на час. Оберіть більше місць, щоб послуга стала груповою."}
@@ -237,7 +237,7 @@ function ServiceFormModal({ svc, onSave, onClose }) {
 
       {/* add-ons */}
       {capacityOf(form)<=1 && <div style={{marginBottom:14}}>
-        <div style={{fontSize:10,color:theme.LBL||"rgba(255,255,255,0.55)",letterSpacing:1,marginBottom:6}}>ДОПУСЛУГИ (опційно)</div>
+        <div style={{fontSize:11,color:theme.LBL||"rgba(255,255,255,0.74)",letterSpacing:1,marginBottom:6}}>ДОПУСЛУГИ (опційно)</div>
         <div style={{display:"flex",flexDirection:"column",gap:8}}>
           {addons.map((a,i)=>(
             <Inset key={a.id||i} style={{padding:"8px 12px"}}>
@@ -251,7 +251,7 @@ function ServiceFormModal({ svc, onSave, onClose }) {
               </div>
               <div style={{display:"grid",gridTemplateColumns:"minmax(0,1fr) minmax(0,1fr)",gap:10,marginTop:4}}>
                 <div>
-                  <div style={{fontSize:9,color:theme.LBL||"rgba(255,255,255,0.55)",letterSpacing:1,marginBottom:3}}>+ ДО ЦІНИ</div>
+                  <div style={{fontSize:11,color:theme.LBL||"rgba(255,255,255,0.74)",letterSpacing:1,marginBottom:3}}>+ ДО ЦІНИ</div>
                   <div style={{display:"flex",alignItems:"center",gap:5}}>
                     <input type="number" value={a.price ?? ""} min={0} onChange={e=>setAddon(i,{price:e.target.value===""?"":+e.target.value})}
                       style={{flex:1,minWidth:0,width:"100%",background:"transparent",border:"none",outline:"none",color:GOLD,fontSize:15,fontWeight:800,fontFamily:"inherit"}}/>
@@ -259,7 +259,7 @@ function ServiceFormModal({ svc, onSave, onClose }) {
                   </div>
                 </div>
                 <div>
-                  <div style={{fontSize:9,color:theme.LBL||"rgba(255,255,255,0.55)",letterSpacing:1,marginBottom:3}}>+ ХВИЛИН</div>
+                  <div style={{fontSize:11,color:theme.LBL||"rgba(255,255,255,0.74)",letterSpacing:1,marginBottom:3}}>+ ХВИЛИН</div>
                   <div style={{display:"flex",alignItems:"center",gap:5}}>
                     <input type="number" value={a.minutes ?? ""} min={0} max={240} step={5} onChange={e=>setAddon(i,{minutes:e.target.value===""?"":+e.target.value})}
                       style={{flex:1,minWidth:0,width:"100%",background:"transparent",border:"none",outline:"none",color:TEXT,fontSize:15,fontWeight:800,fontFamily:"inherit"}}/>
@@ -270,9 +270,9 @@ function ServiceFormModal({ svc, onSave, onClose }) {
               <div style={{display:"flex",gap:4,marginTop:6,flexWrap:"wrap"}}>
                 {[0,...ADDON_MINUTES.filter(v=>v>0&&v<=60)].map(v=>(
                   <button key={v} onClick={()=>setAddon(i,{minutes:v})} style={{
-                    padding:"3px 8px",borderRadius:theme.CHIP_R??7,border:"none",cursor:"pointer",fontSize:10,fontWeight:700,fontFamily:"inherit",
+                    flex:"1 1 auto",padding:"6px 8px",borderRadius:theme.CHIP_R??7,border:"none",cursor:"pointer",fontSize:11,fontWeight:700,fontFamily:"inherit",
                     background:Number(a.minutes||0)===v?`linear-gradient(165deg,${ACC_HI},${ACCENT})`:`linear-gradient(135deg,${SURF_HI},${SURFACE})`,
-                    color:Number(a.minutes||0)===v?"#fff":DIM,boxShadow:SO,
+                    color:Number(a.minutes||0)===v?(BTN_TX||"#fff"):TEXT,boxShadow:SO,
                   }}>{v===0?"без часу":`+${v}`}</button>
                 ))}
               </div>
@@ -282,31 +282,31 @@ function ServiceFormModal({ svc, onSave, onClose }) {
             <Btn variant="ghost" onClick={addAddon} style={{width:"100%"}}>＋ Додати допуслугу</Btn>
           )}
         </div>
-        <div style={{fontSize:10,color:theme.LBL||"rgba(255,255,255,0.55)",marginTop:6}}>
+        <div style={{fontSize:11,color:theme.LBL||"rgba(255,255,255,0.74)",marginTop:6}}>
           Клієнт відмічає допуслуги при записі: сума додається до ціни, хвилини — до тривалості запису.
         </div>
       </div>}
 
       {/* buffer after booking */}
       <div style={{marginBottom:14}}>
-        <div style={{fontSize:10,color:theme.LBL||"rgba(255,255,255,0.55)",letterSpacing:1,marginBottom:8}}>ПЕРЕРВА ПІСЛЯ ЗАПИСУ</div>
+        <div style={{fontSize:11,color:theme.LBL||"rgba(255,255,255,0.74)",letterSpacing:1,marginBottom:8}}>ПЕРЕРВА ПІСЛЯ ЗАПИСУ</div>
         <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
           {BUFFER_OPTIONS.map(v=>(
             <button key={v} onClick={()=>upd("bufferMin",v)} style={{
-              padding:"6px 11px",borderRadius:theme.CHIP_R??9,border:"none",cursor:"pointer",fontSize:12,fontWeight:700,fontFamily:"inherit",
+              flex:"1 1 auto",padding:"8px 11px",borderRadius:theme.CHIP_R??9,border:"none",cursor:"pointer",fontSize:12,fontWeight:700,fontFamily:"inherit",
               background:bufferOf(form)===v?`linear-gradient(165deg,${ACC_HI},${ACCENT})`:`linear-gradient(135deg,${SURF_HI},${SURFACE})`,
-              color:bufferOf(form)===v?"#fff":DIM,boxShadow:SO,
+              color:bufferOf(form)===v?(BTN_TX||"#fff"):TEXT,boxShadow:SO,
             }}>{v===0?"Без перерви":`${v} хв`}</button>
           ))}
         </div>
-        <div style={{fontSize:10,color:theme.LBL||"rgba(255,255,255,0.55)",marginTop:6}}>
+        <div style={{fontSize:11,color:theme.LBL||"rgba(255,255,255,0.74)",marginTop:6}}>
           Час на прибирання чи відпочинок: слот одразу після запису буде зайнятий, і клієнти не запишуться впритул. У тривалість і ціну перерва не входить.
         </div>
       </div>
 
       {/* color */}
       <div style={{marginBottom:14}}>
-        <div style={{fontSize:10,color:theme.LBL||"rgba(255,255,255,0.55)",letterSpacing:1,marginBottom:8}}>КОЛІР СЛОТУ</div>
+        <div style={{fontSize:11,color:theme.LBL||"rgba(255,255,255,0.74)",letterSpacing:1,marginBottom:8}}>КОЛІР СЛОТУ</div>
         <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:8}}>
           {PALETTE.map(p=>(
             <button key={p.id} title={p.name} onClick={()=>upd("colorId",p.id)} style={{
@@ -390,7 +390,7 @@ function ServiceCard({ svc, isDragging, onEdit, onToggle, onDelete, dragHandlePr
           .map((m,i,arr)=>(
           <div key={m.label} style={{padding:"10px 0",textAlign:"center",borderRight:i<arr.length-1?`1px solid ${BORDER}`:"none"}}>
             <div style={{fontSize:13,fontWeight:800,color:m.c}}>{m.val}</div>
-            <div style={{fontSize:9,color:FAINT,marginTop:2,letterSpacing:0.5,textTransform:"uppercase"}}>{m.label}</div>
+            <div style={{fontSize:11,color:FAINT,marginTop:2,letterSpacing:0.5,textTransform:"uppercase"}}>{m.label}</div>
           </div>
         ))}
       </div>
@@ -401,7 +401,7 @@ function ServiceCard({ svc, isDragging, onEdit, onToggle, onDelete, dragHandlePr
           {svc.description && <div style={{fontSize:12,color:DIM,fontStyle:"italic"}}>"{svc.description}"</div>}
           {svc.accessCats.length>0 && (
             <div style={{display:"flex",gap:5,alignItems:"center",flexWrap:"wrap"}}>
-              <span style={{fontSize:10,color:FAINT,flexShrink:0}}>Доступ:</span>
+              <span style={{fontSize:11,color:FAINT,flexShrink:0}}>Доступ:</span>
               {svc.accessCats.map(id=>{const cc=CATEGORIES[id];return cc?<Pill key={id} label={cc.name} color={cc.color} bg={`${cc.color}22`}/>:null;})}
             </div>
           )}

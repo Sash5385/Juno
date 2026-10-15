@@ -80,7 +80,7 @@ function Conversation({ contact, messages, onSend, isBroadcast }) {
         {(messages||[]).map(m => {
           if (m.type==="sys") return (
             <div key={m.id} style={{display:"flex",justifyContent:"center",padding:"2px 0"}}>
-              <span className="bubble-sys msg-in" style={{padding:"4px 12px",fontSize:10,color:DIM}}>{m.text}</span>
+              <span className="bubble-sys msg-in" style={{padding:"4px 12px",fontSize:11,color:DIM}}>{m.text}</span>
             </div>
           );
           const isMe = m.from==="admin";
@@ -88,7 +88,7 @@ function Conversation({ contact, messages, onSend, isBroadcast }) {
             <div key={m.id} className="msg-in" style={{display:"flex",justifyContent:isMe?"flex-end":"flex-start",padding:"1px 10px"}}>
               <div className={isMe?(m.broadcast?"bubble-broadcast":"bubble-out"):"bubble-in"} style={{maxWidth:"72%",padding:"8px 12px"}}>
                 <div style={{fontSize:13,color:isMe?"#fff":TEXT,lineHeight:1.4,wordBreak:"break-word"}}>{m.text}</div>
-                <div style={{fontSize:9,color:isMe?"rgba(255,255,255,0.5)":FAINT,marginTop:3,textAlign:"right"}}>{m.time}</div>
+                <div style={{fontSize:11,color:isMe?"rgba(255,255,255,0.75)":FAINT,marginTop:3,textAlign:"right"}}>{m.time}</div>
               </div>
             </div>
           );
@@ -109,7 +109,7 @@ function Conversation({ contact, messages, onSend, isBroadcast }) {
       )}
 
       <div style={{padding:"8px 10px",borderTop:`1px solid ${borderCol}`,background:SURF_LO,display:"flex",alignItems:"flex-end",gap:7}}>
-        <button onClick={()=>setQuick(v=>!v)} style={{background:"none",border:"none",cursor:"pointer",color:quick?GOLD:FAINT,fontSize:16,padding:"4px",flexShrink:0}}>⚡</button>
+        <button onClick={()=>setQuick(v=>!v)} aria-label="Швидкі відповіді" style={{background:"none",border:"none",cursor:"pointer",color:quick?GOLD:FAINT,fontSize:16,width:32,height:32,padding:0,flexShrink:0}}>⚡</button>
         <div style={{flex:1,background:BG_DEEP,borderRadius:11,boxShadow:SI,padding:"8px 12px",display:"flex",alignItems:"flex-end",gap:8}}>
           <textarea ref={taRef} className="msg-input" value={text} onChange={e=>setText(e.target.value)}
             onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send();}}}
@@ -135,7 +135,7 @@ function Conversation({ contact, messages, onSend, isBroadcast }) {
 const BROADCAST_ID = "__broadcast__";
 
 export default function ChatsView() {
-  const { SURFACE, SURF_HI, BORDER, TEXT, DIM, FAINT, ACCENT, SO } = useContext(ThemeContext);
+  const { SURFACE, SURF_HI, BORDER, TEXT, DIM, FAINT, ACCENT, SO, BTN_TX } = useContext(ThemeContext);
   const { shade, ink } = useFX();
 
   const css = `
@@ -331,7 +331,7 @@ export default function ChatsView() {
             {search && <button onClick={()=>setSearch("")} style={{background:"none",border:"none",cursor:"pointer",color:FAINT,fontSize:16,padding:0,lineHeight:1}}>×</button>}
           </div>
           {totalUnread > 0 && (
-            <div style={{background:ACCENT,color:"#fff",borderRadius:10,padding:"3px 9px",fontSize:11,fontWeight:800,flexShrink:0,boxShadow:`0 0 8px ${ACCENT}66`}}>
+            <div style={{background:ACCENT,color:BTN_TX||"#fff",borderRadius:10,padding:"3px 9px",fontSize:11,fontWeight:800,flexShrink:0,boxShadow:`0 0 8px ${ACCENT}66`}}>
               {totalUnread}
             </div>
           )}
@@ -349,12 +349,12 @@ export default function ChatsView() {
               <div style={{flex:1,minWidth:0}}>
                 <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:2}}>
                   <span style={{fontSize:13,fontWeight:800,color:"#fff"}}>📢 Розсилка</span>
-                  <span style={{fontSize:9,color:"rgba(255,255,255,0.75)",fontWeight:700,letterSpacing:0.3}}>BROADCAST</span>
+                  <span style={{fontSize:11,color:"rgba(255,255,255,0.75)",fontWeight:700,letterSpacing:0.3}}>BROADCAST</span>
                 </div>
                 <div style={{fontSize:11,color:"rgba(255,255,255,0.8)"}}>Надіслати повідомлення всім клієнтам</div>
               </div>
               <div style={{flexShrink:0,textAlign:"right"}}>
-                <div style={{fontSize:9,color:"rgba(255,255,255,0.7)",fontWeight:700}}>{contacts.length} клієнтів</div>
+                <div style={{fontSize:11,color:"rgba(255,255,255,0.7)",fontWeight:700}}>{contacts.length} клієнтів</div>
               </div>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.65)" strokeWidth="2.2" strokeLinecap="round"
                 style={{flexShrink:0,transform:broadcastOpen?"rotate(180deg)":"none",transition:"transform .22s"}}>
@@ -397,23 +397,23 @@ export default function ChatsView() {
                   <Ava name={c.name} hue={c.hue} size={36} online={c.online}/>
                   <div style={{flex:1,minWidth:0}}>
                     <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:2}}>
-                      <span style={{fontSize:13,fontWeight:800,color:"#fff",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.name || c.phone}</span>
+                      <span style={{fontSize:13,fontWeight:800,color:"#fff",overflowWrap:"anywhere"}}>{c.name || c.phone}</span>
                     </div>
                     <div style={{fontSize:11,color:"rgba(255,255,255,0.78)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
                       {c.lastMsg || c.phone || "Немає повідомлень"}
                     </div>
                   </div>
                   <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4,flexShrink:0}}>
-                    <span style={{fontSize:10,color:"rgba(255,255,255,0.65)"}}>{c.lastTime}</span>
+                    <span style={{fontSize:11,color:"rgba(255,255,255,0.8)"}}>{c.lastTime}</span>
                     {(unreadMeta[c.id]||0) > 0
-                      ? <span style={{background:ACCENT,color:"#fff",borderRadius:9,padding:"1px 6px",fontSize:10,fontWeight:800}}>{unreadMeta[c.id]}</span>
+                      ? <span style={{background:ACCENT,color:BTN_TX||"#fff",borderRadius:9,padding:"1px 6px",fontSize:11,fontWeight:800}}>{unreadMeta[c.id]}</span>
                       : <span style={{width:8,height:8,borderRadius:4,background:"rgba(255,255,255,0.25)",display:"inline-block"}}/>
                     }
                   </div>
                   <button onClick={e=>handleDelete(e,c.id)}
                     className={isDeleting?"del-confirm":""}
                     style={{flexShrink:0,background:"none",border:"none",cursor:"pointer",
-                      padding:"4px 6px",borderRadius:8,marginLeft:2,
+                      minWidth:32,minHeight:32,padding:"4px 6px",borderRadius:8,marginLeft:0,
                       color:isDeleting?"#f87171":"rgba(255,255,255,0.65)",fontSize:isDeleting?11:14,fontWeight:isDeleting?700:400,transition:"color .2s"}}>
                     {isDeleting?"Видалити?":(
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

@@ -173,7 +173,7 @@ function Row({ label, hint, children, last, color, compact }) {
     }}>
       <div style={{flex:1,minWidth:0}}>
         <div style={{fontSize:compact?12:13,fontWeight:700,color:"#fff"}}>{label}</div>
-        {hint && <div style={{fontSize:compact?9:10,color:"rgba(255,255,255,0.6)",marginTop:compact?1:2,lineHeight:1.35}}>{hint}</div>}
+        {hint && <div style={{fontSize:compact?9:10,color:"rgba(255,255,255,0.74)",marginTop:compact?1:2,lineHeight:1.35}}>{hint}</div>}
       </div>
       <div style={{flexShrink:0}}>{children}</div>
     </div>
@@ -211,7 +211,7 @@ function ProfileCard({ color, icon, title, children }) {
 function Chip({ label, active, onClick }) {
   const { ACC_HI, ACCENT, SURF_HI, SURFACE, DIM, SO, FOG, BORDER, BTN_TX } = useContext(ThemeContext);
   if (FOG) return (
-    <button onClick={onClick} style={{padding:"8px 13px",borderRadius:99,cursor:"pointer",fontSize:12,fontWeight:600,fontFamily:"inherit",
+    <button onClick={onClick} style={{flex:"1 1 auto",padding:"9px 13px",borderRadius:99,cursor:"pointer",fontSize:12,fontWeight:600,fontFamily:"inherit",
       border:`1px solid ${active?"transparent":BORDER}`,background:active?`linear-gradient(145deg,${ACC_HI},${ACCENT})`:SURFACE,color:active?BTN_TX:DIM}}>{label}</button>
   );
   return (
@@ -266,7 +266,7 @@ function TimeInput({ value, onChange, min=0, max=24, compact=false }) {
   return (
     <div style={{display:"flex",alignItems:"center",background:FOG?SURF_HI:BG_DEEP,borderRadius:FOG?12:7,boxShadow:FOG?"none":SI,overflow:"hidden"}}>
       {btn(-1,"‹")}
-      <label style={{position:"relative",fontSize:dS,fontWeight:700,color:TEXT,minWidth:dW,textAlign:"center",cursor:"pointer"}}>
+      <label style={{position:"relative",fontSize:dS,fontWeight:700,color:TEXT,minWidth:dW,textAlign:"center",cursor:"pointer",alignSelf:"stretch",display:"flex",alignItems:"center",justifyContent:"center"}}>
         {disp}
         <input type="time" step={60} value={disp} onChange={e=>{ const [h,m] = String(e.target.value || "").split(":").map(Number); if (Number.isFinite(h) && Number.isFinite(m)) setM(h * 60 + m); }}
           style={{position:"absolute",inset:0,width:"100%",height:"100%",opacity:0,cursor:"pointer"}}/>
@@ -343,7 +343,7 @@ function TimeWheel({ label, value, onChange, min = 0, max = 24, rows = 5, color 
   const pad = ((rows - 1) / 2) * WHEEL_ITEM;
   return (
     <div style={{textAlign:"center"}}>
-      <div style={{display:"inline-block",fontSize:11,fontWeight:800,letterSpacing:1.2,color:c,marginBottom:6,
+      <div style={{display:"inline-block",fontSize:11,fontWeight:800,letterSpacing:1.2,color:`color-mix(in srgb,${c} 60%,#fff)`,marginBottom:6,
         padding:"3px 12px",borderRadius:999,background:`color-mix(in srgb,${c} 14%,transparent)`}}>{label}</div>
       <div style={{position:"relative",display:"flex",alignItems:"center",justifyContent:"center",gap:2,padding:"0 4px"}}>
         <div style={{position:"absolute",left:0,right:0,top:pad,height:WHEEL_ITEM,pointerEvents:"none",borderRadius:14,
@@ -374,7 +374,7 @@ function daySlotStarts(d) {
 }
 
 export function WeekScheduleEditor({ weekSchedule, updDay, setWeek }) {
-  const { BG_DEEP, SURF_HI, SURFACE, TEXT, DIM, FAINT, GREEN, RED, GOLD, ACCENT, SI, SO } = useContext(ThemeContext);
+  const { BG_DEEP, SURF_HI, SURFACE, TEXT, DIM, FAINT, GREEN, RED, GOLD, ACCENT, SI, SO, BTN_TX } = useContext(ThemeContext);
   const [sel, setSel] = useState(0);
   const day = weekSchedule[sel];
   const lS = day.lunchStart ?? 12, lE = day.lunchEnd ?? 13;
@@ -416,7 +416,7 @@ export function WeekScheduleEditor({ weekSchedule, updDay, setWeek }) {
               transform:on?"translateY(-2px)":"none",transition:"all .15s",
             }}>
               <span style={{fontSize:14,fontWeight:800,color:on?"#0b1a08":d.enabled?"#fff":FAINT}}>{n}</span>
-              <span style={{fontSize:10,fontWeight:700,color:on?"#0b1a08":FAINT}}>{d.enabled ? `${Math.round(hrs(d) * 10) / 10}г` : "—"}</span>
+              <span style={{fontSize:11,fontWeight:700,color:on?"#0b1a08":FAINT}}>{d.enabled ? `${Math.round(hrs(d) * 10) / 10}г` : "—"}</span>
             </button>
           );
         })}
@@ -441,7 +441,7 @@ export function WeekScheduleEditor({ weekSchedule, updDay, setWeek }) {
                 background:`linear-gradient(90deg,${GREEN},color-mix(in srgb,${GREEN} 60%,#34d399))`,borderRadius:6}}/>
               {day.lunchEnabled && <div style={{position:"absolute",top:0,bottom:0,left:pct(lS),width:`calc(${pct(lE)} - ${pct(lS)})`,background:GOLD}}/>}
             </div>
-            <div style={{display:"flex",justifyContent:"space-between",fontSize:9,color:FAINT,marginTop:3}}>
+            <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:FAINT,marginTop:3}}>
               <span>00</span><span>06</span><span>12</span><span>18</span><span>24</span>
             </div>
           </div>
@@ -476,7 +476,7 @@ export function WeekScheduleEditor({ weekSchedule, updDay, setWeek }) {
       </div>
       {day.enabled && (
         <button onClick={copyAll} style={{width:"100%",marginTop:10,padding:"13px",borderRadius:14,cursor:"pointer",fontSize:13,fontWeight:800,
-          color:"#fff",background:`linear-gradient(135deg,color-mix(in srgb,${ACCENT} 80%,#000),${ACCENT})`,border:"none",
+          color:BTN_TX||"#fff",background:`linear-gradient(135deg,color-mix(in srgb,${ACCENT} 80%,#000),${ACCENT})`,border:"none",
           boxShadow:`0 4px 14px color-mix(in srgb,${ACCENT} 35%,transparent)`}}>
           Копіювати {DAY_NAMES[sel]} на всі робочі дні
         </button>
@@ -727,7 +727,7 @@ const RESET_PATHS = ["bookings","bookings_by_phone","timeslots","slotBookings","
 
 export default function SettingsView({ settings, setSettings }) {
   const [confirm, confirmNode] = useConfirm();
-  const { BG_DEEP, SURF_HI, SURFACE, SURF_LO, BORDER, TEXT, DIM, FAINT, ACCENT, ACC_HI, GREEN, BLUE, PURPLE, GOLD, RED, TEAL, SO, SI } = useContext(ThemeContext);
+  const { BG_DEEP, SURF_HI, SURFACE, SURF_LO, BORDER, TEXT, DIM, FAINT, ACCENT, ACC_HI, GREEN, BLUE, PURPLE, GOLD, RED, TEAL, SO, SI, BTN_TX } = useContext(ThemeContext);
   const lang = useContext(LangContext);
   const t = createT(lang);
   const isKava = false; // «Туман» — завжди темне скло
@@ -737,6 +737,8 @@ input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:4px;
 input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:9px;background:linear-gradient(145deg,${ACC_HI},${ACCENT});cursor:pointer;box-shadow:0 2px 6px rgba(255,90,60,0.5)}
 select{color-scheme:${isKava?"light":"dark"}}
 .fog-row + .fog-row{border-top:1px solid ${BORDER}}
+.pk-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:8px}
+@media (max-width:479px){.pk-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.pk-grid>:last-child{grid-column:1/-1}}
 `;
   const upd = (k, v) => setSettings(s=>({...s,[k]:v}));
 
@@ -1154,7 +1156,7 @@ select{color-scheme:${isKava?"light":"dark"}}
               return (<>
                 <div style={{display:"flex",background:SURF_HI,padding:3,borderRadius:14,border:`1px solid ${BORDER}`}}>
                   {modes.map(o=>(
-                    <button key={o.k} onClick={()=>setQueueMode(o.k)} style={{flex:1,padding:"11px 0",borderRadius:11,border:"none",cursor:"pointer",fontFamily:"inherit",fontSize:13,fontWeight:600,
+                    <button key={o.k} onClick={()=>setQueueMode(o.k)} style={{flex:"1 1 0",minWidth:0,padding:"11px 0",borderRadius:11,border:"none",cursor:"pointer",fontFamily:"inherit",fontSize:12,fontWeight:600,
                       background:queueMode===o.k?`linear-gradient(145deg,${ACC_HI},${ACCENT})`:"transparent",color:queueMode===o.k?"#06182e":DIM}}>{o.label}</button>
                   ))}
                 </div>
@@ -1212,8 +1214,8 @@ select{color-scheme:${isKava?"light":"dark"}}
               />
               <button onClick={()=>upd("surcharges", (settings.surcharges||[]).filter((_,j)=>j!==i))} style={{
                 background:"none",border:"none",cursor:"pointer",
-                color:"rgba(248,113,113,0.8)",fontSize:20,lineHeight:1,padding:"0 4px",
-              }}>×</button>
+                color:"#f87171",fontSize:22,lineHeight:1,padding:0,minWidth:32,minHeight:32,
+              }} aria-label="Видалити">×</button>
             </div>
           ))}
           {(settings.surcharges||[]).length < 5 ? (
@@ -1222,7 +1224,7 @@ select{color-scheme:${isKava?"light":"dark"}}
               background:"transparent",color:GREEN,fontSize:13,fontWeight:700,marginTop:2,
             }}>+ Додати надбавку</button>
           ) : (
-            <div style={{textAlign:"center",fontSize:12,color:"rgba(255,255,255,0.4)",padding:"6px 0"}}>
+            <div style={{textAlign:"center",fontSize:12,color:"rgba(255,255,255,0.74)",padding:"6px 0"}}>
               Максимум 5 надбавок
             </div>
           )}
@@ -1243,14 +1245,14 @@ select{color-scheme:${isKava?"light":"dark"}}
                 <div style={{display:"flex",alignItems:"center",gap:8}}>
                   <button onClick={()=>setTagIconOpen(tagIconOpen===t.id?null:t.id)} style={{width:40,height:40,borderRadius:11,border:`1.5px solid ${TAG_COLORS[t.colorId]}`,background:"rgba(0,0,0,0.2)",fontSize:20,cursor:"pointer",flexShrink:0}}>{t.icon}</button>
                   <input value={t.label} maxLength={20} onChange={e=>patch(t.id,{label:e.target.value})} onBlur={e=>{ if(!e.target.value.trim()) patch(t.id,{label:"Мітка"}); }}
-                    style={{flex:1,minWidth:0,padding:"10px 12px",borderRadius:10,border:`1px solid ${BORDER}`,background:"rgba(0,0,0,0.18)",color:TEXT,fontSize:14,fontFamily:"inherit"}}/>
+                    style={{flex:1,minWidth:0,alignSelf:"stretch",padding:"10px 12px",borderRadius:10,border:`1px solid ${BORDER}`,background:"rgba(0,0,0,0.18)",color:TEXT,fontSize:14,fontFamily:"inherit"}}/>
                   {!AUTO_TAG_IDS.includes(t.id) && (
-                    <button onClick={()=>setTagList(tags.filter(x=>x.id!==t.id))} title="Видалити" style={{background:"none",border:"none",cursor:"pointer",color:"rgba(248,113,113,0.85)",fontSize:22,lineHeight:1,padding:"0 4px"}}>×</button>
+                    <button onClick={()=>setTagList(tags.filter(x=>x.id!==t.id))} title="Видалити" aria-label="Видалити" style={{background:"none",border:"none",cursor:"pointer",color:"#f87171",fontSize:22,lineHeight:1,padding:0,minWidth:32,alignSelf:"stretch"}}>×</button>
                   )}
                 </div>
-                <div style={{display:"flex",gap:8,marginTop:9,alignItems:"center"}}>
+                <div style={{display:"flex",gap:8,marginTop:9,alignItems:"center",justifyContent:"space-between"}}>
                   {Object.entries(TAG_COLORS).map(([cid,col])=>(
-                    <button key={cid} onClick={()=>patch(t.id,{colorId:cid})} aria-label={cid} style={{width:24,height:24,borderRadius:"50%",background:col,cursor:"pointer",border:t.colorId===cid?"2.5px solid #fff":"2px solid transparent",boxShadow:t.colorId===cid?`0 0 8px ${col}`:"none"}}/>
+                    <button key={cid} onClick={()=>patch(t.id,{colorId:cid})} aria-label={cid} style={{width:28,height:28,borderRadius:"50%",background:col,cursor:"pointer",border:t.colorId===cid?"2.5px solid #fff":"2px solid transparent",boxShadow:t.colorId===cid?`0 0 8px ${col}`:"none"}}/>
                   ))}
                 </div>
                 {tagIconOpen===t.id && (
@@ -1282,7 +1284,7 @@ select{color-scheme:${isKava?"light":"dark"}}
         const setPk = (list) => upd("packages", list);
         const patchPk = (i, p) => setPk(pkgs.map((x, j) => j === i ? { ...x, ...p } : x));
         const box = { padding:"10px 12px", borderRadius:10, border:`1px solid ${BORDER}`, background:"rgba(0,0,0,0.18)", color:TEXT, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", minWidth:0, width:"100%" };
-        const lbl = { fontSize:9, letterSpacing:1, color:FAINT, textTransform:"uppercase", marginBottom:3 };
+        const lbl = { fontSize:11, letterSpacing:0.6, color:FAINT, textTransform:"uppercase", marginBottom:3, minHeight:"2.6em", display:"flex", alignItems:"flex-end", lineHeight:1.25 };
         return (
           <div>
             <div style={{fontSize:12,color:FAINT,marginBottom:12,lineHeight:1.5}}>
@@ -1291,19 +1293,19 @@ select{color-scheme:${isKava?"light":"dark"}}
             {pkgs.map((pk, i) => (
               <div key={pk.id || i} style={{marginBottom:8,padding:"10px 12px",borderRadius:12,background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,boxShadow:SO}}>
                 <div style={{display:"flex",alignItems:"center",gap:6}}>
-                  <input value={pk.name || ""} maxLength={40} placeholder="Назва, напр. «5 записів»" onChange={e=>patchPk(i,{name:e.target.value})} style={{...box,flex:1,width:"auto"}}/>
-                  <button onClick={()=>setPk(pkgs.filter((_, j) => j !== i))} aria-label="Видалити" style={{background:"none",border:"none",cursor:"pointer",color:"rgba(248,113,113,0.85)",fontSize:22,lineHeight:1,padding:"0 4px"}}>×</button>
+                  <input value={pk.name || ""} maxLength={40} placeholder="Назва, напр. «5 записів»" onChange={e=>patchPk(i,{name:e.target.value})} style={{...box,flex:1,width:"auto",alignSelf:"stretch"}}/>
+                  <button onClick={()=>setPk(pkgs.filter((_, j) => j !== i))} aria-label="Видалити" style={{background:"none",border:"none",cursor:"pointer",color:"#f87171",fontSize:22,lineHeight:1,padding:0,minWidth:32,alignSelf:"stretch"}}>×</button>
                 </div>
-                <div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:8,marginTop:8}}>
+                <div className="pk-grid">
                   <div><div style={lbl}>Записів</div><input type="number" min={1} max={200} value={pk.count ?? ""} onChange={e=>patchPk(i,{count:e.target.value===""?"":+e.target.value})} style={box}/></div>
                   <div><div style={lbl}>Днів (0 — безстроково)</div><input type="number" min={0} max={1095} value={pk.days ?? ""} onChange={e=>patchPk(i,{days:e.target.value===""?"":+e.target.value})} style={box}/></div>
                   <div><div style={lbl}>Ціна, ₴</div><input type="number" min={0} value={pk.price ?? ""} onChange={e=>patchPk(i,{price:e.target.value===""?"":+e.target.value})} style={box}/></div>
                 </div>
-                <div style={{...lbl,marginTop:9}}>Діє на послуги {(!pk.serviceIds || !pk.serviceIds.length) && <span style={{textTransform:"none",letterSpacing:0}}>— на всі</span>}</div>
+                <div style={{...lbl,marginTop:9,minHeight:0}}>Діє на послуги {(!pk.serviceIds || !pk.serviceIds.length) && <span style={{textTransform:"none",letterSpacing:0}}>— на всі</span>}</div>
                 <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
                   {svcs.map(sv => { const on = (pk.serviceIds || []).includes(sv.id); return (
-                    <button key={sv.id} onClick={()=>patchPk(i,{serviceIds:on?(pk.serviceIds||[]).filter(x=>x!==sv.id):[...(pk.serviceIds||[]),sv.id]})} style={{padding:"6px 10px",borderRadius:9,border:"none",cursor:"pointer",fontSize:11,fontWeight:700,fontFamily:"inherit",
-                      background:on?`linear-gradient(165deg,${ACC_HI},${ACCENT})`:`linear-gradient(135deg,${SURF_HI},${SURFACE})`,color:on?"#fff":DIM,boxShadow:SO}}>{on?"✓ ":""}{sv.name}</button>
+                    <button key={sv.id} onClick={()=>patchPk(i,{serviceIds:on?(pk.serviceIds||[]).filter(x=>x!==sv.id):[...(pk.serviceIds||[]),sv.id]})} style={{flex:"1 1 auto",padding:"8px 10px",borderRadius:9,border:"none",cursor:"pointer",fontSize:11,fontWeight:700,fontFamily:"inherit",
+                      background:on?`linear-gradient(165deg,${ACC_HI},${ACCENT})`:`linear-gradient(135deg,${SURF_HI},${SURFACE})`,color:on?(BTN_TX||"#fff"):DIM,boxShadow:SO}}>{on?"✓ ":""}{sv.name}</button>
                   ); })}
                 </div>
               </div>
@@ -1336,15 +1338,15 @@ select{color-scheme:${isKava?"light":"dark"}}
             {fields.map((f, i) => (
               <div key={f.id || i} style={{marginTop:8,padding:"10px 12px",borderRadius:12,background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,boxShadow:SO}}>
                 <div style={{display:"flex",alignItems:"center",gap:6}}>
-                  <input value={f.label || ""} maxLength={80} placeholder={uk ? "Питання, напр. «Алергії»" : "Question"} onChange={e=>patchField(i,{label:e.target.value})} style={{...box,flex:1,width:"auto"}}/>
-                  <button onClick={()=>move(i,-1)} disabled={i===0} aria-label="Вгору" style={{background:"none",border:"none",color:i===0?FAINT:DIM,cursor:"pointer",fontSize:15,padding:"0 3px"}}>▲</button>
-                  <button onClick={()=>move(i,1)} disabled={i===fields.length-1} aria-label="Вниз" style={{background:"none",border:"none",color:i===fields.length-1?FAINT:DIM,cursor:"pointer",fontSize:15,padding:"0 3px"}}>▼</button>
-                  <button onClick={()=>setIntake({ fields: fields.filter((_, j) => j !== i) })} aria-label="Видалити" style={{background:"none",border:"none",cursor:"pointer",color:"rgba(248,113,113,0.85)",fontSize:22,lineHeight:1,padding:"0 4px"}}>×</button>
+                  <input value={f.label || ""} maxLength={80} placeholder={uk ? "Питання, напр. «Алергії»" : "Question"} onChange={e=>patchField(i,{label:e.target.value})} style={{...box,flex:1,width:"auto",alignSelf:"stretch"}}/>
+                  <button onClick={()=>move(i,-1)} disabled={i===0} aria-label="Вгору" style={{background:"none",border:"none",color:i===0?FAINT:DIM,cursor:"pointer",fontSize:15,padding:0,minWidth:28,alignSelf:"stretch"}}>▲</button>
+                  <button onClick={()=>move(i,1)} disabled={i===fields.length-1} aria-label="Вниз" style={{background:"none",border:"none",color:i===fields.length-1?FAINT:DIM,cursor:"pointer",fontSize:15,padding:0,minWidth:28,alignSelf:"stretch"}}>▼</button>
+                  <button onClick={()=>setIntake({ fields: fields.filter((_, j) => j !== i) })} aria-label="Видалити" style={{background:"none",border:"none",cursor:"pointer",color:"#f87171",fontSize:22,lineHeight:1,padding:0,minWidth:32,alignSelf:"stretch"}}>×</button>
                 </div>
                 <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:8}}>
                   {FIELD_TYPES.map(ft => (
-                    <button key={ft.id} onClick={()=>patchField(i,{type:ft.id})} style={{padding:"6px 10px",borderRadius:9,border:"none",cursor:"pointer",fontSize:11,fontWeight:700,fontFamily:"inherit",
-                      background:f.type===ft.id?`linear-gradient(165deg,${ACC_HI},${ACCENT})`:`linear-gradient(135deg,${SURF_HI},${SURFACE})`,color:f.type===ft.id?"#fff":DIM,boxShadow:SO}}>{ft.label}</button>
+                    <button key={ft.id} onClick={()=>patchField(i,{type:ft.id})} style={{flex:"1 1 auto",padding:"8px 10px",borderRadius:9,border:"none",cursor:"pointer",fontSize:11,fontWeight:700,fontFamily:"inherit",
+                      background:f.type===ft.id?`linear-gradient(165deg,${ACC_HI},${ACCENT})`:`linear-gradient(135deg,${SURF_HI},${SURFACE})`,color:f.type===ft.id?(BTN_TX||"#fff"):DIM,boxShadow:SO}}>{ft.label}</button>
                   ))}
                 </div>
                 {f.type === "select" && (
@@ -1378,16 +1380,16 @@ select{color-scheme:${isKava?"light":"dark"}}
             <div style={{fontSize:11,color:DIM,letterSpacing:1,textTransform:"uppercase",marginBottom:2,fontWeight:700}}>{t('set.auto.reminder')}</div>
             {reminders.map((r,i)=>(
               <div key={i} style={{
-                display:"flex",alignItems:"center",gap:10,
+                display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",
                 background:SURF_HI,border:`1px solid ${BORDER}`,
                 borderRadius:14,padding:"9px 12px",minHeight:56,
               }}>
                 <SmallToggle color={svColor(r.enabled)} on={r.enabled} onChange={v=>updReminder(i,{enabled:v})}/>
-                <div style={{flex:1,minWidth:0}}>
+                <div style={{flex:"1 1 130px",minWidth:0}}>
                   <div style={{fontSize:14,fontWeight:600,color:TEXT}}>{lang==="en"?"Reminder":"Нагадування"} #{i+1}</div>
                   <div style={{fontSize:11.5,color:DIM,marginTop:2}}>{t('set.auto.rem_h')}</div>
                 </div>
-                <NumInput value={r.hoursBefore} onChange={v=>updReminder(i,{hoursBefore:v})} min={1} max={168} suffix={` ${t('hr')}`}/>
+                <div style={{marginLeft:"auto"}}><NumInput value={r.hoursBefore} onChange={v=>updReminder(i,{hoursBefore:v})} min={1} max={168} suffix={` ${t('hr')}`}/></div>
               </div>
             ))}
           </div>
@@ -1419,11 +1421,11 @@ select{color-scheme:${isKava?"light":"dark"}}
               </div>
               {rv.text && <div style={{fontSize:12,color:DIM,lineHeight:1.5,marginBottom:6}}>{rv.text}</div>}
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                <div style={{fontSize:10,color:FAINT}}>{rv.createdAt ? new Date(rv.createdAt).toLocaleDateString("uk-UA") : ""}</div>
+                <div style={{fontSize:11,color:FAINT}}>{rv.createdAt ? new Date(rv.createdAt).toLocaleDateString("uk-UA") : ""}</div>
                 <button onClick={()=>toggleReviewHidden(rv)} style={{
-                  padding:"4px 10px",borderRadius:8,border:"none",cursor:"pointer",fontSize:11,fontWeight:700,
+                  padding:"8px 14px",borderRadius:8,border:"none",cursor:"pointer",fontSize:11,fontWeight:700,
                   background:rv.status==="hidden"?`linear-gradient(145deg,${GREEN},${GREEN})`:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,
-                  color:rv.status==="hidden"?"#fff":DIM,boxShadow:rv.status==="hidden"?"none":SO,
+                  color:rv.status==="hidden"?"#06220f":DIM,boxShadow:rv.status==="hidden"?"none":SO,
                 }}>{rv.status==="hidden"?"Показати":"Сховати"}</button>
               </div>
             </div>
@@ -1448,7 +1450,7 @@ select{color-scheme:${isKava?"light":"dark"}}
                   }} style={{textAlign:"left",padding:"10px",borderRadius:12,cursor:"pointer",fontFamily:"inherit",
                     border:on?`1.5px solid ${TEAL}`:`1px solid ${BORDER}`,background:on?"rgba(45,212,191,0.12)":"rgba(0,0,0,0.15)",color:TEXT}}>
                     <div style={{fontSize:14,fontWeight:800}}>{dir.icon} {dir.name}</div>
-                    <div style={{fontSize:10.5,color:FAINT,marginTop:3,lineHeight:1.35}}>{dir.desc}</div>
+                    <div style={{fontSize:11,color:FAINT,marginTop:3,lineHeight:1.35}}>{dir.desc}</div>
                   </button>
                 );
               })}
@@ -1487,16 +1489,16 @@ select{color-scheme:${isKava?"light":"dark"}}
               <div style={{flex:1,minWidth:0}}>
                 <button onClick={()=>photoInputRef.current?.click()} disabled={photoUploading} style={{
                   padding:"9px 14px",borderRadius:10,border:"none",cursor:photoUploading?"default":"pointer",fontSize:12,fontWeight:700,
-                  background:`linear-gradient(145deg,${ACC_HI},${ACCENT})`,color:"#fff",boxShadow:SO,opacity:photoUploading?0.6:1,
+                  background:`linear-gradient(145deg,${ACC_HI},${ACCENT})`,color:BTN_TX||"#fff",boxShadow:SO,opacity:photoUploading?0.6:1,
                 }}>{photoUploading?"Завантаження…":"Завантажити фото"}</button>
                 <input ref={photoInputRef} type="file" accept="image/*" onChange={handlePhotoChange} style={{display:"none"}}/>
-                <div style={{fontSize:10,color:"rgba(255,255,255,0.55)",marginTop:6}}>JPG/PNG, до 5 МБ — покажеться клієнтам на сторінці запису</div>
+                <div style={{fontSize:11,color:"rgba(255,255,255,0.74)",marginTop:6}}>JPG/PNG, до 5 МБ — покажеться клієнтам на сторінці запису</div>
                 {photoError && <div style={{fontSize:11,color:RED,marginTop:4}}>{photoError}</div>}
               </div>
             </div>
 
             {/* GALLERY — фотоколаж на сторінці запису (Landing.jsx), до 9 фото */}
-            <div style={{fontSize:10,fontWeight:800,color:"rgba(255,255,255,0.7)",letterSpacing:0.5,marginBottom:6}}>ФОТОКОЛАЖ НА СТОРІНЦІ ЗАПИСУ ({(profile?.galleryPhotos||[]).length}/{GALLERY_MAX})</div>
+            <div style={{fontSize:11,fontWeight:800,color:"rgba(255,255,255,0.7)",letterSpacing:0.5,marginBottom:6}}>ФОТОКОЛАЖ НА СТОРІНЦІ ЗАПИСУ ({(profile?.galleryPhotos||[]).length}/{GALLERY_MAX})</div>
             <div style={{display:"grid",gridTemplateColumns:"repeat(3, 1fr)",gap:8,marginBottom:6}}>
               {(profile?.galleryPhotos||[]).map((p, idx) => (
                 <div key={p.name} onClick={()=>openViewer(allProfilePhotos, (profile?.photoUrl?1:0)+idx)} style={{position:"relative",width:"100%",aspectRatio:"1",borderRadius:10,overflow:"hidden",boxShadow:SO,cursor:"pointer"}}>
@@ -1518,7 +1520,7 @@ select{color-scheme:${isKava?"light":"dark"}}
               )}
               <input ref={galleryInputRef} type="file" accept="image/*" onChange={handleGalleryAdd} style={{display:"none"}}/>
             </div>
-            <div style={{fontSize:10,color:"rgba(255,255,255,0.55)"}}>Фото ваших робіт і робочого місця — на сторінці запису вони показуються анімованим колажем.</div>
+            <div style={{fontSize:11,color:"rgba(255,255,255,0.74)"}}>Фото ваших робіт і робочого місця — на сторінці запису вони показуються анімованим колажем.</div>
             {galleryError && <div style={{fontSize:11,color:RED,marginTop:6}}>{galleryError}</div>}
           </ProfileCard>
 
@@ -1532,7 +1534,7 @@ select{color-scheme:${isKava?"light":"dark"}}
               placeholder="Розкажіть про себе: досвід, авто, підхід до навчання, чим ви кращі за інших, чому варто обрати саме вас…"
               style={{width:"100%",boxSizing:"border-box",background:BG_DEEP,border:"none",outline:"none",color:TEXT,fontSize:12,padding:"10px 12px",borderRadius:10,boxShadow:SI,resize:"vertical",fontFamily:"inherit",lineHeight:1.5,marginBottom:6}}
             />
-            <div style={{display:"flex",justifyContent:"space-between",gap:10,fontSize:10,color:"rgba(255,255,255,0.55)"}}>
+            <div style={{display:"flex",justifyContent:"space-between",gap:10,fontSize:11,color:"rgba(255,255,255,0.74)"}}>
               <span>Це бачать клієнти угорі сторінки запису. Довгий текст згортається кнопкою «Читати далі». Порожнє поле — блок не показується.</span>
               <span style={{flexShrink:0}}>{(profile?.about ?? "").length}/1500</span>
             </div>
@@ -1540,7 +1542,7 @@ select{color-scheme:${isKava?"light":"dark"}}
 
           {/* КОНТАКТИ — телефон, джерело для кнопок дзвінка/Viber/WhatsApp/Telegram на лендингу */}
           <ProfileCard color={BLUE} icon="📞" title="КОНТАКТИ">
-            <div style={{fontSize:10,fontWeight:800,color:"rgba(255,255,255,0.7)",letterSpacing:0.5,marginBottom:5}}>ТЕЛЕФОН</div>
+            <div style={{fontSize:11,fontWeight:800,color:"rgba(255,255,255,0.7)",letterSpacing:0.5,marginBottom:5}}>ТЕЛЕФОН</div>
             <input
               value={profile?.phone ?? ""}
               onChange={e=>updProfile("phone", e.target.value)}
@@ -1548,7 +1550,7 @@ select{color-scheme:${isKava?"light":"dark"}}
               type="tel"
               style={{width:"100%",boxSizing:"border-box",background:BG_DEEP,border:"none",outline:"none",color:TEXT,fontSize:13,padding:"10px 12px",borderRadius:10,boxShadow:SI,fontFamily:"inherit",marginBottom:6}}
             />
-            <div style={{fontSize:10,color:"rgba(255,255,255,0.55)"}}>Дзвінок, Viber, WhatsApp і Telegram на сторінці запису працюють через цей номер.</div>
+            <div style={{fontSize:11,color:"rgba(255,255,255,0.74)"}}>Дзвінок, Viber, WhatsApp і Telegram на сторінці запису працюють через цей номер.</div>
           </ProfileCard>
 
           {/* УМОВИ */}
@@ -1560,7 +1562,7 @@ select{color-scheme:${isKava?"light":"dark"}}
               placeholder="Наприклад: скасування пізніше ніж за 24 год оплачується повністю; запізнення не продовжує запис; при собі мати документ, що посвідчує особу…"
               style={{width:"100%",boxSizing:"border-box",background:BG_DEEP,border:"none",outline:"none",color:TEXT,fontSize:12,padding:"10px 12px",borderRadius:10,boxShadow:SI,resize:"vertical",fontFamily:"inherit",lineHeight:1.5,marginBottom:6}}
             />
-            <div style={{fontSize:10,color:"rgba(255,255,255,0.55)"}}>Порожнє поле — блок «Умови відвідування» просто не покажеться на сайті.</div>
+            <div style={{fontSize:11,color:"rgba(255,255,255,0.74)"}}>Порожнє поле — блок «Умови відвідування» просто не покажеться на сайті.</div>
           </ProfileCard>
 
           {/* ЛОКАЦІЯ */}
@@ -1589,8 +1591,8 @@ select{color-scheme:${isKava?"light":"dark"}}
                       onClick={()=>{ setAddressQuery(""); setAddressSuggestions([]); setSuggestionsOpen(false); setAddressError(null); }}
                       aria-label="Очистити"
                       style={{
-                        position:"absolute",right:6,top:"50%",transform:"translateY(-50%)",
-                        width:20,height:20,borderRadius:"50%",border:"none",cursor:"pointer",
+                        position:"absolute",right:4,top:"50%",transform:"translateY(-50%)",
+                        width:28,height:28,borderRadius:"50%",border:"none",cursor:"pointer",
                         background:"rgba(255,255,255,0.12)",color:"rgba(255,255,255,0.75)",
                         fontSize:12,lineHeight:1,display:"flex",alignItems:"center",justifyContent:"center",
                       }}
@@ -1599,7 +1601,7 @@ select{color-scheme:${isKava?"light":"dark"}}
                 </div>
                 <button onClick={searchAddress} disabled={addressSearching} style={{
                   padding:"0 16px",borderRadius:10,border:"none",cursor:addressSearching?"default":"pointer",fontSize:13,fontWeight:800,flexShrink:0,
-                  background:`linear-gradient(145deg,${ACC_HI},${ACCENT})`,color:"#fff",
+                  background:`linear-gradient(145deg,${ACC_HI},${ACCENT})`,color:BTN_TX||"#fff",
                 }}>{addressSearching?"…":"Знайти"}</button>
               </div>
               {suggestionsOpen && addressSuggestions.length > 0 && (
@@ -1614,13 +1616,13 @@ select{color-scheme:${isKava?"light":"dark"}}
                 </div>
               )}
             </div>
-            {addressError && <div style={{fontSize:10,color:RED,marginTop:8}}>{addressError}</div>}
-            <div style={{fontSize:10,color:"rgba(255,255,255,0.55)",marginTop:8}}>Знайдіть адресу нижче, клікніть на карту або перетягніть мітку — клієнти побачать саме цю точку і адресу на сторінці запису.</div>
+            {addressError && <div style={{fontSize:11,color:RED,marginTop:8}}>{addressError}</div>}
+            <div style={{fontSize:11,color:"rgba(255,255,255,0.74)",marginTop:8}}>Знайдіть адресу нижче, клікніть на карту або перетягніть мітку — клієнти побачать саме цю точку і адресу на сторінці запису.</div>
           </ProfileCard>
 
           <button onClick={saveProfile} disabled={profileSaving} style={{
             width:"100%",padding:"12px",borderRadius:12,border:"none",cursor:profileSaving?"default":"pointer",fontSize:14,fontWeight:800,
-            background:profileSaved?`linear-gradient(145deg,${GREEN},${GREEN})`:`linear-gradient(145deg,${ACC_HI},${ACCENT})`,color:"#fff",boxShadow:SO,
+            background:profileSaved?`linear-gradient(145deg,${GREEN},${GREEN})`:`linear-gradient(145deg,${ACC_HI},${ACCENT})`,color:profileSaved?"#06220f":(BTN_TX||"#fff"),boxShadow:SO,
           }}>{profileSaved?"✓ Збережено":profileSaving?"Зберігаємо…":"Зберегти профіль"}</button>
 
           {cropFile && (
@@ -1725,7 +1727,7 @@ select{color-scheme:${isKava?"light":"dark"}}
           <button onClick={copyBookingLink} style={{
             marginTop:8, width:"100%", padding:"10px", borderRadius:10, border:"none", cursor:"pointer",
             background: slugCopied ? "linear-gradient(135deg,#4ade80,#34d399)" : `linear-gradient(135deg,${ACC_HI},${ACCENT})`,
-            color: slugCopied ? "#0a2e1a" : "#fff", fontSize:13, fontWeight:800,
+            color: slugCopied ? "#0a2e1a" : (BTN_TX||"#fff"), fontSize:13, fontWeight:800,
           }}>{slugCopied ? "✓ Скопійовано" : "Копіювати"}</button>
         </div>
       )}
@@ -1780,12 +1782,12 @@ select{color-scheme:${isKava?"light":"dark"}}
             </div>
             <div style={{fontSize:14, fontWeight:700, color:statusColor}}>{statusLabel}</div>
             {blocked && (
-              <div style={{fontSize:12, color:"rgba(255,255,255,0.6)", marginTop:2}}>Акаунт у режимі читання. Оплатіть підписку нижче, щоб відновити роботу.</div>
+              <div style={{fontSize:12, color:"rgba(255,255,255,0.74)", marginTop:2}}>Акаунт у режимі читання. Оплатіть підписку нижче, щоб відновити роботу.</div>
             )}
             <div style={{marginTop:10, paddingTop:10, borderTop:"1px solid rgba(255,255,255,0.1)", display:"flex", flexDirection:"column", gap:5}}>
               {rows.map(([label, value]) => (
                 <div key={label} style={{display:"flex", justifyContent:"space-between", gap:10, fontSize:12}}>
-                  <span style={{color:"rgba(255,255,255,0.55)"}}>{label}</span>
+                  <span style={{color:"rgba(255,255,255,0.74)"}}>{label}</span>
                   <span style={{color:"#fff", fontWeight:700, textAlign:"right"}}>{value}</span>
                 </div>
               ))}
@@ -1800,14 +1802,14 @@ select{color-scheme:${isKava?"light":"dark"}}
             background:"rgba(239,68,68,0.10)", border:"1px solid rgba(239,68,68,0.35)",
             color:"#f87171", fontSize:13, fontWeight:800,
           }}>Вийти з акаунта</button>
-          <div style={{fontSize:11, color:"rgba(255,255,255,0.4)", textAlign:"center", marginTop:6}}>{auth.currentUser?.email || ""}</div>
+          <div style={{fontSize:11, color:"rgba(255,255,255,0.74)", textAlign:"center", marginTop:6}}>{auth.currentUser?.email || ""}</div>
           <div style={{marginTop:14, textAlign:"center"}}>
             {!rstOpen ? (
-              <button onClick={() => setRstOpen(true)} style={{background:"none",border:"none",color:"#f87171",fontSize:12,fontWeight:700,cursor:"pointer",textDecoration:"underline"}}>Повне скидання даних (тест)</button>
+              <button onClick={() => setRstOpen(true)} style={{background:"none",border:"none",color:"#f87171",fontSize:12,fontWeight:700,cursor:"pointer",textDecoration:"underline",padding:"8px 6px"}}>Повне скидання даних (тест)</button>
             ) : (
               <div style={{padding:"14px",borderRadius:14,border:"1px solid rgba(239,68,68,0.4)",background:"rgba(239,68,68,0.08)",textAlign:"left"}}>
                 <div style={{fontSize:13,fontWeight:800,color:"#f87171",marginBottom:6}}>Скинути все до початкового стану?</div>
-                <div style={{fontSize:12,color:"rgba(255,255,255,0.65)",lineHeight:1.5,marginBottom:10}}>
+                <div style={{fontSize:12,color:"rgba(255,255,255,0.74)",lineHeight:1.5,marginBottom:10}}>
                   Буде видалено розклад і слоти, усі записи, чергу, чати, нотатки, налаштування та послуги. Акаунт, підписка і зв'язок з клієнтами залишаються. Після скидання все як у нового майстра. Щоб підтвердити, введіть слово <b style={{color:"#fff"}}>СКИНУТИ</b>.
                 </div>
                 <input value={rstText} onChange={e=>setRstText(e.target.value)} placeholder="СКИНУТИ"
@@ -1829,11 +1831,11 @@ select{color-scheme:${isKava?"light":"dark"}}
           </div>
           <div style={{marginTop:14, textAlign:"center"}}>
             {!delOpen ? (
-              <button onClick={() => setDelOpen(true)} style={{background:"none",border:"none",color:"#f87171",fontSize:12,fontWeight:700,cursor:"pointer",textDecoration:"underline"}}>Видалити акаунт</button>
+              <button onClick={() => setDelOpen(true)} style={{background:"none",border:"none",color:"#f87171",fontSize:12,fontWeight:700,cursor:"pointer",textDecoration:"underline",padding:"8px 6px"}}>Видалити акаунт</button>
             ) : (
               <div style={{padding:"14px",borderRadius:14,border:"1px solid rgba(239,68,68,0.4)",background:"rgba(239,68,68,0.08)",textAlign:"left"}}>
                 <div style={{fontSize:13,fontWeight:800,color:"#f87171",marginBottom:6}}>Видалити акаунт назавжди?</div>
-                <div style={{fontSize:12,color:"rgba(255,255,255,0.65)",lineHeight:1.5,marginBottom:10}}>
+                <div style={{fontSize:12,color:"rgba(255,255,255,0.74)",lineHeight:1.5,marginBottom:10}}>
                   Буде видалено ваш профіль, розклад, усіх клієнтів, записи, чати та сторінку запису. Оплачена підписка не повертається, а автосписання LiqPay (якщо є) потрібно скасувати окремо. Неможливо скасувати.
                   Щоб підтвердити, введіть слово <b style={{color:"#fff"}}>ВИДАЛИТИ</b>.
                 </div>

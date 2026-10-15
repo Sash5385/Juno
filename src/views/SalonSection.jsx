@@ -11,7 +11,7 @@ import {
 // Налаштування → Салон: створити салон / запросити майстрів / приєднатись за запрошенням / вийти.
 // Членство лежить у salons/{slug}/masters/{iid}; admin_settings.salonSlug лише вказує, в якому ти салоні.
 export default function SalonSection({ settings, upd }) {
-  const { BORDER, TEXT, DIM, FAINT, GREEN, RED, ACCENT, ACC_HI, SURF_HI, SURFACE, SO } = useContext(ThemeContext);
+  const { BORDER, TEXT, DIM, FAINT, GREEN, RED, ACCENT, ACC_HI, SURF_HI, SURFACE, SO, BTN_TX } = useContext(ThemeContext);
   const uid = auth.currentUser?.uid;
   const slug = settings.salonSlug || null;
   const [salon, setSalon] = useState(undefined); // undefined — вантажиться, null — немає
@@ -91,9 +91,9 @@ export default function SalonSection({ settings, upd }) {
 
   const box = { padding:"10px 12px", borderRadius:10, border:`1px solid ${BORDER}`, background:"rgba(0,0,0,0.18)", color:TEXT, fontSize:14, fontFamily:"inherit", width:"100%", boxSizing:"border-box" };
   const btn = (primary, color) => ({ padding:"10px 14px", borderRadius:11, border:"none", cursor:busy?"default":"pointer", fontSize:13, fontWeight:700, fontFamily:"inherit", opacity:busy?0.6:1,
-    background: primary ? `linear-gradient(165deg,${ACC_HI},${ACCENT})` : `linear-gradient(135deg,${SURF_HI},${SURFACE})`, color: primary ? "#fff" : (color || DIM), boxShadow:SO });
+    background: primary ? `linear-gradient(165deg,${ACC_HI},${ACCENT})` : `linear-gradient(135deg,${SURF_HI},${SURFACE})`, color: primary ? (BTN_TX || "#fff") : (color ? `color-mix(in srgb,${color} 50%,#fff)` : DIM), boxShadow:SO });
   const card = { marginTop:10, padding:"12px", borderRadius:12, background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`, boxShadow:SO };
-  const lbl = { fontSize:10, letterSpacing:1, color:FAINT, textTransform:"uppercase", marginBottom:6 };
+  const lbl = { fontSize:11, letterSpacing:1, color:FAINT, textTransform:"uppercase", marginBottom:6 };
 
   // Без салону (slug немає) нічого не вантажимо: показуємо форму створення/приєднання
   if (slug && salon === undefined) return <div style={{padding:"20px 0",textAlign:"center",color:DIM,fontSize:12}}>Завантаження…</div>;
@@ -138,7 +138,7 @@ export default function SalonSection({ settings, upd }) {
         {salonMasters(salon).map(m => (
           <div key={m.iid} style={{display:"flex",alignItems:"center",gap:8,padding:"6px 0"}}>
             <span style={{flex:1,minWidth:0,color:TEXT,fontSize:14,fontWeight:m.iid===uid?800:600,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{names[m.iid] || "…"}{m.iid===uid && " (ви)"}</span>
-            {m.owner && <span style={{fontSize:10,color:FAINT}}>власник</span>}
+            {m.owner && <span style={{fontSize:11,color:FAINT}}>власник</span>}
             {owner && !m.owner && <button onClick={()=>removeMaster(m.iid)} aria-label="Прибрати" style={{background:"none",border:"none",cursor:"pointer",color:"rgba(248,113,113,0.85)",fontSize:20,lineHeight:1,padding:"0 4px"}}>×</button>}
           </div>
         ))}

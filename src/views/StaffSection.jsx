@@ -33,7 +33,7 @@ export default function StaffSection({ settings, upd }) {
   const run = async (fn) => { setBusy(true); setMsg(""); try { await fn(); } catch (e) { setMsg("Не вдалося: " + (e?.message || e)); } finally { setBusy(false); } };
   const btn = (primary, color) => ({
     padding: "11px 16px", borderRadius: 14, border: primary ? "none" : `1px solid ${BORDER}`, cursor: "pointer", fontFamily: "inherit", fontSize: 13, fontWeight: 700,
-    background: primary ? `linear-gradient(145deg,${ACC_HI},${ACCENT})` : SURF_HI, color: primary ? (BTN_TX || "#fff") : (color || TEXT),
+    background: primary ? `linear-gradient(145deg,${ACC_HI},${ACCENT})` : SURF_HI, color: primary ? (BTN_TX || "#fff") : (color ? `color-mix(in srgb,${color} 50%,#fff)` : TEXT),
   });
   const box = { width: "100%", boxSizing: "border-box", padding: "11px 14px", borderRadius: 14, border: `1px solid ${BORDER}`, background: SURF_HI, color: TEXT, fontFamily: "inherit", fontSize: 14, outline: "none" };
 
@@ -111,15 +111,17 @@ export default function StaffSection({ settings, upd }) {
                 </div>
               </div>
             ) : (
-              <div style={{ display: "flex", alignItems: "center", gap: 10, minHeight: 44 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, minHeight: 44, flexWrap: "wrap" }}>
                 <span style={{ width: 14, height: 14, borderRadius: "50%", background: m.color, flexShrink: 0 }} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 14.5, fontWeight: 600, color: TEXT, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.name}</div>
+                <div style={{ flex: "999 1 120px", minWidth: 0 }}>
+                  <div style={{ fontSize: 14.5, fontWeight: 600, color: TEXT, overflowWrap: "anywhere" }}>{m.name}</div>
                   <div style={{ fontSize: 11.5, color: FAINT }}>{m.owner ? "власник" : "майстер"}</div>
                 </div>
-                {!m.owner && <button onClick={() => setOvFor(ovFor === m.id ? null : m.id)} style={{ ...btn(false), padding: "8px 12px", fontSize: 12 }}>{ovFor === m.id ? "Сховати" : "Графік і ціни"}</button>}
-                <button onClick={() => setEdit({ id: m.id, name: m.name, color: m.color })} style={{ ...btn(false), padding: "8px 12px", fontSize: 12 }}>Змінити</button>
-                {!m.owner && <button aria-label={`Прибрати ${m.name}`} onClick={() => removeMaster(m)} style={{ ...btn(false, RED), padding: "8px 12px", fontSize: 12 }}>✕</button>}
+                <div style={{ display: "flex", gap: 6, flex: "1 1 auto" }}>
+                  {!m.owner && <button onClick={() => setOvFor(ovFor === m.id ? null : m.id)} style={{ ...btn(false), flex: "1 1 auto", whiteSpace: "nowrap", padding: "10px 12px", fontSize: 12 }}>{ovFor === m.id ? "Сховати" : "Графік і ціни"}</button>}
+                  <button onClick={() => setEdit({ id: m.id, name: m.name, color: m.color })} style={{ ...btn(false), flex: "1 1 auto", whiteSpace: "nowrap", padding: "10px 12px", fontSize: 12 }}>Змінити</button>
+                  {!m.owner && <button aria-label={`Прибрати ${m.name}`} onClick={() => removeMaster(m)} style={{ ...btn(false, RED), flex: "0 0 44px", padding: "10px 0", fontSize: 12 }}>✕</button>}
+                </div>
               </div>
             )}
             {ovFor === m.id && !m.owner && <div style={{ marginTop: 12 }}><Suspense fallback={null}><MasterOverrides mid={m.id} /></Suspense></div>}

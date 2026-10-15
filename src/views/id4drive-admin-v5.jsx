@@ -630,7 +630,7 @@ function BroadcastModal({ initialDate, initialSlot, onClose }) {
                 </div>
                 {preview && (
                   <div style={{ background:"rgba(192,132,252,0.07)", border:"1px solid rgba(192,132,252,0.2)", borderRadius:10, padding:"10px 12px", marginBottom:14 }}>
-                    <div style={{ fontSize:10, color:DIM, marginBottom:4, fontWeight:700, letterSpacing:0.5 }}>ПРЕВ'Ю ПУШУ</div>
+                    <div style={{ fontSize:11, color:DIM, marginBottom:4, fontWeight:700, letterSpacing:0.5 }}>ПРЕВ'Ю ПУШУ</div>
                     <div style={{ fontSize:12, color:TEXT, fontWeight:700 }}>🚗 Є вільний слот!</div>
                     <div style={{ fontSize:11, color:DIM, marginTop:3 }}>{preview}</div>
                   </div>
@@ -830,7 +830,7 @@ function MonthCalendarSheet({ bookings, onClose, onPickDate }) {
             }}>
               <div style={{display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:4, marginBottom:6}}>
                 {["Пн","Вт","Ср","Чт","Пт","Сб","Нд"].map(wd => (
-                  <div key={wd} style={{fontSize:9, fontWeight:700, color:FAINT, textAlign:"center", textTransform:"uppercase"}}>{wd}</div>
+                  <div key={wd} style={{fontSize:11, fontWeight:700, color:TEXT, opacity:0.78, textAlign:"center", textTransform:"uppercase"}}>{wd}</div>
                 ))}
               </div>
 
@@ -873,11 +873,11 @@ function MonthCalendarSheet({ bookings, onClose, onPickDate }) {
                         {n > 0 && (
                           <div style={{
                             position:"absolute", bottom:0, left:0, right:0, height:`${fillH}%`,
-                            background:`linear-gradient(0deg, color-mix(in srgb, ${c} 55%, transparent), color-mix(in srgb, ${c} 22%, transparent))`,
+                            background:`linear-gradient(0deg, color-mix(in srgb, ${c} 42%, transparent), color-mix(in srgb, ${c} 16%, transparent))`,
                           }}/>
                         )}
                         <span style={{position:"relative", zIndex:1}}>{d}</span>
-                        {n > 0 && <span style={{position:"relative", zIndex:1, fontSize:7, fontWeight:700, opacity:0.75, marginTop:1}}>{Number.isInteger(n) ? n : n.toFixed(1)}г</span>}
+                        {n > 0 && <span style={{position:"relative", zIndex:1, fontSize:11, fontWeight:700, opacity:0.95, marginTop:1}}>{Number.isInteger(n) ? n : n.toFixed(1)}г</span>}
                       </button>
                       {isHeld && (
                         <div style={{
@@ -4190,7 +4190,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
           boxShadow:"0 6px 18px rgba(168,85,247,0.6), inset 0 1px 0 rgba(255,255,255,0.5)",
           textShadow:"0 1px 3px rgba(0,0,0,0.4)",
         }}>?</button>,
-        document.body
+        document.getElementById("app-shell") || document.body
       )}
       {helpOpen && <ScheduleHelp onClose={()=>setHelpOpen(false)} onPick={key=>{ setHelpOpen(false); setTimeout(()=>highlightHelp(key), 280); }}/>}
       </div>{/* /outer flex */}
@@ -4410,6 +4410,9 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
           @keyframes _ltm-sc-c{from{transform:translate(0,0) scale(1);opacity:1}to{transform:translate(0,-90px) scale(0.3);opacity:0}}
           @keyframes _ltm-sc-r{from{transform:translate(0,0) rotate(0);opacity:1}to{transform:translate(180px,70px) rotate(22deg);opacity:0}}
           @keyframes _ltm-sc-chips{from{transform:translateY(0);opacity:1}to{transform:translateY(-50px);opacity:0}}
+          .ltm-btns{display:flex;gap:10px}
+          .ltm-btns>button{min-width:0}
+          @media (max-width:379px){.ltm-btns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}}
         `}</style>
         <div onClick={_anyClose ? undefined : _closeLtm} style={{
           position:"fixed",inset:0,zIndex:200,
@@ -4449,8 +4452,8 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
             {!ltmClosing && <div style={{marginBottom:16,
               ...(ltmScatter ? {animation:`_ltm-sc-chips 0.25s ease-in forwards`} : {}),
             }}>
-              <div style={{fontSize:11,color:TEXT_FAINT,fontWeight:600,marginBottom:8}}>{_ltmLabel}</div>
-              <div style={{display:"flex",gap:4,alignItems:"center"}}>
+              <div style={{fontSize:11,color:TEXT_DIM,fontWeight:600,marginBottom:8}}>{_ltmLabel}</div>
+              <div style={{display:"flex",gap:4,alignItems:"stretch"}}>
                 {[-60,-30,0,30,60].map(delta=>{
                   const _cm = _menu.startMin + delta;
                   if (_cm < 0 || _cm > 23*60+30) return null;
@@ -4459,7 +4462,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                     <button key={delta} onClick={()=>setLongTapMenu(prev=>({...prev,selectedMin:_cm}))} style={{
                       flex:1,padding:"8px 2px",borderRadius:20,cursor:"pointer",fontFamily:"inherit",
                       background: _isActive ? ink(0.14) : "transparent",
-                      color: _isActive ? TEXT : TEXT_FAINT,
+                      color: _isActive ? TEXT : TEXT_DIM,
                       fontSize: _isActive ? 18 : 13,
                       fontWeight: _isActive ? 900 : 500,
                       letterSpacing: _isActive ? 0.3 : 0,
@@ -4474,7 +4477,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
               </div>
             </div>}
             {/* buttons row */}
-            {!ltmClosing && <div style={{display:"flex",gap:10}}>
+            {!ltmClosing && <div className="ltm-btns">
               {/* "Вільний слот" доступна і на закритому дні — адмін може вручну
                   відкрити окремий слот, не відкриваючи весь день: клієнт бачить
                   слоти напряму з timeslots/{date} незалежно від статусу дня. */}
@@ -4619,7 +4622,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                     <button key={delta} onClick={()=>setSlotOptions(prev=>({...prev, selectedMin:_cm}))} style={{
                       flex:1,padding:"8px 2px",borderRadius:20,cursor:"pointer",fontFamily:"inherit",
                       background: _isActive ? ink(0.14) : "transparent",
-                      color: _isActive ? TEXT : TEXT_FAINT,
+                      color: _isActive ? TEXT : TEXT_DIM,
                       fontSize: _isActive ? 18 : 13,
                       fontWeight: _isActive ? 900 : 500,
                       border: _isActive ? `1px solid ${ink(0.22)}` : `1px solid ${ink(0.07)}`,
@@ -5257,11 +5260,11 @@ function CreateSlotSheet({ data, settings, onClose }) {
           <div style={{padding:"16px 20px"}}>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14}}>
               <div>
-                <div style={{fontSize:10,fontWeight:700,color:TEXT_DIM,letterSpacing:1,marginBottom:6,textAlign:"center"}}>ПОЧАТОК</div>
+                <div style={{fontSize:11,fontWeight:700,color:TEXT_DIM,letterSpacing:1,marginBottom:6,textAlign:"center"}}>ПОЧАТОК</div>
                 <DrumRoll items={timeItems} currentIdx={timeIdx} onChange={setTimeIdx} itemH={40} visible={3}/>
               </div>
               <div>
-                <div style={{fontSize:10,fontWeight:700,color:TEXT_DIM,letterSpacing:1,marginBottom:6,textAlign:"center"}}>ТРИВАЛІСТЬ</div>
+                <div style={{fontSize:11,fontWeight:700,color:TEXT_DIM,letterSpacing:1,marginBottom:6,textAlign:"center"}}>ТРИВАЛІСТЬ</div>
                 <DrumRoll items={durItems} currentIdx={durIdx} onChange={setDurIdx} itemH={40} visible={3}/>
               </div>
             </div>
@@ -5523,12 +5526,12 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
                   <div style={{fontSize:15,fontWeight:800,color:TEXT,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{booking.name}</div>
                   {lessonNumber != null && (
                     <span style={{
-                      fontSize:9,fontWeight:800,padding:"2px 7px",borderRadius:99,flexShrink:0,
+                      fontSize:11,fontWeight:800,padding:"2px 7px",borderRadius:99,flexShrink:0,
                       background:`${BLUE}1f`,color:BLUE,
                     }}>🚗 {lessonNumber}-й запис</span>
                   )}
                 </div>
-                <div style={{fontSize:10,color:c,fontWeight:700,marginTop:1}}>{typeLabel}</div>
+                <div style={{fontSize:11,color:c,fontWeight:700,marginTop:1}}>{typeLabel}</div>
               </div>
             </div>
           </div>
@@ -5565,7 +5568,7 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
               margin:"12px 14px 0",padding:"10px 14px",borderRadius:14,
               background:`${GOLD}14`,border:`1px solid ${GOLD}4d`,
             }}>
-              <div style={{fontSize:10,fontWeight:700,letterSpacing:.5,color:GOLD,marginBottom:3}}>💬 Коментар клієнта</div>
+              <div style={{fontSize:11,fontWeight:700,letterSpacing:.5,color:GOLD,marginBottom:3}}>💬 Коментар клієнта</div>
               <div style={{fontSize:13,color:TEXT,lineHeight:1.4,whiteSpace:"pre-wrap",wordBreak:"break-word"}}>{booking.studentNote}</div>
             </div>
           )}
@@ -5585,24 +5588,24 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
             {/* Edit sheet: ціна/тривалість */}
             {editOpen && (
               <div style={{marginBottom:12}}>
-                <div style={{textAlign:"center",fontSize:10,fontWeight:700,color:GOLD,marginBottom:10}}>
+                <div style={{textAlign:"center",fontSize:11,fontWeight:700,color:GOLD,marginBottom:10}}>
                   Разом за день: {otherDayTotal + (parseInt(draftPrice,10)||0)}₴
                 </div>
                 <div style={{display:"flex",gap:10,marginBottom:8}}>
                   <div style={{flex:1}}>
-                    <div style={{fontSize:9,fontWeight:700,letterSpacing:1,color:"rgba(255,255,255,.7)",textTransform:"uppercase",marginBottom:5,textAlign:"center"}}>Тривалість, хв</div>
+                    <div style={{fontSize:11,fontWeight:700,letterSpacing:1,color:"rgba(255,255,255,.7)",textTransform:"uppercase",marginBottom:5,textAlign:"center"}}>Тривалість, хв</div>
                     <input type="number" min={15} max={maxDurMin} step={5} value={draftDur}
                       onChange={e=>onDurChange(e.target.value)}
                       style={{width:"100%",textAlign:"center",padding:"9px 6px",borderRadius:10,border:"1px solid rgba(255,255,255,0.18)",background:"rgba(0,0,0,0.22)",color:"#fff",fontSize:14,fontWeight:800,fontFamily:"inherit"}}/>
                   </div>
                   <div style={{flex:1}}>
-                    <div style={{fontSize:9,fontWeight:700,letterSpacing:1,color:"rgba(255,255,255,.7)",textTransform:"uppercase",marginBottom:5,textAlign:"center"}}>Ціна, ₴</div>
+                    <div style={{fontSize:11,fontWeight:700,letterSpacing:1,color:"rgba(255,255,255,.7)",textTransform:"uppercase",marginBottom:5,textAlign:"center"}}>Ціна, ₴</div>
                     <input type="number" min={0} step={50} value={draftPrice}
                       onChange={e=>setDraftPrice(e.target.value)}
                       style={{width:"100%",textAlign:"center",padding:"9px 6px",borderRadius:10,border:"1px solid rgba(255,255,255,0.18)",background:"rgba(0,0,0,0.22)",color:"#fff",fontSize:14,fontWeight:800,fontFamily:"inherit"}}/>
                   </div>
                 </div>
-                <div style={{fontSize:9,color:"rgba(255,255,255,.65)",textAlign:"center",marginBottom:10}}>
+                <div style={{fontSize:11,color:"rgba(255,255,255,.65)",textAlign:"center",marginBottom:10}}>
                   Макс. тривалість зараз: {maxDurMin}хв · ціна перераховується автоматично при зміні тривалості
                 </div>
                 <div style={{display:"flex",gap:8}}>
@@ -5624,9 +5627,9 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
                   display:"flex",flexDirection:"column",alignItems:"center",textAlign:"center",
                   borderRight: i < 2 ? "1px solid rgba(255,255,255,0.18)" : "none",
                 }}>
-                  <div style={{fontSize:8,fontWeight:700,letterSpacing:1,color:"rgba(255,255,255,.7)",textTransform:"uppercase",marginBottom:5}}>{label}</div>
+                  <div style={{fontSize:11,fontWeight:700,letterSpacing:1,color:"rgba(255,255,255,.7)",textTransform:"uppercase",marginBottom:5}}>{label}</div>
                   <div style={{fontSize:15,fontWeight:900,color: gold ? GOLD : "#fff",lineHeight:1}}>{val}</div>
-                  <div style={{fontSize:9,color: gold ? `${GOLD}cc` : "rgba(255,255,255,.65)",marginTop:3,fontWeight:600}}>{sub}</div>
+                  <div style={{fontSize:11,color: gold ? `${GOLD}cc` : "rgba(255,255,255,.65)",marginTop:3,fontWeight:600}}>{sub}</div>
                 </div>
               ))}
             </div>
@@ -5637,7 +5640,7 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
             const members = (bookings || []).filter(x => x.groupKey === booking.groupKey && x.status !== "cancelled");
             return (
               <div style={{margin:"10px 14px 0",padding:"10px 14px",borderRadius:14,background:`rgba(${GLOW},0.06)`,border:`1px solid ${BORDER}`,fontSize:12,color:TEXT}}>
-                <div style={{fontSize:9,fontWeight:700,letterSpacing:1,color:FAINT,textTransform:"uppercase",marginBottom:5}}>👥 Група: {members.length}{booking.groupCap ? ` з ${booking.groupCap}` : ""}</div>
+                <div style={{fontSize:11,fontWeight:700,letterSpacing:1,color:FAINT,textTransform:"uppercase",marginBottom:5}}>👥 Група: {members.length}{booking.groupCap ? ` з ${booking.groupCap}` : ""}</div>
                 {members.map(m => (
                   <div key={m.id} onClick={() => m.id !== booking.id && onAction("openMember", m)} style={{display:"flex",alignItems:"center",gap:8,padding:"4px 0",cursor:m.id===booking.id?"default":"pointer"}}>
                     <span style={{flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontWeight:m.id===booking.id?800:600}}>{m.name}</span>
@@ -5677,7 +5680,7 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
                 border:`1px solid color-mix(in srgb,${GOLD} 36%,transparent)`,
               }}>
                 <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
-                  <div style={{fontSize:9,fontWeight:700,letterSpacing:1,color:"rgba(255,255,255,.8)",textTransform:"uppercase"}}>
+                  <div style={{fontSize:11,fontWeight:700,letterSpacing:1,color:"rgba(255,255,255,.8)",textTransform:"uppercase"}}>
                     🏷️ Мітка {isAuto && <span style={{color:"rgba(255,255,255,.6)",textTransform:"none",letterSpacing:0}}>(авто)</span>}
                   </div>
                   <div onClick={() => setTagPickerOpen(o => !o)} style={{
@@ -5734,7 +5737,7 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
                     ))}
                   </div>
                 )}
-                <div style={{marginTop:8,fontSize:10.5,lineHeight:1.4,color:"rgba(255,255,255,.55)"}}>
+                <div style={{marginTop:8,fontSize:11,lineHeight:1.4,color:"rgba(255,255,255,.55)"}}>
                   Позначка на картці запису в розкладі (1-й запис, важливо, борг тощо). Перший запис ставиться автоматично, решту — вручну («Змінити»).
                 </div>
               </div>
@@ -5744,15 +5747,15 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
           {/* Queue */}
           {queueEntries.length > 0 && (
             <div style={{padding:"10px 14px",borderBottom:`1px solid ${ink(0.06)}`}}>
-              <div style={{fontSize:9,fontWeight:700,letterSpacing:1,color:GOLD,textTransform:"uppercase",marginBottom:6}}>
+              <div style={{fontSize:11,fontWeight:700,letterSpacing:1,color:GOLD,textTransform:"uppercase",marginBottom:6}}>
                 ⏳ Черга ({queueEntries.length})
               </div>
               {queueEntries.map((e, i) => (
                 <div key={e.uid||i} style={{display:"flex",alignItems:"center",gap:8,padding:"4px 0",borderBottom: i < queueEntries.length-1 ? `1px solid ${ink(0.04)}` : "none"}}>
-                  <div style={{width:16,height:16,borderRadius:5,background:ink(0.07),display:"flex",alignItems:"center",justifyContent:"center",fontSize:8,fontWeight:800,color:GOLD,flexShrink:0}}>{i+1}</div>
+                  <div style={{width:16,height:16,borderRadius:5,background:ink(0.07),display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:800,color:GOLD,flexShrink:0}}>{i+1}</div>
                   <div style={{flex:1,minWidth:0}}>
                     <div style={{fontSize:12,fontWeight:700,color:TEXT,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{e.name || "—"}</div>
-                    {e.phone && <div style={{fontSize:10,color:DIM}}>{e.phone}</div>}
+                    {e.phone && <div style={{fontSize:11,color:DIM}}>{e.phone}</div>}
                   </div>
                   {e.uid && (() => {
                     const dateStr = booking.date || (() => {
@@ -5783,15 +5786,15 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
             <div style={{
               width:"100%",padding:"10px",textAlign:"center",
               borderTop:`1px solid ${ink(0.05)}`,
-              color:TEXT_FAINT,fontSize:10.5,fontWeight:600,
+              color:TEXT_FAINT,fontSize:11,fontWeight:600,
               marginTop:4,marginBottom:20,
             }}>🔒 Минулий запис — редагування й скасування заблоковано</div>
           ) : (
             <button onClick={() => { onAction("cancel", booking); _close(); }} style={{
-              width:"100%",padding:"10px",border:"none",cursor:"pointer",
+              width:"100%",padding:"14px 10px",border:"none",cursor:"pointer",
               background:"none",borderTop:`1px solid ${ink(0.05)}`,
-              color:"rgba(248,113,113,0.7)",fontSize:11,fontWeight:600,
-              marginTop:4,marginBottom:20,
+              color:"#fca5a5",fontSize:12,fontWeight:700,
+              marginTop:4,marginBottom:12,
             }}>Скасувати запис</button>
           )}
 
@@ -5828,7 +5831,7 @@ function DrumRoll({ items, currentIdx, onChange, label, itemH=42, visible=4 }) {
 
   return (
     <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"stretch"}}>
-      {label && <div style={{fontSize:9,color:TEXT_FAINT,letterSpacing:1.5,textTransform:"uppercase",fontWeight:700,textAlign:"center",marginBottom:5}}>{label}</div>}
+      {label && <div style={{fontSize:11,color:TEXT_FAINT,letterSpacing:1.5,textTransform:"uppercase",fontWeight:700,textAlign:"center",marginBottom:5}}>{label}</div>}
       <div style={{position:"relative",height:containerH,borderRadius:14,overflow:"hidden",
         background:`linear-gradient(135deg,${BG_DEEP},${SURFACE_LO})`,boxShadow:SHADOW_IN}}>
         {/* Center green highlight */}
@@ -5962,7 +5965,7 @@ function PersonalEventModal({ data, onClose, onConfirm }) {
             <div style={{display:"flex",alignItems:"flex-start",gap:8}}>
               <div style={{width:26,height:26,borderRadius:8,flexShrink:0,marginTop:18,background:"rgba(45,212,191,0.15)",color:"#2dd4bf",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12}}>✎</div>
               <div style={{flex:1,minWidth:0}}>
-                <div style={{fontSize:10,fontWeight:700,letterSpacing:1.2,color:FAINT,textTransform:"uppercase",marginBottom:7}}>Назва</div>
+                <div style={{fontSize:11,fontWeight:700,letterSpacing:1.2,color:FAINT,textTransform:"uppercase",marginBottom:7}}>Назва</div>
                 <input
                   value={title}
                   onChange={e=>setTitle(e.target.value)}
@@ -5979,7 +5982,7 @@ function PersonalEventModal({ data, onClose, onConfirm }) {
             <div style={{display:"flex",alignItems:"flex-start",gap:8}}>
               <div style={{width:26,height:26,borderRadius:8,flexShrink:0,marginTop:18,background:"rgba(45,212,191,0.15)",color:"#2dd4bf",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12}}>📅</div>
               <div style={{flex:1,minWidth:0}}>
-                <div style={{fontSize:10,fontWeight:700,letterSpacing:1.2,color:FAINT,textTransform:"uppercase",marginBottom:7}}>Дата</div>
+                <div style={{fontSize:11,fontWeight:700,letterSpacing:1.2,color:FAINT,textTransform:"uppercase",marginBottom:7}}>Дата</div>
                 <input
                   type="date"
                   value={peDate}
@@ -5996,7 +5999,7 @@ function PersonalEventModal({ data, onClose, onConfirm }) {
             <div style={{display:"flex",alignItems:"flex-start",gap:8}}>
               <div style={{width:26,height:26,borderRadius:8,flexShrink:0,marginTop:18,background:"rgba(45,212,191,0.15)",color:"#2dd4bf",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12}}>🕐</div>
               <div style={{flex:1,minWidth:0}}>
-                <div style={{fontSize:10,fontWeight:700,letterSpacing:1.2,color:FAINT,textTransform:"uppercase",marginBottom:7}}>Час</div>
+                <div style={{fontSize:11,fontWeight:700,letterSpacing:1.2,color:FAINT,textTransform:"uppercase",marginBottom:7}}>Час</div>
                 <div style={{display:"flex",gap:6}}>
                   <select
                     value={peTime.split(":")[0] || "09"}
@@ -6023,7 +6026,7 @@ function PersonalEventModal({ data, onClose, onConfirm }) {
             <div style={{display:"flex",alignItems:"flex-start",gap:8}}>
               <div style={{width:26,height:26,borderRadius:8,flexShrink:0,marginTop:18,background:"rgba(45,212,191,0.15)",color:"#2dd4bf",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12}}>⏱</div>
               <div style={{flex:1,minWidth:0}}>
-                <div style={{fontSize:10,fontWeight:700,letterSpacing:1.2,color:FAINT,textTransform:"uppercase",marginBottom:7}}>Тривалість</div>
+                <div style={{fontSize:11,fontWeight:700,letterSpacing:1.2,color:FAINT,textTransform:"uppercase",marginBottom:7}}>Тривалість</div>
                 <div style={{display:"flex",gap:6}}>
                   <select
                     value={String(Math.floor(durMin/60))}
@@ -6065,7 +6068,7 @@ function PersonalEventModal({ data, onClose, onConfirm }) {
             </div>
 
             <div>
-              <div style={{fontSize:10,fontWeight:700,letterSpacing:1.2,color:FAINT,textTransform:"uppercase",marginBottom:7}}>Нотатка (необов'язково)</div>
+              <div style={{fontSize:11,fontWeight:700,letterSpacing:1.2,color:FAINT,textTransform:"uppercase",marginBottom:7}}>Нотатка (необов'язково)</div>
               <textarea
                 value={note}
                 onChange={e=>setNote(e.target.value)}
@@ -6082,7 +6085,7 @@ function PersonalEventModal({ data, onClose, onConfirm }) {
             <div style={{display:"flex",alignItems:"flex-start",gap:8}}>
               <div style={{width:26,height:26,borderRadius:8,flexShrink:0,marginTop:18,background:"rgba(45,212,191,0.15)",color:"#2dd4bf",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12}}>⏰</div>
               <div style={{flex:1,minWidth:0}}>
-                <div style={{fontSize:10,fontWeight:700,letterSpacing:1.2,color:FAINT,textTransform:"uppercase",marginBottom:7}}>Нагадування з будильником</div>
+                <div style={{fontSize:11,fontWeight:700,letterSpacing:1.2,color:FAINT,textTransform:"uppercase",marginBottom:7}}>Нагадування з будильником</div>
                 <select
                   value={reminderHours ?? ""}
                   onChange={e=>setReminderHours(e.target.value === "" ? null : Number(e.target.value))}
@@ -6242,7 +6245,7 @@ function ScheduleHelp({ onClose, onPick }) {
       }}>
         <div style={{ position:"relative", textAlign:"center", padding:"16px 48px 12px", flexShrink:0 }}>
           <div style={{ fontSize:17, fontWeight:800 }}>❓ Підказки по розкладу</div>
-          <div style={{ fontSize:12, color:DIM, marginTop:3 }}>Що означає кожен значок на екрані «Записи». Натисніть на блок — покажу, де це на екрані</div>
+          <div style={{ fontSize:12, color:"rgba(255,255,255,0.82)", marginTop:3 }}>Що означає кожен значок на екрані «Записи». Натисніть на блок — покажу, де це на екрані</div>
           <button onClick={onClose} aria-label="Закрити" style={{ position:"absolute", top:10, right:12, width:34, height:34, borderRadius:"50%", border:`1px solid ${BORDER}`, background:"rgba(255,255,255,0.06)", color:DIM, fontSize:22, lineHeight:1, cursor:"pointer", padding:0 }}>×</button>
         </div>
         <div style={{ overflowY:"auto", WebkitOverflowScrolling:"touch", padding:"2px 14px calc(18px + env(safe-area-inset-bottom, 0px))" }}>
@@ -6259,7 +6262,7 @@ function ScheduleHelp({ onClose, onPick }) {
                     <div style={{ height:58, borderRadius:13, background:"rgba(0,0,0,0.22)", border:`1px solid ${BORDER}`, ...(hv?.ico||{}), display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", padding:"0 4px" }}><div style={{ transform:`scale(${it.s ?? 1.2})`, display:"flex", alignItems:"center", justifyContent:"center" }}>{it.ico}</div></div>
                     <div style={{ minWidth:0 }}>
                       <div style={{ fontSize:14, fontWeight:800, color:TEXT, lineHeight:1.25 }}>{it.t}</div>
-                      <div style={{ fontSize:12.5, lineHeight:1.45, color:DIM, marginTop:3 }}>{it.d}</div>
+                      <div style={{ fontSize:12.5, lineHeight:1.45, color:"rgba(255,255,255,0.82)", marginTop:3 }}>{it.d}</div>
                     </div>
                   </div>
                 ))}
@@ -6374,7 +6377,7 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
   const filtered = q ? sortedStudents.filter(s=>s.name.toLowerCase().includes(q)||s.phone.includes(q)) : sortedStudents;
 
   const SL = ({children})=>(
-    <div style={{fontSize:10,fontWeight:700,letterSpacing:1.2,color:TEXT_FAINT,
+    <div style={{fontSize:11,fontWeight:700,letterSpacing:1.2,color:TEXT_FAINT,
       textTransform:"uppercase",marginBottom:7}}>{children}</div>
   );
 
@@ -6551,7 +6554,7 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
                     transition:"all .12s",
                   }}>
                     <div>{lbl}</div>
-                    {i>1&&<div style={{fontSize:9,opacity:0.65,marginTop:1}}>{info.month}</div>}
+                    {i>1&&<div style={{fontSize:11,opacity:0.9,marginTop:1}}>{info.month}</div>}
                   </button>
                 );
               })}
@@ -6566,8 +6569,8 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
                 const active = t.value===timeVal;
                 return (
                   <button key={t.value} onClick={()=>setTimeVal(t.value)} style={{
-                    padding:"7px 10px",borderRadius:10,border:"none",cursor:"pointer",minWidth:54,
-                    background:active?`linear-gradient(165deg,${BLUE},#1d4ed8)`:SURFACE_LO,
+                    padding:"9px 10px",borderRadius:10,border:"none",cursor:"pointer",minWidth:54,flex:"1 1 auto",textAlign:"center",
+                    background:active?`linear-gradient(165deg,#2f6fe0,#1d4ed8)`:SURFACE_LO,
                     color:active?"#fff":TEXT_DIM,
                     fontSize:13,fontWeight:active?800:500,
                     boxShadow:active?`0 4px 12px ${BLUE}55`:SHADOW_OUT,

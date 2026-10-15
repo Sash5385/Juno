@@ -211,7 +211,7 @@ const Chip = ({label, active, onClick, color}) => {
   const { ACC_HI, ACCENT, SURF_HI, SURFACE, DIM, SO, FOG, TEXT } = useContext(ThemeContext);
   if (FOG && !color) return (
     <button onClick={onClick} style={{
-      flex:1, padding:"9px 2px", borderRadius:11, border:"none", cursor:"pointer", fontSize:12, fontWeight:600, fontFamily:"inherit", textAlign:"center", whiteSpace:"nowrap",
+      flex:"1 1 0", minWidth:0, padding:"9px 0", borderRadius:11, border:"none", cursor:"pointer", fontSize:11, fontWeight:600, fontFamily:"inherit", textAlign:"center", whiteSpace:"nowrap",
       background: active ? SURF_HI : "transparent", color: active ? TEXT : DIM, boxShadow: active ? "0 2px 8px rgba(0,0,0,.12)" : "none",
     }}>{label}</button>
   );
@@ -493,7 +493,7 @@ export default function StatsView() {
             }}>‹</button>
             <button onClick={calPickMonth} title="Обрати весь місяць" style={{
               border:"none",cursor:"pointer",fontFamily:"inherit",background:"transparent",
-              fontSize:13,fontWeight:800,color:TEXT,textTransform:"capitalize",padding:"4px 10px",borderRadius:8,
+              fontSize:13,fontWeight:800,color:TEXT,textTransform:"capitalize",padding:"0 10px",minHeight:36,borderRadius:8,
             }}>{calMonthLabel}</button>
             <button onClick={()=>calGoMonth(1)} style={{
               width:36,height:36,borderRadius:99,border:`1px solid ${BORDER}`,cursor:"pointer",fontFamily:"inherit",
@@ -502,7 +502,7 @@ export default function StatsView() {
           </div>
           <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3,marginBottom:4}}>
             {["Пн","Вт","Ср","Чт","Пт","Сб","Нд"].map(d=>(
-              <div key={d} style={{textAlign:"center",fontSize:10,color:FAINT,fontWeight:700,textTransform:"uppercase"}}>{d}</div>
+              <div key={d} style={{textAlign:"center",fontSize:11,color:FAINT,fontWeight:700,textTransform:"uppercase"}}>{d}</div>
             ))}
           </div>
           <div
@@ -539,19 +539,19 @@ export default function StatsView() {
           </div>
           <div style={{display:"flex",gap:10,justifyContent:"center",marginTop:8}}>
             {[[RED,"мало"],[GOLD,"середньо"],[GREEN,"багато"]].map(([c,l])=>(
-              <span key={l} style={{fontSize:10,color:FAINT,fontWeight:700,display:"flex",alignItems:"center",gap:4}}>
+              <span key={l} style={{fontSize:11,color:FAINT,fontWeight:700,display:"flex",alignItems:"center",gap:4}}>
                 <i style={{width:8,height:8,borderRadius:3,background:c,display:"inline-block"}}/>{l}
               </span>
             ))}
           </div>
           {period === "custom" && selectedStrips.length > 0 && (
             <div style={{marginTop:9,display:"flex",alignItems:"center",gap:6}}>
-              <div style={{flex:1,textAlign:"center",fontSize:10.5,fontWeight:700,color:ACCENT,background:`${ACCENT}1a`,borderRadius:8,padding:"6px 8px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+              <div style={{flex:1,textAlign:"center",fontSize:11,fontWeight:700,color:ACCENT,background:`${ACCENT}1a`,borderRadius:8,padding:"6px 8px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
                 {selectedStrips.map(([s,e])=> s===e ? fmtDM(s) : `${fmtDM(s)}–${fmtDM(e)}`).join(", ")}
               </div>
               <button onClick={calClearSelection} title="Скинути вибір" style={{
                 flexShrink:0, padding:"6px 9px", borderRadius:8, border:"none", cursor:"pointer", fontFamily:"inherit",
-                background:SURF_HI, color:FAINT, fontSize:10.5, fontWeight:700,
+                background:SURF_HI, color:FAINT, fontSize:11, fontWeight:700,
               }}>✕</button>
             </div>
           )}
@@ -570,14 +570,14 @@ export default function StatsView() {
               border:`1px solid color-mix(in srgb,${k.color} 30%,transparent)`,
               textAlign:"center",
             }}>
-              <div style={{fontSize:10.5,color:"rgba(255,255,255,0.7)",letterSpacing:0.6,textTransform:"uppercase",fontWeight:600,marginBottom:6}}>{k.label}</div>
-              <div style={{fontSize:21,fontWeight:800,color:"#fff",letterSpacing:-0.3,lineHeight:1.05,whiteSpace:"nowrap"}}>{k.value}</div>
+              <div style={{fontSize:11,color:"rgba(255,255,255,0.7)",letterSpacing:0.6,textTransform:"uppercase",fontWeight:600,marginBottom:6}}>{k.label}</div>
+              <div style={{fontSize:"min(21px,4.5vw)",fontWeight:800,color:"#fff",letterSpacing:-0.3,lineHeight:1.05,whiteSpace:"nowrap"}}>{k.value}</div>
               {(k.extra || (k.trend != null && k.trend !== 0)) && (
                 <div style={{display:"flex",justifyContent:"center",alignItems:"center",gap:5,marginTop:5,flexWrap:"wrap"}}>
-                  {k.extra && <span style={{fontSize:10.5,color:"rgba(255,255,255,0.65)",fontWeight:600}}>{k.extra}</span>}
+                  {k.extra && <span style={{fontSize:11,color:"rgba(255,255,255,0.74)",fontWeight:600}}>{k.extra}</span>}
                   {k.trend != null && k.trend !== 0 && (
                     <span style={{
-                      fontSize:10, fontWeight:700, padding:"2px 7px", borderRadius:99,
+                      fontSize:11, fontWeight:700, padding:"2px 7px", borderRadius:99,
                       color:k.trend>=0?GREEN:RED,
                       background:k.trend>=0?`${GREEN}1f`:`${RED}1f`,
                     }}>{k.trend>=0?"+":""}{k.trend}%</span>
@@ -595,7 +595,7 @@ export default function StatsView() {
             {perMaster.map(({ m, income, lessons }) => (
               <div key={m.id} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 0",borderTop:`1px solid ${BORDER}`}}>
                 <span style={{width:11,height:11,borderRadius:"50%",background:m.color,flexShrink:0}}/>
-                <span style={{flex:1,minWidth:0,fontSize:14,fontWeight:600,color:TEXT,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.name}</span>
+                <span style={{flex:1,minWidth:0,fontSize:14,fontWeight:600,color:TEXT,overflowWrap:"anywhere"}}>{m.name}</span>
                 <span style={{fontSize:12,color:DIM}}>{lessons} зап.</span>
                 <span style={{fontSize:14,fontWeight:700,color:TEXT,minWidth:70,textAlign:"right"}}>{fmtK(income)}</span>
               </div>
@@ -609,7 +609,7 @@ export default function StatsView() {
             <div style={{fontSize:11,color:DIM,letterSpacing:1,textTransform:"uppercase",fontWeight:700}}>🎯 Ціль місяця</div>
             {!editingGoal && (
               <button onClick={()=>{setGoalInput(String(incomeGoal||""));setEditingGoal(true);}} style={{
-                padding:"3px 8px",borderRadius:6,border:"none",cursor:"pointer",fontSize:10,fontWeight:700,fontFamily:"inherit",
+                padding:"7px 11px",borderRadius:8,border:"none",cursor:"pointer",fontSize:11,fontWeight:700,fontFamily:"inherit",
                 background:`${GOLD}22`,color:GOLD,
               }}>{incomeGoal?"✏️":"+ Встановити"}</button>
             )}
@@ -637,15 +637,15 @@ export default function StatsView() {
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",marginBottom:curMonthForecast>curMonthCurrent?7:11}}>
                 <div>
                   <div style={{fontSize:24,fontWeight:900,color:GOLD,lineHeight:1}}>{fmtK(incomeGoal)}</div>
-                  <div style={{fontSize:8,color:FAINT,marginTop:3}}>ціль місяця</div>
+                  <div style={{fontSize:11,color:FAINT,marginTop:3}}>ціль місяця</div>
                 </div>
                 <div style={{textAlign:"right"}}>
                   <div style={{fontSize:16,fontWeight:800,color:curMonthCurrent>=incomeGoal?GREEN:TEXT,lineHeight:1}}>{fmtK(curMonthCurrent)}</div>
-                  <div style={{fontSize:8,color:FAINT,marginTop:3}}>вже зароблено</div>
+                  <div style={{fontSize:11,color:FAINT,marginTop:3}}>вже зароблено</div>
                 </div>
               </div>
               {curMonthForecast > curMonthCurrent && (
-                <div style={{fontSize:9,color:ACCENT,fontWeight:700,marginBottom:7}}>
+                <div style={{fontSize:11,color:ACCENT,fontWeight:700,marginBottom:7}}>
                   прогноз із записами наперед: {fmtK(curMonthForecast)}
                 </div>
               )}
@@ -666,12 +666,12 @@ export default function StatsView() {
                 }}/>
               </div>
               <div style={{display:"flex",justifyContent:"space-between"}}>
-                <span style={{fontSize:10,fontWeight:800,color:curMonthCurrent>=incomeGoal?GREEN:FAINT}}>
+                <span style={{fontSize:11,fontWeight:800,color:curMonthCurrent>=incomeGoal?GREEN:FAINT}}>
                   {Math.min(100,Math.round((curMonthCurrent/incomeGoal)*100))}%
                 </span>
                 {curMonthCurrent<incomeGoal
-                  ? <span style={{fontSize:10,color:FAINT}}>залишилось {fmtK(incomeGoal-curMonthCurrent)}</span>
-                  : <span style={{fontSize:10,color:GREEN,fontWeight:700}}>🎉 Ціль досягнута!</span>
+                  ? <span style={{fontSize:11,color:FAINT}}>залишилось {fmtK(incomeGoal-curMonthCurrent)}</span>
+                  : <span style={{fontSize:11,color:GREEN,fontWeight:700}}>🎉 Ціль досягнута!</span>
                 }
               </div>
             </>
@@ -687,18 +687,18 @@ export default function StatsView() {
             background:`color-mix(in srgb,${GREEN} 18%,transparent)`,backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",
             border:`1px solid color-mix(in srgb,${GREEN} 24%,transparent)`,
           }}>
-            <div style={{fontSize:10.5,color:"rgba(255,255,255,0.65)",letterSpacing:1,textTransform:"uppercase",fontWeight:700,marginBottom:7}}>Розподіл</div>
+            <div style={{fontSize:11,color:"rgba(255,255,255,0.74)",letterSpacing:1,textTransform:"uppercase",fontWeight:700,marginBottom:7}}>Розподіл</div>
             {(() => {
               const totalRatio = totalSchool + totalPrivate;
               const schoolPct = totalRatio ? Math.round((totalSchool/totalRatio)*100) : 0;
               return (
                 <div style={{display:"flex",flexDirection:"column",gap:5}}>
                   {[[GREEN,"Стандарт",totalSchool,schoolPct],[GOLD,"Індивідуальний",totalPrivate,100-schoolPct]].map(([c,l,v,pct])=>(
-                    <div key={l} style={{display:"flex",alignItems:"center",gap:5}}>
+                    <div key={l} style={{display:"flex",alignItems:"center",gap:5,flexWrap:"wrap",rowGap:2}}>
                       <i style={{width:7,height:7,borderRadius:2,background:c,flexShrink:0}}/>
-                      <span style={{flex:1,fontSize:11,color:"rgba(255,255,255,0.75)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{l}</span>
+                      <span style={{flex:"1 1 auto",fontSize:11,color:"rgba(255,255,255,0.85)"}}>{l}</span>
                       <span style={{fontSize:12,fontWeight:900,color:c}}>{v}</span>
-                      <span style={{fontSize:10,color:"rgba(255,255,255,0.55)",width:30,textAlign:"right",flexShrink:0}}>{pct}%</span>
+                      <span style={{fontSize:11,color:"rgba(255,255,255,0.75)",width:30,textAlign:"right",flexShrink:0}}>{pct}%</span>
                     </div>
                   ))}
                   <div style={{display:"flex",height:8,borderRadius:99,overflow:"hidden",marginTop:2}}>
@@ -715,18 +715,18 @@ export default function StatsView() {
             background:`color-mix(in srgb,${GOLD} 18%,transparent)`,backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",
             border:`1px solid color-mix(in srgb,${GOLD} 24%,transparent)`,
           }}>
-            <div style={{fontSize:10.5,color:"rgba(255,255,255,0.65)",letterSpacing:1,textTransform:"uppercase",fontWeight:700,marginBottom:7}}>{byPeriodLabel}</div>
+            <div style={{fontSize:11,color:"rgba(255,255,255,0.74)",letterSpacing:1,textTransform:"uppercase",fontWeight:700,marginBottom:7}}>{byPeriodLabel}</div>
             <div style={{display:"flex",flexDirection:"column",gap:4,maxHeight:140,overflowY:"auto",paddingRight:2}}>
               {data.map((d, i) => {
                 const maxI = Math.max(...data.map(x => x.income), 1);
                 const pct  = d.income / maxI;
                 return (
                   <div key={i} style={{display:"flex",alignItems:"center",gap:6}}>
-                    <span style={{fontSize:10,color:"rgba(255,255,255,0.6)",fontWeight:700,width:18,textAlign:"right",flexShrink:0}}>{d.label}</span>
+                    <span style={{fontSize:11,color:"rgba(255,255,255,0.74)",fontWeight:700,width:18,textAlign:"right",flexShrink:0}}>{d.label}</span>
                     <div style={{flex:1,height:6,background:"rgba(255,255,255,.1)",borderRadius:99,overflow:"hidden"}}>
                       <div style={{height:"100%",width:`${pct*100}%`,borderRadius:3,background:`linear-gradient(90deg,${GOLD},${GREEN})`,transition:"width .5s ease"}}/>
                     </div>
-                    <span style={{fontSize:10,color:GOLD,fontWeight:800,width:46,textAlign:"right",flexShrink:0,whiteSpace:"nowrap"}}>{d.income ? fmtK(d.income) : <span style={{color:FAINT}}>—</span>}</span>
+                    <span style={{fontSize:11,color:GOLD,fontWeight:800,width:46,textAlign:"right",flexShrink:0,whiteSpace:"nowrap"}}>{d.income ? fmtK(d.income) : <span style={{color:FAINT}}>—</span>}</span>
                   </div>
                 );
               })}
@@ -741,7 +741,7 @@ export default function StatsView() {
             background:`color-mix(in srgb,${GOLD} 18%,transparent)`,backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",
             border:`1px solid color-mix(in srgb,${GOLD} 24%,transparent)`,
           }}>
-            <div style={{fontSize:10.5,color:"rgba(255,255,255,0.65)",letterSpacing:1,textTransform:"uppercase",fontWeight:700,marginBottom:10}}>Популярні слоти</div>
+            <div style={{fontSize:11,color:"rgba(255,255,255,0.74)",letterSpacing:1,textTransform:"uppercase",fontWeight:700,marginBottom:10}}>Популярні слоти</div>
             {popularSlots.map((s, i) => {
               const maxCount = popularSlots[0].count;
               const pct = s.count / maxCount;
@@ -753,7 +753,7 @@ export default function StatsView() {
                       background:i===0?`linear-gradient(90deg,${GOLD},${GREEN})`:`linear-gradient(90deg,${PURPLE},${ACCENT})`,
                       transition:"width .5s ease"}}/>
                   </div>
-                  <span style={{fontSize:10,color:i===0?GOLD:PURPLE,fontWeight:800,width:44,textAlign:"right",flexShrink:0}}>
+                  <span style={{fontSize:11,color:i===0?GOLD:PURPLE,fontWeight:800,width:44,textAlign:"right",flexShrink:0}}>
                     {s.count} ур.
                   </span>
                 </div>
@@ -766,11 +766,11 @@ export default function StatsView() {
         {topStudents.length > 0 && (
           <Card className="fu" style={{padding:"12px 13px 8px"}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-              <div style={{fontSize:9,color:FAINT,letterSpacing:1,textTransform:"uppercase",fontWeight:700}}>Топ-5 клієнтів</div>
+              <div style={{fontSize:11,color:FAINT,letterSpacing:1,textTransform:"uppercase",fontWeight:700}}>Топ-5 клієнтів</div>
               <div style={{display:"flex",gap:5}}>
                 {[["paid","₴"],["lessons","год"]].map(([k,l])=>(
                   <button key={k} onClick={()=>setTopBy(k)} style={{
-                    padding:"3px 8px", borderRadius:6, border:"none", cursor:"pointer", fontSize:10, fontWeight:700, fontFamily:"inherit",
+                    minWidth:36, padding:"7px 11px", borderRadius:8, border:"none", cursor:"pointer", fontSize:11, fontWeight:700, fontFamily:"inherit",
                     background:topBy===k?GOLD:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,
                     color:topBy===k?"#1a1a1a":FAINT, boxShadow:SO,
                   }}>{l}</button>
@@ -794,16 +794,16 @@ export default function StatsView() {
                     width:24, height:24, borderRadius:7, flexShrink:0,
                     background: i<3 ? `linear-gradient(145deg,${medals[i]},${medals[i]}88)` : `linear-gradient(145deg,${SURF_HI},${SURFACE})`,
                     display:"flex", alignItems:"center", justifyContent:"center",
-                    fontSize:10, fontWeight:900, color:i<3?"#1a1a1a":"#fff", boxShadow:SO,
+                    fontSize:11, fontWeight:900, color:i<3?"#1a1a1a":"#fff", boxShadow:SO,
                   }}>{i+1}</div>
                   <div style={{
                     width:32, height:32, borderRadius:9, flexShrink:0,
                     background:`linear-gradient(145deg,hsl(${s.hue},60%,44%),hsl(${(s.hue+35)%360},70%,28%))`,
                     display:"flex", alignItems:"center", justifyContent:"center",
-                    fontSize:10, fontWeight:800, color:"#fff", boxShadow:`0 2px 8px hsla(${s.hue},50%,30%,.5)`,
+                    fontSize:11, fontWeight:800, color:"#fff", boxShadow:`0 2px 8px hsla(${s.hue},50%,30%,.5)`,
                   }}>{s.name.split(" ").map(w=>w[0]).join("")}</div>
                   <div style={{flex:1,minWidth:0}}>
-                    <div style={{fontSize:12,fontWeight:700,color:TEXT,marginBottom:4,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{s.name}</div>
+                    <div style={{fontSize:12,fontWeight:700,color:TEXT,marginBottom:4,overflowWrap:"anywhere"}}>{s.name}</div>
                     <div style={{height:4,background:BG_DEEP,borderRadius:3,boxShadow:SI,overflow:"hidden"}}>
                       <div style={{
                         height:"100%", width:`${(barVal/maxH)*100}%`, borderRadius:3,
@@ -813,8 +813,8 @@ export default function StatsView() {
                   </div>
                   <div style={{flexShrink:0,textAlign:"right"}}>
                     {topBy === 'lessons'
-                      ? <><div style={{fontSize:12,fontWeight:800,color:BLUE}}>{s.hours} год</div><div style={{fontSize:9,color:FAINT}}>{fmtK(s.paid)}</div></>
-                      : <><div style={{fontSize:12,fontWeight:800,color:GOLD}}>{fmtK(s.paid)}</div><div style={{fontSize:9,color:FAINT}}>{s.hours} год</div></>
+                      ? <><div style={{fontSize:12,fontWeight:800,color:BLUE}}>{s.hours} год</div><div style={{fontSize:11,color:FAINT}}>{fmtK(s.paid)}</div></>
+                      : <><div style={{fontSize:12,fontWeight:800,color:GOLD}}>{fmtK(s.paid)}</div><div style={{fontSize:11,color:FAINT}}>{s.hours} год</div></>
                     }
                   </div>
                 </div>

@@ -18,10 +18,11 @@ const makeCSS = () => `
   position:relative;word-break:break-word;
 }
 .var-chip{
-  display:inline-block;background:rgba(91,155,255,0.25);color:${BLUE};
-  border-radius:6px;padding:1px 6px;font-size:12px;font-weight:700;
+  display:inline-block;background:rgba(91,155,255,0.25);color:#b3d0ff;
+  border-radius:6px;padding:6px 8px;font-size:12px;font-weight:700;
   border:1px solid rgba(91,155,255,0.35);cursor:pointer;
   transition:background .12s;
+  flex:1 1 auto;text-align:center;
 }
 .var-chip:hover{background:rgba(91,155,255,0.4)}
 `;
@@ -217,7 +218,7 @@ function SendModal({ tpl, onClose }) {
       <div style={{fontSize:12,color:DIM,marginTop:-12,marginBottom:18}}>«{tpl.title}»</div>
 
       {/* students */}
-      <div style={{fontSize:10,color:FAINT,letterSpacing:1,marginBottom:8}}>КОМУ НАДІСЛАТИ</div>
+      <div style={{fontSize:11,color:FAINT,letterSpacing:1,marginBottom:8}}>КОМУ НАДІСЛАТИ</div>
       <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:16}}>
         {students.length === 0
           ? <span style={{fontSize:11,color:FAINT}}>Завантаження клієнтів…</span>
@@ -231,9 +232,9 @@ function SendModal({ tpl, onClose }) {
       </div>
 
       {/* preview bubble */}
-      <div style={{fontSize:10,color:FAINT,letterSpacing:1,marginBottom:8}}>ПОПЕРЕДНІЙ ПЕРЕГЛЯД</div>
+      <div style={{fontSize:11,color:FAINT,letterSpacing:1,marginBottom:8}}>ПОПЕРЕДНІЙ ПЕРЕГЛЯД</div>
       <div style={{marginBottom:6}}>
-        <div style={{fontSize:10,color:ch.color,marginBottom:6,fontWeight:700}}>{ch.emoji} {ch.label}</div>
+        <div style={{fontSize:11,color:ch.color,marginBottom:6,fontWeight:700}}>{ch.emoji} {ch.label}</div>
         <div className="bubble-preview">
           <BodyPreview body={preview}/>
         </div>
@@ -241,7 +242,7 @@ function SendModal({ tpl, onClose }) {
 
       {/* editable preview */}
       <Inset style={{marginBottom:0,padding:"10px 14px"}}>
-        <div style={{fontSize:9,color:FAINT,letterSpacing:1,marginBottom:6}}>РЕДАГУВАТИ ПЕРЕД ВІДПРАВКОЮ</div>
+        <div style={{fontSize:11,color:FAINT,letterSpacing:1,marginBottom:6}}>РЕДАГУВАТИ ПЕРЕД ВІДПРАВКОЮ</div>
         <textarea value={preview} onChange={e=>setPreview(e.target.value)} rows={4}
           style={{width:"100%",background:"transparent",border:"none",outline:"none",color:TEXT,fontSize:13,resize:"none",fontFamily:"inherit",lineHeight:1.5}}/>
       </Inset>
@@ -274,7 +275,7 @@ function EditModal({ tpl, onSave, onClose }) {
       }}>
       {/* title */}
       <div style={{marginBottom:14}}>
-        <div style={{fontSize:10,color:"rgba(255,255,255,0.55)",letterSpacing:1,marginBottom:6}}>НАЗВА ШАБЛОНУ</div>
+        <div style={{fontSize:11,color:"rgba(255,255,255,0.74)",letterSpacing:1,marginBottom:6}}>НАЗВА ШАБЛОНУ</div>
         <Inset style={{padding:"4px 14px"}}>
           <input value={form.title} onChange={e=>upd("title",e.target.value)} placeholder="Наприклад: Нагадування за 24 год"
             style={{width:"100%",background:"transparent",border:"none",outline:"none",color:TEXT,fontSize:15,fontWeight:800,padding:"10px 0",fontFamily:"inherit"}}/>
@@ -283,7 +284,7 @@ function EditModal({ tpl, onSave, onClose }) {
 
       {/* category */}
       <div style={{marginBottom:14}}>
-        <div style={{fontSize:10,color:"rgba(255,255,255,0.55)",letterSpacing:1,marginBottom:8}}>КАТЕГОРІЯ</div>
+        <div style={{fontSize:11,color:"rgba(255,255,255,0.74)",letterSpacing:1,marginBottom:8}}>КАТЕГОРІЯ</div>
         <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:6}}>
           {CATEGORIES.map(c=>(
             <Chip key={c.id} active={form.catId===c.id} color={c.color} onClick={()=>upd("catId",c.id)}>{c.emoji} {c.label}</Chip>
@@ -293,20 +294,20 @@ function EditModal({ tpl, onSave, onClose }) {
 
       {/* channel */}
       <div style={{marginBottom:14}}>
-        <div style={{fontSize:10,color:"rgba(255,255,255,0.55)",letterSpacing:1,marginBottom:8}}>КАНАЛ ВІДПРАВКИ</div>
+        <div style={{fontSize:11,color:"rgba(255,255,255,0.74)",letterSpacing:1,marginBottom:8}}>КАНАЛ ВІДПРАВКИ</div>
         <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:6}}>
           {CHANNELS.map(c=>(
             <Chip key={c.id} active={(form.channel||"chat")===c.id} color={c.color} onClick={()=>upd("channel",c.id)}>{c.emoji} {c.label}</Chip>
           ))}
         </div>
-        <div style={{fontSize:10,color:"rgba(255,255,255,0.5)",marginTop:6}}>
+        <div style={{fontSize:11,color:"rgba(255,255,255,0.74)",marginTop:6}}>
           {(form.channel||"chat")==="push" ? "Лише сповіщення, без запису в чат" : "Повідомлення в чат (клієнт також отримає push)"}
         </div>
       </div>
 
       {/* trigger */}
       <div style={{marginBottom:14}}>
-        <div style={{fontSize:10,color:"rgba(255,255,255,0.55)",letterSpacing:1,marginBottom:8}}>УМОВА ВІДПРАВКИ</div>
+        <div style={{fontSize:11,color:"rgba(255,255,255,0.74)",letterSpacing:1,marginBottom:8}}>УМОВА ВІДПРАВКИ</div>
         <div style={{display:"flex",flexDirection:"column",gap:6}}>
           {TRIGGERS.map(t=>(
             <button key={t.id} onClick={()=>upd("trigger",t.id)} style={{
@@ -324,7 +325,7 @@ function EditModal({ tpl, onSave, onClose }) {
       {/* reminder hours — тільки для auto_reminder: за скільки годин слати */}
       {form.trigger==="auto_reminder" && (
         <div style={{marginBottom:14}}>
-          <div style={{fontSize:10,color:"rgba(255,255,255,0.55)",letterSpacing:1,marginBottom:8}}>ЗА СКІЛЬКИ ГОДИН ДО УРОКУ</div>
+          <div style={{fontSize:11,color:"rgba(255,255,255,0.74)",letterSpacing:1,marginBottom:8}}>ЗА СКІЛЬКИ ГОДИН ДО УРОКУ</div>
           <div style={{display:"flex",gap:6}}>
             {[24,2].map(h=>(
               <button key={h} onClick={()=>upd("reminderHours",h)} style={{
@@ -340,8 +341,8 @@ function EditModal({ tpl, onSave, onClose }) {
 
       {/* body */}
       <div style={{marginBottom:10}}>
-        <div style={{fontSize:10,color:"rgba(255,255,255,0.55)",letterSpacing:1,marginBottom:8}}>ТЕКСТ ПОВІДОМЛЕННЯ</div>
-        <div style={{fontSize:10,color:"rgba(255,255,255,0.55)",marginBottom:6}}>Змінні — клікни щоб вставити:</div>
+        <div style={{fontSize:11,color:"rgba(255,255,255,0.74)",letterSpacing:1,marginBottom:8}}>ТЕКСТ ПОВІДОМЛЕННЯ</div>
+        <div style={{fontSize:11,color:"rgba(255,255,255,0.74)",marginBottom:6}}>Змінні — клікни щоб вставити:</div>
         <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:8}}>
           {VARS.map(v=>(
             <span key={v} className="var-chip" onClick={()=>insertVar(v)}>{v}</span>
@@ -357,7 +358,7 @@ function EditModal({ tpl, onSave, onClose }) {
       {/* live bubble preview */}
       {form.body.trim() && (
         <div style={{marginBottom:16}}>
-          <div style={{fontSize:10,color:"rgba(255,255,255,0.55)",letterSpacing:1,marginBottom:6}}>ПОПЕРЕДНІЙ ПЕРЕГЛЯД</div>
+          <div style={{fontSize:11,color:"rgba(255,255,255,0.74)",letterSpacing:1,marginBottom:6}}>ПОПЕРЕДНІЙ ПЕРЕГЛЯД</div>
           <div className="bubble-preview"><BodyPreview body={form.body}/></div>
         </div>
       )}
@@ -395,18 +396,18 @@ function TemplateCard({ tpl, onEdit, onSend, onToggle, onDelete }) {
         background:"radial-gradient(ellipse at top right,rgba(255,255,255,0.18) 0%,transparent 65%)"}}/>
 
       <button onClick={e=>{stop(e);onDelete(tpl.id);}} style={{
-        position:"absolute",top:6,right:6,zIndex:3,width:20,height:20,borderRadius:"50%",border:"none",cursor:"pointer",
+        position:"absolute",top:4,right:4,zIndex:3,width:26,height:26,borderRadius:"50%",border:"none",cursor:"pointer",
         background:RED,color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",
         boxShadow:`0 2px 6px ${shade(0.4)}`,
       }}>
         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
 
-      <div style={{position:"relative",zIndex:2,display:"flex",alignItems:"flex-start",gap:7,paddingRight:22}}>
+      <div style={{position:"relative",zIndex:2,display:"flex",alignItems:"flex-start",gap:7,paddingRight:26}}>
         <span style={{fontSize:16,flexShrink:0,lineHeight:1}}>{cat.emoji}</span>
         <div style={{flex:1,minWidth:0}}>
-          <div style={{fontSize:13,fontWeight:800,color:"#fff",textShadow:`0 1px 3px ${shade(0.5)}`,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{tpl.title}</div>
-          <div style={{fontSize:9.5,color:"rgba(255,255,255,0.78)",fontWeight:700,marginTop:1.5,display:"flex",alignItems:"center",gap:5}}>
+          <div style={{fontSize:13,fontWeight:800,color:"#fff",textShadow:`0 1px 3px ${shade(0.5)}`,overflowWrap:"anywhere"}}>{tpl.title}</div>
+          <div style={{fontSize:11,color:"rgba(255,255,255,0.78)",fontWeight:700,marginTop:1.5,display:"flex",alignItems:"center",gap:5}}>
             <span>{ch.emoji} {ch.label}</span>
             <span>·</span>
             <span>{tpl.trigger==="manual"?"✋ Вручну":"⚡ Авто"}</span>
@@ -417,7 +418,7 @@ function TemplateCard({ tpl, onEdit, onSend, onToggle, onDelete }) {
       <div style={{position:"relative",zIndex:2,display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:7}}>
         <button onClick={e=>{stop(e);onSend(tpl);}} style={{
           padding:"5px 9px",border:"none",borderRadius:8,cursor:"pointer",fontFamily:"inherit",
-          background:"rgba(0,0,0,0.22)",color:"#fff",fontSize:10,fontWeight:700,
+          background:"rgba(0,0,0,0.22)",color:"#fff",fontSize:11,fontWeight:700,
           display:"flex",alignItems:"center",gap:4.5,
         }}>
           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
@@ -447,7 +448,7 @@ function SimpleEditModal({ tpl, onSave, onClose }) {
     setBody(body.slice(0, a) + v + body.slice(b));
     setTimeout(() => { if (el) { el.focus(); el.setSelectionRange(a + v.length, a + v.length); } }, 0);
   };
-  const label = { fontSize:10, color:"rgba(255,255,255,0.55)", letterSpacing:1, marginBottom:8 };
+  const label = { fontSize:11, color:"rgba(255,255,255,0.74)", letterSpacing:1, marginBottom:8 };
   const valid = body.trim().length > 0;
 
   return (
@@ -483,7 +484,7 @@ function SimpleEditModal({ tpl, onSave, onClose }) {
             style={{width:"100%",background:"transparent",border:"none",outline:"none",color:TEXT,fontSize:13,resize:"none",fontFamily:"inherit",lineHeight:1.5}}/>
         </Inset>
 
-        <div style={{fontSize:10.5,color:"rgba(255,255,255,0.55)",marginBottom:6}}>Натисніть, щоб вставити в текст — підставиться автоматично:</div>
+        <div style={{fontSize:11,color:"rgba(255,255,255,0.74)",marginBottom:6}}>Натисніть, щоб вставити в текст — підставиться автоматично:</div>
         <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:16}}>
           {VAR_LABELS.map(x=>(
             <span key={x.v} className="var-chip" onClick={()=>insertVar(x.v)}>{x.label}</span>
@@ -522,14 +523,14 @@ function SimpleRow({ emoji, title, hint, color, active, onToggle, onEdit, snippe
         <span style={{fontSize:20,flexShrink:0,lineHeight:1}}>{emoji}</span>
         <div style={{flex:1,minWidth:0}}>
           <div style={{fontSize:15,fontWeight:700,color:"#fff"}}>{title}</div>
-          <div style={{fontSize:12,color:"rgba(255,255,255,0.75)",fontWeight:500,marginTop:2}}>{hint}</div>
+          <div style={{fontSize:12,color:"rgba(255,255,255,0.85)",fontWeight:500,marginTop:2}}>{hint}</div>
         </div>
         {onToggle && <div onClick={stop}><Toggle on={active} onChange={onToggle}/></div>}
         {action}
       </div>
       {snippet && (
         <div style={{
-          marginTop:10,fontSize:12.5,lineHeight:1.45,color:"rgba(255,255,255,0.7)",
+          marginTop:10,fontSize:12.5,lineHeight:1.45,color:"rgba(255,255,255,0.82)",
           display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden",
         }}>{snippet}</div>
       )}
@@ -620,7 +621,7 @@ export default function TemplatesView() {
                   }}>
                     <div style={{flex:1,minWidth:0}}>
                       <div style={{fontSize:13.5,fontWeight:700,color:"#fff"}}>За {r.reminderHours ?? 24} год до запису</div>
-                      <div style={{fontSize:12,color:"rgba(255,255,255,0.65)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{snip(r)}</div>
+                      <div style={{fontSize:12,color:"rgba(255,255,255,0.8)",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}}>{snip(r)}</div>
                     </div>
                     <div onClick={e=>e.stopPropagation()}><Toggle on={r.active} onChange={v=>onToggle(r.id,v)}/></div>
                   </div>

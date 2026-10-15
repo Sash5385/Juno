@@ -205,7 +205,7 @@ function InfoRow({ label, value, theme, valueStyle = {} }) {
       border:`1px solid ${theme.BORDER}`,
       padding:"10px 14px",
     }}>
-      <div style={{fontSize:10,color:theme.FAINT,letterSpacing:1,marginBottom:4}}>{label}</div>
+      <div style={{fontSize:11,color:theme.FAINT,letterSpacing:1,marginBottom:4}}>{label}</div>
       <div style={{fontSize:14,fontWeight:600,color:theme.DIM,...valueStyle}}>{value}</div>
     </div>
   );
@@ -297,6 +297,8 @@ export default function JournalView() {
       <style>{`
         .jrow{cursor:pointer;transition:background .1s}
         .jrow:active{background:rgba(255,255,255,0.03)!important}
+        .jtiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-bottom:12px}
+        @media (max-width:379px){.jtiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
       `}</style>
 
       {/* Section tabs */}
@@ -324,7 +326,7 @@ export default function JournalView() {
       <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:6 }}>
         <span style={{fontSize:12,color:DIM}}>{bySection.length} {noun(bySection.length)}</span>
       </div>
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:6, marginBottom:12 }}>
+      <div className="jtiles">
         {[
           ["new",         "✓ НОВИЙ",     theme.GREEN],
           ["cancel",      "✕ СКАСОВАНО", theme.RED  ],
@@ -342,7 +344,7 @@ export default function JournalView() {
               transition:"all .15s",
             }}>
               <div style={{fontSize:22,fontWeight:800,color: active ? theme.TEXT : color}}>{count}</div>
-              <div style={{fontSize:10,fontWeight:600,letterSpacing:0.4,marginTop:2,color: DIM}}>{lbl}</div>
+              <div style={{fontSize:11,fontWeight:600,letterSpacing:0.2,marginTop:2,color: DIM}}>{lbl}</div>
             </button>
           );
         })}
@@ -400,11 +402,11 @@ export default function JournalView() {
                   <div style={{display:"flex",alignItems:"center",gap:5}}>
                     <span style={{
                       fontSize:14,fontWeight:isNew?700:600,color:"#fff",
-                      overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",
+                      overflowWrap:"anywhere",
                     }}>{ev.name}</span>
                     {isNew && <div style={{width:5,height:5,borderRadius:"50%",flexShrink:0,background:"#fff",boxShadow:"0 0 4px #fff"}}/>}
                   </div>
-                  <div style={{fontSize:11.5,marginTop:2,fontWeight:500,color:"rgba(255,255,255,0.8)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                  <div style={{fontSize:11.5,marginTop:2,fontWeight:500,color:"rgba(255,255,255,0.88)",overflowWrap:"anywhere"}}>
                     {prefix} {meta.label}
                     {ev.slot && <span> · {ev.slot}</span>}
                     {byLabel && <span> · {byLabel}</span>}

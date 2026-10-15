@@ -144,7 +144,7 @@ export function Field({ label, value, onChange, placeholder, type = "text", text
   const base = { width: "100%", background: BG_DEEP, border: `1px solid ${BORDER}`, borderRadius: RADIUS.control, padding: PAD.control, color: TEXT, fontSize: 14, outline: "none", boxSizing: "border-box", fontFamily: "inherit" };
   return (
     <div style={{ marginBottom: 12, ...style }}>
-      {label && <div style={{ fontSize: 10, color: FAINT, letterSpacing: 1, marginBottom: 5 }}>{label.toUpperCase()}</div>}
+      {label && <div style={{ fontSize: 11, color: FAINT, letterSpacing: 1, marginBottom: 5 }}>{label.toUpperCase()}</div>}
       {textarea
         ? <textarea value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} rows={rows} style={{ ...base, resize: "vertical" }} />
         : <input type={type} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} style={base} />}
@@ -153,13 +153,14 @@ export function Field({ label, value, onChange, placeholder, type = "text", text
 }
 
 // ── Chip: selectable colour chip ───────────────────────────────
-export function Chip({ active, color, onClick, children }) {
+export function Chip({ active, color, onClick, children, style = {} }) {
   const { SURF_HI, SURFACE, DIM, SO, CHIP_R } = useContext(ThemeContext);
   return (
     <button onClick={onClick} style={{
       padding: "7px 12px", borderRadius: CHIP_R ?? RADIUS.chip + 1, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 700, fontFamily: "inherit",
+      display: "inline-flex", alignItems: "center", justifyContent: "center", textAlign: "center", lineHeight: 1.25,
       background: active ? `linear-gradient(145deg,${color}55,${color}22)` : `linear-gradient(145deg,${SURF_HI},${SURFACE})`,
-      color: active ? color : DIM, boxShadow: SO,
+      color: active ? `color-mix(in srgb,${color} 60%,#fff)` : DIM, boxShadow: SO, ...style,
     }}>{children}</button>
   );
 }
@@ -191,7 +192,7 @@ export function StatTile({ value, label, color }) {
   return (
     <div style={{ background: BG_DEEP, borderRadius: RADIUS.control, boxShadow: SI, padding: PAD.tile, textAlign: "center" }}>
       <div style={{ fontSize: 18, fontWeight: 900, color }}>{value}</div>
-      <div style={{ fontSize: 9, color: FAINT, marginTop: 2, letterSpacing: 0.5 }}>{(label || "").toUpperCase()}</div>
+      <div style={{ fontSize: 11, color: FAINT, marginTop: 2, letterSpacing: 0.5 }}>{(label || "").toUpperCase()}</div>
     </div>
   );
 }
@@ -239,7 +240,7 @@ export function ModalSection({ label, children, first = false }) {
   return (
     <div>
       {!first && <div style={{ height: 1, background: BORDER, margin: "12px 0" }} />}
-      {label && <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", color: FAINT, marginBottom: 8, textTransform: "uppercase" }}>{label}</div>}
+      {label && <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", color: FAINT, marginBottom: 8, textTransform: "uppercase" }}>{label}</div>}
       {children}
     </div>
   );

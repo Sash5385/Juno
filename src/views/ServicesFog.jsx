@@ -40,7 +40,7 @@ export default function ServicesFog({ services, colorOf, fmt, capOf, isProtected
         {FILTERS.map(f => {
           const on = filter === f.id;
           return (
-            <button key={f.id} onClick={() => setFilter(f.id)} style={{ flex: 1, textAlign: "center", fontSize: 11, fontWeight: 600, padding: "7px 0", borderRadius: 9, border: "none", cursor: "pointer", fontFamily: "inherit",
+            <button key={f.id} onClick={() => setFilter(f.id)} style={{ flex: 1, textAlign: "center", fontSize: 12, fontWeight: 600, padding: "9px 0", borderRadius: 9, border: "none", cursor: "pointer", fontFamily: "inherit",
               background: on ? SURF_HI : "transparent", color: on ? TEXT : DIM, boxShadow: on ? "0 2px 8px rgba(0,0,0,.12)" : "none" }}>
               {f.label}{f.id === "arch" && archCount ? ` · ${archCount}` : ""}
             </button>
@@ -59,8 +59,8 @@ export default function ServicesFog({ services, colorOf, fmt, capOf, isProtected
               background: `color-mix(in srgb,${c} 26%,transparent)`, border: `1px solid color-mix(in srgb,${c} 55%,transparent)`,
               backdropFilter: GL, WebkitBackdropFilter: GL, color: TEXT, overflow: "hidden",
             }}>
-              <div style={{ fontSize: 11, fontWeight: 700, paddingRight: 16, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{svc.name}</div>
-              <div style={{ fontSize: 10, fontWeight: 500, opacity: 0.88, marginTop: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              <div style={{ fontSize: 11, fontWeight: 700, paddingRight: 22, overflowWrap: "anywhere" }}>{svc.name}</div>
+              <div style={{ fontSize: 11, fontWeight: 500, opacity: 0.92, marginTop: 1, overflowWrap: "anywhere" }}>
                 {fmt(svc.duration)} · {svc.price || 0} ₴{capOf(svc) > 1 ? ` · група ${capOf(svc)}` : ""}
               </div>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 6 }} onClick={stop}>
@@ -70,7 +70,7 @@ export default function ServicesFog({ services, colorOf, fmt, capOf, isProtected
                 <div onClick={() => onToggle(svc.id, !(svc.active && !svc.archived))} style={toggle(svc.active && !svc.archived)}><div style={thumb(svc.active && !svc.archived)} /></div>
               </div>
               {!isProtected(svc) && (
-                <div onClick={e => { stop(e); onDelete(svc); }} style={{ position: "absolute", top: 5, right: 6, width: 16, height: 16, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 800, color: DIM, cursor: "pointer", background: "rgba(255,255,255,.1)" }}>×</div>
+                <div onClick={e => { stop(e); onDelete(svc); }} style={{ position: "absolute", top: 4, right: 5, width: 22, height: 22, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 800, color: DIM, cursor: "pointer", background: "rgba(255,255,255,.1)" }}>×</div>
               )}
             </div>
           );
@@ -85,11 +85,11 @@ export default function ServicesFog({ services, colorOf, fmt, capOf, isProtected
       </div>
 
       {/* чипи типів */}
-      <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 5 }}>
         {TYPES.map(t => {
           const on = type === t.id;
           return (
-            <button key={t.id || "all"} onClick={() => setType(t.id)} style={{ fontSize: 10, fontWeight: 600, padding: "5px 10px", borderRadius: 99, cursor: "pointer", fontFamily: "inherit",
+            <button key={t.id || "all"} onClick={() => setType(t.id)} style={{ minWidth: 0, fontSize: 11, fontWeight: 600, padding: "9px 2px", borderRadius: 99, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap",
               border: `1px solid ${on ? "transparent" : BORDER}`, background: on ? `linear-gradient(145deg,${ACC_HI},${ACCENT})` : SURFACE, color: on ? BTN_TX : DIM, backdropFilter: GL, WebkitBackdropFilter: GL }}>{t.label}</button>
           );
         })}

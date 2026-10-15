@@ -62,7 +62,7 @@ function StudentForm({ initial, onSave, onCancel, saveLabel="Зберегти" }
         <Field label="Телефон"   value={d.phone||""}    onChange={v=>upd("phone",v)}    placeholder="+380..." style={{marginBottom:0}}/>
         <Field label="Знижка ₴/год"  value={d.discount||""} onChange={v=>upd("discount",v.replace(/[^\d]/g,""))} placeholder="0" type="text" inputMode="numeric" style={{marginBottom:0}}/>
         <div>
-          <div style={{fontSize:10,color:FAINT,letterSpacing:1,marginBottom:5}}>ТИП</div>
+          <div style={{fontSize:11,color:FAINT,letterSpacing:1,marginBottom:5}}>ТИП</div>
           <div style={{display:"flex",gap:6}}>
             {[["private","Приват."],["school","Автошк."]].map(([k,l])=>(
               <UIBtn key={k} variant={d.type===k?"primary":"ghost"} flex={1}
@@ -81,7 +81,7 @@ function StudentForm({ initial, onSave, onCancel, saveLabel="Зберегти" }
       }}>
         <div>
           <div style={{fontSize:12,fontWeight:700,color:d.isVip?"#c084fc":TEXT}}>VIP клієнт</div>
-          <div style={{fontSize:10,color:FAINT,marginTop:2}}>{d.isVip?"Має доступ до VIP слотів":"Без доступу до VIP слотів"}</div>
+          <div style={{fontSize:11,color:FAINT,marginTop:2}}>{d.isVip?"Має доступ до VIP слотів":"Без доступу до VIP слотів"}</div>
         </div>
         <div style={{width:36,height:20,borderRadius:10,position:"relative",background:d.isVip?"linear-gradient(145deg,#a855f7,#7c3aed)":"rgba(255,255,255,0.08)",transition:"background .2s",flexShrink:0}}>
           <div style={{position:"absolute",top:2,left:d.isVip?18:2,width:16,height:16,borderRadius:8,background:"#fff",transition:"left .2s"}}/>
@@ -95,7 +95,7 @@ function StudentForm({ initial, onSave, onCancel, saveLabel="Зберегти" }
       }}>
         <div>
           <div style={{fontSize:12,fontWeight:700,color:d.noIntervalLimit?"#eab308":TEXT}}>Без ліміту частоти записів</div>
-          <div style={{fontSize:10,color:FAINT,marginTop:2}}>{d.noIntervalLimit?"Ігнорує обмеження мінімального інтервалу":"Застосовується загальне обмеження"}</div>
+          <div style={{fontSize:11,color:FAINT,marginTop:2}}>{d.noIntervalLimit?"Ігнорує обмеження мінімального інтервалу":"Застосовується загальне обмеження"}</div>
         </div>
         <div style={{width:36,height:20,borderRadius:10,position:"relative",background:d.noIntervalLimit?"linear-gradient(145deg,#eab308,#ca8a04)":"rgba(255,255,255,0.08)",transition:"background .2s",flexShrink:0}}>
           <div style={{position:"absolute",top:2,left:d.noIntervalLimit?18:2,width:16,height:16,borderRadius:8,background:"#fff",transition:"left .2s"}}/>
@@ -142,13 +142,13 @@ function StudentCard({ s, onSelect, settings }) {
         overflow:"hidden",fontSize:12,fontWeight:900,color:"#fff"}}>{s.photo ? <img src={s.photo} alt="" style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}/> : ini}</div>
 
       <div style={{position:"relative",zIndex:2,flex:1,minWidth:0}}>
-        <div style={{fontSize:14,fontWeight:700,color:"#fff",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-          {s.isVip && "👑 "}{s.name}{s.blocked && <span style={{fontSize:9,marginLeft:6}}>🚫</span>}
+        <div style={{fontSize:14,fontWeight:700,color:"#fff",overflowWrap:"anywhere"}}>
+          {s.isVip && "👑 "}{s.name}{s.blocked && <span style={{fontSize:11,marginLeft:6}}>🚫</span>}
         </div>
         <div style={{fontSize:11.5,color:"rgba(255,255,255,0.8)",fontWeight:500,marginTop:2}}>{typeLabel}</div>
       </div>
 
-      <button onClick={e=>{e.stopPropagation();navTo("chats");}} style={{position:"relative",zIndex:2,background:"rgba(0,0,0,0.25)",border:"none",borderRadius:8,cursor:"pointer",width:26,height:26,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+      <button onClick={e=>{e.stopPropagation();navTo("chats");}} style={{position:"relative",zIndex:2,background:"rgba(0,0,0,0.25)",border:"none",borderRadius:8,cursor:"pointer",width:32,height:32,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
         {ICONS.chat}
       </button>
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="2.5" strokeLinecap="round" style={{position:"relative",zIndex:2,flexShrink:0}}>
@@ -316,7 +316,7 @@ function StudentDetailSheet({ settings, s, onClose, onUpdate, onDelete, onBlock,
             }}>{s.photo ? <img src={s.photo} alt="" style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}/> : ini}</div>
             <div style={{flex:1,minWidth:0}}>
               <div style={{fontSize:15,fontWeight:800,color:s.blocked?DIM:TEXT,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-                {s.name}{s.blocked && <span style={{fontSize:10,color:RED,marginLeft:6}}>🚫</span>}
+                {s.name}{s.blocked && <span style={{fontSize:11,color:RED,marginLeft:6}}>🚫</span>}
               </div>
               <div style={{fontSize:11,color:typeColor,fontWeight:700,marginTop:2}}>{typeLabel}</div>
             </div>
@@ -386,11 +386,11 @@ function StudentDetailSheet({ settings, s, onClose, onUpdate, onDelete, onBlock,
                 {/* Phone + discount */}
                 <div style={{display:"flex",gap:8}}>
                   <div style={{flex:1,background:glow(0.04),borderRadius:10,padding:"9px 12px",border:`1px solid ${BORDER}`}}>
-                    <div style={{fontSize:9,color:FAINT,letterSpacing:1,textTransform:"uppercase",marginBottom:3}}>Телефон</div>
+                    <div style={{fontSize:11,color:FAINT,letterSpacing:1,textTransform:"uppercase",marginBottom:3}}>Телефон</div>
                     <div style={{fontSize:14,fontWeight:700,color:TEXT}}>{s.phone||"—"}</div>
                   </div>
                   <div style={{width:88,background:glow(0.04),borderRadius:10,padding:"9px 12px",border:`1px solid ${BORDER}`,textAlign:"center"}}>
-                    <div style={{fontSize:9,color:FAINT,letterSpacing:1,textTransform:"uppercase",marginBottom:3}}>Знижка/год</div>
+                    <div style={{fontSize:11,color:FAINT,letterSpacing:1,textTransform:"uppercase",marginBottom:3}}>Знижка/год</div>
                     <div style={{fontSize:18,fontWeight:900,color:s.discount>0?GOLD:DIM}}>{s.discount||0}₴</div>
                   </div>
                 </div>
@@ -398,7 +398,7 @@ function StudentDetailSheet({ settings, s, onClose, onUpdate, onDelete, onBlock,
                 {/* Колір слота клієнта (діє, коли автокольори вимкнено в Налаштуваннях → Сітка) */}
                 <div style={{background:glow(0.04),borderRadius:10,padding:"10px 12px",border:`1px solid ${BORDER}`}}>
                   <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10}}>
-                    <div style={{fontSize:9,color:FAINT,letterSpacing:1,textTransform:"uppercase"}}>Колір слота</div>
+                    <div style={{fontSize:11,color:FAINT,letterSpacing:1,textTransform:"uppercase"}}>Колір слота</div>
                     <button onClick={()=>setColorOpen(true)} style={{
                       display:"flex",alignItems:"center",gap:8,padding:"5px 10px 5px 6px",borderRadius:20,cursor:"pointer",
                       background:glow(0.06),border:`1px solid ${BORDER}`,color:TEXT,fontSize:12,fontWeight:700,fontFamily:"inherit",
@@ -411,7 +411,7 @@ function StudentDetailSheet({ settings, s, onClose, onUpdate, onDelete, onBlock,
                     </button>
                   </div>
                   {autoColors && (
-                    <div style={{fontSize:10,color:FAINT,marginTop:8,lineHeight:1.4}}>
+                    <div style={{fontSize:11,color:FAINT,marginTop:8,lineHeight:1.4}}>
                       Зараз кольори розподіляються автоматично. Обраний колір діятиме після вимкнення «Автокольори клієнтів» в Налаштуваннях → Сітка.
                     </div>
                   )}
@@ -459,7 +459,7 @@ function StudentDetailSheet({ settings, s, onClose, onUpdate, onDelete, onBlock,
                 {s.createdAt && (() => {
                   const d = new Date(s.createdAt);
                   return (
-                    <div style={{fontSize:11,color:"rgba(255,255,255,0.6)",display:"flex",alignItems:"center",gap:5,padding:"0 2px"}}>
+                    <div style={{fontSize:11,color:"rgba(255,255,255,0.74)",display:"flex",alignItems:"center",gap:5,padding:"0 2px"}}>
                       <span>📅</span>
                       <span>Реєстрація: {d.getDate()} {M[d.getMonth()+1]} {d.getFullYear()}</span>
                     </div>
@@ -495,7 +495,7 @@ function StudentDetailSheet({ settings, s, onClose, onUpdate, onDelete, onBlock,
                   <span style={{fontSize:16,lineHeight:1}}>👑</span>
                   <div style={{flex:1}}>
                     <div style={{fontSize:12,fontWeight:700,color:s.isVip?"#c084fc":TEXT}}>VIP клієнт</div>
-                    <div style={{fontSize:10,color:FAINT,marginTop:2}}>{s.isVip?"Має доступ до VIP слотів":"Без доступу до VIP слотів"}</div>
+                    <div style={{fontSize:11,color:FAINT,marginTop:2}}>{s.isVip?"Має доступ до VIP слотів":"Без доступу до VIP слотів"}</div>
                   </div>
                   <div style={{width:36,height:20,borderRadius:10,position:"relative",background:s.isVip?"linear-gradient(145deg,#a855f7,#7c3aed)":ink(0.08),transition:"background .2s",flexShrink:0}}>
                     <div style={{position:"absolute",top:2,left:s.isVip?18:2,width:16,height:16,borderRadius:8,background:"#fff",transition:"left .2s"}}/>
@@ -514,7 +514,7 @@ function StudentDetailSheet({ settings, s, onClose, onUpdate, onDelete, onBlock,
                   const tpls = normPackageTemplates(settings?.packages);
                   return (
                     <div style={{background:glow(0.04),borderRadius:10,padding:"9px 12px",border:`1px solid ${BORDER}`,fontSize:12,color:DIM,lineHeight:1.6}}>
-                      <div style={{fontSize:10,fontWeight:700,letterSpacing:1,textTransform:"uppercase",color:FAINT,marginBottom:3}}>🎫 Пакети</div>
+                      <div style={{fontSize:11,fontWeight:700,letterSpacing:1,textTransform:"uppercase",color:FAINT,marginBottom:3}}>🎫 Пакети</div>
                       {pkgs.length === 0 && <div style={{color:FAINT}}>Немає пакетів</div>}
                       {pkgs.map(p => (
                         <div key={p.id} style={{display:"flex",alignItems:"center",gap:8,padding:"3px 0"}}>
@@ -541,7 +541,7 @@ function StudentDetailSheet({ settings, s, onClose, onUpdate, onDelete, onBlock,
                 {/* Анкета клієнта (відповіді з Налаштування → Анкета) */}
                 {s.intake?.length > 0 && (
                   <div style={{background:glow(0.04),borderRadius:10,padding:"9px 12px",border:`1px solid ${BORDER}`,fontSize:12,color:DIM,lineHeight:1.6}}>
-                    <div style={{fontSize:10,fontWeight:700,letterSpacing:1,textTransform:"uppercase",color:FAINT,marginBottom:3}}>📋 Анкета</div>
+                    <div style={{fontSize:11,fontWeight:700,letterSpacing:1,textTransform:"uppercase",color:FAINT,marginBottom:3}}>📋 Анкета</div>
                     {s.intake.map((it,i)=>(
                       <div key={it.id||i}><span style={{color:FAINT}}>{it.label}:</span> <b style={{color:TEXT,fontWeight:700}}>{it.value}</b></div>
                     ))}
@@ -593,11 +593,11 @@ function StudentDetailSheet({ settings, s, onClose, onUpdate, onDelete, onBlock,
                 <div style={{display:"flex",gap:8,marginBottom:16}}>
                   <div style={{flex:1,borderRadius:12,padding:"10px 8px",textAlign:"center",background:`linear-gradient(155deg,color-mix(in srgb,${GREEN} 30%,${BG_DEEP}),${BG_DEEP})`}}>
                     <div style={{fontSize:19,fontWeight:900,color:GREEN}}>{Number.isInteger(historyStats.hours)?historyStats.hours:historyStats.hours.toFixed(1)}</div>
-                    <div style={{fontSize:8.5,color:DIM,fontWeight:700,marginTop:2}}>годин пройдено</div>
+                    <div style={{fontSize:11,color:DIM,fontWeight:700,marginTop:2}}>годин пройдено</div>
                   </div>
                   <div style={{flex:1,borderRadius:12,padding:"10px 8px",textAlign:"center",background:`linear-gradient(155deg,color-mix(in srgb,${BLUE} 30%,${BG_DEEP}),${BG_DEEP})`}}>
                     <div style={{fontSize:19,fontWeight:900,color:BLUE}}>{historyStats.count}</div>
-                    <div style={{fontSize:8.5,color:DIM,fontWeight:700,marginTop:2}}>записів відвідано</div>
+                    <div style={{fontSize:11,color:DIM,fontWeight:700,marginTop:2}}>записів відвідано</div>
                   </div>
                 </div>
 
@@ -612,9 +612,9 @@ function StudentDetailSheet({ settings, s, onClose, onUpdate, onDelete, onBlock,
                         <div style={{position:"absolute",left:-20,top:2,width:11,height:11,borderRadius:"50%",background:dotColor,boxShadow:`0 0 0 3px ${BG_DEEP}`}}/>
                         <div style={{display:"flex",alignItems:"baseline",justifyContent:"space-between",gap:8}}>
                           <span style={{fontSize:12,fontWeight:800,color:TEXT}}>{fmtS(b.date)}{b.time?`, ${b.time}`:""}</span>
-                          <span style={{fontSize:9.5,fontWeight:800,padding:"2px 8px",borderRadius:20,flexShrink:0,background:`${dotColor}22`,color:dotColor}}>{fmtHours(getDurMin(b))}</span>
+                          <span style={{fontSize:11,fontWeight:800,padding:"2px 8px",borderRadius:20,flexShrink:0,background:`${dotColor}22`,color:dotColor}}>{fmtHours(getDurMin(b))}</span>
                         </div>
-                        <div style={{fontSize:10.5,color:DIM,marginTop:2}}>{b.serviceName||b.svc||"—"} · {statusLabel}</div>
+                        <div style={{fontSize:11,color:DIM,marginTop:2}}>{b.serviceName||b.svc||"—"} · {statusLabel}</div>
                       </div>
                     );
                   })}
@@ -641,10 +641,12 @@ export default function StudentsView({ studentJump, onStudentJumpHandled, bookin
 .ex{animation:ex .16s ease both}
 .act-btn{border:none;cursor:pointer;border-radius:11px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;padding:9px 4px;transition:transform .1s,filter .1s;font-family:inherit}
 .act-btn:active{transform:scale(.92);filter:brightness(.8)}
-.act-btn span{font-size:9px;font-weight:700;letter-spacing:.2px}
+.act-btn span{font-size:11px;font-weight:700;letter-spacing:0}
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes sheetUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
 .sheet{animation:sheetUp .24s cubic-bezier(.32,.72,0,1) both}
+.lbl-short{display:none}
+@media (max-width:379px){.lbl-long{display:none}.lbl-short{display:inline}}
 `;
 
   const [students,     setStudents]     = useState([]);
@@ -800,18 +802,18 @@ export default function StudentsView({ studentJump, onStudentJumpHandled, bookin
         </div>
 
         <div style={{display:"flex",background:SURFACE,padding:3,borderRadius:14,border:`1px solid ${BORDER}`,backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)"}}>
-          {[["all","Всі"],["school","Стандарт"],["private","Індивідуальний"]].map(([k,l])=>(
+          {[["all","Всі","Всі"],["school","Стандарт","Стандарт"],["private","Індивідуальний","Індивід."]].map(([k,l,ls])=>(
             <button key={k} onClick={()=>setFilterType(k)} style={{
-              flex:1,padding:"10px 4px",borderRadius:11,border:"none",cursor:"pointer",fontSize:12,fontWeight:600,fontFamily:"inherit",
+              flex:"1 1 0",minWidth:0,padding:"10px 2px",borderRadius:11,border:"none",cursor:"pointer",fontSize:12,fontWeight:600,fontFamily:"inherit",whiteSpace:"nowrap",
               background:filterType===k?SURF_HI:"transparent",color:filterType===k?TEXT:DIM,boxShadow:filterType===k?"0 2px 8px rgba(0,0,0,.12)":"none",
-            }}>{l}</button>
+            }}><span className="lbl-long">{l}</span><span className="lbl-short">{ls}</span></button>
           ))}
         </div>
 
-        <div style={{display:"flex",gap:6,overflowX:"auto",paddingBottom:2,scrollbarWidth:"none"}}>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(130px,1fr))",gap:6}}>
           {[["name","Алфавіт"],["lastBooking","Останні записи"],["createdAt","Реєстрація"],["lessons","К-сть записів"]].map(([k,l])=>(
             <button key={k} onClick={()=>setSortMode(k)} style={{
-              flexShrink:0,padding:"8px 13px",borderRadius:99,cursor:"pointer",fontSize:12,fontWeight:600,fontFamily:"inherit",whiteSpace:"nowrap",
+              minWidth:0,padding:"8px 8px",borderRadius:99,cursor:"pointer",fontSize:12,fontWeight:600,fontFamily:"inherit",whiteSpace:"nowrap",
               border:`1px solid ${sortMode===k?"transparent":BORDER}`,backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",
               background:sortMode===k?`linear-gradient(145deg,${ACC_HI},${ACCENT})`:SURFACE,color:sortMode===k?(BTN_TX||"#fff"):DIM,
             }}>{l}</button>
@@ -836,6 +838,8 @@ export default function StudentsView({ studentJump, onStudentJumpHandled, bookin
             <div style={{fontSize:14,fontWeight:700,color:DIM}}>{search?"Нікого не знайдено":"Ще немає клієнтів"}</div>
           </div>
         )}
+        {/* запас під плаваючою кнопкою «+ Клієнт», щоб вона не закривала останню картку */}
+        <div aria-hidden="true" style={{height:78,flexShrink:0}}/>
       </div>
 
       {createPortal(
@@ -850,7 +854,7 @@ export default function StudentsView({ studentJump, onStudentJumpHandled, bookin
           <span style={{fontSize:20,lineHeight:1,marginTop:-2}}>+</span>
           Клієнт
         </button>,
-        document.body
+        document.getElementById("app-shell") || document.body
       )}
 
       {/* New student sheet */}
