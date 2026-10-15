@@ -338,12 +338,12 @@ function DeleteConfirm({ svc, onConfirm, onArchive, onClose }) {
       <div style={{display:"flex",flexDirection:"column",gap:10}}>
         <button onClick={()=>{onArchive(svc.id);onClose();}} style={{
           padding:"14px",borderRadius:theme.BTN_R??14,border:"none",cursor:"pointer",fontFamily:"inherit",
-          background:`linear-gradient(165deg,#fb923c,#ea580c)`,color:"#fff",fontSize:13,fontWeight:700,
+          background:`linear-gradient(165deg,#c2570c,#9a3f06)`,color:"#fff",fontSize:13,fontWeight:700,
           boxShadow:`-2px 5px 14px rgba(251,146,60,0.4),inset 1px 1px 0 rgba(255,255,255,0.3)`,
         }}>📦 Архівувати (зберегти статистику)</button>
         <button onClick={()=>{onConfirm(svc.id);onClose();}} style={{
           padding:"14px",borderRadius:theme.BTN_R??14,border:"none",cursor:"pointer",fontFamily:"inherit",
-          background:`linear-gradient(165deg,#f87171,#dc2626)`,color:"#fff",fontSize:13,fontWeight:700,
+          background:`linear-gradient(165deg,#dc2626,#b91c1c)`,color:"#fff",fontSize:13,fontWeight:700,
           boxShadow:`-2px 5px 14px rgba(239,68,68,0.4),inset 1px 1px 0 rgba(255,255,255,0.3)`,
         }}>🗑 Видалити назавжди</button>
         <Btn variant="ghost" onClick={onClose}>Скасувати</Btn>

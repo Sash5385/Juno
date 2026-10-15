@@ -19,7 +19,7 @@ const TYPES = [
 
 export default function ServicesFog({ services, colorOf, fmt, capOf, isProtected, onEdit, onToggle, onDelete, onAdd, getHandlers }) {
   const theme = useContext(ThemeContext);
-  const { TEXT, DIM, SURFACE, SURF_HI, BORDER, ACCENT, ACC_HI, BTN_GRAD, BTN_TX, SO } = theme;
+  const { TEXT, DIM, SURFACE, SURF_HI, BORDER, ACCENT, ACC_HI, BTN_GRAD, BTN_TX, SO, BG } = theme;
   const [filter, setFilter] = useState("all");
   const [type, setType] = useState("");
 
@@ -55,11 +55,11 @@ export default function ServicesFog({ services, colorOf, fmt, capOf, isProtected
           const dimmed = !svc.active || svc.archived;
           return (
             <div key={svc.id} data-drag-idx={idx} onClick={() => onEdit(svc)} style={{
-              position: "relative", borderRadius: 12, padding: "8px 10px", minWidth: 0, cursor: "pointer", opacity: dimmed ? 0.55 : 1,
+              position: "relative", borderRadius: 12, padding: "8px 8px", minWidth: 0, cursor: "pointer", opacity: dimmed ? 0.55 : 1,
               background: `color-mix(in srgb,${c} 26%,transparent)`, border: `1px solid color-mix(in srgb,${c} 55%,transparent)`,
               backdropFilter: GL, WebkitBackdropFilter: GL, color: TEXT, overflow: "hidden",
             }}>
-              <div style={{ fontSize: 11, fontWeight: 700, paddingRight: 22, overflowWrap: "anywhere" }}>{svc.name}</div>
+              <div style={{ fontSize: 11, fontWeight: 700, paddingRight: 20, overflowWrap: "anywhere" }}>{svc.name}</div>
               <div style={{ fontSize: 11, fontWeight: 500, opacity: 0.92, marginTop: 1, overflowWrap: "anywhere" }}>
                 {fmt(svc.duration)} · {svc.price || 0} ₴{capOf(svc) > 1 ? ` · група ${capOf(svc)}` : ""}
               </div>
@@ -96,7 +96,7 @@ export default function ServicesFog({ services, colorOf, fmt, capOf, isProtected
       </div>
 
       {/* велика кнопка внизу */}
-      <div style={{ position: "sticky", bottom: 10, zIndex: 5, marginTop: 4 }}>
+      <div style={{ position: "sticky", bottom: 0, zIndex: 5, marginTop: 4, padding: "14px 0 10px", background: `linear-gradient(180deg,transparent,${BG} 38%)` }}>
         <Btn variant="primary" onClick={onAdd} style={{ width: "100%", fontWeight: 700, fontSize: 13, padding: 11 }}>Додати послугу</Btn>
       </div>
     </div>

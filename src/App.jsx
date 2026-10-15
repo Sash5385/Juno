@@ -227,7 +227,7 @@ function MasterTabs({ staff, active, onPick }) {
         const on = m.id === active;
         return (
           <button key={m.id} onClick={() => onPick(m.id)} style={{
-            flexShrink:0,display:"flex",alignItems:"center",gap:7,padding:"7px 13px",borderRadius:99,cursor:"pointer",fontFamily:"inherit",fontSize:12.5,fontWeight:600,whiteSpace:"nowrap",
+            flex:"1 0 auto",justifyContent:"center",display:"flex",alignItems:"center",gap:7,padding:"7px 13px",borderRadius:99,cursor:"pointer",fontFamily:"inherit",fontSize:12.5,fontWeight:600,whiteSpace:"nowrap",
             border:`1px solid ${on ? m.color : theme.BORDER}`,
             background: on ? `color-mix(in srgb,${m.color} 28%,transparent)` : "rgba(255,255,255,0.05)",
             color: on ? theme.TEXT : theme.DIM,

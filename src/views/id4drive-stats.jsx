@@ -474,7 +474,7 @@ export default function StatsView() {
               const on = masterFilter === m.id;
               return (
                 <button key={m.id || "all"} onClick={()=>setMasterFilter(m.id)} style={{
-                  flexShrink:0,display:"flex",alignItems:"center",gap:7,padding:"8px 13px",borderRadius:99,cursor:"pointer",fontFamily:"inherit",fontSize:12.5,fontWeight:600,whiteSpace:"nowrap",
+                  flex:"1 0 auto",justifyContent:"center",display:"flex",alignItems:"center",gap:7,padding:"8px 13px",borderRadius:99,cursor:"pointer",fontFamily:"inherit",fontSize:12.5,fontWeight:600,whiteSpace:"nowrap",
                   border:`1px solid ${on ? m.color : BORDER}`,background:on?`color-mix(in srgb,${m.color} 26%,transparent)`:SURFACE,color:on?TEXT:DIM,
                 }}>
                   {m.id && <span style={{width:10,height:10,borderRadius:"50%",background:m.color}}/>}{m.name}
@@ -502,7 +502,7 @@ export default function StatsView() {
           </div>
           <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3,marginBottom:4}}>
             {["Пн","Вт","Ср","Чт","Пт","Сб","Нд"].map(d=>(
-              <div key={d} style={{textAlign:"center",fontSize:11,color:FAINT,fontWeight:700,textTransform:"uppercase"}}>{d}</div>
+              <div key={d} style={{textAlign:"center",fontSize:11,color:DIM,fontWeight:700,textTransform:"uppercase"}}>{d}</div>
             ))}
           </div>
           <div
@@ -524,7 +524,7 @@ export default function StatsView() {
               const isSel = period === "custom" && selectedDays.has(dateStr);
               const inPreview = calDragPreview && day >= Math.min(calDragPreview.start,calDragPreview.end) && day <= Math.max(calDragPreview.start,calDragPreview.end);
               let bg = SURF_HI, color = DIM;
-              if (n > 0) { const tier = calTierColor(n); bg = `color-mix(in srgb,${tier} 22%,transparent)`; color = tier; }
+              if (n > 0) { const tier = calTierColor(n); bg = `color-mix(in srgb,${tier} 22%,transparent)`; color = `color-mix(in srgb,${tier} 55%,#fff)`; }
               if (inPreview) { bg = `${ACCENT}45`; color = ACCENT; }
               return (
                 <button key={day} data-cal-day={day} style={{
@@ -578,7 +578,7 @@ export default function StatsView() {
                   {k.trend != null && k.trend !== 0 && (
                     <span style={{
                       fontSize:11, fontWeight:700, padding:"2px 7px", borderRadius:99,
-                      color:k.trend>=0?GREEN:RED,
+                      color:`color-mix(in srgb,${k.trend>=0?GREEN:RED} 55%,#fff)`,
                       background:k.trend>=0?`${GREEN}1f`:`${RED}1f`,
                     }}>{k.trend>=0?"+":""}{k.trend}%</span>
                   )}
@@ -676,7 +676,7 @@ export default function StatsView() {
               </div>
             </>
           ) : (
-            <div style={{fontSize:11,color:FAINT}}>Встановіть ціль доходу на місяць</div>
+            <div style={{fontSize:11,color:DIM}}>Встановіть ціль доходу на місяць</div>
           )}
         </Card>
 
@@ -753,7 +753,7 @@ export default function StatsView() {
                       background:i===0?`linear-gradient(90deg,${GOLD},${GREEN})`:`linear-gradient(90deg,${PURPLE},${ACCENT})`,
                       transition:"width .5s ease"}}/>
                   </div>
-                  <span style={{fontSize:11,color:i===0?GOLD:PURPLE,fontWeight:800,width:44,textAlign:"right",flexShrink:0}}>
+                  <span style={{fontSize:11,color:`color-mix(in srgb,${i===0?GOLD:PURPLE} 55%,#fff)`,fontWeight:800,width:44,textAlign:"right",flexShrink:0}}>
                     {s.count} ур.
                   </span>
                 </div>
@@ -772,7 +772,7 @@ export default function StatsView() {
                   <button key={k} onClick={()=>setTopBy(k)} style={{
                     minWidth:36, padding:"7px 11px", borderRadius:8, border:"none", cursor:"pointer", fontSize:11, fontWeight:700, fontFamily:"inherit",
                     background:topBy===k?GOLD:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,
-                    color:topBy===k?"#1a1a1a":FAINT, boxShadow:SO,
+                    color:topBy===k?"#1a1a1a":TEXT, boxShadow:SO,
                   }}>{l}</button>
                 ))}
               </div>
@@ -792,13 +792,13 @@ export default function StatsView() {
                 }}>
                   <div style={{
                     width:24, height:24, borderRadius:7, flexShrink:0,
-                    background: i<3 ? `linear-gradient(145deg,${medals[i]},${medals[i]}88)` : `linear-gradient(145deg,${SURF_HI},${SURFACE})`,
+                    background: i<3 ? `linear-gradient(145deg,${medals[i]},${medals[i]}dd)` : `linear-gradient(145deg,${SURF_HI},${SURFACE})`,
                     display:"flex", alignItems:"center", justifyContent:"center",
                     fontSize:11, fontWeight:900, color:i<3?"#1a1a1a":"#fff", boxShadow:SO,
                   }}>{i+1}</div>
                   <div style={{
                     width:32, height:32, borderRadius:9, flexShrink:0,
-                    background:`linear-gradient(145deg,hsl(${s.hue},60%,44%),hsl(${(s.hue+35)%360},70%,28%))`,
+                    background:`linear-gradient(145deg,hsl(${s.hue},60%,34%),hsl(${(s.hue+35)%360},70%,22%))`,
                     display:"flex", alignItems:"center", justifyContent:"center",
                     fontSize:11, fontWeight:800, color:"#fff", boxShadow:`0 2px 8px hsla(${s.hue},50%,30%,.5)`,
                   }}>{s.name.split(" ").map(w=>w[0]).join("")}</div>

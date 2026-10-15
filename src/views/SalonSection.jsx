@@ -93,7 +93,7 @@ export default function SalonSection({ settings, upd }) {
   const btn = (primary, color) => ({ padding:"10px 14px", borderRadius:11, border:"none", cursor:busy?"default":"pointer", fontSize:13, fontWeight:700, fontFamily:"inherit", opacity:busy?0.6:1,
     background: primary ? `linear-gradient(165deg,${ACC_HI},${ACCENT})` : `linear-gradient(135deg,${SURF_HI},${SURFACE})`, color: primary ? (BTN_TX || "#fff") : (color ? `color-mix(in srgb,${color} 50%,#fff)` : DIM), boxShadow:SO });
   const card = { marginTop:10, padding:"12px", borderRadius:12, background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`, boxShadow:SO };
-  const lbl = { fontSize:11, letterSpacing:1, color:FAINT, textTransform:"uppercase", marginBottom:6 };
+  const lbl = { fontSize:11, letterSpacing:1, color:DIM, textTransform:"uppercase", marginBottom:6 };
 
   // Без салону (slug немає) нічого не вантажимо: показуємо форму створення/приєднання
   if (slug && salon === undefined) return <div style={{padding:"20px 0",textAlign:"center",color:DIM,fontSize:12}}>Завантаження…</div>;

@@ -530,7 +530,7 @@ function SimpleRow({ emoji, title, hint, color, active, onToggle, onEdit, snippe
       </div>
       {snippet && (
         <div style={{
-          marginTop:10,fontSize:12.5,lineHeight:1.45,color:"rgba(255,255,255,0.82)",
+          marginTop:10,fontSize:12.5,lineHeight:1.45,color:"rgba(255,255,255,0.92)",
           display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden",
         }}>{snippet}</div>
       )}
@@ -621,7 +621,7 @@ export default function TemplatesView() {
                   }}>
                     <div style={{flex:1,minWidth:0}}>
                       <div style={{fontSize:13.5,fontWeight:700,color:"#fff"}}>За {r.reminderHours ?? 24} год до запису</div>
-                      <div style={{fontSize:12,color:"rgba(255,255,255,0.8)",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}}>{snip(r)}</div>
+                      <div style={{fontSize:12,color:"rgba(255,255,255,0.9)",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}}>{snip(r)}</div>
                     </div>
                     <div onClick={e=>e.stopPropagation()}><Toggle on={r.active} onChange={v=>onToggle(r.id,v)}/></div>
                   </div>

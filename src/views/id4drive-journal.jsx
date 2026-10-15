@@ -298,7 +298,7 @@ export default function JournalView() {
         .jrow{cursor:pointer;transition:background .1s}
         .jrow:active{background:rgba(255,255,255,0.03)!important}
         .jtiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-bottom:12px}
-        @media (max-width:379px){.jtiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
+        @media (max-width:399px){.jtiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
       `}</style>
 
       {/* Section tabs */}

@@ -103,7 +103,7 @@ function QueueRow({ item, pos, onInvite, onBooked, onArchive, onDelete, dragHand
         <div style={{position:"relative",flexShrink:0}}>
           <div style={{
             width:36,height:36,borderRadius:11,
-            background:`linear-gradient(155deg,${st.color},color-mix(in srgb,${st.color} 40%,#000))`,
+            background:`linear-gradient(155deg,color-mix(in srgb,${st.color} 72%,#000),color-mix(in srgb,${st.color} 30%,#000))`,
             display:"flex",alignItems:"center",justifyContent:"center",
             fontSize:13,fontWeight:900,color:"#fff",textShadow:"0 1px 2px rgba(0,0,0,0.55)",
             boxShadow:`-2px 3px 8px color-mix(in srgb,${st.color} 40%,transparent)`,
@@ -261,7 +261,7 @@ export default function QueueView({ settings }) {
         <div style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",background:`linear-gradient(145deg,${PURPLE}1a,${PURPLE}0d)`,borderRadius:10,border:`1px solid ${PURPLE}30`}}>
           <span style={{fontSize:13}}>⚙️</span>
           <span style={{fontSize:12,color:DIM}}>Режим черги:</span>
-          <span style={{fontSize:12,fontWeight:800,color:PURPLE}}>
+          <span style={{fontSize:12,fontWeight:800,color:`color-mix(in srgb,${PURPLE} 55%,#fff)`}}>
             {queueMode==="fifo"?"FIFO — перший автоматично":queueMode==="broadcast"?"Broadcast — всім одразу":"Ручний — вибір вручну"}
           </span>
         </div>

@@ -42,7 +42,7 @@ export function LicensePayPanel() {
           color: "#fff", fontSize: 13, fontWeight: 800,
         }}>{paying === "monobank" ? "..." : "Monobank"}</button>
       </div>
-      <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", marginTop: 8, lineHeight: 1.4 }}>
+      <div style={{ fontSize: 11, color: "rgba(255,255,255,0.82)", marginTop: 8, lineHeight: 1.4 }}>
         {cur.note}. Apple Pay / Google Pay / картка.{LIQPAY_ENABLED ? " Monobank — разовий платіж (без автосписання)." : " Разовий платіж, без автосписання."}
       </div>
     </div>
@@ -113,7 +113,7 @@ export function LicenseBanner({ state }) {
         <span style={{ minWidth: 0 }}>{cfg.text}</span>
         <span style={{
           flexShrink: 0, padding: "3px 9px", borderRadius: 8, fontSize: 11, fontWeight: 800,
-          background: cfg.color, color: "#fff",
+          background: level === "readonly" ? "#dc2626" : cfg.color, color: level === "readonly" ? "#fff" : "#1a1200",
         }}>Оплатити</span>
       </div>
       {open && <LicensePayModal onClose={() => setOpen(false)}/>}

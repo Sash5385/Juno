@@ -24,9 +24,9 @@ const Ava = ({ name, hue, size=36, online, isBroadcast }) => {
   return (
     <div style={{position:"relative",flexShrink:0}}>
       <div style={{width:size,height:size,borderRadius:size/2,
-        background:`linear-gradient(145deg,hsl(${hue},60%,44%),hsl(${(hue+35)%360},70%,28%))`,
+        background:`linear-gradient(145deg,hsl(${hue},60%,34%),hsl(${(hue+35)%360},70%,22%))`,
         display:"flex",alignItems:"center",justifyContent:"center",
-        fontSize:size*.3,fontWeight:800,color:"#fff",
+        fontSize:Math.max(11,size*.3),fontWeight:800,color:"#fff",
         boxShadow:`0 2px 8px hsla(${hue},50%,30%,.5)`}}>{ini}</div>
       {online && <div style={{position:"absolute",bottom:1,right:1,width:9,height:9,borderRadius:5,background:GREEN,border:`2px solid ${BG}`}}/>}
     </div>
@@ -347,8 +347,8 @@ export default function ChatsView() {
               style={{display:"flex",alignItems:"center",gap:9,padding:"9px 12px"}}>
               <Ava name="Розсилка" hue={270} size={36} isBroadcast/>
               <div style={{flex:1,minWidth:0}}>
-                <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:2}}>
-                  <span style={{fontSize:13,fontWeight:800,color:"#fff"}}>📢 Розсилка</span>
+                <div style={{display:"flex",alignItems:"center",gap:"2px 6px",flexWrap:"wrap",marginBottom:2}}>
+                  <span style={{fontSize:13,fontWeight:800,color:"#fff",whiteSpace:"nowrap"}}>📢 Розсилка</span>
                   <span style={{fontSize:11,color:"rgba(255,255,255,0.75)",fontWeight:700,letterSpacing:0.3}}>BROADCAST</span>
                 </div>
                 <div style={{fontSize:11,color:"rgba(255,255,255,0.8)"}}>Надіслати повідомлення всім клієнтам</div>

@@ -312,10 +312,10 @@ function StudentDetailSheet({ settings, s, onClose, onUpdate, onDelete, onBlock,
             <div className="icon3d" style={{
               width:42,height:42,borderRadius:13,flexShrink:0,
               background:`linear-gradient(145deg,${barColor}44,${barColor}18)`,
-              overflow:"hidden",fontSize:15,fontWeight:900,color:barColor,
+              overflow:"hidden",fontSize:15,fontWeight:900,color:`color-mix(in srgb,${barColor} 55%,#fff)`,
             }}>{s.photo ? <img src={s.photo} alt="" style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}/> : ini}</div>
             <div style={{flex:1,minWidth:0}}>
-              <div style={{fontSize:15,fontWeight:800,color:s.blocked?DIM:TEXT,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+              <div style={{fontSize:15,fontWeight:800,color:s.blocked?DIM:TEXT,overflowWrap:"anywhere"}}>
                 {s.name}{s.blocked && <span style={{fontSize:11,color:RED,marginLeft:6}}>🚫</span>}
               </div>
               <div style={{fontSize:11,color:typeColor,fontWeight:700,marginTop:2}}>{typeLabel}</div>

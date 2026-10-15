@@ -107,14 +107,14 @@ function CardShell({ color, children }) {
 function Pill({ color, children }) {
   const { shade } = useFX();
   return (
-    <span style={{fontSize:11,fontWeight:800,color,background:shade(0.35),padding:"2px 8px",borderRadius:7,whiteSpace:"nowrap"}}>{children}</span>
+    <span style={{fontSize:11,fontWeight:800,color:`color-mix(in srgb,${color} 55%,#fff)`,background:shade(0.35),padding:"2px 8px",borderRadius:7,whiteSpace:"nowrap"}}>{children}</span>
   );
 }
 
 function HoursChip({ h }) {
   const { GOLD } = useContext(ThemeContext);
   if (!h) return null;
-  return <span style={{padding:"2px 7px",borderRadius:7,background:`${GOLD}26`,border:`1px solid ${GOLD}4d`,fontSize:11,fontWeight:900,color:GOLD,whiteSpace:"nowrap"}}>{h} год</span>;
+  return <span style={{padding:"2px 7px",borderRadius:7,background:`${GOLD}26`,border:`1px solid ${GOLD}4d`,fontSize:11,fontWeight:900,color:`color-mix(in srgb,${GOLD} 55%,#fff)`,whiteSpace:"nowrap"}}>{h} год</span>;
 }
 
 function BkCard({ b, st }) {
@@ -126,7 +126,7 @@ function BkCard({ b, st }) {
       <div style={{display:"flex",alignItems:"center",gap:10,padding:"9px 11px"}}>
         <div style={{
           width:40,height:40,borderRadius:11,flexShrink:0,color:"#fff",lineHeight:1,
-          background:`linear-gradient(155deg,${st.color},color-mix(in srgb,${st.color} 40%,#000))`,
+          background:`linear-gradient(155deg,color-mix(in srgb,${st.color} 72%,#000),color-mix(in srgb,${st.color} 30%,#000))`,
           display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",
           boxShadow:`-2px 3px 8px color-mix(in srgb,${st.color} 40%,transparent)`,
         }}>
@@ -165,7 +165,7 @@ function QCard({ q, pos, svc, now, onInvite, onRemove }) {
         <div style={{position:"relative",flexShrink:0}}>
           <div style={{
             width:36,height:36,borderRadius:11,color:"#fff",fontSize:13,fontWeight:900,textShadow:"0 1px 2px rgba(0,0,0,0.55)",
-            background:`linear-gradient(155deg,${color},color-mix(in srgb,${color} 40%,#000))`,
+            background:`linear-gradient(155deg,color-mix(in srgb,${color} 72%,#000),color-mix(in srgb,${color} 30%,#000))`,
             display:"flex",alignItems:"center",justifyContent:"center",
             boxShadow:`-2px 3px 8px color-mix(in srgb,${color} 40%,transparent)`,
           }}>{initialsOf(q.name)}</div>

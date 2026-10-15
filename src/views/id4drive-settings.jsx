@@ -428,7 +428,7 @@ export function WeekScheduleEditor({ weekSchedule, updDay, setWeek }) {
             <div style={{fontSize:day.enabled?28:20,fontWeight:800,color:day.enabled?TEXT:FAINT,letterSpacing:-.5,lineHeight:1.1}}>
               {day.enabled ? <>{fmt(day.start)} <span style={{color:GREEN}}>→</span> {fmt(day.end)}</> : "Вихідний день"}
             </div>
-            <div style={{fontSize:12,color:DIM,marginTop:3}}>
+            <div style={{fontSize:12,color:TEXT,marginTop:3}}>
               {DAY_NAMES[sel]}{day.enabled ? ` · ${fmtHM(hrs(day))} роботи${day.lunchEnabled?` · перерва ${fmt(lS)}–${fmt(lE)}`:""}` : ""}
             </div>
           </div>
@@ -441,7 +441,7 @@ export function WeekScheduleEditor({ weekSchedule, updDay, setWeek }) {
                 background:`linear-gradient(90deg,${GREEN},color-mix(in srgb,${GREEN} 60%,#34d399))`,borderRadius:6}}/>
               {day.lunchEnabled && <div style={{position:"absolute",top:0,bottom:0,left:pct(lS),width:`calc(${pct(lE)} - ${pct(lS)})`,background:GOLD}}/>}
             </div>
-            <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:FAINT,marginTop:3}}>
+            <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:DIM,marginTop:3}}>
               <span>00</span><span>06</span><span>12</span><span>18</span><span>24</span>
             </div>
           </div>
@@ -1063,7 +1063,7 @@ select{color-scheme:${isKava?"light":"dark"}}
           <div style={{borderRadius:14,padding:"12px 14px",marginBottom:5,background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,boxShadow:SO}}>
             <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
               <span style={{fontSize:14,fontWeight:600,color:TEXT}}>{t('set.snap.label')}</span>
-              <span style={{fontSize:15,fontWeight:800,color:ACCENT}}>{settings.snapMin} {t('min')}</span>
+              <span style={{fontSize:15,fontWeight:800,color:ACC_HI}}>{settings.snapMin} {t('min')}</span>
             </div>
             <input type="range" min={1} max={60} value={settings.snapMin} onChange={e=>upd("snapMin",+e.target.value)}/>
             <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:10}}>
@@ -1284,7 +1284,7 @@ select{color-scheme:${isKava?"light":"dark"}}
         const setPk = (list) => upd("packages", list);
         const patchPk = (i, p) => setPk(pkgs.map((x, j) => j === i ? { ...x, ...p } : x));
         const box = { padding:"10px 12px", borderRadius:10, border:`1px solid ${BORDER}`, background:"rgba(0,0,0,0.18)", color:TEXT, fontSize:14, fontFamily:"inherit", boxSizing:"border-box", minWidth:0, width:"100%" };
-        const lbl = { fontSize:11, letterSpacing:0.6, color:FAINT, textTransform:"uppercase", marginBottom:3, minHeight:"2.6em", display:"flex", alignItems:"flex-end", lineHeight:1.25 };
+        const lbl = { fontSize:11, letterSpacing:0.6, color:DIM, textTransform:"uppercase", marginBottom:3, minHeight:"2.6em", display:"flex", alignItems:"flex-end", lineHeight:1.25 };
         return (
           <div>
             <div style={{fontSize:12,color:FAINT,marginBottom:12,lineHeight:1.5}}>
@@ -1305,7 +1305,7 @@ select{color-scheme:${isKava?"light":"dark"}}
                 <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
                   {svcs.map(sv => { const on = (pk.serviceIds || []).includes(sv.id); return (
                     <button key={sv.id} onClick={()=>patchPk(i,{serviceIds:on?(pk.serviceIds||[]).filter(x=>x!==sv.id):[...(pk.serviceIds||[]),sv.id]})} style={{flex:"1 1 auto",padding:"8px 10px",borderRadius:9,border:"none",cursor:"pointer",fontSize:11,fontWeight:700,fontFamily:"inherit",
-                      background:on?`linear-gradient(165deg,${ACC_HI},${ACCENT})`:`linear-gradient(135deg,${SURF_HI},${SURFACE})`,color:on?(BTN_TX||"#fff"):DIM,boxShadow:SO}}>{on?"✓ ":""}{sv.name}</button>
+                      background:on?`linear-gradient(165deg,${ACC_HI},${ACCENT})`:`linear-gradient(135deg,${SURF_HI},${SURFACE})`,color:on?(BTN_TX||"#fff"):TEXT,boxShadow:SO}}>{on?"✓ ":""}{sv.name}</button>
                   ); })}
                 </div>
               </div>
@@ -1346,7 +1346,7 @@ select{color-scheme:${isKava?"light":"dark"}}
                 <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:8}}>
                   {FIELD_TYPES.map(ft => (
                     <button key={ft.id} onClick={()=>patchField(i,{type:ft.id})} style={{flex:"1 1 auto",padding:"8px 10px",borderRadius:9,border:"none",cursor:"pointer",fontSize:11,fontWeight:700,fontFamily:"inherit",
-                      background:f.type===ft.id?`linear-gradient(165deg,${ACC_HI},${ACCENT})`:`linear-gradient(135deg,${SURF_HI},${SURFACE})`,color:f.type===ft.id?(BTN_TX||"#fff"):DIM,boxShadow:SO}}>{ft.label}</button>
+                      background:f.type===ft.id?`linear-gradient(165deg,${ACC_HI},${ACCENT})`:`linear-gradient(135deg,${SURF_HI},${SURFACE})`,color:f.type===ft.id?(BTN_TX||"#fff"):TEXT,boxShadow:SO}}>{ft.label}</button>
                   ))}
                 </div>
                 {f.type === "select" && (
@@ -1436,8 +1436,8 @@ select{color-scheme:${isKava?"light":"dark"}}
       case "profile": return (
         <div>
           <div data-notrans="1" style={{marginBottom:14,padding:"12px 12px 10px",borderRadius:14,background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,boxShadow:SO}}>
-            <div style={{fontSize:12,fontWeight:800,letterSpacing:1,color:TEAL,textTransform:"uppercase",marginBottom:4}}>🧭 Напрямок послуг</div>
-            <div style={{fontSize:11.5,color:FAINT,marginBottom:10,lineHeight:1.45}}>Змінює слова в усьому застосунку (і в клієнта): майстер, клієнт, запис. Сторінка перезавантажиться.</div>
+            <div style={{fontSize:12,fontWeight:800,letterSpacing:1,color:`color-mix(in srgb,${TEAL} 60%,#fff)`,textTransform:"uppercase",marginBottom:4}}>🧭 Напрямок послуг</div>
+            <div style={{fontSize:11.5,color:DIM,marginBottom:10,lineHeight:1.45}}>Змінює слова в усьому застосунку (і в клієнта): майстер, клієнт, запис. Сторінка перезавантажиться.</div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
               {DIRECTION_IDS.map(id => {
                 const dir = DIRECTIONS[id]; const on = normDirection(settings.direction) === id;
@@ -1450,7 +1450,7 @@ select{color-scheme:${isKava?"light":"dark"}}
                   }} style={{textAlign:"left",padding:"10px",borderRadius:12,cursor:"pointer",fontFamily:"inherit",
                     border:on?`1.5px solid ${TEAL}`:`1px solid ${BORDER}`,background:on?"rgba(45,212,191,0.12)":"rgba(0,0,0,0.15)",color:TEXT}}>
                     <div style={{fontSize:14,fontWeight:800}}>{dir.icon} {dir.name}</div>
-                    <div style={{fontSize:11,color:FAINT,marginTop:3,lineHeight:1.35}}>{dir.desc}</div>
+                    <div style={{fontSize:11,color:DIM,marginTop:3,lineHeight:1.35}}>{dir.desc}</div>
                   </button>
                 );
               })}
