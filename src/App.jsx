@@ -1,6 +1,6 @@
 import React, { useState, useEffect, lazy, Suspense, createContext, useContext } from "react";
-import { onValue, update, push, remove, get } from "firebase/database";
-import { iRef, setCurrentIid, registerAdminFCM, onAdminForegroundMessage } from "./firebase";
+import { ref, onValue, update, push, remove, get } from "firebase/database";
+import { iRef, db, setCurrentIid, registerAdminFCM, onAdminForegroundMessage } from "./firebase";
 import { useAdminAuth, LoginScreen, InstructorSetupScreen, isVendor, SuperAdminScreen } from "./AdminAuth";
 import { useAppUpdate } from "./hooks/useAppUpdate"
 import { useLicense, useLicenseState } from "./hooks/useLicense"
@@ -15,6 +15,8 @@ import { setTags } from "./tags";
 import { startTerms } from "./terms";
 import { bufferOf, bookingAddonTotals } from "./addons";
 import { rememberSalonInvite } from "./salon";
+import { rememberWorkspaceInvite, storedWorkspaceInvite, forgetWorkspaceInvite } from "./workspace";
+import { JoinSalonScreen, MasterWaitScreen } from "./JoinSalonScreen";
 
 export const LangContext = createContext('uk');
 
@@ -549,6 +551,8 @@ export default function App() {
     window.addEventListener("unhandledrejection", h);
     return () => window.removeEventListener("unhandledrejection", h);
   }, []);
+  const [masterWs, setMasterWs] = useState(null); // { iid, name, salonName } — вхід майстра салону
+  const [joinToken, setJoinToken] = useState(() => storedWorkspaceInvite());
   const [profileReady, setProfileReady] = useState(null); // null=перевіряємо, false=потрібне налаштування, true=готово
   const { needRefresh, updateServiceWorker, isUpdating } = useAppUpdate()
 
@@ -559,10 +563,27 @@ export default function App() {
   useEffect(() => {
     if (!adminUser?.uid || vendor) { setProfileReady(null); return; }
     setCurrentIid(adminUser.uid);
-    get(iRef("admin_settings/profile")).then(snap => {
-      const p = snap.val();
-      setProfileReady(!!(p && p.name));
-    }).catch(() => setProfileReady(false));
+    let alive = true;
+    (async () => {
+      // Майстер салону (staff_index/{uid} → чужий простір і його рядок у складі): окремий вхід, а не власний профіль
+      try {
+        const idx = (await get(ref(db, `staff_index/${adminUser.uid}`))).val();
+        if (idx?.iid && idx.iid !== adminUser.uid) {
+          const row = (await get(ref(db, `instructors/${idx.iid}/staff/${adminUser.uid}`))).val();
+          if (row?.role === "master") {
+            const salonName = (await get(ref(db, `instructors/${idx.iid}/admin_settings/profile/name`)).catch(() => null))?.val() || "";
+            if (alive) { setMasterWs({ iid: idx.iid, name: row.name, salonName }); setProfileReady(true); }
+            return;
+          }
+        }
+      } catch { /* немає індексу — звичайний майстер */ }
+      if (alive) setMasterWs(null);
+      get(iRef("admin_settings/profile")).then(snap => {
+        const p = snap.val();
+        if (alive) setProfileReady(!!(p && p.name));
+      }).catch(() => { if (alive) setProfileReady(false); });
+    })();
+    return () => { alive = false; };
   }, [adminUser, vendor]);
   // Deep-link з push-сповіщення (?date=&time=&uid=&bookingId=) — одразу відкриваємо розклад на потрібній даті
   const [jumpTarget, setJumpTarget] = useState(() => {
@@ -588,7 +609,7 @@ export default function App() {
   const [openInfos,  setOpenInfos]= useState({});
   const [settings,   setSettings] = useState(DEFAULT_SETTINGS);
   setTags(settings.tags); // живий список міток для всіх вкладок (Налаштування → Мітки)
-  useEffect(() => { rememberSalonInvite(); }, []); // запрошення в салон з посилання (?salon_invite=…)
+  useEffect(() => { rememberSalonInvite(); rememberWorkspaceInvite(); }, []); // запрошення в салон з посилання (?salon_invite=…)
   useEffect(() => { startTerms(settings.direction); }, [settings.direction]); // слова напрямку (Налаштування → Профіль)
   const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [bookings,   setBookings] = useState(INITIAL_BOOKINGS);
@@ -1192,6 +1213,10 @@ const pendingDeletesRef = React.useRef(new Set());
   if (adminUser === null) return <LoginScreen/>;
   if (vendor) return <SuperAdminScreen/>;
   if (profileReady === null) return null;
+  if (masterWs) return <MasterWaitScreen ws={masterWs} onLeft={() => { setMasterWs(null); setProfileReady(false); }}/>;
+  if (profileReady === false && joinToken) {
+    return <JoinSalonScreen token={joinToken} onDone={ws => { setMasterWs(ws); setProfileReady(true); setJoinToken(""); }} onCancel={() => { forgetWorkspaceInvite(); setJoinToken(""); }}/>;
+  }
   if (profileReady === false) {
     return <InstructorSetupScreen onDone={profile => {
       setSettings(s => ({ ...s, profile: { ...s.profile, ...profile } }));

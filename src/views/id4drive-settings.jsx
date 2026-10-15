@@ -3,6 +3,7 @@ import { TAG_COLORS, TAG_ICONS, DEFAULT_TAGS, AUTO_TAG_IDS, normalizeTags } from
 import { FIELD_TYPES, MAX_FIELDS } from "../intake";
 import { MAX_TEMPLATES } from "../packages";
 import SalonSection from "./SalonSection";
+import StaffSection from "./StaffSection";
 import { useConfirm } from "../ConfirmModal";
 import { DIRECTIONS, DIRECTION_IDS, normDirection } from "../terms";
 import { createPortal } from "react-dom";
@@ -1007,6 +1008,7 @@ select{color-scheme:${isKava?"light":"dark"}}
     { id:"sticky",     icon:"📌", color:PURPLE, title:t('set.sticky.title'),   label:uk?"Слоти":"Slots"  },
     { id:"surcharges", icon:"💰", color:GOLD,   title:"Надбавки",              label:uk?"Збори":"Fees"   },
     { id:"tags",       icon:"🏷️", color:TEAL,   title:uk?"Мітки записів":"Booking tags", label:uk?"Мітки":"Tags" },
+    { id:"staff",      icon:"👥", color:BLUE,   title:"Майстри",               label:"Майстри"           },
     { id:"salon",      icon:"🏢", color:BLUE,   title:"Салон",                 label:"Салон"             },
     { id:"packages",   icon:"🎫", color:GOLD,   title:"Пакети записів",        label:"Пакети"            },
     { id:"intake",     icon:"📋", color:PURPLE, title:"Анкета клієнта",        label:"Анкета"            },
@@ -1268,6 +1270,8 @@ select{color-scheme:${isKava?"light":"dark"}}
           </div>
         );
       }
+
+      case "staff": return <StaffSection settings={settings} upd={upd}/>;
 
       case "salon": return <SalonSection settings={settings} upd={upd}/>;
 

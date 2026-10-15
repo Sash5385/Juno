@@ -4,6 +4,8 @@
 // masterId у записі, слоті чи послузі вказує, чий це майстер; без нього це майстер = власник (так працює «Один майстер»).
 // Файл однаковий в адмінці й клієнті (src/workspace.js / src/utils/workspace.js).
 
+import { ADMIN_URL, newInviteToken } from "./salon.js";
+
 export const ACCOUNT_SOLO = "solo";
 export const ACCOUNT_SALON = "salon";
 export const ROLE_OWNER = "owner";
@@ -62,3 +64,40 @@ export const visibleMasterIds = (staffList, uid) => {
   if (!me) return [];
   return me.owner ? staffList.map((m) => m.id) : [uid];
 };
+
+// ── Запрошення майстра в салон-простір ─────────────────────────────────────────────
+// workspace_invites/{token} = { iid, expiresAt } (чинні 7 днів); майстер, що приймає запрошення, пише СВІЙ рядок
+// instructors/{iid}/staff/{uid} (role master + inviteToken) і staff_index/{uid} = { iid } — за ним застосунок знає, куди його пускати.
+export const WS_INVITE_KEY = "juno_workspace_invite";
+export const WS_INVITE_DAYS = 7;
+export const workspaceInviteUrl = (token) => `${ADMIN_URL}/?workspace_invite=${token}`;
+export const newWorkspaceToken = newInviteToken;
+
+// Токен із вставленого посилання або коду
+export function parseWorkspaceToken(input) {
+  const raw = String(input || "").trim();
+  const m = /[?&]workspace_invite=([A-Za-z0-9_-]+)/.exec(raw);
+  const tok = (m ? m[1] : raw).replace(/[^A-Za-z0-9_-]/g, "");
+  return tok.length >= 12 ? tok : "";
+}
+
+// Запрошення з адреси (?workspace_invite=…) запам'ятовуємо до кінця реєстрації
+export function rememberWorkspaceInvite() {
+  try {
+    const t = parseWorkspaceToken(new URLSearchParams(window.location.search).get("workspace_invite") || "");
+    if (t) localStorage.setItem(WS_INVITE_KEY, t);
+  } catch { /* приватний режим — не страшно */ }
+}
+export function storedWorkspaceInvite() {
+  try { return localStorage.getItem(WS_INVITE_KEY) || ""; } catch { return ""; }
+}
+export function forgetWorkspaceInvite() {
+  try { localStorage.removeItem(WS_INVITE_KEY); } catch { /* ігноруємо */ }
+}
+
+// Колір для майстра, що приєднався сам (власник потім змінить): стабільно з uid
+export function colorForUid(uid) {
+  let h = 0;
+  for (const c of String(uid || "")) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  return MASTER_COLORS[h % MASTER_COLORS.length];
+}

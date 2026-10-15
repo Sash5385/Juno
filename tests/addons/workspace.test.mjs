@@ -63,5 +63,24 @@ t("видимість: власник бачить усіх, майстер — 
   assert.equal(W.canManageStaff(staff, "m1"), false);
 });
 
+t("parseWorkspaceToken: з посилання, з коду, сміття", () => {
+  const tok = "abcdefghijkmnpqrstuvwxy2";
+  assert.equal(W.parseWorkspaceToken(`https://juno-booking-admin.web.app/?workspace_invite=${tok}`), tok);
+  assert.equal(W.parseWorkspaceToken(tok), tok);
+  assert.equal(W.parseWorkspaceToken("  " + tok + " "), tok);
+  assert.equal(W.parseWorkspaceToken("коротко"), "");
+  assert.equal(W.parseWorkspaceToken(""), "");
+});
+t("workspaceInviteUrl веде в адмінку з параметром", () => {
+  assert.match(W.workspaceInviteUrl("T123"), /\/\?workspace_invite=T123$/);
+  const tok = W.newWorkspaceToken();
+  assert.equal(tok.length, 24);
+  assert.equal(W.parseWorkspaceToken(W.workspaceInviteUrl(tok)), tok);
+});
+t("colorForUid: стабільний колір зі списку", () => {
+  assert.equal(W.colorForUid("abc"), W.colorForUid("abc"));
+  assert.ok(W.MASTER_COLORS.includes(W.colorForUid("zzz")));
+});
+
 console.log(fails ? `\n${fails} FAILED` : "\nWORKSPACE OK");
 process.exit(fails ? 1 : 0);

@@ -15,6 +15,24 @@
         }
       }
     },
+    // Запрошення майстра в салон-простір: читається за токеном (список недоступний); створює й видаляє лише власник простору (iid === auth.uid),
+    // лише для акаунта-салону, діє до 14 днів.
+    "workspace_invites": {
+      "$token": {
+        ".read": true,
+        ".write": "auth != null && (newData.exists() ? newData.child('iid').val() === auth.uid : data.child('iid').val() === auth.uid)",
+        ".validate": "newData.hasChildren(['iid','expiresAt']) && newData.child('iid').isString() && newData.child('expiresAt').isNumber() && newData.child('expiresAt').val() <= now + 1209600000 && root.child('instructors/'+newData.child('iid').val()+'/admin_settings/accountType').val() === 'salon'"
+      }
+    },
+    // Куди пускати майстра салону при вході: staff_index/{uid} = { iid }. Пише лише сам майстер, і лише коли його рядок у складі вже є
+    // (role master); видалити може він сам або власник простору.
+    "staff_index": {
+      "$uid": {
+        ".read": "auth != null && auth.uid === $uid",
+        ".write": "auth != null && ((auth.uid === $uid && (!newData.exists() || root.child('instructors/'+newData.child('iid').val()+'/staff/'+$uid+'/role').val() === 'master')) || (!newData.exists() && data.child('iid').val() === auth.uid))",
+        ".validate": "newData.hasChild('iid') && newData.child('iid').isString()"
+      }
+    },
     // Запрошення майстра в салон: читається за токеном (список недоступний), пишуть лише власник салону
     "salon_invites": {
       "$token": {
@@ -48,6 +66,8 @@
         "staff": {
           ".read": "auth != null && (auth.uid === $iid || data.child(auth.uid).exists())",
           "$mid": {
+            // Майстер сам вписує СЕБЕ за чинним запрошенням (inviteToken) лише з роллю master і може лише вийти (видалити свій рядок).
+            ".write": "auth != null && auth.uid === $mid && $mid !== $iid && (!newData.exists() || (!data.exists() && newData.child('role').val() === 'master' && newData.child('inviteToken').isString() && root.child('workspace_invites/'+newData.child('inviteToken').val()+'/iid').val() === $iid && root.child('workspace_invites/'+newData.child('inviteToken').val()+'/expiresAt').val() > now))",
             ".validate": "newData.hasChildren(['role','name']) && newData.child('name').isString() && newData.child('name').val().length >= 1 && newData.child('name').val().length <= 60 && (($mid === $iid && newData.child('role').val() === 'owner') || ($mid !== $iid && newData.child('role').val() === 'master')) && (!newData.child('color').exists() || (newData.child('color').isString() && newData.child('color').val().matches(/^#[0-9a-fA-F]{6}$/)))"
           }
         },
