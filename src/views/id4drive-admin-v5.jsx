@@ -3368,7 +3368,19 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                 // розтягуванням) — межею є кінець робочого дня, а не штучні +60 хв.
                 const nextMin = sortedMins.find(t => t > startMin) ?? (weMinAbs);
                 const slotDurMin = slot.durMin || 60;
-                const slotHeightMin = Math.min(slotDurMin, nextMin - startMin, weMinAbs - startMin);
+                let slotHeightMin = Math.min(slotDurMin, nextMin - startMin, weMinAbs - startMin);
+                // Слот, верх якого накритий кінцем запису (запис о 11:30 на 1 год і слот 12:00), починаємо з кінця запису —
+                // без накладання. Вимикається в Налаштуваннях (calClip).
+                let clipShift = 0;
+                if (settings.calClip !== false) {
+                  const endSlot = startMin + slotHeightMin;
+                  const covEnd = colBookings.reduce((mx, b) => (b.startMin < startMin && b.startMin + b.durMin > startMin ? Math.max(mx, b.startMin + b.durMin) : mx), 0);
+                  if (covEnd > startMin) {
+                    if (endSlot - covEnd < 10) return null;
+                    clipShift = covEnd - startMin;
+                    slotHeightMin = endSlot - covEnd;
+                  }
+                }
                 const isVip = slot.vipOnly;
                 const isBlocked = slot.adminBlocked;
                 const hasSurcharge = !!slot.surcharge;
@@ -3384,7 +3396,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                   : "inset 2px 2px 5px rgba(0,0,0,0.45), inset -2px -2px 5px rgba(255,255,255,0.10)";
                 const isPlainFree = slot.available && !isVip && !isBlocked && !hasSurcharge && !isPrivateOnly && !hasFixedPrice;
                 const isBeingDragged = freeDragPreview && freeDragPreview.dateStr===dateStrCol && freeDragPreview.time===time;
-                const displayStartMin = isBeingDragged ? freeDragPreview.newStart : startMin;
+                const displayStartMin = isBeingDragged ? freeDragPreview.newStart : startMin + clipShift;
                 // Розтягування вниз може поглинати наступні вільні слоти підряд (без запису,
                 // блокування, VIP чи надбавки) — межа росту не обмежена одним нижнім слотом,
                 // а йде до першого «непоглинаючого» слота/запису або кінця робочого дня.

@@ -509,7 +509,7 @@ const CLEAN_START_SETTINGS = {
 const DEFAULT_SETTINGS = {
   profile: { name:"Майстер", phone:"", address:"", experience:0, photo:null },
   workStart:7, workEnd:20, weekends:[6], daysShown:6, snapMin:30, slotCreateStep:30, hourHeightPx:60, autoHourHeight:false,
-  lunchEnabled:true, lunchStart:12, lunchEnd:13, customBlocks:[], pendingEnabled:false, lockPastBookings:false, showHelpBtn:true, calStyle:"neon", calBg:"fog",
+  lunchEnabled:true, lunchStart:12, lunchEnd:13, customBlocks:[], pendingEnabled:false, lockPastBookings:false, showHelpBtn:true, calStyle:"neon", calBg:"fog", calClip:true,
   theme:"dark", language:"uk", queueAutoFifo:true, queueBroadcast:false, queueManual:false,
   studentCanReschedule:true, studentCanCancel:true, bookCutoffHours:2, calendarOpenDays:30, schoolCalendarOpenDays:14, slotGenDays:30,
   stickyTimeEnabled:false, stickyTime:"both", notifLocation:"topbar", showCompleteBtn:true, showSlotTimes:true, autoStudentColors:true,
@@ -907,6 +907,7 @@ function AdminApp({ adminUser, ws, onWs }) {
         showHelpBtn: settings.showHelpBtn ?? true,
         calStyle: settings.calStyle ?? "neon",
         calBg: settings.calBg ?? "fog",
+        calClip: settings.calClip ?? true,
       }).catch(() => {});
     }, 800);
   // eslint-disable-next-line react-hooks/exhaustive-deps
