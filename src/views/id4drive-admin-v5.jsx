@@ -101,7 +101,7 @@ body, html, #root { margin:0; padding:0; }
   animation: pulse-ring 2s infinite;
 }
 /* Розклад у стилі «Неонове сяйво» (налаштування calStyle; «classic» — попередній 3D-вигляд) */
-.cal-neon .cal-slot-wrap { background: transparent !important; border-radius: 12px !important; }
+.cal-neon .cal-slot-wrap { border-radius: 12px !important; } /* підкладка BG_DEEP лишається непрозорою, щоб плашка суми дня не просвічувала крізь картку */
 .cal-neon .slot-base { border-radius: 12px; }
 .cal-neon .slot-colored {
   background: color-mix(in srgb, var(--c) 22%, transparent);
