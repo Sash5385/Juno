@@ -1050,6 +1050,9 @@ select{color-scheme:${isKava?"light":"dark"}}
           <Row compact color={svColor(settings.lockPastBookings)} label="Блокувати минулі записи" hint="Заборонити редагувати, переносити й скасовувати записи, що вже минули — вони підсвічуються тьмяніше">
             <Toggle color={svColor(settings.lockPastBookings)} on={!!settings.lockPastBookings} onChange={v=>upd("lockPastBookings",v)}/>
           </Row>
+          <Row compact color={svColor(settings.calStyle !== "classic")} label="Неонове сяйво в розкладі" hint="Світні напівпрозорі картки записів. Вимкніть, щоб повернути попередній об'ємний вигляд">
+            <Toggle color={svColor(settings.calStyle !== "classic")} on={settings.calStyle !== "classic"} onChange={v=>upd("calStyle",v ? "neon" : "classic")}/>
+          </Row>
           <Row compact last color={svColor(settings.showHelpBtn !== false)} label="Кнопка підказок «?»" hint="Показувати кнопку довідника у верхньому правому куті розкладу">
             <Toggle color={svColor(settings.showHelpBtn !== false)} on={settings.showHelpBtn !== false} onChange={v=>upd("showHelpBtn",v)}/>
           </Row>
