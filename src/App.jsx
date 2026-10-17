@@ -509,7 +509,7 @@ const CLEAN_START_SETTINGS = {
 const DEFAULT_SETTINGS = {
   profile: { name:"Майстер", phone:"", address:"", experience:0, photo:null },
   workStart:7, workEnd:20, weekends:[6], daysShown:6, snapMin:30, slotCreateStep:30, hourHeightPx:60, autoHourHeight:false,
-  lunchEnabled:true, lunchStart:12, lunchEnd:13, customBlocks:[], pendingEnabled:false, lockPastBookings:false, showHelpBtn:true, calStyle:"neon",
+  lunchEnabled:true, lunchStart:12, lunchEnd:13, customBlocks:[], pendingEnabled:false, lockPastBookings:false, showHelpBtn:true, calStyle:"neon", calBg:"fog",
   theme:"dark", language:"uk", queueAutoFifo:true, queueBroadcast:false, queueManual:false,
   studentCanReschedule:true, studentCanCancel:true, bookCutoffHours:2, calendarOpenDays:30, schoolCalendarOpenDays:14, slotGenDays:30,
   stickyTimeEnabled:false, stickyTime:"both", notifLocation:"topbar", showCompleteBtn:true, showSlotTimes:true, autoStudentColors:true,
@@ -906,6 +906,7 @@ function AdminApp({ adminUser, ws, onWs }) {
         lockPastBookings: settings.lockPastBookings ?? false,
         showHelpBtn: settings.showHelpBtn ?? true,
         calStyle: settings.calStyle ?? "neon",
+        calBg: settings.calBg ?? "fog",
       }).catch(() => {});
     }, 800);
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1335,6 +1336,12 @@ const pendingDeletesRef = React.useRef(new Set());
       <style>{css}</style>
       {fogOn && <div style={{position:"fixed", inset:0, zIndex:0, pointerEvents:"none", background:FOG_STYLE.wrap}}/>}
       {!fogOn && !theme.BG_IMAGE && (
+        <div style={{
+          position:"fixed", inset:0, zIndex:0, pointerEvents:"none",
+          background: settings.calBg === "classic" ? undefined : theme.BG === "#1c1d21" ? FOG_STYLE.wrap : undefined, // фон розкладу «Туман» (лише темна тема); classic — попередній
+        }}/>
+      )}
+      {!fogOn && !theme.BG_IMAGE && (settings.calBg === "classic" || theme.BG !== "#1c1d21") && (
         <div style={{
           position:"fixed", inset:0, zIndex:0, pointerEvents:"none",
           background:
