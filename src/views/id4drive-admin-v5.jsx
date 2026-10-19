@@ -57,6 +57,12 @@ const AUTO_TAG_BY_ORDER = { 1: "first" };
 // Прибрані мітки (напр. старий "repeat") у вже збережених записах не показуються
 const knownTag = (t) => (TAG_PRESETS.some(p => p.id === t) ? t : null);
 
+// Правий клік миші відкриває меню/деталі (ПК). На телефоні довге натискання теж шле contextmenu
+// (Android ~0,5 с) — тоді нічого не відкриваємо, інакше модалка вискакувала замість перетягування.
+let _lastPtrType = "mouse";
+if (typeof window !== "undefined") window.addEventListener("pointerdown", e => { _lastPtrType = e.pointerType || "mouse"; }, true);
+const isMouseContext = (e) => (e?.nativeEvent?.pointerType || _lastPtrType) === "mouse";
+
 // ═══════════════════════════════════════════════════════════════
 // GLOBAL CSS (slots from v4, rest v3)
 // ═══════════════════════════════════════════════════════════════
@@ -3321,6 +3327,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                 onContextMenu={e=>{
                   e.preventDefault();
                   // Права кнопка миші на порожньому місці = довге натискання: меню «новий слот / запис»
+                  if (!isMouseContext(e)) return;
                   if (e.target !== e.currentTarget || scheduleLocked || isPastDay) return;
                   const rect = e.currentTarget.getBoundingClientRect();
                   const minute = Math.floor((calcRef.current.workStartMin + (e.clientY - rect.top) / calcRef.current.PX_PER_MIN) / 30) * 30;
@@ -3418,7 +3425,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                   <div key={`os-${time}`}
                     onContextMenu={e=>{
                       e.preventDefault();
-                      if (isPastDay || scheduleLocked) return;
+                      if (!isMouseContext(e) || isPastDay || scheduleLocked) return;
                       clearTimeout(slotHoldTimerRef.current); slotPressRef.current = null;
                       setSlotOptions({ dateStr: dateStrCol, time, startTime: time, slot });
                     }}
@@ -3839,7 +3846,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                         }
                         onPointerDown(e,b,"move");
                       }}
-                      onContextMenu={e=>{ e.preventDefault(); e.currentTarget.click(); }}
+                      onContextMenu={e=>{ e.preventDefault(); if (isMouseContext(e)) e.currentTarget.click(); }}
                       onClick={e=>{
                         e.stopPropagation();
                         if(xJustShownRef.current){ xJustShownRef.current=false; return; }
