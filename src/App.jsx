@@ -1123,8 +1123,10 @@ const pendingDeletesRef = React.useRef(new Set());
           // Не звільняємо інтервал, який все ще перекриває інший активний запис
           // (інакше слот, поділений між двома записами, помилково став би вільним).
           // Перерва іншого запису теж тримає слот зайнятим.
+          // Лише записи ЦЬОГО календаря: у салоні в кожного майстра свої слоти, тож запис іншого майстра
+          // на той самий час не повинен тримати слот зайнятим.
           const stillTaken = next.some(x =>
-            x.status !== "cancelled" && bookingDateOf(x) === date &&
+            x.status !== "cancelled" && bookingDateOf(x) === date && masterOf(x, ownerIid) === masterId &&
             x.startMin < slotEnd && x.startMin + x.durMin + bufferOf(x) > cur);
           if (stillTaken) continue;
           const h = String(Math.floor(cur / 60)).padStart(2, "0");

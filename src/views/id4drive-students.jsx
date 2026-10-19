@@ -1,7 +1,7 @@
 import { useState, useEffect, useContext, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { onValue, update, push, remove, get } from "firebase/database";
-import { iRef, auth } from "../firebase";
+import { iRef, auth, getCurrentIid } from "../firebase";
 import { deleteAccountRequest } from "../deleteAccountApi";
 
 import { ThemeContext } from "../theme.js";
@@ -712,7 +712,9 @@ export default function StudentsView({ studentJump, onStudentJumpHandled, bookin
           for (let i = 0; i < durMin; i += 30) {
             const sm = b.startMin + i;
             const hh = String(Math.floor(sm/60)).padStart(2,'0'), mm = String(sm%60).padStart(2,'0');
-            const path = `timeslots/${b.date}/slot${hh}${mm}`;
+            // Слоти лежать у календарі того майстра, до якого запис (салон: timeslots_m/{masterId})
+            const root = b.masterId && b.masterId !== getCurrentIid() ? `timeslots_m/${b.masterId}` : "timeslots";
+            const path = `${root}/${b.date}/slot${hh}${mm}`;
             upd[`${path}/available`] = true; upd[`${path}/time`] = `${hh}:${mm}`; upd[`${path}/phantom`] = null;
           }
           update(iRef('/'), upd).catch(()=>{});
