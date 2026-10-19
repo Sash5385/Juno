@@ -3696,8 +3696,8 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                   top:minToPx(colLunch.start*60), left:0, right:0,
                   height:(colLunch.end - colLunch.start)*60*PX_PER_MIN,
                   background: isLight ? `repeating-linear-gradient(135deg, transparent, transparent 6px, rgba(0,0,0,0.05) 6px, rgba(0,0,0,0.05) 12px)` : `repeating-linear-gradient(135deg, transparent, transparent 6px, rgba(255,255,255,0.04) 6px, rgba(255,255,255,0.04) 12px)`,
-                  border:`2px solid #1d4ed8`,
-                  borderRadius:8, pointerEvents:"none",
+                  border: neonCal && !isLight ? "1px solid rgba(96,165,250,0.45)" : `2px solid #1d4ed8`,
+                  borderRadius: neonCal ? 12 : 8, pointerEvents:"none",
                   display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:3,
                 }}>
                   <span style={{fontSize:7,fontWeight:700,color:TEXT_FAINT,letterSpacing:0.5,textTransform:"uppercase"}}>обід</span>
@@ -3951,7 +3951,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                         ];
                         // Верхні 9px зарезервовані під час старту запису (праворуч зверху) —
                         // інакше прізвище/ім'я могли заходити під нього при малому зумі.
-                        const availH = height - textTop - 4;
+                        const availH = height - textTop - 4 - (queueCount > 0 ? 11 : 0); // знизу-ліворуч — бейдж черги
                         const availW = COL_W - 8;
                         const maxLinesByH = Math.max(1, Math.floor(availH / 10));
                         const maxLinesByW = COL_W < 44 ? 2 : COL_W < 58 ? 3 : 4;
@@ -3965,7 +3965,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                         const fs = Math.min(11, fsByW, fsByH);
                         return (
                           <div style={{
-                            position:"absolute", top:textTop, left:2, right:2, bottom:2,
+                            position:"absolute", top:textTop, left:2, right:2, bottom: queueCount > 0 ? 13 : 2,
                             display:"flex", flexDirection:"column", justifyContent:"center",
                             alignItems:"center", gap:1,
                             overflow:"hidden", zIndex:2,

@@ -15,6 +15,7 @@ import { setTags } from "./tags";
 import { startTerms } from "./terms";
 import { bufferOf, bookingAddonTotals } from "./addons";
 import { rememberSalonInvite } from "./salon";
+import { ScrollChips } from "./ui";
 import { applyMasterSettings } from "./masterSettings";
 import { rememberWorkspaceInvite, storedWorkspaceInvite, forgetWorkspaceInvite, isSalon, normStaff, masterOf } from "./workspace";
 import { JoinSalonScreen, MasterProfileView } from "./JoinSalonScreen";
@@ -222,7 +223,7 @@ function MasterTabs({ staff, active, onPick }) {
   const theme = useContext(ThemeContext);
   const tabs = [{ id: ALL_MASTERS, name: "Усі", color: "#94a3b8" }, ...staff];
   return (
-    <div style={{display:"flex",gap:6,overflowX:"auto",scrollbarWidth:"none",padding:"2px 6px 8px",flexShrink:0}}>
+    <ScrollChips fade="rgba(16,20,28,0.92)" style={{padding:"2px 6px 8px"}}>
       {tabs.map(m => {
         const on = m.id === active;
         return (
@@ -236,7 +237,7 @@ function MasterTabs({ staff, active, onPick }) {
           </button>
         );
       })}
-    </div>
+    </ScrollChips>
   );
 }
 

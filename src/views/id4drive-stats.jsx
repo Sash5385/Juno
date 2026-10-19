@@ -6,7 +6,7 @@ import { LangContext } from "../App";
 import { createT } from "../lang";
 
 import { ThemeContext } from "../theme.js";
-import { UICss, Card, useFX } from "../ui";
+import { UICss, Card, useFX, ScrollChips } from "../ui";
 import { bookingAddonTotals } from "../addons";
 
 const UK_MONTHS     = ["Січ","Лют","Бер","Кві","Тра","Чер","Лип","Сер","Вер","Жов","Лис","Гру"];
@@ -469,7 +469,7 @@ export default function StatsView() {
 
         {/* ── САЛОН: фільтр по майстру ── */}
         {staff.length > 1 && (
-          <div style={{display:"flex",gap:6,overflowX:"auto",scrollbarWidth:"none"}}>
+          <ScrollChips activeKey={masterFilter}>
             {[{ id:"", name:"Усі майстри", color:ACCENT }, ...staff].map(m => {
               const on = masterFilter === m.id;
               return (
@@ -481,7 +481,7 @@ export default function StatsView() {
                 </button>
               );
             })}
-          </div>
+          </ScrollChips>
         )}
 
         {/* ── CALENDAR (завжди відкритий — швидкий вибір місяця/тижня/дня) ── */}
@@ -798,7 +798,7 @@ export default function StatsView() {
                   }}>{i+1}</div>
                   <div style={{
                     width:32, height:32, borderRadius:9, flexShrink:0,
-                    background:`linear-gradient(145deg,hsl(${s.hue},60%,34%),hsl(${(s.hue+35)%360},70%,22%))`,
+                    background:`linear-gradient(145deg,hsl(${s.hue},60%,27%),hsl(${(s.hue+35)%360},70%,18%))`,
                     display:"flex", alignItems:"center", justifyContent:"center",
                     fontSize:11, fontWeight:800, color:"#fff", boxShadow:`0 2px 8px hsla(${s.hue},50%,30%,.5)`,
                   }}>{s.name.split(" ").map(w=>w[0]).join("")}</div>

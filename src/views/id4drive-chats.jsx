@@ -24,7 +24,7 @@ const Ava = ({ name, hue, size=36, online, isBroadcast }) => {
   return (
     <div style={{position:"relative",flexShrink:0}}>
       <div style={{width:size,height:size,borderRadius:size/2,
-        background:`linear-gradient(145deg,hsl(${hue},60%,34%),hsl(${(hue+35)%360},70%,22%))`,
+        background:`linear-gradient(145deg,hsl(${hue},60%,27%),hsl(${(hue+35)%360},70%,18%))`,
         display:"flex",alignItems:"center",justifyContent:"center",
         fontSize:Math.max(11,size*.3),fontWeight:800,color:"#fff",
         boxShadow:`0 2px 8px hsla(${hue},50%,30%,.5)`}}>{ini}</div>
@@ -399,7 +399,7 @@ export default function ChatsView() {
                     <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:2}}>
                       <span style={{fontSize:13,fontWeight:800,color:"#fff",overflowWrap:"anywhere"}}>{c.name || c.phone}</span>
                     </div>
-                    <div style={{fontSize:11,color:"rgba(255,255,255,0.78)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                    <div style={{fontSize:11,color:"rgba(255,255,255,0.85)",overflow:"hidden",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflowWrap:"anywhere"}}>
                       {c.lastMsg || c.phone || "Немає повідомлень"}
                     </div>
                   </div>

@@ -245,3 +245,42 @@ export function ModalSection({ label, children, first = false }) {
     </div>
   );
 }
+
+// Рядок чипів із горизонтальним скролом: з країв — градієнтне затемнення й стрілки ‹ › (видно, що є ще розділи), активний чип підсувається в зону видимості
+export function ScrollChips({ children, activeKey, fade, style }) {
+  const { BG, BORDER, TEXT, SURF_HI } = useContext(ThemeContext);
+  const ref = useRef(null);
+  const [edge, setEdge] = useState({ l: false, r: false });
+  const upd = () => {
+    const el = ref.current; if (!el) return;
+    setEdge({ l: el.scrollLeft > 4, r: el.scrollLeft + el.clientWidth < el.scrollWidth - 4 });
+  };
+  useEffect(() => {
+    upd();
+    const el = ref.current; if (!el) return undefined;
+    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(upd) : null;
+    ro?.observe(el);
+    return () => ro?.disconnect();
+  }, []);
+  useEffect(() => {
+    const el = ref.current; const a = el?.querySelector("[data-active='1']");
+    if (!el || !a) return;
+    const left = a.offsetLeft - 40, right = a.offsetLeft + a.offsetWidth + 40;
+    if (left < el.scrollLeft) el.scrollTo({ left: Math.max(0, left), behavior: "smooth" });
+    else if (right > el.scrollLeft + el.clientWidth) el.scrollTo({ left: right - el.clientWidth, behavior: "smooth" });
+  }, [activeKey]);
+  const go = (dir) => ref.current?.scrollBy({ left: dir * Math.max(120, ref.current.clientWidth * 0.7), behavior: "smooth" });
+  const arrow = (side, show, ch, dir) => (
+    <div aria-hidden={!show} style={{position:"absolute",top:0,bottom:2,[side]:0,width:46,display:"flex",alignItems:"center",justifyContent:side==="left"?"flex-start":"flex-end",
+      background:`linear-gradient(${side==="left"?"90deg":"270deg"},${fade||BG} 35%,transparent)`,pointerEvents:"none",opacity:show?1:0,transition:"opacity .2s",zIndex:2}}>
+      <button tabIndex={show?0:-1} aria-label={dir<0?"Прокрутити ліворуч":"Прокрутити праворуч"} onClick={()=>go(dir)} style={{pointerEvents:show?"auto":"none",width:32,height:32,borderRadius:"50%",border:`1px solid ${BORDER}`,background:SURF_HI,color:TEXT,fontSize:18,lineHeight:1,cursor:"pointer",fontFamily:"inherit",padding:0}}>{ch}</button>
+    </div>
+  );
+  return (
+    <div style={{position:"relative",flexShrink:0}}>
+      <div ref={ref} onScroll={upd} style={{display:"flex",gap:6,overflowX:"auto",scrollbarWidth:"none",paddingBottom:2,...style}}>{children}</div>
+      {arrow("left", edge.l, "‹", -1)}
+      {arrow("right", edge.r, "›", 1)}
+    </div>
+  );
+}
