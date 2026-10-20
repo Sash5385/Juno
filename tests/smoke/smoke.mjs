@@ -25,7 +25,7 @@ const check = (name, ok, info = "") => { if (!ok) fails++; console.log(`${ok ? "
 const noOverflow = () => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
 const textLen = () => page.evaluate(() => document.body.innerText.trim().length);
 
-await page.goto(`${base}/?demo=1`);
+await page.goto(`${base}/?demo=1&lang=uk`);
 await page.waitForTimeout(2500);
 check("home renders", (await textLen()) > 50, `body text ${await textLen()}`);
 check("home fits 320px", await noOverflow());
