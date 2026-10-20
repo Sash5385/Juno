@@ -1054,7 +1054,7 @@ select{color-scheme:${isKava?"light":"dark"}}
           <Row compact color={svColor(settings.calStyle !== "classic")} label="Неонове сяйво в розкладі" hint="Світні напівпрозорі картки записів. Вимкніть, щоб повернути попередній об'ємний вигляд">
             <Toggle color={svColor(settings.calStyle !== "classic")} on={settings.calStyle !== "classic"} onChange={v=>upd("calStyle",v ? "neon" : "classic")}/>
           </Row>
-          <Row compact color={svColor(settings.calClip !== false)} label="Слоти без накладання на записи" hint="Слот під кінцем запису починається там, де запис закінчується. Вимкніть, щоб повернути попередній показ">
+          <Row compact color={svColor(settings.calClip !== false)} label="Слот починається після запису" hint="Запис 10:00–11:30, сітка по годині: вільний слот буде з 11:30, а не з 11:00. Вимкніть — слот піде за сіткою і заповзе під запис.">
             <Toggle color={svColor(settings.calClip !== false)} on={settings.calClip !== false} onChange={v=>upd("calClip",v)}/>
           </Row>
           <Row compact color={svColor(settings.calBg !== "classic")} label="Фон розкладу «Туман»" hint="Синьо-індиго скляний фон як на інших вкладках (темна тема). Вимкніть для попереднього фону">
