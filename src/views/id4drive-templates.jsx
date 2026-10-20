@@ -3,6 +3,7 @@ import { get, set, push, update, increment } from "firebase/database";
 import { iRef } from "../firebase";
 import { LangContext } from "../App";
 import { createT } from "../lang";
+import { tr } from "../i18n";
 
 import { ThemeContext, GOLD, GREEN, RED, TEAL, BLUE, PURPLE } from "../theme.js";
 import { UICss, Modal, Chip, Btn, Toggle, Pill, useFX } from "../ui";
@@ -91,7 +92,11 @@ const VAR_LABELS = [
   { v:"{послуга}", label:"Послуга" }, { v:"{ціна}", label:"Ціна" }, { v:"{майстер}", label:"Майстер" },
 ];
 // приклад для попереднього перегляду
-const SAMPLE_VARS = { "ім'я":"Олексій", "дата":"5 жовтня, пн", "час":"14:00", "послуга":"Стандарт", "ціна":"900", "майстер":"Ваш майстер", "інструктор":"Ваш майстер" };
+const sampleVars = () => ({ "ім'я":tr("Олексій"), "дата":new Date(2026,9,5).toLocaleDateString("uk",{day:"numeric",month:"long",weekday:"short"}), "час":"14:00", "послуга":tr("Стандарт"), "ціна":"900", "майстер":tr("Ваш майстер"), "інструктор":tr("Ваш майстер") });
+// приклад для попереднього перегляду: спершу переклад шаблону (з {змінними}), потім підстановка зразків
+// ключі словника зберігають переноси як «\\n», тож шукаємо переклад із такою формою
+const trBody = b => { const e = String(b || "").replace(/\n/g, "\\n"); const r = tr(e); return r === e ? String(b || "") : r.replace(/\\n/g, "\n"); };
+const renderSample = body => renderVars(trBody(body), sampleVars());
 
 // Hardcoded list removed — students are loaded from Firebase in SendModal
 
@@ -141,7 +146,7 @@ async function nextBookingVars(uid) {
 // render body with colored vars
 function BodyPreview({ body, style={} }) {
   if (!body) return null;
-  const parts = body.split(/(\{[^}]+\})/g);
+  const parts = trBody(body).split(/(\{[^}]+\})/g);
   return (
     <span style={style}>
       {parts.map((p,i) =>
@@ -158,7 +163,7 @@ function SendModal({ tpl, onClose }) {
   const { DIM, FAINT, SURF_HI, SURFACE, ACC_HI, ACCENT, SO, TEXT, GREEN } = useContext(ThemeContext);
   const [students,  setStudents]  = useState([]);
   const [selected,  setSelected]  = useState([]);
-  const [preview,   setPreview]   = useState(tpl.body);
+  const [preview,   setPreview]   = useState(trBody(tpl.body));
   const [sending,   setSending]   = useState(false);
   const [sent,      setSent]      = useState(false);
   const [instructorName, setInstructorName] = useState("");
@@ -494,7 +499,7 @@ function SimpleEditModal({ tpl, onSave, onClose }) {
         {body.trim() && (
           <div style={{marginBottom:14}}>
             <div style={{...label,marginBottom:6}}>ТАК ПОБАЧИТЬ КЛІЄНТ (приклад)</div>
-            <div className="bubble-preview" style={{whiteSpace:"pre-wrap"}}>{renderVars(body, SAMPLE_VARS)}</div>
+            <div className="bubble-preview" style={{whiteSpace:"pre-wrap"}}>{renderSample(body)}</div>
           </div>
         )}
 
@@ -595,7 +600,7 @@ export default function TemplatesView() {
     setTemplates(ts => ts.map(x => x && x.id === form.id ? form : x));
     setSimpleTpl(null);
   };
-  const snip = tpl => renderVars(tpl.body, SAMPLE_VARS);
+  const snip = tpl => renderSample(tpl.body);
   const reminders = ["t1","t2"].map(stdOf).filter(Boolean);
 
   return (
@@ -620,7 +625,7 @@ export default function TemplatesView() {
                     background:"rgba(255,255,255,0.1)",opacity:r.active?1:0.55,
                   }}>
                     <div style={{flex:1,minWidth:0}}>
-                      <div style={{fontSize:13.5,fontWeight:700,color:"#fff"}}>За {r.reminderHours ?? 24} год до запису</div>
+                      <div style={{fontSize:13.5,fontWeight:700,color:"#fff"}}>{`За ${r.reminderHours ?? 24} год до запису`}</div>
                       <div style={{fontSize:12,color:"rgba(255,255,255,0.9)",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}}>{snip(r)}</div>
                     </div>
                     <div onClick={e=>e.stopPropagation()}><Toggle on={r.active} onChange={v=>onToggle(r.id,v)}/></div>
