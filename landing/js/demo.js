@@ -7,6 +7,7 @@
     document.querySelectorAll(".reveal").forEach(function (el) { io.observe(el); });
   } else document.querySelectorAll(".reveal").forEach(function (el) { el.classList.add("in"); });
 
+  var T = window.dpT || function (x) { return x; };
   var H0 = 9, H1 = 18;
   var C = { std: "#4ade80", ind: "#fbbf24", grp: "#2dd4bf", vip: "#a78bfa", new: "#60a5fa" };
   var SVC = {
@@ -39,19 +40,19 @@
     var hh = opts.hh || 46;
     root.style.setProperty("--hh", hh + "px");
     var html = '<div></div>';
-    DAYS.forEach(function (d, i) { html += '<div class="cal-head' + (i === 0 ? " today" : "") + '">' + d[0] + "<b>" + d[1] + "</b></div>"; });
+    DAYS.forEach(function (d, i) { html += '<div class="cal-head' + (i === 0 ? " today" : "") + '">' + T(d[0]) + "<b>" + d[1] + "</b></div>"; });
     html += '<div class="cal-axis" style="height:' + (H1 - H0) * hh + 'px">';
     for (var h = H0; h < H1; h++) html += '<span style="top:' + (h - H0) * hh + 'px">' + pad(h) + "</span>";
     html += "</div>";
     DAYS.forEach(function (_, d) {
       html += '<div class="cal-col" style="height:' + (H1 - H0) * hh + 'px">';
-      html += '<div class="lunch" style="top:' + ((13 - H0) * hh + 1) + "px;height:" + (hh - 3) + 'px">ОБІД</div>';
+      html += '<div class="lunch" style="top:' + ((13 - H0) * hh + 1) + "px;height:" + (hh - 3) + 'px">' + T("ОБІД") + "</div>";
       list.filter(function (e) { return e[0] === d; }).forEach(function (e) {
         html += '<div class="ev' + (e[7] ? " new" : "") + '" style="--c:' + e[5] + ";top:" + ((e[1] - H0) * hh + 1) + "px;height:" + (e[2] * hh - 3) + 'px">' +
-          "<i>" + hm(e[1]) + "</i><b>" + e[3] + "</b><s>" + e[4] + "</s><s>" + e[6] + " ₴</s></div>";
+          "<i>" + hm(e[1]) + "</i><b>" + T(e[3]) + "</b><s>" + T(e[4]) + "</s><s>" + e[6] + " ₴</s></div>";
       });
       if (opts.free) {
-        for (var t = H0; t < H1; t++) if (!busy(list, d, t, 1)) html += '<div class="free" style="top:' + ((t - H0) * hh + 1) + "px;height:" + (hh - 3) + 'px">вільно</div>';
+        for (var t = H0; t < H1; t++) if (!busy(list, d, t, 1)) html += '<div class="free" style="top:' + ((t - H0) * hh + 1) + "px;height:" + (hh - 3) + 'px">' + T("вільно") + "</div>";
       }
       if (d === 0 && opts.now) html += '<div class="now" style="top:' + (opts.now - H0) * hh + 'px"></div>';
       html += "</div>";
@@ -83,6 +84,10 @@
   }
 
   // --- демо: клієнт обирає послугу, день і час
+  window.addEventListener("dp-lang", function () {
+    if (heroCal) render(heroCal, heroList, { hh: 44, now: 12.4 });
+    if (demoCal) { render(demoCal, list, { hh: 40, free: true }); sync(); }
+  });
   var demoCal = document.querySelector("[data-cal=demo]");
   var box = document.querySelector("[data-demo]");
   if (!demoCal || !box) return;
@@ -96,7 +101,7 @@
     var html = "";
     for (var t = H0; t + s.dur <= H1; t += 1) {
       var taken = busy(list, state.day, t, s.dur);
-      html += '<button type="button" data-t="' + t + '"' + (taken ? " disabled aria-label=\"" + hm(t) + " зайнято\"" : "") + ">" + hm(t) + "</button>";
+      html += '<button type="button" data-t="' + t + '"' + (taken ? " disabled aria-label=\"" + hm(t) + " " + T("зайнято") + "\"" : "") + ">" + hm(t) + "</button>";
     }
     wrap.innerHTML = html;
   }
@@ -117,7 +122,7 @@
       render(demoCal, list, { hh: 40, free: true });
       sync();
       note.className = "demo-note ok";
-      note.textContent = "✓ Готово! " + DAYS[state.day][0] + " " + DAYS[state.day][1] + " о " + hm(t) + " — запис уже в розкладі майстра, нагадування прийде за 24 і 2 години.";
+      note.textContent = "✓ " + T("Готово!") + " " + T(DAYS[state.day][0]) + " " + DAYS[state.day][1] + " · " + hm(t) + " — " + T("запис уже в розкладі майстра, нагадування прийде за 24 і 2 години.");
     }
   });
   render(demoCal, list, { hh: 40, free: true });

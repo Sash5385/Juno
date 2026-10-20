@@ -7,7 +7,7 @@
 <meta name="description" content="Juno — застосунок для майстрів і салонів: онлайн-запис клієнтів 24/7, розклад, нагадування, черга на звільнені слоти, облік клієнтів і статистика. 14 днів безкоштовно.">
 <meta name="theme-color" content="#0c1018">
 <link rel="icon" href="img/favicon.svg" type="image/svg+xml">
-<link rel="alternate" hreflang="en" href="en/">
+<link rel="alternate" hreflang="en" href="?lang=en"><link rel="alternate" hreflang="pl" href="?lang=pl"><link rel="alternate" hreflang="de" href="?lang=de"><link rel="alternate" hreflang="es" href="?lang=es"><link rel="alternate" hreflang="fr" href="?lang=fr">
 <meta property="og:title" content="Juno — онлайн-запис для майстрів">
 <meta property="og:description" content="Клієнти записуються самі, а ви бачите весь розклад в одному місці. 14 днів безкоштовно.">
 <meta property="og:type" content="website">
@@ -22,8 +22,9 @@
 <header><div class="wrap nav">
   <a class="brand" href="./"><span class="brand-dot" aria-hidden="true"></span>Juno</a>
   <nav class="nav-links" aria-label="Розділи">
-    <a href="#demo">Як записується клієнт</a><a href="#features">Можливості</a><a href="#salon">Для салонів</a><a href="#pricing">Ціни</a><a href="#faq">Питання</a><a href="en/">EN</a>
+    <a href="#demo">Як записується клієнт</a><a href="#features">Можливості</a><a href="#salon">Для салонів</a><a href="#pricing">Ціни</a><a href="#faq">Питання</a>
   </nav>
+  <select id="lang" aria-label="Language" data-noi18n></select>
   <a class="btn btn-primary btn-sm" data-app href="#">Спробувати</a>
 </div></header>
 
@@ -228,5 +229,5 @@
   <p>Ми використовуємо необхідні cookie для роботи сайту. З вашої згоди — також аналітичні cookie, щоб розуміти, як покращити сайт. Докладніше — у <a href="privacy#cookies">політиці конфіденційності</a>.</p>
   <div class="row"><button id="cookie-all" class="btn btn-primary btn-sm">Прийняти всі</button><button id="cookie-necessary" class="btn btn-ghost btn-sm">Лише необхідні</button></div>
 </div>
-<script src="js/config.js"></script><script src="js/site.js"></script><script src="js/demo.js"></script>
+<script src="js/config.js"></script><script src="js/site.js"></script><script src="js/i18n-data.js"></script><script src="js/i18n.js"></script><script src="js/demo.js"></script>
 </body></html>
