@@ -676,7 +676,16 @@ function AdminApp({ adminUser, ws, onWs }) {
   const [journalUnreadStudents, setJournalUnreadStudents] = useState(0);
   const journalUnread = journalUnreadBookings + journalUnreadStudents;
 
-  const switchTab = t => {
+  // Системна «назад» = крок назад по вкладках (а не вихід із застосунку): кожен перехід кладе запис в історію
+  const tabRef = React.useRef(tab); tabRef.current = tab;
+  const tabStackRef = React.useRef([]);
+  const switchTab = (t, fromPop) => {
+    if (fromPop !== true) {
+      if (t === tabRef.current) return;
+      tabStackRef.current.push(tabRef.current);
+      window.history.pushState({ ui4Tab: tabStackRef.current.length }, "");
+    }
+    tabRef.current = t;
     setTab(t);
     localStorage.setItem("admin_tab", t);
     setTabVisits(v => ({...v, [t]: (v[t]||0) + 1}));
@@ -687,6 +696,18 @@ function AdminApp({ adminUser, ws, onWs }) {
     }
     if (t === 'journal') { setJournalUnreadBookings(0); setJournalUnreadStudents(0); }
   };
+  useEffect(() => {
+    const onPop = (e) => {
+      const depth = e.state && e.state.ui4Tab ? e.state.ui4Tab : 0;
+      if (depth < tabStackRef.current.length) { // це крок назад по вкладках, а не закриття вікна
+        const prev = tabStackRef.current[depth];
+        tabStackRef.current.length = depth;
+        switchTab(prev, true);
+      }
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  });
 
   // Профіль/Історія з модалки запису → відкрити картку клієнта на вкладці "Клієнти"
   const onViewStudent = (uid, openHistory) => {
