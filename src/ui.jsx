@@ -271,10 +271,10 @@ export function ScrollChips({ children, activeKey, fade, style }) {
   }, [activeKey]);
   const go = (dir) => ref.current?.scrollBy({ left: dir * Math.max(120, ref.current.clientWidth * 0.7), behavior: "smooth" });
   const arrow = (side, show, ch, dir) => (
-    <div aria-hidden={!show} style={{position:"absolute",top:0,bottom:2,[side]:0,width:46,display:"flex",alignItems:"center",justifyContent:side==="left"?"flex-start":"flex-end",
-      background:`linear-gradient(${side==="left"?"90deg":"270deg"},${fade||BG} 35%,transparent)`,pointerEvents:"none",opacity:show?1:0,transition:"opacity .2s",zIndex:2}}>
-      <button tabIndex={show?0:-1} aria-label={dir<0?"Прокрутити ліворуч":"Прокрутити праворуч"} onClick={()=>go(dir)} style={{pointerEvents:show?"auto":"none",width:32,height:32,borderRadius:"50%",border:`1px solid ${BORDER}`,background:SURF_HI,color:TEXT,fontSize:18,lineHeight:1,cursor:"pointer",fontFamily:"inherit",padding:0}}>{ch}</button>
-    </div>
+    <button tabIndex={show?0:-1} aria-hidden={!show} aria-label={dir<0?"Прокрутити ліворуч":"Прокрутити праворуч"} onClick={()=>go(dir)}
+      style={{position:"absolute",top:"50%",marginTop:-17,[side]:2,width:34,height:34,borderRadius:"50%",border:`1px solid ${BORDER}`,background:"rgba(20,28,48,0.72)",
+        backdropFilter:"blur(8px)",WebkitBackdropFilter:"blur(8px)",boxShadow:"0 2px 10px rgba(0,0,0,0.35)",color:"#fff",fontSize:20,lineHeight:1,cursor:"pointer",fontFamily:"inherit",padding:0,
+        display:"flex",alignItems:"center",justifyContent:"center",opacity:show?1:0,pointerEvents:show?"auto":"none",transition:"opacity .2s",zIndex:2}}>{ch}</button>
   );
   return (
     <div style={{position:"relative",flexShrink:0}}>

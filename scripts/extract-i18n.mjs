@@ -9,7 +9,7 @@ const code = /`|\?\s*["']|=>|;|\bconst\b|\bfunction\b|\breturn\b|&&|\|\||\)\s*\{
 const add = (s) => { s = s.replace(/\s+/g, " ").trim(); if (s && cy.test(s) && s.length < 600 && !code.test(s)) out.add(s); };
 for (const f of files) {
   if (/i18n/.test(f)) continue;
-  const src = fs.readFileSync(f, "utf8").replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+  const src = fs.readFileSync(f, "utf8").replace(/(^|[\s{(;,])\/\*[\s\S]*?\*\//g, "$1").replace(/^\s*\/\/.*$/gm, "");
   // JSX-текст (між > і <), розбитий по {вираз}
   for (const m of src.matchAll(/(?<!=)>([^<>]*[А-Яа-яІіЇїЄєҐґ][^<>]*)</g)) {
     let t = m[1], depth = 0, cur = "";

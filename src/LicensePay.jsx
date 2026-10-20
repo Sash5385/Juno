@@ -105,7 +105,7 @@ export function LicenseBanner({ state }) {
     <>
       <div onClick={() => setOpen(true)} style={{
         flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8,
-        margin: "0 10px 6px", padding: "6px 10px", borderRadius: 10, cursor: "pointer",
+        margin: "8px 10px 6px", padding: "6px 10px", borderRadius: 10, cursor: "pointer",
         background: `${cfg.color}${flash ? "44" : "22"}`, border: `1px solid ${cfg.color}88`,
         color: "#fff", fontSize: 12, fontWeight: 700, lineHeight: 1.25,
         transition: "background .2s",

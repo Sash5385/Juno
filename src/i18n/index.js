@@ -5,6 +5,7 @@
 export const LANGS = ['uk', 'en', 'pl', 'de', 'es', 'fr']
 export const LANG_NAMES = { uk: 'Українська', en: 'English', pl: 'Polski', de: 'Deutsch', es: 'Español', fr: 'Français' }
 const LOCALE = { uk: 'uk-UA', en: 'en-GB', pl: 'pl-PL', de: 'de-DE', es: 'es-ES', fr: 'fr-FR' }
+import { toBase } from '../terms.js'
 const CY = /[А-Яа-яІіЇїЄєҐґ]/
 const ATTRS = ['placeholder', 'title', 'aria-label', 'alt']
 
@@ -64,6 +65,9 @@ export function tr(text) {
   // «5 записів» → число + перекладене слово
   const nm = core.match(/^([+\-−]?\d+(?:[.,]\d+)?)\s+(.+)$/)
   if (nm) { const r = exact.get(nm[2]); if (r !== undefined) return lead + nm[1] + ' ' + r + tail }
+  // текст міг пройти підміну напряму («запис»→«сеанс»): повертаємо до універсальних слів і шукаємо знову
+  const bt = toBase(text)
+  if (bt !== text) { const r = tr(bt); if (r !== bt) return r }
   return text
 }
 

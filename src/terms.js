@@ -111,3 +111,22 @@ export function startTerms(direction) {
   });
   observer.observe(document.body, { childList: true, subtree: true, characterData: true, attributes: true, attributeFilter: ATTRS });
 }
+
+// Зворотна підміна: слова будь-якого напряму → універсальні (для пошуку у словнику локалізації).
+let rev = null;
+export function toBase(text) {
+  if (!text) return text;
+  if (!rev) {
+    const map = new Map();
+    for (const d of Object.values(DIRECTIONS)) {
+      if (!d.terms) continue;
+      for (const key of Object.keys(BASE)) SLOTS.forEach((s) => {
+        const from = d.terms[key][s], to = BASE[key][s];
+        if (from !== to && !map.has(from)) map.set(from, to);
+      });
+    }
+    const forms = [...map.keys()].sort((a, b) => b.length - a.length);
+    rev = { map, re: new RegExp(`(?<![\\p{L}\\p{N}_])(${forms.join("|")})(?![\\p{L}\\p{N}_])`, "giu") };
+  }
+  return text.replace(rev.re, (m) => { const to = rev.map.get(m.toLowerCase()); return to ? matchCase(m, to) : m; });
+}
