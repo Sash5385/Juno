@@ -12,9 +12,12 @@ export function useBackClose(active, onClose) {
   const pushedRef = useRef(false);
   useEffect(() => {
     if (!active) return;
-    window.history.pushState({ ui4Modal: true }, "");
+    // власна позначка запису в історії: закриваємо/відкочуємо лише СВІЙ запис, а глибину вкладок (ui4Tab) зберігаємо
+    const id = Math.random().toString(36).slice(2);
+    window.history.pushState({ ui4Modal: id, ui4Tab: window.history.state?.ui4Tab }, "");
     pushedRef.current = true;
     const onPop = () => {
+      if (window.history.state?.ui4Modal === id) return; // наш запис ще на місці — «назад» стосувалась іншого вікна
       pushedRef.current = false;
       onClose();
     };
@@ -23,7 +26,8 @@ export function useBackClose(active, onClose) {
       window.removeEventListener("popstate", onPop);
       if (pushedRef.current) {
         pushedRef.current = false;
-        window.history.back();
+        // відкочуємо лише якщо наш запис нагорі (інакше, напр. після переходу на іншу вкладку, зняли б чужий крок)
+        if (window.history.state?.ui4Modal === id) window.history.back();
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

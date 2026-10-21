@@ -365,6 +365,13 @@ function TopBar({ tab, onChange, settings, setSettings }) {
   const tl = createT(lang);
   const tabLabel = tl(TAB_IDS.find(x=>x.id===tab)?.lk || tab);
   const [showInfo, setShowInfo] = useState(false);
+  // Вузький екран (≤360px): ховаємо підписи «годин/діб» під цифрами, щоб ряд кнопок не виходив за край
+  const [narrow, setNarrow] = useState(() => typeof window !== "undefined" && window.innerWidth <= 360);
+  useEffect(() => {
+    const onR = () => setNarrow(window.innerWidth <= 360);
+    window.addEventListener("resize", onR);
+    return () => window.removeEventListener("resize", onR);
+  }, []);
   const instruction = INSTRUCTIONS[tab];
 
   // reset when tab changes
@@ -386,7 +393,7 @@ function TopBar({ tab, onChange, settings, setSettings }) {
   };
 
   const btnBase = {
-    flex:"1 1 0",minWidth:0,padding:"4px 2px",borderRadius:9,border:"none",cursor:"pointer",
+    flex:"1 1 0",minWidth:0,overflow:"hidden",padding:"4px 2px",borderRadius:9,border:"none",cursor:"pointer",
     transition:"all .15s",
     display:"flex",flexDirection:"column",alignItems:"center",lineHeight:1,gap:1,
   };
@@ -402,7 +409,7 @@ function TopBar({ tab, onChange, settings, setSettings }) {
   return (
     <div style={{position:"sticky",top:0,zIndex:20}}>
       <div style={{
-        padding:`calc(4px + env(safe-area-inset-top, 0px)) 8px 4px`,
+        padding:`calc(4px + env(safe-area-inset-top, 0px)) 6px 4px`,
         display:"flex",alignItems:"center",
         background:navBg,
         backdropFilter:"blur(20px)",
@@ -413,7 +420,7 @@ function TopBar({ tab, onChange, settings, setSettings }) {
         {tab==="schedule" && settings && setSettings ? (
           <>
             {/* Left: годин buttons */}
-            <div data-help="hours" style={{flex:1,display:"flex",gap:3,alignItems:"center"}}>
+            <div data-help="hours" style={{flex:1,minWidth:0,display:"flex",gap:2,alignItems:"center"}}>
               <button key="hauto" onClick={()=>setSettings(s=>({...s,autoHourHeight:true}))} style={{
                 ...btnBase,
                 background:settings.autoHourHeight?`linear-gradient(165deg,#5b9bff,#2563eb)`:btnInactive,
@@ -421,7 +428,7 @@ function TopBar({ tab, onChange, settings, setSettings }) {
                 boxShadow:settings.autoHourHeight?`0 3px 8px rgba(91,155,255,0.5)`:"none",
               }}>
                 <span style={{fontSize:11,fontWeight:800}}>Авто</span>
-                <span style={{fontSize:8,fontWeight:600,opacity:0.8}}>годин</span>
+                {!narrow && <span style={{fontSize:8,fontWeight:600,opacity:0.8}}>годин</span>}
               </button>
               {[8,10,12,14].map(n=>{
                 const totalH = (settings.workEnd - settings.workStart) * 60;
@@ -435,17 +442,17 @@ function TopBar({ tab, onChange, settings, setSettings }) {
                     boxShadow:active?`0 3px 8px rgba(91,155,255,0.5)`:"none",
                   }}>
                     <span style={{fontSize:15,fontWeight:800}}>{n}</span>
-                    <span style={{fontSize:8,fontWeight:600,opacity:0.8}}>годин</span>
+                    {!narrow && <span style={{fontSize:8,fontWeight:600,opacity:0.8}}>годин</span>}
                   </button>
                 );
               })}
             </div>
 
             {/* Center: портал для кнопки «Ключик» (рендериться з ScheduleView через createPortal) */}
-            <div id="topbar-key-portal" style={{flex:"0 0 auto",display:"flex",justifyContent:"center",alignItems:"center",padding:"0 6px",minWidth:36}}/>
+            <div id="topbar-key-portal" style={{flex:"0 0 auto",display:"flex",justifyContent:"center",alignItems:"center",padding:"0 2px",minWidth:28}}/>
 
             {/* Right: діб buttons */}
-            <div data-help="days" style={{flex:1,display:"flex",gap:3,alignItems:"center"}}>
+            <div data-help="days" style={{flex:1,minWidth:0,display:"flex",gap:2,alignItems:"center"}}>
               {[3,4,5,6,7].map(n=>{
                 const active = settings.daysShown===n;
                 return (
@@ -456,7 +463,7 @@ function TopBar({ tab, onChange, settings, setSettings }) {
                     boxShadow:active?`0 3px 8px ${theme.GOLD}55`:"none",
                   }}>
                     <span style={{fontSize:15,fontWeight:800}}>{n}</span>
-                    <span style={{fontSize:8,fontWeight:600,opacity:0.8}}>діб</span>
+                    {!narrow && <span style={{fontSize:8,fontWeight:600,opacity:0.8}}>діб</span>}
                   </button>
                 );
               })}

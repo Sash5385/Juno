@@ -22,7 +22,7 @@ const blockSlotRange = async (dateStr, startMin, durMin, opts) => {
 };
 
 import { ThemeContext, GREEN, BLUE, PURPLE, GOLD, RED, ACCENT, ACC_HI, SURFACE, SURF_HI, TEXT } from "../theme.js";
-import { useFX } from "../ui";
+import { useFX, useBackClose } from "../ui";
 import FogScope from "../FogScope";
 import { TAG_PRESETS, AUTO_TAG_IDS } from "../tags";
 import { MANUAL_DEFAULT_COLOR } from "../studentColors";
@@ -546,6 +546,7 @@ function BroadcastModal({ initialDate, initialSlot, onClose }) {
   const slotsArr = [slot1, slot2].filter(Boolean);
   const canSend  = !!(date && slot1 && !sending);
   const _close   = () => setClosing(true);
+  useBackClose(true, _close); // системна «назад» закриває вікно, а не застосунок
 
   const preview = (() => {
     if (!date || !slot1) return null;
@@ -944,6 +945,7 @@ function DayNotesModal({ dateStr, dayLabel, dayNum, dayMonth, note, settings, on
   const [saving, setSaving] = useState(false);
   const [editingHour, setEditingHour] = useState(null);
   const _close = () => setClosing(true);
+  useBackClose(true, _close); // системна «назад» закриває вікно, а не застосунок
 
   const hours = [];
   for (let h = settings.workStart; h < settings.workEnd; h++) hours.push(h);
@@ -5224,6 +5226,7 @@ function CreateSlotSheet({ data, settings, onClose }) {
 
   const day = getDayInfo(data.day);
   const _close = () => setClosing(true);
+  useBackClose(true, _close); // системна «назад» закриває вікно, а не застосунок
 
   const handleCreate = async () => {
     setSaving(true);
@@ -5408,6 +5411,7 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
   // Guard "!booking && !closing" пропускав такий кадр далі й падав на booking.serviceId
   // (сірий екран). Достатньо: немає booking — нічого не рендеримо. Анімацію закриття це
   // не ламає — при звичайному закритті booking лишається до кінця анімації (onClose на animationEnd).
+  useBackClose(!!booking, () => setClosing(true)); // системна «назад» закриває вікно, а не застосунок (до раннього return — порядок хуків)
   if (!booking) return null;
 
   // Минулий запис при увімкненому settings.lockPastBookings — заборонено
@@ -5542,7 +5546,7 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
             borderRadius:"24px 24px 0 0",
           }}>
             <div style={{width:36,height:4,borderRadius:2,background:`${c}66`,margin:"0 auto 12px"}}/>
-            <div style={{display:"flex",alignItems:"center",gap:10}}>
+            <div style={{display:"flex",alignItems:"center",gap:10,paddingRight:30}}>{/* праворуч — місце під кнопку ✕ */}
               <div style={{
                 width:40,height:40,borderRadius:12,flexShrink:0,
                 background:`linear-gradient(145deg,${c},color-mix(in srgb,${c} 55%,#000))`,
@@ -5557,7 +5561,7 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
                     <span style={{
                       fontSize:11,fontWeight:800,padding:"2px 7px",borderRadius:99,flexShrink:0,
                       background:`${BLUE}1f`,color:BLUE,
-                    }}>🚗 {lessonNumber}-й запис</span>
+                    }}>{`🚗 ${lessonNumber}-й запис`}</span>
                   )}
                 </div>
                 <div style={{fontSize:11,color:c,fontWeight:700,marginTop:1}}>{typeLabel}</div>

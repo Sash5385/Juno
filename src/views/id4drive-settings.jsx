@@ -1297,7 +1297,7 @@ select{color-scheme:${isKava?"light":"dark"}}
             {pkgs.map((pk, i) => (
               <div key={pk.id || i} style={{marginBottom:8,padding:"10px 12px",borderRadius:12,background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,boxShadow:SO}}>
                 <div style={{display:"flex",alignItems:"center",gap:6}}>
-                  <input value={pk.name || ""} maxLength={40} placeholder="Назва, напр. «5 записів»" onChange={e=>patchPk(i,{name:e.target.value})} style={{...box,flex:1,width:"auto",alignSelf:"stretch"}}/>
+                  <input value={pk.name || ""} maxLength={40} placeholder="Назва, напр. «5 записів»" onChange={e=>patchPk(i,{name:e.target.value})} style={{...box,flex:1,width:"auto",minWidth:0,alignSelf:"stretch"}}/>
                   <button onClick={()=>setPk(pkgs.filter((_, j) => j !== i))} aria-label="Видалити" style={{background:"none",border:"none",cursor:"pointer",color:"#f87171",fontSize:22,lineHeight:1,padding:0,minWidth:32,alignSelf:"stretch"}}>×</button>
                 </div>
                 <div className="pk-grid">
@@ -1342,7 +1342,7 @@ select{color-scheme:${isKava?"light":"dark"}}
             {fields.map((f, i) => (
               <div key={f.id || i} style={{marginTop:8,padding:"10px 12px",borderRadius:12,background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,boxShadow:SO}}>
                 <div style={{display:"flex",alignItems:"center",gap:6}}>
-                  <input value={f.label || ""} maxLength={80} placeholder={uk ? "Питання, напр. «Алергії»" : "Question"} onChange={e=>patchField(i,{label:e.target.value})} style={{...box,flex:1,width:"auto",alignSelf:"stretch"}}/>
+                  <input value={f.label || ""} maxLength={80} placeholder={uk ? "Питання, напр. «Алергії»" : "Question"} onChange={e=>patchField(i,{label:e.target.value})} style={{...box,flex:1,width:"auto",minWidth:0,alignSelf:"stretch"}}/>
                   <button onClick={()=>move(i,-1)} disabled={i===0} aria-label="Вгору" style={{background:"none",border:"none",color:i===0?FAINT:DIM,cursor:"pointer",fontSize:15,padding:0,minWidth:28,alignSelf:"stretch"}}>▲</button>
                   <button onClick={()=>move(i,1)} disabled={i===fields.length-1} aria-label="Вниз" style={{background:"none",border:"none",color:i===fields.length-1?FAINT:DIM,cursor:"pointer",fontSize:15,padding:0,minWidth:28,alignSelf:"stretch"}}>▼</button>
                   <button onClick={()=>setIntake({ fields: fields.filter((_, j) => j !== i) })} aria-label="Видалити" style={{background:"none",border:"none",cursor:"pointer",color:"#f87171",fontSize:22,lineHeight:1,padding:0,minWidth:32,alignSelf:"stretch"}}>×</button>
@@ -1691,12 +1691,12 @@ select{color-scheme:${isKava?"light":"dark"}}
           }}>
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
               {activeSec && (
-                <div style={{fontSize:16,fontWeight:700,color:TEXT,display:"flex",alignItems:"center",gap:8}}>
-                  <span>{activeSec.icon}</span>
-                  <span>{activeSec.title}</span>
+                <div style={{fontSize:16,fontWeight:700,color:TEXT,display:"flex",alignItems:"center",gap:8,minWidth:0,flex:"0 1 auto"}}>
+                  <span style={{flexShrink:0}}>{activeSec.icon}</span>
+                  <span style={{minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{activeSec.title}</span>
                 </div>
               )}
-              <LangSwitch style={{ minHeight: 36, padding: "4px 8px", fontSize: 12, marginLeft: "auto", marginRight: 8 }} />
+              <LangSwitch style={{ minHeight: 36, padding: "4px 8px", fontSize: 12, marginLeft: "auto", marginRight: 8, maxWidth: 84, minWidth: 0, flexShrink: 1, textOverflow: "ellipsis" }} />
               <button onClick={()=>setShowHint(v=>!v)} style={{
                 width:36,height:36,borderRadius:12,border:"none",cursor:"pointer",flexShrink:0,
                 background:showHint?`${GOLD}33`:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,
