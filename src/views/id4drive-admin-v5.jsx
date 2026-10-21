@@ -106,7 +106,7 @@ body, html, #root { margin:0; padding:0; }
 .slot-pending-ring {
   animation: pulse-ring 2s infinite;
 }
-/* Розклад у стилі «Неонове сяйво» (налаштування calStyle; «classic» — попередній 3D-вигляд) */
+/* Розклад у стилі «Неонове сяйво» (завжди увімкнено) */
 .cal-neon .cal-slot-wrap { border-radius: 12px !important; } /* підкладка BG_DEEP лишається непрозорою, щоб плашка суми дня не просвічувала крізь картку */
 .cal-neon .slot-base { border-radius: 12px; }
 .cal-neon .slot-colored {
@@ -1151,7 +1151,7 @@ function VirtualCols({ vRangeRef, subRef, colW, nDays, renderCol }) {
 function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bookings, setBookings, activeDragIds, navTo, slotExistsRef, openSlotsRef, jumpTarget, setJumpTarget, onViewStudent }) {
   const { BG, BG_DEEP, SURFACE, SURF_HI, SURF_LO, BORDER, TEXT, DIM, FAINT, ACCENT, ACC_HI, BLUE, GREEN, RED, SO, SI, STRIPE_A, STRIPE_B, GLOW, SHADE, INK } = useContext(ThemeContext);
   const isLight = BG !== "#1c1d21";
-  const neonCal = settings.calStyle !== "classic"; // «Неонове сяйво»; classic — попередній об'ємний вигляд карток
+  const neonCal = true; // «Неонове сяйво» завжди увімкнено
   const { glow, shade, ink } = useFX();
   const GRID_H      = isLight ? "rgba(0,0,0,0.09)"        : "rgba(255,255,255,0.07)";
   const GRID_HH     = isLight ? "rgba(0,0,0,0.04)"        : "rgba(255,255,255,0.025)";
@@ -3146,7 +3146,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
             }
           }}
           onContextMenu={e=>e.preventDefault()}
-          className={`schedule-scroll${settings.calStyle === "classic" ? "" : " cal-neon"}`}
+          className="schedule-scroll cal-neon"
           style={{flex:1, overflowX:"auto", overflowY:"auto", touchAction:"pan-x pan-y", WebkitOverflowScrolling:"touch", userSelect:"none", WebkitUserSelect:"none", scrollbarWidth:"none", willChange:"scroll-position"}}
         >
           <div ref={gridWrapRef} style={{display:"flex", paddingTop:2}}>

@@ -1363,10 +1363,10 @@ const pendingDeletesRef = React.useRef(new Set());
       {!fogOn && !theme.BG_IMAGE && (
         <div style={{
           position:"fixed", inset:0, zIndex:0, pointerEvents:"none",
-          background: settings.calBg === "classic" ? undefined : theme.BG === "#1c1d21" ? FOG_STYLE.wrap : undefined, // фон розкладу «Туман» (лише темна тема); classic — попередній
+          background: theme.BG === "#1c1d21" ? FOG_STYLE.wrap : undefined, // фон розкладу «Туман» (лише темна тема)
         }}/>
       )}
-      {!fogOn && !theme.BG_IMAGE && (settings.calBg === "classic" || theme.BG !== "#1c1d21") && (
+      {!fogOn && !theme.BG_IMAGE && theme.BG !== "#1c1d21" && (
         <div style={{
           position:"fixed", inset:0, zIndex:0, pointerEvents:"none",
           background:
