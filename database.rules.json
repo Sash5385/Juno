@@ -59,7 +59,9 @@
         "admin_settings": {
           ".read": true,
           // Тип акаунта: «Один майстер» (solo) або «Салон» (salon) — один акаунт із кількома майстрами всередині
-          "accountType": { ".validate": "newData.val() === 'solo' || newData.val() === 'salon'" }
+          "accountType": { ".validate": "newData.val() === 'solo' || newData.val() === 'salon'" },
+          // Мова майстра (uk|en|pl|de|es|fr) — сервер надсилає йому сповіщення цією мовою. Пише власник (правило $iid)
+          "lang": { ".validate": "newData.val() === null || (newData.isString() && newData.val().matches(/^(uk|en|pl|de|es|fr)$/))" }
         },
         // Склад робочого простору (салон): { uid: { role: 'owner' | 'master', name, color, joinedAt } }.
         // Власник (uid === iid) — завжди роль owner; майстри — лише master. Читає власник і сам склад; пише лише власник.
@@ -81,6 +83,8 @@
         "staff": {
           ".read": "auth != null && (auth.uid === $iid || data.child(auth.uid).exists())",
           "$mid": {
+            // Мова майстра салону (uk|en|pl|de|es|fr) для сповіщень; пише лише сам майстер, коли його рядок у складі вже є
+            "lang": { ".write": "auth != null && auth.uid === $mid && $mid !== $iid && root.child('instructors/'+$iid+'/staff/'+$mid+'/role').val() === 'master'", ".validate": "newData.val() === null || (newData.isString() && newData.val().matches(/^(uk|en|pl|de|es|fr)$/))" },
             // Майстер сам вписує СЕБЕ за чинним запрошенням (inviteToken) лише з роллю master і може лише вийти (видалити свій рядок).
             ".write": "auth != null && auth.uid === $mid && $mid !== $iid && (!newData.exists() || (!data.exists() && newData.child('role').val() === 'master' && newData.child('inviteToken').isString() && root.child('workspace_invites/'+newData.child('inviteToken').val()+'/iid').val() === $iid && root.child('workspace_invites/'+newData.child('inviteToken').val()+'/expiresAt').val() > now))",
             ".validate": "newData.hasChildren(['role','name']) && newData.child('name').isString() && newData.child('name').val().length >= 1 && newData.child('name').val().length <= 60 && (($mid === $iid && newData.child('role').val() === 'owner') || ($mid !== $iid && newData.child('role').val() === 'master')) && (!newData.child('color').exists() || (newData.child('color').isString() && newData.child('color').val().matches(/^#[0-9a-fA-F]{6}$/)))"
@@ -215,6 +219,8 @@
             "profile":       { ".write": "auth != null && auth.uid === $uid",
                              "photo": { ".validate": "newData.val() === null || (newData.isString() && newData.val().length < 30000 && newData.val().beginsWith('data:image/'))" } },
             "welcomeSent":   { ".write": "auth != null && auth.uid === $uid" },
+            // Мова клієнта (uk|en|pl|de|es|fr): сервер надсилає йому push і автоповідомлення цією мовою
+            "lang":          { ".write": "auth != null && auth.uid === $uid", ".validate": "newData.val() === null || (newData.isString() && newData.val().matches(/^(uk|en|pl|de|es|fr)$/))" },
             "queueOffers":   { ".write": "auth != null && auth.uid === $uid" },
             "fcmTokens":     { ".write": "auth != null && auth.uid === $uid" },
             "internalExam":  { ".write": "auth != null && auth.uid === $uid" },
