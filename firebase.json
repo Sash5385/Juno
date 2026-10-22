@@ -106,11 +106,6 @@
       ],
       "redirects": [
         {
-          "source": "/",
-          "destination": "/juno",
-          "type": 302
-        },
-        {
           "source": "/juno/",
           "destination": "/juno",
           "type": 301
