@@ -1,6 +1,9 @@
 importScripts('https://www.gstatic.com/firebasejs/12.13.0/firebase-app-compat.js')
 importScripts('https://www.gstatic.com/firebasejs/12.13.0/firebase-messaging-compat.js')
 
+const BASE = new URL('./', self.location).pathname
+const ROOT = self.location.origin + BASE
+
 self.addEventListener('install', () => self.skipWaiting())
 self.addEventListener('activate', () => self.clients.claim())
 
@@ -27,8 +30,8 @@ messaging.onBackgroundMessage((payload) => {
     body: payload.data?.body || '',
     // favicon.svg — це фіолетова блискавка: Android малював її значком праворуч у сповіщенні.
     // Велика іконка — логотип Juno; маленький монохромний значок у шторці/рядку стану — «DP».
-    icon: '/icon-192.png',
-    badge: '/badge-dp.png',
+    icon: BASE + 'icon-192.png',
+    badge: BASE + 'badge-dp.png',
     // Без унікального tag кожне наступне сповіщення з тим самим tag (напр.
     // друге повідомлення в чаті поспіль) тихо ЗАМІНЮЄ попереднє на деяких
     // Android/Chrome без нового звуку/вібрації — виглядає, ніби пуш не прийшов.
@@ -43,12 +46,12 @@ messaging.onBackgroundMessage((payload) => {
 self.addEventListener('notificationclick', (e) => {
   e.notification.close()
   const data = e.notification.data || {}
-  const target = data.url || self.location.origin
-  const fullUrl = target.startsWith('http') ? target : (self.location.origin + target)
+  const target = data.url || ROOT
+  const fullUrl = target.startsWith('http') ? target : (ROOT + target.replace(/^\/+/, ''))
   e.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
       for (const c of list) {
-        if (c.url.startsWith(self.location.origin) && 'focus' in c) {
+        if (c.url.startsWith(ROOT) && 'focus' in c) {
           c.focus()
           return c.navigate(fullUrl)
         }

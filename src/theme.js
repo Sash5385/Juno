@@ -25,7 +25,7 @@ export const DARK = {
   STRIPE_A: "#1a1b1f", STRIPE_B: "#222428",
 };
 
-export const COFFEE_BG = "url('/coffee-bg.png?v=19.06.14')";
+export const COFFEE_BG = `url('${import.meta.env.BASE_URL}coffee-bg.png?v=19.06.14')`;
 
 export const LIGHT = {
   BG: "#efe2cf", BG_DEEP: "#e3d0b4",

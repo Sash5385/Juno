@@ -39,7 +39,10 @@ const firebaseConfig = {
 // ніколи не зберігався ("no tokens"), пуші не приходили. Без vapidKey SDK бере ключ за
 // замовчуванням, який працює для будь-якого проєкту.
 
-const app = initializeApp(firebaseConfig);
+// Під-шлях (/junoadmin/): іменований застосунок → власна auth-персистенція, окрема від /junoclient/.
+// На '/' лишається default-застосунок, щоб наявні сесії не злетіли.
+const BASE = import.meta.env.BASE_URL;
+const app = BASE === '/' ? initializeApp(firebaseConfig) : initializeApp(firebaseConfig, 'juno-admin');
 export const auth = getAuth(app);
 export const db = getDatabase(app);
 if (DEMO) goOffline(db); // демо: жодних з'єднань зі справжньою базою
@@ -81,18 +84,18 @@ export async function registerAdminFCM() {
       // Firebase push SW must live on its OWN scope so it never replaces the
       // PWA app SW at "/" (that conflict broke the "update available" flow).
       // "/firebase-cloud-messaging-push-scope" is FCM's default scope.
-      const FCM_SCOPE = '/firebase-cloud-messaging-push-scope'
+      const FCM_SCOPE = BASE + 'firebase-cloud-messaging-push-scope'
       const regs = await navigator.serviceWorker.getRegistrations()
-      const isFbSw = r => (r.active?.scriptURL || r.installing?.scriptURL || r.waiting?.scriptURL || '').includes('firebase-messaging-sw')
+      const isFbSw = r => (r.active?.scriptURL || r.installing?.scriptURL || r.waiting?.scriptURL || '').includes(BASE + 'firebase-messaging-sw')
       // Migration: remove any legacy firebase SW registered at the root scope.
       for (const r of regs) {
-        if (isFbSw(r) && new URL(r.scope).pathname === '/') {
+        if (isFbSw(r) && new URL(r.scope).pathname === BASE) {
           await r.unregister().catch(() => {})
         }
       }
       const fresh = await navigator.serviceWorker.getRegistrations()
       swReg = fresh.find(isFbSw)
-        || await navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: FCM_SCOPE })
+        || await navigator.serviceWorker.register(BASE + 'firebase-messaging-sw.js', { scope: FCM_SCOPE })
       // Wait for the SW to become active before FCM tries to subscribe
       if (swReg && !swReg.active) {
         await new Promise(resolve => {

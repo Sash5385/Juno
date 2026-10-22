@@ -93,10 +93,10 @@ export function LoginScreen() {
   // (логін тут, або одразу кабінет, якщо сесія вже активна).
   const IOS_UA_RE = /iphone|ipad|ipod/i;
   const ios = IOS_UA_RE.test(window.navigator.userAgent);
-  const [bannerDismissed, setBannerDismissed] = useState(() => localStorage.getItem('pwa_install_offered') === '1');
+  const [bannerDismissed, setBannerDismissed] = useState(() => localStorage.getItem((import.meta.env.BASE_URL === '/' ? 'pwa_install_offered' : 'pwa_install_offered_admin')) === '1');
   const bannerEligible = !installed && !bannerDismissed && (installPrompt || ios);
   useEffect(() => {
-    if (bannerEligible) localStorage.setItem('pwa_install_offered', '1');
+    if (bannerEligible) localStorage.setItem((import.meta.env.BASE_URL === '/' ? 'pwa_install_offered' : 'pwa_install_offered_admin'), '1');
   }, [bannerEligible]);
 
   const login = async () => {
@@ -162,7 +162,7 @@ export function LoginScreen() {
       <div className="lg-bg" aria-hidden="true"><i/><i/><i/></div>
       <div className="lg-card">
         <div className="lg-head">
-          <img className="lg-logo" src="/icon-192.png" alt="Juno"/>
+          <img className="lg-logo" src={import.meta.env.BASE_URL + "icon-192.png"} alt="Juno"/>
           <div className="lg-title">Juno</div>
           <div className="lg-sub">{registering ? "Реєстрація майстра · 14 днів безкоштовно" : "Вхід для майстра"}</div>
         </div>
@@ -336,7 +336,7 @@ export function InstructorSetupScreen({ onDone }) {
       <div style={{ background:`linear-gradient(135deg,${SURF_HI},${SURFACE})`, borderRadius:20, padding:"32px 28px", width:"100%", maxWidth:400, boxShadow:SO, border:`1px solid ${BORDER}` }}>
         <button onClick={() => signOut(auth).catch(() => {})} disabled={saving} style={{ background:"none", border:"none", color:DIM, fontSize:13, fontWeight:700, cursor:"pointer", padding:"0 0 12px", fontFamily:"inherit" }}>← Назад</button>
         <div style={{ textAlign:"center", marginBottom:28 }}>
-          <img src="/icon-192.png" alt="Juno" style={{width:64,height:64,borderRadius:"50%",marginBottom:10,boxShadow:"-3px 5px 14px rgba(0,0,0,0.45)"}}/>
+          <img src={import.meta.env.BASE_URL + "icon-192.png"} alt="Juno" style={{width:64,height:64,borderRadius:"50%",marginBottom:10,boxShadow:"-3px 5px 14px rgba(0,0,0,0.45)"}}/>
           <div style={{ fontSize:20, fontWeight:800, color:TEXT }}>Налаштування профілю</div>
           <div style={{ fontSize:13, color:DIM, marginTop:6 }}>Заповніть інформацію про себе — клієнти побачать її при записі</div>
         </div>

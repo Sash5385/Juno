@@ -100,11 +100,11 @@ function useInstallPrompt() {
 function InstallBanner({ theme }) {
   const { deferredPrompt, installed } = useInstallPrompt();
   const ios = IOS_UA_RE.test(window.navigator.userAgent);
-  const [dismissed, setDismissed] = useState(() => localStorage.getItem('pwa_install_offered') === '1');
+  const [dismissed, setDismissed] = useState(() => localStorage.getItem((import.meta.env.BASE_URL === '/' ? 'pwa_install_offered' : 'pwa_install_offered_admin')) === '1');
   const eligible = !installed && !dismissed && (deferredPrompt || ios);
 
   useEffect(() => {
-    if (eligible) localStorage.setItem('pwa_install_offered', '1');
+    if (eligible) localStorage.setItem((import.meta.env.BASE_URL === '/' ? 'pwa_install_offered' : 'pwa_install_offered_admin'), '1');
   }, [eligible]);
 
   if (!eligible) return null;
@@ -471,7 +471,7 @@ function TopBar({ tab, onChange, settings, setSettings }) {
           </>
         ) : (
           <div style={{display:"flex",alignItems:"center",gap:6,flex:1}}>
-            <img src="/icon-192.png" alt="Juno" style={{width:22,height:22,borderRadius:"50%",flexShrink:0,boxShadow:"-2px 3px 8px rgba(0,0,0,0.45)"}}/>
+            <img src={import.meta.env.BASE_URL + "icon-192.png"} alt="Juno" style={{width:22,height:22,borderRadius:"50%",flexShrink:0,boxShadow:"-2px 3px 8px rgba(0,0,0,0.45)"}}/>
             <div style={{fontSize:13,fontWeight:800,letterSpacing:-0.3,color:theme.TEXT,flex:1}}>{tabLabel}</div>
             {tab==="settings" && (
               <div onClick={forceUpdate} style={{fontSize:11,fontWeight:700,color:btnInactiveColor,cursor:"pointer",flexShrink:0}}>{APP_VERSION}</div>
@@ -756,7 +756,7 @@ function AdminApp({ adminUser, ws, onWs }) {
     };
     const check = async () => {
       try {
-        const res = await fetch('/version.json?t=' + Date.now(), { cache: 'no-store' });
+        const res = await fetch(import.meta.env.BASE_URL + 'version.json?t=' + Date.now(), { cache: 'no-store' });
         const { version } = await res.json();
         if (version && version !== APP_VERSION) {
           const flag = 'vreset_' + version;
@@ -817,8 +817,8 @@ function AdminApp({ adminUser, ws, onWs }) {
         navigator.serviceWorker.ready.then(reg => {
           reg.showNotification(title, {
             body,
-            icon: "/icon-192.png",
-            badge: "/badge-dp.png",
+            icon: import.meta.env.BASE_URL + "icon-192.png",
+            badge: import.meta.env.BASE_URL + "badge-dp.png",
             tag: "admin-" + Date.now(),
             requireInteraction: true,
             vibrate: isAlarm ? [400, 200, 400, 200, 400, 200, 400] : undefined,

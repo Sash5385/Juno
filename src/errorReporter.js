@@ -27,7 +27,7 @@ export function reportError(error, extra = "") {
     if (seen.has(key)) return;
     seen.add(key);
     sent += 1;
-    fetch("/api/report-error", {
+    fetch(import.meta.env.BASE_URL + "api/report-error", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       keepalive: true,

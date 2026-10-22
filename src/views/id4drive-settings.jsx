@@ -1849,7 +1849,7 @@ select{color-scheme:${isKava?"light":"dark"}}
                 <div style={{display:"flex",gap:8}}>
                   <button disabled={deleting || delText.trim().toUpperCase()!=="ВИДАЛИТИ"} onClick={async()=>{
                     setDeleting(true);
-                    try { await deleteAccountRequest({ type:"instructor", iid:auth.currentUser.uid }); try{localStorage.clear();}catch{/* ignore */} await signOut(auth).catch(()=>{}); window.location.href="/"; }
+                    try { await deleteAccountRequest({ type:"instructor", iid:auth.currentUser.uid }); try{localStorage.clear();}catch{/* ignore */} await signOut(auth).catch(()=>{}); window.location.href=import.meta.env.BASE_URL; }
                     catch { setDeleting(false); alert("Не вдалося видалити акаунт. Спробуйте пізніше."); }
                   }} style={{flex:1,padding:"10px",borderRadius:10,border:"none",cursor:"pointer",background:(deleting||delText.trim().toUpperCase()!=="ВИДАЛИТИ")?"rgba(239,68,68,0.25)":"#ef4444",color:"#fff",fontWeight:800,fontSize:13}}>{deleting?"Видалення…":"Видалити"}</button>
                   <button disabled={deleting} onClick={()=>{setDelOpen(false);setDelText("");}} style={{padding:"10px 16px",borderRadius:10,border:"1px solid rgba(255,255,255,0.18)",background:"transparent",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer"}}>Скасувати</button>
