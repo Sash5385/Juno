@@ -95,9 +95,25 @@
       ],
       "rewrites": [
         {
+          "source": "/juno",
+          "destination": "/index-new.html"
+        },
+        {
           "source": "/api/contact",
           "function": "submitContact",
           "region": "europe-west1"
+        }
+      ],
+      "redirects": [
+        {
+          "source": "/",
+          "destination": "/juno",
+          "type": 302
+        },
+        {
+          "source": "/juno/",
+          "destination": "/juno",
+          "type": 301
         }
       ]
     }
