@@ -1,7 +1,7 @@
 // Генератор ВИДУМАНИХ даних для демо-режиму (скріншоти, реклама). Усі імена, телефони й
 // записи вигадані. Дати рахуються від "сьогодні", тож розклад завжди виглядає "живим".
 // Структура повторює реальну базу instructors/{iid}/… (див. demoDb.js).
-import { DEMO_UID, demoTheme } from "./demoMode.js";
+import { DEMO_UID, demoTheme, demoPreset } from "./demoMode.js";
 
 const pad = (n) => String(n).padStart(2, "0");
 const ymd = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -62,6 +62,34 @@ const SERVICES = [
   { id: "sv6", name: "Груповий запис 1 год", type: "school", duration: 60, price: 300, colorId: "teal", active: true, description: "Група до 6 клієнтів", capacity: 6 },
 ];
 
+// Пресети сфер: ті самі id послуг (sv1–sv6) і тривалості, щоб генератор записів працював без змін;
+// міняються назви, ціни, профіль і напрям слів (direction).
+const svc = (id, name, price, description) => ({ id, name, price, description });
+const PRESETS = {
+  barber: { profile: { name: "Максим Бондар", address: "Київ, Поділ", experience: 9 }, direction: "beauty", services: [
+    svc("sv1", "Чоловіча стрижка", 450, "Стрижка машинкою й ножицями"), svc("sv2", "Стрижка + борода + камуфляж", 900, "Повний догляд"),
+    svc("sv3", "Стрижка бороди", 300, "Контур і моделювання"), svc("sv5", "Стрижка + борода", 650, "Комплекс"),
+    svc("sv4", "Королівське гоління + стрижка", 1100, "Гарячий рушник, догляд"), svc("sv6", "Дитяча стрижка", 300, "До 12 років") ] },
+  nails: { profile: { name: "Олена Квітка", address: "Львів, центр", experience: 6 }, direction: "beauty", services: [
+    svc("sv1", "Манікюр без покриття", 350, "Гігієнічний манікюр"), svc("sv2", "Нарощення нігтів", 1200, "Гель, будь-яка довжина"),
+    svc("sv3", "Манікюр + гель-лак", 650, "Покриття однотон"), svc("sv5", "Манікюр + педикюр", 950, "Комплекс"),
+    svc("sv4", "Педикюр з покриттям + дизайн", 1000, "Дизайн до 4 нігтів"), svc("sv6", "Зняття покриття", 150, "Без нового покриття") ] },
+  cosmo: { profile: { name: "Ірина Соловей", address: "Одеса, Аркадія", experience: 11 }, direction: "beauty", services: [
+    svc("sv1", "Консультація косметолога", 400, "Діагностика шкіри"), svc("sv2", "Комплексний догляд", 2200, "Чистка + пілінг + маска"),
+    svc("sv3", "Чистка обличчя", 900, "Ультразвук + механічна"), svc("sv5", "Пілінг + маска", 1300, "Підбір під тип шкіри"),
+    svc("sv4", "Біоревіталізація", 2800, "Препарат за погодженням"), svc("sv6", "Масаж обличчя", 600, "Класичний") ] },
+  tutor: { profile: { name: "Андрій Ткачук", address: "Онлайн · Zoom", experience: 8 }, direction: "education", services: [
+    svc("sv1", "Математика, 1 урок", 400, "5–9 клас"), svc("sv2", "Підготовка до НМТ, 2 уроки", 900, "Математика, НМТ"),
+    svc("sv3", "Англійська, 1 урок", 500, "Розмовна практика"), svc("sv5", "Англійська інтенсив 1,5 год", 700, "Граматика + говоріння"),
+    svc("sv4", "НМТ англійська, 2 уроки", 1000, "Тести й аудіювання"), svc("sv6", "Груповий урок", 200, "До 6 учнів") ] },
+  psy: { profile: { name: "Марія Левченко", address: "Київ, Печерськ · онлайн", experience: 10 }, direction: "consult", services: [
+    svc("sv1", "Консультація психолога", 900, "50 хвилин"), svc("sv2", "Подвійна сесія", 1700, "Для пар або глибокої роботи"),
+    svc("sv3", "Онлайн-консультація", 800, "Zoom / Meet"), svc("sv5", "Сімейна консультація", 1400, "1,5 години"),
+    svc("sv4", "Розширена сесія + план", 1900, "Діагностика й план терапії"), svc("sv6", "Група підтримки", 350, "До 6 учасників") ] },
+};
+const PRESET = PRESETS[demoPreset()] || null;
+if (PRESET) for (const o of PRESET.services) Object.assign(SERVICES.find((s) => s.id === o.id), o, { addons: undefined });
+
 const NOTES = ["Уточнити побажання", "Повторний візит", "Підготувати матеріали", "Додаткові деталі в чаті", "Другий етап роботи", "Коригування за результатом"];
 const STUDENT_NOTES = ["Чи можна на 10 хв пізніше?", "Буду з другом", "Хочу обговорити деталі на місці"];
 
@@ -95,6 +123,7 @@ export function buildDemoTree() {
       status: "confirmed", hours: 0,
       createdAt: Math.min(nowTs - seq * 60000, new Date(`${date}T00:00:00`).getTime() - 86400000 * (1 + (seq % 3)) + ((9 + (seq * 7) % 11) * 60 + (seq * 13) % 60) * 60000), createdBy: "admin",
       ...(st.vip ? { isVipOnly: true, categoryId: "cat-vip" } : {}),
+      ...(PRESET ? { cardLabel: SERVICES.find((x) => x.id === svc)?.name } : {}),
       ...extra,
     };
     if (b.status === "pending") delete b.createdBy; // запис створив сам клієнт
@@ -326,7 +355,7 @@ export function buildDemoTree() {
   // ── налаштування майстра ─────────────────────────────────
   const weekday = { enabled: true, start: 9, end: 19, lunchEnabled: true, lunchStart: 13, lunchEnd: 14 };
   const admin_settings = {
-    profile: { name: "Андрій Мельник", phone: "+380990000000", address: "Київ, Оболонь", experience: 12, photo: null, slug: "demo", city: "Київ" },
+    profile: { name: "Андрій Мельник", phone: "+380990000000", address: "Київ, Оболонь", experience: 12, photo: null, slug: "demo", city: "Київ", ...(PRESET?.profile || {}) },
     workStart: 8, workEnd: 20, weekends: [6], daysShown: 5, snapMin: 30, interval: 30, slotCreateStep: 30,
     hourHeightPx: 60, autoHourHeight: true,
     lunchEnabled: true, lunchStart: 13, lunchEnd: 14,
@@ -339,7 +368,7 @@ export function buildDemoTree() {
       { id: "f3", label: "Є особливі побажання чи обмеження", type: "yesno", required: false },
     ] },
     theme: demoTheme(), language: "uk",
-    direction: (() => { try { return new URLSearchParams(window.location.search).get("dir") || "universal"; } catch { return "universal"; } })(), // ?demo=1&dir=education|consult|beauty
+    direction: (() => { try { return new URLSearchParams(window.location.search).get("dir") || PRESET?.direction || "universal"; } catch { return "universal"; } })(), // ?demo=1&dir=education|consult|beauty
     queueAutoFifo: true, queueBroadcast: false, queueManual: false,
     studentCanReschedule: true, studentCanCancel: true, bookCutoffHours: 2, calendarOpenDays: 30, schoolCalendarOpenDays: 14, slotGenDays: 30,
     stickyTime: "both", showCompleteBtn: true, showSlotTimes: true, autoStudentColors: true,
