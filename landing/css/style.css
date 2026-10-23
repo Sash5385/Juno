@@ -170,3 +170,5 @@ footer{border-top:1px solid var(--border);padding:34px 0;color:var(--dim);font-s
 @media(min-width:861px){.gphone{position:sticky;top:84px}}
 @media(max-width:860px){.guide{grid-template-columns:1fr;gap:26px}.gphone{max-width:300px;margin:0 auto}}
 @media(prefers-reduced-motion:reduce){.gz,.gring,.gpath{transition:none}}
+
+.devby a{text-decoration:none;color:inherit}
