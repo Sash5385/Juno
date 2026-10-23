@@ -5,6 +5,9 @@
 
   // --- посилання реєстрації
   $$("[data-app]").forEach(function (a) { a.href = C.appUrl || "#"; });
+  // Демо за сферами: на aldemi.com.ua — кабінет під /junoadmin/, інакше — appUrl
+  var demoBase = /aldemi/.test(location.hostname) ? "/junoadmin/" : (C.appUrl || "").replace(/\/?$/, "/");
+  $$("[data-preset]").forEach(function (a) { a.href = demoBase + "?demo=1&preset=" + a.getAttribute("data-preset") + "&lang=" + (document.documentElement.lang || "uk"); });
 
   // --- контакти з config.js (порожні — ховаємо рядок)
   function show(sel, val, build) {

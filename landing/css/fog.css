@@ -213,3 +213,8 @@ footer{border-top:1px solid var(--line);margin-top:40px;padding-block:28px 34px;
 @media (max-width:860px){#lang{margin-left:8px}.nav .btn{margin-left:0}.nav-links+#lang{margin-left:auto}}
 .foot>div:last-child{display:flex;flex-wrap:wrap;gap:6px 18px}.foot a{margin-left:0!important}
 @media (max-width:420px){.nav{gap:8px}#lang{max-width:104px;font-size:13px;padding:8px 6px;margin-left:auto}.nav .btn-sm{padding:8px 10px;font-size:13px}.brand{font-size:18px}}
+
+/* Демо за сферами */
+.presets{margin-top:18px;padding:20px}
+.presets h3{margin:0 0 4px}
+.preset-btns{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
