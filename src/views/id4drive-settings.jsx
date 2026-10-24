@@ -632,9 +632,9 @@ select{color-scheme:${isKava?"light":"dark"}}
     queueManual:      m==="manual",
   }));
 
-  const reminders = settings.autoReminders || [
+  const reminders = settings.autoReminders?.length ? settings.autoReminders : [
     {enabled:true, hoursBefore:24},
-    {enabled:false,hoursBefore:2},
+    {enabled:true, hoursBefore:2},
     {enabled:false,hoursBefore:1},
   ];
   const updReminder = (idx, patch) => upd("autoReminders", reminders.map((r,i)=>i===idx?{...r,...patch}:r));
@@ -922,6 +922,11 @@ select{color-scheme:${isKava?"light":"dark"}}
           <Row label={t('set.schedule.days')}>
             <NumInput value={settings.daysShown} onChange={v=>upd("daysShown",v)} min={1} max={30} suffix={` ${t('days')}`}/>
           </Row>
+          {auth.currentUser?.email === "claudesash@gmail.com" && (
+            <Row compact color={svColor(!!settings.autoSlots)} label="Автовідкриття слотів (тест)" hint="Дні без слотів у межах горизонту заповнюються за тижневим шаблоном автоматично при вході в застосунок. Видалені вручну слоти не повертаються">
+              <Toggle color={svColor(!!settings.autoSlots)} on={!!settings.autoSlots} onChange={v=>upd("autoSlots",v)}/>
+            </Row>
+          )}
           <Row compact last color={svColor(settings.lockPastBookings)} label="Блокувати минулі записи" hint="Заборонити редагувати, переносити й скасовувати записи, що вже минули — вони підсвічуються тьмяніше">
             <Toggle color={svColor(settings.lockPastBookings)} on={!!settings.lockPastBookings} onChange={v=>upd("lockPastBookings",v)}/>
           </Row>
@@ -1133,10 +1138,10 @@ select{color-scheme:${isKava?"light":"dark"}}
               </div>
             ))}
           </div>
-          <Row color={svColor(!!settings.autoCancel?.enabled)} label={t('set.auto.cancel')}>
+          <Row color={svColor(!!settings.autoCancel?.enabled)} label={t('set.auto.cancel')} hint={lang!=="en"?"Учень отримує повідомлення, коли його запис скасовано. Текст — на вкладці «Шаблони»":"The student gets a message when their booking is cancelled. Edit the text on the «Templates» tab"}>
             <Toggle color={svColor(!!settings.autoCancel?.enabled)} on={!!settings.autoCancel?.enabled} onChange={v=>setSettings(s=>({...s,autoCancel:{...(s.autoCancel||{}),enabled:v}}))}/>
           </Row>
-          <Row color={svColor(!!settings.autoQueueOffer?.enabled)} label={t('set.auto.queue')}>
+          <Row color={svColor(!!settings.autoQueueOffer?.enabled)} label={t('set.auto.queue')} hint={lang!=="en"?"Коли місце звільняється, система сама пропонує його учням з черги. Вимкнено — запрошуєте вручну":"When a place frees up, the system offers it to students in the queue. Off — you invite manually"}>
             <Toggle color={svColor(!!settings.autoQueueOffer?.enabled)} on={!!settings.autoQueueOffer?.enabled} onChange={v=>setSettings(s=>({...s,autoQueueOffer:{...(s.autoQueueOffer||{}),enabled:v}}))}/>
           </Row>
           <Row color={svColor(settings.slotFreedPushEnabled !== false)} label={lang==="en"?"Notify on freed slot":"Сповіщення при звільненні слоту"} hint={lang==="en"?"Notify all students when a slot within the next 10 days becomes free":"Сповіщення усім учням, коли в найближчі 10 днів звільняється слот"} last>

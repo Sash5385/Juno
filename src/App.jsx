@@ -17,6 +17,7 @@ export const LangContext = createContext('uk');
 
 // ─── LAZY VIEWS
 const ScheduleView  = lazy(()=>import("./views/id4drive-admin-v5").then(m=>({default:m.ScheduleView})))
+const AutoSlots     = lazy(()=>import("./views/id4drive-admin-v5").then(m=>({default:m.AutoSlots})))
 const SettingsView  = lazy(()=>import("./views/id4drive-settings"))
 const BookingsView  = lazy(()=>import("./views/id4drive-bookings"))
 const StudentsView  = lazy(()=>import("./views/id4drive-students"))
@@ -466,6 +467,17 @@ function TopBar({ tab, onChange, settings, setSettings }) {
 
 const INITIAL_BOOKINGS = [];
 
+// Нагадування з бази. Старе типове значення (#2 «за 2 год» вимкнено), збережене без позначки
+// autoRemindersV, — не вибір інструктора: нагадування за 2 год сервер слав завжди, тож показуємо
+// його увімкненим (та сама логіка в functions/index.js → normalizeReminders). Порожньо — типові.
+const normalizeReminders = (d) => {
+  const list = Array.isArray(d?.autoReminders) ? d.autoReminders.filter(Boolean) : null;
+  if (!list || !list.length) return null;
+  const sig = list.map(r => `${r.hoursBefore}:${r.enabled ? 1 : 0}`).join(",");
+  if (!d.autoRemindersV && sig === "24:1,2:0,1:0") return list.map((r, i) => (i === 1 ? { ...r, enabled: true } : r));
+  return list;
+};
+
 const DEFAULT_SETTINGS = {
   profile: { name:"Олександр", phone:"+380989225442", address:"Київ", experience:8, photo:null },
   workStart:7, workEnd:20, weekends:[6], daysShown:6, snapMin:30, slotCreateStep:30, hourHeightPx:60, autoHourHeight:false,
@@ -476,7 +488,7 @@ const DEFAULT_SETTINGS = {
   navTabs:["schedule","journal","bookings","students","services","chats","templates","stats","settings"],
   autoReminders:[
     {enabled:true,  hoursBefore:24},
-    {enabled:false, hoursBefore:2},
+    {enabled:true,  hoursBefore:2},
     {enabled:false, hoursBefore:1},
   ],
   autoWelcome:{enabled:true}, autoConfirm:{enabled:true},
@@ -756,7 +768,7 @@ export default function App() {
               return arr;
             })())
           : s.navTabs,
-          autoReminders: Array.isArray(d.autoReminders) ? d.autoReminders : s.autoReminders,
+          autoReminders: normalizeReminders(d) || s.autoReminders,
           weekSchedule:  Array.isArray(d.weekSchedule)  ? d.weekSchedule  : s.weekSchedule,
           dateOverrides: Array.isArray(d.dateOverrides)  ? d.dateOverrides : s.dateOverrides,
         }));
@@ -807,10 +819,12 @@ export default function App() {
         notifLocation:   settings.notifLocation   ?? "topbar",
         navTabs:         settings.navTabs         ?? [],
         autoReminders:   settings.autoReminders   ?? [],
+        autoRemindersV:  2,
         autoWelcome:     settings.autoWelcome,
         autoConfirm:     settings.autoConfirm,
         autoCancel:      settings.autoCancel,
         autoQueueOffer:  settings.autoQueueOffer,
+        autoSlots:       settings.autoSlots       ?? false,
         language:        settings.language        ?? "uk",
         theme:           settings.theme           ?? "dark",
         customBlocks:    settings.customBlocks    ?? [],
@@ -1215,6 +1229,7 @@ const pendingDeletesRef = React.useRef(new Set());
           </div>
           <MosaicOverlay phase={mosaicPhase} tileColor={theme.BG_IMAGE ? "#d4ba96" : theme.BG} speed={0.5}/>
         </div>
+        {settingsLoaded && settings.autoSlots && adminUser && !vendor && <Suspense fallback={null}><AutoSlots settings={settings} bookings={bookings}/></Suspense>}
         <BottomNav active={tab} onChange={switchTab} settings={settings} chatUnread={chatUnread} journalUnread={journalUnread}/>
       </div>
       {needRefresh && (

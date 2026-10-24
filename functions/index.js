@@ -16,16 +16,20 @@ const OFFER_WINDOW_MS = 30 * 60 * 1000; // 30 хвилин
 // (Київ — UTC+2 взимку, UTC+3 влітку).
 function kyivLocalToMs(dateStr, timeStr) {
   const guessMs = new Date(`${dateStr}T${timeStr}:00Z`).getTime();
-  const parts = new Intl.DateTimeFormat("en-US", {
+  const fmt = new Intl.DateTimeFormat("en-US", {
     timeZone: "Europe/Kiev", hour12: false,
     year: "numeric", month: "2-digit", day: "2-digit",
     hour: "2-digit", minute: "2-digit", second: "2-digit",
-  }).formatToParts(guessMs).reduce((acc, p) => { acc[p.type] = p.value; return acc; }, {});
-  const asUtcIfKyivPartsWereUtc = Date.UTC(
-    parts.year, parts.month - 1, parts.day, parts.hour === "24" ? 0 : parts.hour, parts.minute, parts.second
-  );
-  const offsetMs = asUtcIfKyivPartsWereUtc - guessMs;
-  return guessMs - offsetMs;
+  });
+  // Зсув Києва відносно UTC у момент ms (може бути різним до і після переходу DST)
+  const offsetAt = (ms) => {
+    const parts = fmt.formatToParts(ms).reduce((acc, p) => { acc[p.type] = p.value; return acc; }, {});
+    return Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour === "24" ? 0 : parts.hour, parts.minute, parts.second) - ms;
+  };
+  // Два проходи: зсув на «вгаданому» моменті міг бути з іншого боку переходу DST (у ніч переходу
+  // уроки 01:00–04:00 лічились на годину зміщеними), тому уточнюємо зсув на вже скоригованому часі.
+  const firstMs = guessMs - offsetAt(guessMs);
+  return guessMs - offsetAt(firstMs);
 }
 
 // Хелпер: корінь дерева конкретного інструктора
@@ -101,6 +105,44 @@ async function inviteNextInQueue(iid, slotKey, excludeUids = [], freedDurationHo
   if (freedDurationHours) upd.offerDurationHours = freedDurationHours;
   await iRef(iid, `queue/${slotKey}/entries/${next.uid}`).update(upd);
   // onQueueInvite спрацює автоматично
+}
+
+// Режим черги з «Налаштування → Черга» (та сама логіка, що в адмінці) з урахуванням тумблера
+// «Сповіщення → Пропозиція з черги»: вимкнено — система нікому нічого не пропонує сама.
+//  fifo — пропозиція першому, без відповіді — наступному; broadcast — усім одразу;
+//  manual — лише інструктор кнопкою «Запросити» на вкладці «Черга».
+function queueModeOf(s = {}) {
+  if (s.autoQueueOffer && s.autoQueueOffer.enabled === false) return "manual";
+  if (s.queueAutoFifo === true) return "fifo";
+  if (s.queueBroadcast === true) return "broadcast";
+  if (s.queueManual === true) return "manual";
+  return "fifo";
+}
+async function getQueueMode(iid) {
+  const keys = ["queueAutoFifo", "queueBroadcast", "queueManual", "autoQueueOffer"];
+  const vals = await Promise.all(keys.map(k => iRef(iid, `admin_settings/${k}`).get().then(x => x.val()).catch(() => null)));
+  return queueModeOf(Object.fromEntries(keys.map((k, i) => [k, vals[i]])));
+}
+
+// Розсилка: пропозиція всім, хто чекає на цей час (onQueueInvite спрацює для кожного)
+async function offerAllInQueue(iid, slotKey, excludeUids = [], freedDurationHours = null) {
+  const entries = (await iRef(iid, `queue/${slotKey}/entries`).get()).val() || {};
+  const upd = {};
+  for (const [uid, e] of Object.entries(entries)) {
+    if (!e || e.status !== "waiting" || excludeUids.includes(uid)) continue;
+    upd[`${uid}/status`] = "offered";
+    upd[`${uid}/broadcast`] = true;
+    if (freedDurationHours) upd[`${uid}/offerDurationHours`] = freedDurationHours;
+  }
+  if (Object.keys(upd).length) await iRef(iid, `queue/${slotKey}/entries`).update(upd);
+}
+
+// Місце звільнилось — пропонуємо черзі за режимом інструктора
+async function autoOfferFromQueue(iid, slotKey, excludeUids = [], freedDurationHours = null) {
+  const mode = await getQueueMode(iid);
+  if (mode === "manual") return;
+  if (mode === "broadcast") return offerAllInQueue(iid, slotKey, excludeUids, freedDurationHours);
+  return inviteNextInQueue(iid, slotKey, excludeUids, freedDurationHours);
 }
 
 // Місце зайняв новий запис — пропозиції цього часу іншим учням більше не дійсні: вони знову
@@ -197,6 +239,10 @@ async function pushAdmin(iid, title, body, data = {}) {
 // ─── Шаблони повідомлень (admin_data/templates) ───────────────────
 // Хелпер: підставити {ім'я}/{дата}/{час}/... у текст шаблону
 function renderTemplateBody(body, vars = {}) {
+  // англійські аліаси змінних: {name}={ім'я}, {date}={дата} тощо
+  vars = { ...vars };
+  const alias = { name: "ім'я", date: "дата", time: "час", service: "послуга", price: "ціна", instructor: "інструктор" };
+  for (const [en, uk] of Object.entries(alias)) if (vars[en] == null) vars[en] = vars[uk];
   return (body || "").replace(/\{[^}]+\}/g, (m) => {
     const key = m.slice(1, -1);
     return vars[key] != null && vars[key] !== "" ? String(vars[key]) : m;
@@ -217,6 +263,35 @@ function matchesReminderBucket(tpl, targetHours) {
   return targetHours === 24 ? hours >= 12 : hours > 0 && hours < 12;
 }
 
+// Шаблон для нагадування за H год: точний збіг reminderHours, а якщо такого немає — «кошик»
+// (≥12 год — шаблон «за 24 год», коротші — «за 2 год»), як було раніше.
+function matchesReminderHours(tpl, H, allTpls = []) {
+  const exact = allTpls.some(t => Number(t.reminderHours) === H);
+  return exact ? Number(tpl.reminderHours) === H : matchesReminderBucket(tpl, H >= 12 ? 24 : 2);
+}
+
+// Нагадування з «Налаштування → Сповіщення» → список увімкнених годин без повторів.
+// Немає налаштувань — як завжди: за 24 і за 2 год. Старе типове значення адмінки
+// (#2 «за 2 год» вимкнено) збережене без позначки autoRemindersV — це не вибір інструктора:
+// сервер завжди слав і 2-годинне, тож лишаємо його увімкненим (так само показує адмінка).
+const OLD_DEFAULT_REMINDERS = "24:1,2:0,1:0";
+function normalizeReminders(s = {}) {
+  const list = Array.isArray(s.autoReminders) ? s.autoReminders.filter(Boolean) : null;
+  if (!list || !list.length) return [{ enabled: true, hoursBefore: 24 }, { enabled: true, hoursBefore: 2 }];
+  const sig = list.map(r => `${r.hoursBefore}:${r.enabled ? 1 : 0}`).join(",");
+  if (!s.autoRemindersV && sig === OLD_DEFAULT_REMINDERS) return list.map((r, i) => (i === 1 ? { ...r, enabled: true } : r));
+  return list;
+}
+function reminderHoursOf(s = {}) {
+  const hrs = normalizeReminders(s).filter(r => r.enabled).map(r => Math.round(Number(r.hoursBefore))).filter(h => h >= 1 && h <= 168);
+  return [...new Set(hrs)];
+}
+function hoursUk(n) {
+  const a = n % 10, b = n % 100;
+  const w = a === 1 && b !== 11 ? "годину" : a >= 2 && a <= 4 && (b < 12 || b > 14) ? "години" : "годин";
+  return `${n} ${w}`;
+}
+
 // Хелпер: надіслати учню ВСІ активні шаблони заданого тригера — чат-
 // повідомлення (як ручна відправка з вкладки "Шаблони") + push. Повертає
 // true лише якщо хоч одне повідомлення РЕАЛЬНО дійшло (чат-запис або push) —
@@ -225,7 +300,7 @@ function matchesReminderBucket(tpl, targetHours) {
 // повернути true при провалі обох каналів, прапорець "відправлено"
 // назавжди заблокував би повторні спроби (той самий клас багу, що вже
 // фіксився для 24г/2г нагадувань).
-async function sendActiveTemplates(iid, uid, triggerId, vars = {}, filterFn = null) {
+async function sendActiveTemplates(iid, uid, triggerId, vars = {}, filterFn = null, opts = {}) {
   const snap = await iRef(iid, "admin_data/templates").get();
   const list = snap.val();
   if (!Array.isArray(list)) return false;
@@ -236,7 +311,11 @@ async function sendActiveTemplates(iid, uid, triggerId, vars = {}, filterFn = nu
   const fullVars = { ...vars, "інструктор": await getInstructorName(iid) };
   let delivered = false;
   for (const tpl of matches) {
-    const text = renderTemplateBody(tpl.body, fullVars);
+    let text = renderTemplateBody(tpl.body, fullVars);
+    // Нагадування за нестандартні години: шаблон «за 24/2 год» може казати «завтра»/«сьогодні», а це може бути
+    // неправдою — прибираємо ці слова; заголовок показує справжній час до уроку.
+    if (opts.stripDayWords) text = text.replace(/\s*(?<![\p{L}])(завтра|сьогодні)(?![\p{L}])/giu, "").replace(/ {2,}/g, " ");
+    const title = opts.title || tpl.title || "Повідомлення";
     const time = new Date().toLocaleTimeString("uk", { timeZone: "Europe/Kyiv", hour: "2-digit", minute: "2-digit" });
     const ts = Date.now();
     // channel:"push" — шаблон налаштований як лише сповіщення, без запису в чат.
@@ -250,8 +329,8 @@ async function sendActiveTemplates(iid, uid, triggerId, vars = {}, filterFn = nu
         }).catch(() => {});
       }
     }
-    const pushed = await pushStudent(iid, uid, tpl.title || "Повідомлення", text, {}).catch(() => false);
-    if (pushed) await saveNotification(iid, uid, tpl.title || "Повідомлення", text, "template").catch(() => {});
+    const pushed = await pushStudent(iid, uid, title, text, {}).catch(() => false);
+    if (pushed) await saveNotification(iid, uid, title, text, "template").catch(() => {});
     if (chatSent || pushed) delivered = true;
   }
   return delivered;
@@ -434,7 +513,7 @@ exports.onBookingChanged = onValueWritten(
       await pushAdmin(iid, "❌ Урок скасовано", `${name} · ${date} о ${time}`, { url: adminLink() });
       if (date !== "—" && time !== "—") {
         const freedDurationHours = before.durationHours || (before.durMin ? before.durMin / 60 : 1);
-        await inviteNextInQueue(iid, `${date}_${time}`, [], freedDurationHours).catch(() => {});
+        await autoOfferFromQueue(iid, `${date}_${time}`, [], freedDurationHours).catch(() => {});
       }
       return;
     }
@@ -466,9 +545,11 @@ exports.onBookingChanged = onValueWritten(
       console.log(`onBookingChanged: admin cancelled iid=${iid} uid=${uid}`);
       const slotUpd = await buildSlotUpdates(iid, before, true, uid);
       if (Object.keys(slotUpd).length) await iRef(iid).update(slotUpd).catch(() => {});
+      // «Налаштування → Сповіщення → Повідомлення про скасування»: вимкнено — учню нічого не шлемо
+      const cancelMsgOn = (await iRef(iid, "admin_settings/autoCancel/enabled").get().catch(() => null))?.val() !== false;
       const cancelVars = { "ім'я": name, "дата": date, "час": time };
-      const usedCancelTpl = await sendActiveTemplates(iid, uid, "auto_cancel", cancelVars).catch(() => false);
-      if (!usedCancelTpl) {
+      const usedCancelTpl = cancelMsgOn && await sendActiveTemplates(iid, uid, "auto_cancel", cancelVars).catch(() => false);
+      if (cancelMsgOn && !usedCancelTpl) {
         await pushStudent(iid, uid, "❌ Урок скасовано", `${date} о ${time}`, {
           url: "https://juno-client.web.app/cabinet/bookings",
         });
@@ -476,7 +557,7 @@ exports.onBookingChanged = onValueWritten(
       }
       if (date !== "—" && time !== "—") {
         const freedDurationHours = before.durationHours || (before.durMin ? before.durMin / 60 : 1);
-        await inviteNextInQueue(iid, `${date}_${time}`, [], freedDurationHours).catch(() => {});
+        await autoOfferFromQueue(iid, `${date}_${time}`, [], freedDurationHours).catch(() => {});
       }
       return;
     }
@@ -703,8 +784,10 @@ exports.onQueueInvite = onValueUpdated(
     }).catch(() => {});
 
     const url = `https://juno-client.web.app/cabinet?date=${date}&time=${encodeURIComponent(time)}`;
-    const pushTitle = "🎉 Слот зарезервовано для вас!";
-    const pushBody = `${date} о ${time} — у вас 30 хвилин щоб записатись`;
+    const pushTitle = after.broadcast ? "⏳ Звільнилось місце!" : "🎉 Слот зарезервовано для вас!";
+    const pushBody = after.broadcast
+      ? `${date} о ${time} — хто перший підтвердить, той записаний`
+      : `${date} о ${time} — у вас 30 хвилин щоб записатись`;
     await pushStudent(iid, uid, pushTitle, pushBody, { url, date, time, slotKey });
     await saveNotification(iid, uid, pushTitle, pushBody, "queue_offer");
   }
@@ -721,6 +804,8 @@ exports.cascadeQueueInvites = onSchedule({ schedule: "every 10 minutes", region:
   for (const [iid, inst] of Object.entries(instructors)) {
 
     if (isLicenseReadonly(inst?.license)) continue;
+    // «Наступному, якщо перший не відповів» — лише в режимі «Автоматично»
+    if (queueModeOf(inst?.admin_settings || {}) !== "fifo") continue;
     const data = inst?.timeslots || {};
 
     for (const [date, dateSlots] of Object.entries(data)) {
@@ -775,17 +860,8 @@ exports.onAdminSlotOpened = onValueWritten(
     }
 
     const slotKey = `${date}_${time}`;
-    const qSnap = await iRef(iid, `queue/${slotKey}/entries`).get();
-    if (!qSnap.exists()) return;
-
-    const entries = Object.entries(qSnap.val())
-      .map(([uid, e]) => ({ uid, ...e }))
-      .filter(e => e.status === "waiting")
-      .sort((a, b) => (a.addedAt || 0) - (b.addedAt || 0));
-
-    if (!entries.length) return;
-    // Ставимо першого як "offered" → onQueueInvite відправить push і зарезервує слот
-    await iRef(iid, `queue/${slotKey}/entries/${entries[0].uid}`).update({ status: "offered" });
+    // За режимом черги: першому (onQueueInvite відправить push і зарезервує слот), усім або нікому
+    await autoOfferFromQueue(iid, slotKey);
   }
 );
 
@@ -1073,6 +1149,10 @@ exports.sendLessonReminders = onSchedule(
 
       const sentData = inst?.sentReminders || {};
       const updates = {};
+      const reminderHoursList = reminderHoursOf(inst?.admin_settings || {});
+      if (!reminderHoursList.length) continue;
+      const allReminderTpls = (Array.isArray(inst?.admin_data?.templates) ? inst.admin_data.templates : [])
+        .filter(t => t && t.trigger === "auto_reminder" && t.active && (t.body || "").trim());
 
       for (const uid of allUids) {
         const bookingsObj = { ...(inst?.bookings?.[uid] || {}) };
@@ -1104,39 +1184,28 @@ exports.sendLessonReminders = onSchedule(
 
           const reminderVars = { "ім'я": b.studentName || "Учень", "дата": dateFmt, "час": b.time };
 
-          // 24г нагадування (вікно 23–24г, не в тихі години)
-          if (!sent.r24 && !(kyivHour >= 23 || kyivHour < 6)
-              && diffMs >= 23 * 3600000 && diffMs <= 24 * 3600000) {
-            // Позначаємо "відправлено" лише якщо push реально дійшов — інакше
-            // (немає токена/помилка) прапорець назавжди блокував би повторні
-            // спроби на наступних годинних запусках.
-            const usedTpl24 = await sendActiveTemplates(iid, uid, "auto_reminder", reminderVars, t => matchesReminderBucket(t, 24)).catch(() => false);
-            if (usedTpl24) {
-              updates[`sentReminders/${uid}/${bookingId}/r24`] = true;
-            } else {
-              const pushed = await pushStudent(iid, uid, "🚗 Нагадування про урок", `Завтра о ${b.time} — ${dateFmt}`, {
-                url: "https://juno-client.web.app/cabinet/bookings",
-              }).catch(() => false);
-              if (pushed) {
-                await saveNotification(iid, uid, "🚗 Нагадування про урок", `Завтра о ${b.time} — ${dateFmt}`, "reminder");
-                updates[`sentReminders/${uid}/${bookingId}/r24`] = true;
-              }
+          // Нагадування з «Налаштування → Сповіщення» (#1–#3: увімкнено + за скільки годин).
+          // Вікно: щойно до уроку лишилось ≤H год (і не раніше ніж H−1 год для H≥12 — тоді ж і
+          // тихі години 23–06 за Києвом; для коротших — 15 хв, запуск кожні 5 хв).
+          for (const H of reminderHoursList) {
+            const key = `r${H}`;
+            if (sent[key]) continue;
+            const winMs = H >= 12 ? 3600000 : 15 * 60000;
+            if (diffMs > H * 3600000 || diffMs < H * 3600000 - winMs) continue;
+            if (H >= 12 && (kyivHour >= 23 || kyivHour < 6)) continue;
+            // Позначаємо "відправлено" лише якщо повідомлення реально дійшло — інакше
+            // (немає токена/помилка) прапорець назавжди блокував би повторні спроби.
+            const usedTpl = await sendActiveTemplates(iid, uid, "auto_reminder", reminderVars, t => matchesReminderHours(t, H, allReminderTpls), H === 24 || H === 2 ? {} : { title: `Нагадування за ${H} год`, stripDayWords: true }).catch(() => false);
+            if (usedTpl) {
+              updates[`sentReminders/${uid}/${bookingId}/${key}`] = true;
+              continue;
             }
-          }
-
-          // 2г нагадування (вікно 1г45хв–2г, завжди)
-          if (!sent.r2 && diffMs >= 105 * 60000 && diffMs <= 120 * 60000) {
-            const usedTpl2 = await sendActiveTemplates(iid, uid, "auto_reminder", reminderVars, t => matchesReminderBucket(t, 2)).catch(() => false);
-            if (usedTpl2) {
-              updates[`sentReminders/${uid}/${bookingId}/r2`] = true;
-            } else {
-              const pushed = await pushStudent(iid, uid, "⏰ Урок через 2 години", `о ${b.time} — ${dateFmt}`, {
-                url: "https://juno-client.web.app/cabinet/bookings",
-              }).catch(() => false);
-              if (pushed) {
-                await saveNotification(iid, uid, "⏰ Урок через 2 години", `о ${b.time} — ${dateFmt}`, "reminder");
-                updates[`sentReminders/${uid}/${bookingId}/r2`] = true;
-              }
+            const title = H >= 12 ? "🚗 Нагадування про урок" : `⏰ Урок через ${hoursUk(H)}`;
+            const body = H >= 12 ? `${H === 24 ? "Завтра" : dateFmt} о ${b.time}${H === 24 ? ` — ${dateFmt}` : ""}` : `о ${b.time} — ${dateFmt}`;
+            const pushed = await pushStudent(iid, uid, title, body, { url: "https://juno-client.web.app/cabinet/bookings" }).catch(() => false);
+            if (pushed) {
+              await saveNotification(iid, uid, title, body, "reminder");
+              updates[`sentReminders/${uid}/${bookingId}/${key}`] = true;
             }
           }
         }
