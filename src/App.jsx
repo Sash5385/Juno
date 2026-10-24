@@ -1,5 +1,5 @@
 import React, { useState, useEffect, lazy, Suspense, createContext, useContext } from "react";
-import { onValue, update, push, remove, get } from "firebase/database";
+import { onValue, update, push, remove, get, set } from "firebase/database";
 import { iRef, setCurrentIid, registerAdminFCM, onAdminForegroundMessage } from "./firebase";
 import { useAdminAuth, LoginScreen, InstructorSetupScreen, isVendor, SuperAdminScreen } from "./AdminAuth";
 import { useAppUpdate } from "./hooks/useAppUpdate"
@@ -10,6 +10,7 @@ import { setGlobalLang, createT } from "./lang";
 import { ThemeContext, getTheme } from "./theme.js";
 import { useMosaicSwitch, MosaicOverlay } from "./mosaic";
 import { APP_VERSION } from "./version.js";
+import { migratePolite } from "./templateDefaults.js";
 import { readUiScale, uiScaleZoom, UI_SCALE_EVENT } from "./uiScale.js";
 import ReportProblem from "./ReportProblem";
 
@@ -567,6 +568,16 @@ export default function App() {
       const p = snap.val();
       setProfileReady(!!(p && p.name));
     }).catch(() => setProfileReady(false));
+  }, [adminUser, vendor]);
+  // Стандартні шаблони повідомлень учням: старі тексти на «ти» → «ви» (відредаговані не чіпаємо)
+  useEffect(() => {
+    if (!adminUser?.uid || vendor) return;
+    get(iRef("admin_data/templates")).then(snap => {
+      const d = snap.val();
+      if (!Array.isArray(d)) return;
+      const r = migratePolite(d);
+      if (r.changed) set(iRef("admin_data/templates"), r.list).catch(() => {});
+    }).catch(() => {});
   }, [adminUser, vendor]);
   // Deep-link з push-сповіщення (?date=&time=&uid=&bookingId=) — одразу відкриваємо розклад на потрібній даті
   const [jumpTarget, setJumpTarget] = useState(() => {

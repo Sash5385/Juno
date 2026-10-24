@@ -3,6 +3,7 @@ import { get, set, push, update, increment } from "firebase/database";
 import { iRef } from "../firebase";
 import { LangContext } from "../App";
 import { createT } from "../lang";
+import { defaultBody, migratePolite } from "../templateDefaults.js";
 
 import { ThemeContext, GOLD, GREEN, RED, TEAL, BLUE, PURPLE, BG_DEEP } from "../theme.js";
 import { UICss, Modal, Chip, Btn, Toggle, Pill, useFX } from "../ui";
@@ -54,21 +55,21 @@ const VARS = ["{ім'я}","{дата}","{час}","{послуга}","{ціна}
 
 const INIT_TEMPLATES = [
   { id:"t1", catId:"reminder", title:"Нагадування за 24 год", channel:"chat", trigger:"auto_reminder", reminderHours:24, active:true,
-    body:"Привіт, {ім'я}! 🔔 Нагадуємо про урок завтра {дата} о {час}. Чекаємо на тебе! Якщо потрібно перенести — напиши нам." },
+    body:defaultBody("t1") },
   { id:"t2", catId:"reminder", title:"Нагадування за 2 год",  channel:"chat", trigger:"auto_reminder", reminderHours:2, active:true,
-    body:"ID4Drive: урок сьогодні о {час}. Адреса: Верховинна 44. Інструктор: {інструктор}" },
+    body:defaultBody("t2") },
   { id:"t3", catId:"confirm",  title:"Підтвердження запису",  channel:"chat", trigger:"auto_confirm",  active:true,
-    body:"✅ {ім'я}, твій урок підтверджено!\n📅 {дата} о {час}\n🚗 {послуга} — {ціна} ₴\nЧекаємо!" },
+    body:defaultBody("t3") },
   { id:"t4", catId:"cancel",   title:"Скасування запису",     channel:"chat", trigger:"auto_cancel",   active:true,
-    body:"❌ {ім'я}, на жаль урок {дата} о {час} скасовано. Якщо хочеш записатись на інший час — напиши нам або відкрий додаток." },
+    body:defaultBody("t4") },
   { id:"t5", catId:"welcome",  title:"Вітання нового учня",   channel:"chat", trigger:"auto_welcome",  active:true,
-    body:"👋 Привіт, {ім'я}! Раді бачити тебе в ID4Drive!\nЯ — {інструктор}, твій інструктор.\nЗаписуйся на перший урок і побачимось на дорозі! 🚗" },
+    body:defaultBody("t5") },
   { id:"t6", catId:"queue",    title:"Пропозиція вільного слоту", channel:"chat", trigger:"auto_queue", active:true,
-    body:"⏳ {ім'я}, з'явився вільний урок {дата} о {час}! Підтвердити запис → відкрий додаток." },
+    body:defaultBody("t6") },
   { id:"t7", catId:"custom",   title:"Прохання про відгук",   channel:"chat", trigger:"manual",        active:true,
-    body:"Привіт, {ім'я}! Як пройшов урок {дата}? Буду вдячний за відгук 🙏" },
+    body:defaultBody("t7") },
   { id:"t8", catId:"custom",   title:"Особливі умови",        channel:"chat", trigger:"manual",        active:false,
-    body:"Привіт! Для тебе діє спеціальна пропозиція: {послуга} за {ціна} ₴. Діє тільки цього тижня!" },
+    body:defaultBody("t8") },
 ];
 
 // Hardcoded list removed — students are loaded from Firebase in SendModal
@@ -423,7 +424,7 @@ export default function TemplatesView() {
   useEffect(() => {
     get(iRef( 'admin_data/templates')).then(snap => {
       const d = snap.val();
-      if (Array.isArray(d)) setTemplates(d);
+      if (Array.isArray(d)) setTemplates(migratePolite(d).list);
       setLoaded(true);
     }).catch(() => setLoaded(true));
   }, []);
