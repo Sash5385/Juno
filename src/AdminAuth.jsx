@@ -163,7 +163,7 @@ export function LoginScreen() {
         <div className="lg-head">
           <img className="lg-logo" src="/icon-192.png" alt="DrivePad"/>
           <div className="lg-title">DrivePad</div>
-          <div className="lg-sub">{registering ? "Реєстрація інструктора · 14 днів безкоштовно" : "Вхід для інструктора"}</div>
+          <div className="lg-sub">{registering ? "Реєстрація інструктора · 30 днів безкоштовно" : "Вхід для інструктора"}</div>
         </div>
         <div className="lg-body">
           <div className="lg-field">
@@ -245,7 +245,7 @@ export function LoginScreen() {
 
 const INP = { width:"100%", background:BG_DEEP, border:`1px solid ${BORDER}`, borderRadius:10, padding:"10px 14px", color:TEXT, fontSize:14, outline:"none", boxSizing:"border-box" };
 const LBL = { fontSize:12, color:DIM, marginBottom:6 };
-const TRIAL_DAYS = 14;
+const TRIAL_DAYS = 30;
 // Адреси, що збігаються з розділами/службовими шляхами застосунку
 const RESERVED_SLUGS = ["admin","api","i","book","www","drivepad","login","auth","cabinet","schedule","home","about","settings","support","help","test","demo"];
 

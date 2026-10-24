@@ -161,12 +161,19 @@
           ".read": "auth != null && (auth.uid === $iid || auth.token.email === 'sash5385@gmail.com')",
           ".write": "auth != null && auth.token.email === 'sash5385@gmail.com'",
           "status": {
+            ".read": "auth != null",
             ".validate": "auth.token.email === 'sash5385@gmail.com' || (!data.exists() && newData.val() === 'trial')"
           },
           "trialEndsAt": {
-            ".validate": "auth.token.email === 'sash5385@gmail.com' || (!data.exists() && newData.isNumber() && newData.val() <= now + 1296000000)"
+            ".read": "auth != null",
+            ".validate": "auth.token.email === 'sash5385@gmail.com' || (!data.exists() && newData.isNumber() && newData.val() <= now + 2678400000)"
           },
           "expiresAt": {
+            ".read": "auth != null",
+            ".validate": "auth.token.email === 'sash5385@gmail.com'"
+          },
+          "free": {
+            ".read": "auth != null",
             ".validate": "auth.token.email === 'sash5385@gmail.com'"
           },
           "provider": {

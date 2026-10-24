@@ -1134,7 +1134,7 @@ const LICENSE_GRACE_MS = 24 * 3600 * 1000;
 const LICENSE_WARN_MS  = 3 * 24 * 3600 * 1000;
 
 function licenseUntilTs(l) {
-  return l ? (l.status === "trial" ? l.trialEndsAt : l.expiresAt) : null;
+  return l && !l.free ? (l.status === "trial" ? l.trialEndsAt : l.expiresAt) : null;
 }
 // true — призупинено вручну/системою АБО термін + пільгова доба минули.
 // Немає вузла license — фіча вимкнена для цього інструктора (false).
