@@ -939,6 +939,15 @@ select{color-scheme:${isKava?"light":"dark"}}
               </div>
             </RowBlock>
           </div>
+          <div style={{marginTop:4}}>
+            <RowBlock color={BLUE} label="Вигляд записей" hint="Лише картки записей у розкладі">
+              <div style={{display:"flex",gap:6}}>
+                {[["classic","Класика"],["fog","Туман"],["neon","Неонове сяйво"]].map(([id,name])=>(
+                  <Chip equal key={id} label={name} active={(settings.calStyle??"classic")===id} onClick={()=>upd("calStyle",id)}/>
+                ))}
+              </div>
+            </RowBlock>
+          </div>
           <WeekScheduleEditor weekSchedule={weekSchedule} updDay={updDay} setWeek={v=>upd("weekSchedule",v)}/>
         </div>
       );

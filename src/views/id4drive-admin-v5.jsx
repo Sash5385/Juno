@@ -110,6 +110,21 @@ body, html, #root { margin:0; padding:0; }
 .slot-pending-ring {
   animation: pulse-ring 2s infinite;
 }
+/* Вигляд записей у розкладі (налаштування calStyle): «Туман» і «Неонове сяйво»; «classic» — 3D-«подушки» вище */
+.cal-fog .slot-colored {
+  background: color-mix(in srgb, var(--c) 36%, transparent);
+  border: 1px solid color-mix(in srgb, var(--c) 60%, transparent);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  box-shadow: 0 4px 14px rgba(0,0,0,0.22), inset 1px 1px 0 rgba(255,255,255,0.12);
+}
+.cal-neon .slot-base { border-radius: 12px; }
+.cal-neon .slot-colored {
+  background: color-mix(in srgb, var(--c) 22%, transparent);
+  border: 1px solid var(--c);
+  box-shadow: 0 0 9px color-mix(in srgb, var(--c) 45%, transparent), inset 0 0 8px color-mix(in srgb, var(--c) 14%, transparent);
+}
+.cal-fog .slot-colored::before, .cal-fog .slot-colored::after,
+.cal-neon .slot-colored::before, .cal-neon .slot-colored::after { display: none; }
 @keyframes pulse-ring {
   0%,100% { box-shadow: 4px 4px 9px rgba(${SHADE},0.5), -3px -3px 8px rgba(${GLOW},0.28), 0 0 0 0 rgba(255,90,60,0.6); }
   50%     { box-shadow: 4px 4px 9px rgba(${SHADE},0.5), -3px -3px 8px rgba(${GLOW},0.28), 0 0 0 6px rgba(255,90,60,0); }
@@ -1260,6 +1275,8 @@ export function AutoSlots({ settings, bookings }) {
 function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bookings, setBookings, activeDragIds, navTo, slotExistsRef, openSlotsRef, jumpTarget, setJumpTarget, onViewStudent }) {
   const { BG, BG_DEEP, SURFACE, SURF_HI, SURF_LO, BORDER, TEXT, DIM, FAINT, ACCENT, ACC_HI, BLUE, GREEN, RED, SO, SI, STRIPE_A, STRIPE_B, GLOW, SHADE, INK } = useContext(ThemeContext);
   const isLight = BG !== "#1c1d21";
+  const calStyle = settings.calStyle ?? "classic"; // «classic» | «fog» | «neon»
+  const glassCal = calStyle !== "classic" && !isLight; // світлий текст на напівпрозорих картках (лише темна тема)
   const { glow, shade, ink } = useFX();
   const GRID_H      = isLight ? "rgba(0,0,0,0.09)"        : "rgba(255,255,255,0.07)";
   const GRID_HH     = isLight ? "rgba(0,0,0,0.04)"        : "rgba(255,255,255,0.025)";
@@ -3105,7 +3122,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
             }
           }}
           onContextMenu={e=>e.preventDefault()}
-          className="schedule-scroll"
+          className={`schedule-scroll${calStyle==="fog"?" cal-fog":calStyle==="neon"?" cal-neon":""}`}
           style={{flex:1, overflowX:"auto", overflowY:"auto", touchAction:"pan-x pan-y", WebkitOverflowScrolling:"touch", userSelect:"none", WebkitUserSelect:"none", scrollbarWidth:"none", willChange:"scroll-position"}}
         >
           <div ref={gridWrapRef} style={{display:"flex", paddingTop:2}}>
@@ -3869,7 +3886,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                       {!isBlock && !isVipSlot && !isPersonal && height >= 12 && (() => {
                         const [fName, ...lParts] = b.name.split(' ');
                         const lName = lParts.join(' ');
-                        const si = a => `rgba(${INK === "255,255,255" ? "0,0,0" : INK},${a})`;
+                        const si = a => `rgba(${glassCal ? "255,255,255" : INK === "255,255,255" ? "0,0,0" : INK},${a})`;
                         const priceColor = b.surcharge ? GOLD : si(0.9);
                         const priceText = price > 0 ? `${price}₴` : null;
                         const typeLabel = b.type==="school" ? "Автошкола" : "Приватний";
@@ -3932,9 +3949,9 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                         <div style={{
                           position:"absolute", top:timeTop, right:3, zIndex:4,
                           fontSize:_timeFs,
-                          fontWeight:800, lineHeight:1, color:"rgba(0,0,0,0.8)",
+                          fontWeight:800, lineHeight:1, color: glassCal ? "rgba(255,255,255,0.9)" : "rgba(0,0,0,0.8)",
                           pointerEvents:"none",
-                          textShadow:"0 0 3px rgba(255,255,255,0.9), 0 0 1px rgba(255,255,255,0.9)",
+                          textShadow: glassCal ? "none" : "0 0 3px rgba(255,255,255,0.9), 0 0 1px rgba(255,255,255,0.9)",
                         }}>{b.time || fmtTime(b.startMin)}</div>
                       )}
                       {/* VIP crown badge for regular bookings marked as VIP — ліворуч зверху,
