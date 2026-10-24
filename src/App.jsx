@@ -10,6 +10,7 @@ import { setGlobalLang, createT } from "./lang";
 import { ThemeContext, getTheme } from "./theme.js";
 import { useMosaicSwitch, MosaicOverlay } from "./mosaic";
 import { APP_VERSION } from "./version.js";
+import { readUiScale, uiScaleZoom, UI_SCALE_EVENT } from "./uiScale.js";
 import ReportProblem from "./ReportProblem";
 
 export const LangContext = createContext('uk');
@@ -576,6 +577,12 @@ export default function App() {
     if (jumpTarget || studentJump) window.history.replaceState(null, "", window.location.pathname);
   }, []);
   const [tabVisits,  setTabVisits]= useState({});
+  const [uiScale, setUiScaleState] = useState(readUiScale);
+  useEffect(() => {
+    const on = (e) => setUiScaleState(e.detail || readUiScale());
+    window.addEventListener(UI_SCALE_EVENT, on);
+    return () => window.removeEventListener(UI_SCALE_EVENT, on);
+  }, []);
   const [openInfos,  setOpenInfos]= useState({});
   const [settings,   setSettings] = useState(DEFAULT_SETTINGS);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
@@ -1201,9 +1208,11 @@ const pendingDeletesRef = React.useRef(new Set());
           flexDirection:"column",
           background: theme.BG_IMAGE ? "#d4ba96" : "transparent",
         }}>
+          <div style={displayedTab==="schedule" ? {display:"contents"} : {zoom: uiScaleZoom(uiScale)}}>
           <Suspense fallback={<Loader/>}>
             <ViewRenderer tab={displayedTab} settings={settings} setSettings={setSettings} bookings={bookings} setBookings={handleSetBookings} onSlotClick={setSelectedBooking} onEmptySlotClick={setNewBookingData} openInfos={openInfos} toggleInfo={toggleInfo} activeDragIds={activeDragIds} navTo={switchTab} slotExistsRef={slotExistsRef} openSlotsRef={openSlotsRef} jumpTarget={jumpTarget} setJumpTarget={setJumpTarget} onViewStudent={onViewStudent} studentJump={studentJump} onStudentJumpHandled={()=>setStudentJump(null)}/>
           </Suspense>
+          </div>
           <MosaicOverlay phase={mosaicPhase} tileColor={theme.BG_IMAGE ? "#d4ba96" : theme.BG} speed={0.5}/>
         </div>
         <BottomNav active={tab} onChange={switchTab} settings={settings} chatUnread={chatUnread} journalUnread={journalUnread}/>

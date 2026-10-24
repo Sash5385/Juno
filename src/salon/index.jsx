@@ -3,6 +3,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { DEMO, demoTheme } from "../demo/demoMode.js";
 import { ThemeContext, getTheme } from "../theme.js";
 import { UICss } from "../ui.jsx";
+import { readUiScale, uiScaleZoom, UI_SCALE_EVENT } from "../uiScale.js";
 import { SalonCtx } from "./ctx.js";
 import { sref, useValue, useAuthUser, resolveSession, ensureGrid, toList } from "./data.js";
 import { registerPush, onForegroundPush, pushPermission } from "./push.js";
@@ -35,6 +36,13 @@ export default function SalonApp() {
   const setThemeMode = useCallback((m) => { setMode(m); try { localStorage.setItem("salon_theme", m); } catch { /* ignore */ } }, []);
   const user = useAuthUser();
   const [invite] = useState(inviteFromUrl);
+  // Масштаб інтерфейсу (Налаштування → Розмір інтерфейсу), крім розкладу
+  const [uiScale, setUiScale] = useState(readUiScale);
+  useEffect(() => {
+    const on = (e) => setUiScale(e.detail || readUiScale());
+    window.addEventListener(UI_SCALE_EVENT, on);
+    return () => window.removeEventListener(UI_SCALE_EVENT, on);
+  }, []);
   const [sess, setSess] = useState({ uid: null, value: null });
   const [reload, setReload] = useState(0);
   const session = user && sess.uid === user.uid ? sess.value : null;
@@ -129,7 +137,7 @@ function Shell({ user, session, setThemeMode, mode }) {
           {perm === "default" && <button onClick={ctx.enablePush} style={{ border: "none", borderRadius: 10, padding: "7px 10px", background: th.SURF_HI, color: th.TEXT, fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>🔔 Сповіщення</button>}
         </div>
         {banner && <div style={{ margin: "0 14px 8px", padding: "8px 12px", borderRadius: 10, background: `color-mix(in srgb, ${banner.c} 18%, transparent)`, color: banner.c, fontSize: 12, fontWeight: 700 }}>{banner.t}</div>}
-        <div className="tab-anim" key={tab} style={{ padding: "4px 14px 0" }}>{ctx.ready ? <View /> : <Spinner />}</div>
+        <div className="tab-anim" key={tab} style={tab === "schedule" ? { padding: "4px 14px 0" } : { padding: "4px 14px 0", zoom: uiScaleZoom(uiScale) }}>{ctx.ready ? <View /> : <Spinner />}</div>
       </div>
       {toastEl}
       <nav id="salon-nav" style={{ position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 100, background: `linear-gradient(180deg,${th.SURF_HI},${th.SURFACE})`, borderTop: `1px solid ${th.BORDER}`, display: "flex", overflowX: "auto", padding: "6px 4px calc(8px + env(safe-area-inset-bottom,0px))" }}>

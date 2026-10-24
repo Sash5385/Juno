@@ -11,6 +11,7 @@ import { callFn, errText } from "../api.js";
 import { CLIENT_URL } from "../env.js";
 import { APP_VERSION } from "../../version.js";
 import { Select, Input, Row, Hint, useTh, slugify, dateLabel } from "../kit.jsx";
+import { UI_SCALES, readUiScale, setUiScale } from "../../uiScale.js";
 import { normWorkHours, DEFAULT_CANCEL_FREE_HOURS } from "../../salonLogic.js";
 
 const TZ = ["Europe/Kyiv", "Europe/Warsaw", "Europe/Berlin", "Europe/London", "Europe/Chisinau", "Asia/Tbilisi"];
@@ -19,6 +20,7 @@ const DAYS = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Нд"];
 
 export default function Settings() {
   const ctx = useSalon();
+  const [uiScale, setUiScaleLocal] = useState(readUiScale);
   const th = useTh();
   const owner = ctx.role === "owner";
   const lic = ctx.license;
@@ -46,6 +48,11 @@ export default function Settings() {
       </Section>
       <Section title="Вигляд" icon="🎨">
         <Row gap={8}><Chip active={ctx.mode === "dark"} color={th.ACCENT} onClick={() => ctx.setThemeMode("dark")}>Темна</Chip><Chip active={ctx.mode === "light"} color={th.ACCENT} onClick={() => ctx.setThemeMode("light")}>Світла (кава)</Chip></Row>
+        <div style={{ fontSize: 13, fontWeight: 700, margin: "12px 0 2px" }}>Розмір інтерфейсу</div>
+        <Hint>Усі розділи, крім розкладу</Hint>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 6 }}>
+          {UI_SCALES.map((sc) => <Chip key={sc.id} active={uiScale === sc.id} color={th.ACCENT} onClick={() => { setUiScale(sc.id); setUiScaleLocal(sc.id); }}>{sc.name}</Chip>)}
+        </div>
       </Section>
       <Section title="Акаунт" icon="👤">
         <div style={{ fontSize: 13, marginBottom: 4 }}>{ctx.user.email}</div>

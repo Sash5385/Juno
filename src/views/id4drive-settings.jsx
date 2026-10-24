@@ -8,6 +8,7 @@ import { deleteAccountRequest } from "../deleteAccountApi";
 import { iRef, iStorageRef, iGalleryStorageRef, auth } from "../firebase";
 import { LangContext } from "../App";
 import { ThemeContext } from "../theme.js";
+import { UI_SCALES, readUiScale, setUiScale } from "../uiScale.js";
 import { UICss, useFX } from "../ui";
 import { createT } from "../lang";
 import { useLicense, licenseState } from "../hooks/useLicense";
@@ -166,11 +167,30 @@ function ProfileCard({ color, icon, title, children }) {
   );
 }
 
-function Chip({ label, active, onClick }) {
+function RowBlock({ label, hint, children, last, color }) {
+  const { BG_DEEP, ACCENT } = useContext(ThemeContext);
+  const c = color || ACCENT;
+  return (
+    <div style={{
+      padding:"9px 12px", borderRadius:11,
+      background:`linear-gradient(135deg,color-mix(in srgb,${c} 42%,${BG_DEEP}) 0%,${BG_DEEP} 100%)`,
+      border:`1px solid color-mix(in srgb,${c} 55%,transparent)`,
+      backgroundClip:"padding-box",
+      marginBottom: last ? 0 : 6,
+    }}>
+      <div style={{fontSize:13,fontWeight:700,color:"#fff",marginBottom:hint?2:8}}>{label}</div>
+      {hint && <div style={{fontSize:10,color:"rgba(255,255,255,0.6)",marginBottom:8,lineHeight:1.35}}>{hint}</div>}
+      {children}
+    </div>
+  );
+}
+
+function Chip({ label, active, onClick, equal }) {
+  const eq = equal ? {flex:"1 1 0",minWidth:0} : null;
   const { ACC_HI, ACCENT, SURF_HI, SURFACE, DIM, SO } = useContext(ThemeContext);
   return (
     <button onClick={onClick} style={{
-      padding:"6px 12px",borderRadius:9,border:"none",cursor:"pointer",fontSize:11,fontWeight:700,
+      ...eq,padding:"6px 12px",borderRadius:9,border:"none",cursor:"pointer",fontSize:11,fontWeight:700,
       background:active?`linear-gradient(145deg,${ACC_HI},${ACCENT})`:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,
       color:active?"#fff":DIM,boxShadow:active?"none":SO,
     }}>{label}</button>
@@ -571,6 +591,7 @@ function PhotoViewer({ photos, index, onClose }) {
 
 // ─── MAIN ────────────────────────────────────────────────────────
 export default function SettingsView({ settings, setSettings }) {
+  const [uiScale, setUiScaleLocal] = useState(readUiScale);
   const { BG_DEEP, SURF_HI, SURFACE, SURF_LO, BORDER, TEXT, DIM, FAINT, ACCENT, ACC_HI, GREEN, BLUE, PURPLE, GOLD, RED, TEAL, SO, SI } = useContext(ThemeContext);
   const lang = useContext(LangContext);
   const t = createT(lang);
@@ -904,6 +925,15 @@ select{color-scheme:${isKava?"light":"dark"}}
           <Row compact last color={svColor(settings.lockPastBookings)} label="Блокувати минулі записи" hint="Заборонити редагувати, переносити й скасовувати записи, що вже минули — вони підсвічуються тьмяніше">
             <Toggle color={svColor(settings.lockPastBookings)} on={!!settings.lockPastBookings} onChange={v=>upd("lockPastBookings",v)}/>
           </Row>
+          <div style={{marginTop:4}}>
+            <RowBlock color={BLUE} label="Розмір інтерфейсу" hint="Усі розділи, крім розкладу">
+              <div style={{display:"flex",gap:6}}>
+                {UI_SCALES.map(sc=>(
+                  <Chip equal key={sc.id} label={sc.name} active={uiScale===sc.id} onClick={()=>{setUiScale(sc.id);setUiScaleLocal(sc.id);}}/>
+                ))}
+              </div>
+            </RowBlock>
+          </div>
           <WeekScheduleEditor weekSchedule={weekSchedule} updDay={updDay} setWeek={v=>upd("weekSchedule",v)}/>
         </div>
       );
