@@ -9,6 +9,7 @@ module.exports = {
   ...require("./registry"),   // salonOnProfileCreated, salonOnClientRegistered, salonCheckLicenseExpiry
   ...require("./masters"),    // salonCreateMasterInvite, salonClaimMasterInvite
   ...require("./payments"),   // salonSavePaymentSettings, salonCreateBookingInvoice, salonMonobankCallback, salonExpireUnpaidBookings
+  ...require("./superadmin"), // superadminSummary (зведення для aldemi.com.ua/superadmin)
 };
 
 // Експортуємо лише обгортки функцій (а не внутрішні хелпери модулів) — Firebase бере з exports усе
