@@ -21,14 +21,14 @@ export const getCurrentSalonId = () => _salonId;
 export const sRef = (path) => ref(db, salonPath(_salonId, path));
 
 const firebaseConfig = {
-  apiKey: "AIzaSyAJFqq9jMrc2RgkceappeGt9EJ2bM2xKBI",
-  authDomain: "drivepad-86fe1.firebaseapp.com",
-  databaseURL: "https://drivepad-86fe1-default-rtdb.europe-west1.firebasedatabase.app",
-  projectId: "drivepad-86fe1",
-  storageBucket: "drivepad-86fe1.firebasestorage.app",
-  messagingSenderId: "221725287898",
-  appId: "1:221725287898:web:59ee63287a825801104ce3",
-  measurementId: "G-Y1ZTLEDMVK"
+  apiKey: "TODO_JUNO_API_KEY",
+  authDomain: "juno-booking.firebaseapp.com",
+  databaseURL: "https://juno-booking-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "juno-booking",
+  storageBucket: "juno-booking.firebasestorage.app",
+  messagingSenderId: "TODO_JUNO_SENDER_ID",
+  appId: "TODO_JUNO_APP_ID",
+  measurementId: "TODO_JUNO_MEASUREMENT_ID"
 };
 
 // VAPID-ключ навмисно НЕ задаємо: раніше тут стояв ключ проєкту ID4 (id4drive-booking-44182),
