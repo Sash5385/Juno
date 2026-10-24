@@ -1002,7 +1002,7 @@ export function SuperAdminScreen() {
               <div key={m.id}>{panel(m.status === "done" ? "#5a5c62" : "#2dd4bf", <>
                 <div style={{ display:"flex", justifyContent:"space-between", gap:8, alignItems:"flex-start" }}>
                   <div style={{ minWidth:0 }}>
-                    <div style={{ fontSize:14, fontWeight:800, color:TEXT }}>{m.name}</div>
+                    <div style={{ fontSize:14, fontWeight:800, color:TEXT }}>{m.name}{m.source && <span style={{ marginLeft:8, fontSize:10, fontWeight:800, color:"#fbbf24", background:"rgba(251,191,36,0.14)", borderRadius:6, padding:"2px 7px" }}>🛠 {m.source === "app-client" ? "застосунок учня" : "адмінка"}{m.version ? ` · ${m.version}` : ""}</span>}</div>
                     <div style={{ fontSize:12, color:"rgba(255,255,255,0.6)", marginTop:2 }}>
                       <a href={`mailto:${m.email}`} style={{ color:"#2dd4bf" }}>{m.email}</a>{m.phone ? ` · ${m.phone}` : ""} · {new Date(m.at).toLocaleString("uk")}
                     </div>

@@ -10,6 +10,7 @@ import { setGlobalLang, createT } from "./lang";
 import { ThemeContext, getTheme } from "./theme.js";
 import { useMosaicSwitch, MosaicOverlay } from "./mosaic";
 import { APP_VERSION } from "./version.js";
+import ReportProblem from "./ReportProblem";
 
 export const LangContext = createContext('uk');
 
@@ -792,6 +793,7 @@ export default function App() {
         studentCanReschedule: settings.studentCanReschedule ?? true,
         studentCanCancel:     settings.studentCanCancel     ?? true,
         bookCutoffHours:      settings.bookCutoffHours      ?? 2,
+        cancelCutoffHours:    settings.cancelCutoffHours    ?? settings.bookCutoffHours ?? 2,
         calendarOpenDays:     settings.calendarOpenDays     ?? 30,
         schoolCalendarOpenDays: settings.schoolCalendarOpenDays ?? 14,
         stickyTime:      settings.stickyTime      ?? "both",
@@ -1189,6 +1191,7 @@ const pendingDeletesRef = React.useRef(new Set());
       }}>
         <TopBar tab={tab} onChange={switchTab} settings={settings} setSettings={setSettings}/>
         <LicenseBanner state={licState}/>
+        <ReportProblem/>
         <div className="tab-anim" key={`${displayedTab}-${tabVisits[displayedTab]||0}`} style={{
           position:"relative",
           flex:1, minHeight:0,

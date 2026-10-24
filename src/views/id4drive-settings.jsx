@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { get, update, onValue, off } from "firebase/database";
 import { uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import { signOut } from "firebase/auth";
+import { openReportProblem } from "../ReportProblem";
 import { deleteAccountRequest } from "../deleteAccountApi";
 import { iRef, iStorageRef, iGalleryStorageRef, auth } from "../firebase";
 import { LangContext } from "../App";
@@ -962,6 +963,9 @@ select{color-scheme:${isKava?"light":"dark"}}
           <Row compact label={t('set.restr.cutoff')} hint={t('set.restr.cutoff_h')}>
             <NumInput compact value={settings.bookCutoffHours} onChange={v=>upd("bookCutoffHours",v)} min={0} max={48} suffix={` ${t('hr')}`}/>
           </Row>
+          <Row compact label={t('set.restr.cancelCutoff')} hint={t('set.restr.cancelCutoff_h')}>
+            <NumInput compact value={settings.cancelCutoffHours ?? settings.bookCutoffHours ?? 2} onChange={v=>upd("cancelCutoffHours",v)} min={0} max={168} suffix={` ${t('hr')}`}/>
+          </Row>
           <Row compact label={t('set.restr.slotGen')} hint={
             <>
               {t('set.restr.slotGen_h')}{" "}
@@ -1471,6 +1475,15 @@ select{color-scheme:${isKava?"light":"dark"}}
           </div>
         );
       })()}
+      {active === "profile" && (
+        <div style={{margin:"14px 14px 0"}}>
+          <button type="button" onClick={openReportProblem} style={{
+            display:"flex", alignItems:"center", gap:10, padding:"13px 14px", borderRadius:14, width:"100%", textAlign:"left", cursor:"pointer", fontFamily:"inherit", color:TEXT, fontSize:13, fontWeight:800,
+            background:`linear-gradient(135deg,color-mix(in srgb,${ACCENT} 34%,${BG_DEEP}) 0%,${BG_DEEP} 100%)`,
+            border:`1px solid color-mix(in srgb,${ACCENT} 35%,transparent)`,
+          }}><span style={{fontSize:18}}>🛠</span>Щось не працює? Написати розробнику<span style={{marginLeft:"auto",color:DIM}}>›</span></button>
+        </div>
+      )}
       {active === "profile" && (
         <div style={{margin:"10px 14px 0"}}>
           <button onClick={() => { if (window.confirm("Вийти з акаунта?")) signOut(auth).catch(() => {}); }} style={{

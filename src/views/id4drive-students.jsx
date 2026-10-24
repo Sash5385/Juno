@@ -8,6 +8,7 @@ import { ThemeContext } from "../theme.js";
 import { UICss, Field, Btn as UIBtn, useFX, useBackClose } from "../ui";
 import { makePalette } from "./id4drive-services";
 import { STUDENT_COLOR_CHOICES } from "../studentColors";
+import { countStudentDuplicates } from "../studentDupes";
 
 const M = ["","Січ","Лют","Бер","Кві","Тра","Чер","Лип","Сер","Вер","Жов","Лис","Гру"];
 const fmtS = d => { if(!d) return "—"; const [,m,day]=d.split("-"); return `${parseInt(day)} ${M[parseInt(m)]}`; };
@@ -751,11 +752,20 @@ export default function StudentsView({ studentJump, onStudentJumpHandled, bookin
   }, [studentJump, students]);
 
   const [studentColors, setStudentColors] = useState({});
+  const [dupCount, setDupCount] = useState(0);
+  const [merging, setMerging] = useState(false);
+  // «Об'єднати»: сервер (onMergeStudentsRequest) зливає картки, заведені вручну, із зареєстрованими акаунтами
+  const mergeDuplicates = () => {
+    setMerging(true);
+    push(iRef("mergeStudentsRequest"), { at: Date.now() }).catch(() => {});
+    setTimeout(() => setMerging(false), 15000);
+  };
   useEffect(() => onValue(iRef("studentColors"), snap => setStudentColors(snap.val() || {})), []);
 
   useEffect(() => {
     const unsub = onValue(iRef( "users"), snap => {
       const data = snap.val() || {};
+      setDupCount(countStudentDuplicates(data));
       setStudents(Object.entries(data).map(([uid, u]) => {
         const p = u.profile || {};
         return {
@@ -876,6 +886,20 @@ export default function StudentsView({ studentJump, onStudentJumpHandled, bookin
         <div style={{display:"flex",alignItems:"center",marginBottom:2}}>
           <div style={{fontSize:15,fontWeight:800,color:TEXT}}>Учні</div>
         </div>
+
+        {dupCount > 0 && (
+          <div style={{borderRadius:12,padding:"10px 12px",display:"flex",alignItems:"center",gap:10,
+            background:"rgba(247,201,72,0.10)",border:"1px solid rgba(247,201,72,0.35)"}}>
+            <div style={{flex:1,minWidth:0,fontSize:12,color:TEXT,lineHeight:1.4}}>
+              👥 Знайдено дублікати: {dupCount}. Учні, яких ви завели вручну, вже зареєструвались самі (збіг телефону, пошти або імені).
+            </div>
+            <button onClick={mergeDuplicates} disabled={merging} style={{flexShrink:0,padding:"8px 12px",borderRadius:10,border:"none",
+              cursor:merging?"default":"pointer",fontSize:12,fontWeight:800,fontFamily:"inherit",
+              background:`linear-gradient(145deg,${ACC_HI},${ACCENT})`,color:"#fff",opacity:merging?0.6:1}}>
+              {merging ? "Об'єдную…" : "Об'єднати"}
+            </button>
+          </div>
+        )}
 
         <div style={{background:BG_DEEP,borderRadius:11,boxShadow:SI,padding:"3px 11px",display:"flex",alignItems:"center",gap:7}}>
           {ICONS.search}

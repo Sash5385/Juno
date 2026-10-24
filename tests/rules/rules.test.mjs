@@ -1,5 +1,5 @@
 import { initializeTestEnvironment, assertSucceeds, assertFails } from "@firebase/rules-unit-testing";
-import { ref, get, set, update, remove, runTransaction } from "firebase/database";
+import { ref, get, set, update, remove, runTransaction, serverTimestamp } from "firebase/database";
 import { readFileSync } from "node:fs";
 const [EMU_HOST, EMU_PORT_S] = (process.env.FIREBASE_DATABASE_EMULATOR_HOST || "127.0.0.1:9000").split(":");
 const EMU_PORT = Number(EMU_PORT_S);
@@ -77,6 +77,20 @@ await t("student sets hoursOffset 40", X, () => set(R(S1, "instructors/inst1/use
 await t("blocked student clears blocked", X, () => remove(R(as("stuB"), "instructors/inst1/users/stuB/blocked")));
 await t("student edits badges", X, () => set(R(S1, "instructors/inst1/users/stu1/badges/b"), true));
 await t("student edits own profile", A, () => update(R(S1, "instructors/inst1/users/stu1/profile"), { name: "S1x" }));
+await t("student sets own profile photo (small jpeg data-url)", A, () => update(R(S1, "instructors/inst1/users/stu1/profile"), { photo: "data:image/jpeg;base64," + "A".repeat(8000) }));
+await t("student photo too large", X, () => update(R(S1, "instructors/inst1/users/stu1/profile"), { photo: "data:image/jpeg;base64," + "A".repeat(40000) }));
+await t("student photo not an image", X, () => update(R(S1, "instructors/inst1/users/stu1/profile"), { photo: "http://evil.example/x" }));
+await t("student removes own photo", A, () => update(R(S1, "instructors/inst1/users/stu1/profile"), { photo: null }));
+const RV = (extra = {}) => ({ rating: 5, text: "Супер", studentName: "Ірина Б.", createdAt: Date.now(), atLessons: 10, ...extra });
+await t("student creates own review", A, () => set(R(S1, "instructors/inst1/reviews/stu1/r1"), RV({ createdAt: serverTimestamp() })));
+await t("student review rating 6", X, () => set(R(S1, "instructors/inst1/reviews/stu1/r2"), RV({ rating: 6, createdAt: serverTimestamp() })));
+await t("student review too long", X, () => set(R(S1, "instructors/inst1/reviews/stu1/r3"), RV({ text: "x".repeat(501), createdAt: serverTimestamp() })));
+await t("student review sets status", X, () => set(R(S1, "instructors/inst1/reviews/stu1/r4"), RV({ status: "approved", createdAt: serverTimestamp() })));
+await t("student review for another student", X, () => set(R(S1, "instructors/inst1/reviews/stuB/r5"), RV({ createdAt: serverTimestamp() })));
+await t("student edits existing review", X, () => update(R(S1, "instructors/inst1/reviews/stu1/r1"), { rating: 1 }));
+await t("student deletes review", X, () => remove(R(S1, "instructors/inst1/reviews/stu1/r1")));
+await t("anyone reads reviews", A, () => get(R(as("stuB"), "instructors/inst1/reviews")));
+await t("owner hides review", A, () => update(R(as("inst1"), "instructors/inst1/reviews/stu1/r1"), { status: "hidden" }));
 await t("student sets welcomeSent (update on user node)", A, () => update(R(S1, "instructors/inst1/users/stu1"), { welcomeSent: true }));
 await t("student saves fcm token", A, () => set(R(S1, "instructors/inst1/users/stu1/fcmTokens/dev1"), "tok"));
 await t("student sets internalExam/passed", A, () => set(R(S1, "instructors/inst1/users/stu1/internalExam/passed"), true));

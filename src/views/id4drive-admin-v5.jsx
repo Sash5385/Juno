@@ -6692,6 +6692,9 @@ function SettingsView({ settings, setSettings }) {
         <Row label="Заборона запису" hint="За скільки годин до слоту учень не може записатись">
           <NumInput value={settings.bookCutoffHours} onChange={v=>upd("bookCutoffHours",v)} min={0} max={48} suffix="год"/>
         </Row>
+        <Row label="Скасування / перенос" hint="За скільки годин до уроку учень уже не може скасувати чи перенести">
+          <NumInput value={settings.cancelCutoffHours ?? settings.bookCutoffHours ?? 2} onChange={v=>upd("cancelCutoffHours",v)} min={0} max={168} suffix="год"/>
+        </Row>
         <Row label="Календар наперед" hint="На скільки днів учень бачить вільні слоти">
           <NumInput value={settings.calendarOpenDays} onChange={v=>upd("calendarOpenDays",v)} min={1} max={365} suffix="дн"/>
         </Row>

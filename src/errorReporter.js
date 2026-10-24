@@ -9,9 +9,20 @@ const IGNORE = [
   /ResizeObserver loop/i,
   /^Script error\.?$/i,
   /license_readonly/,
+  /Режим читання: підписку не оплачено|Read-only mode: subscription not paid/, // очікувана відмова захисту readonly, не баг
   /AbortError/,
   /Failed to fetch|Load failed|NetworkError|network error/i, // немає мережі — не баг застосунку
   /chrome-extension:|moz-extension:|safari-extension:/,
+  // Збої реєстрації/оновлення service worker у самому браузері (бот, режим економії, обрив мережі) — не баг застосунку
+  /Failed to (update|register) a ServiceWorker/i,
+  /^Rejected$/,
+  /newestWorker is null/i,
+  // Push не підтримується браузером (iOS Chrome/Safari без початкового екрана тощо) — застосунок це вже обробляє
+  /messaging\/unsupported-browser/i,
+  // Стара версія після деплою не знайшла файл застосунку — сторінка сама перезавантажується (див. main.jsx)
+  /not a valid JavaScript MIME type|dynamically imported module|Importing a module script failed/i,
+  // Побічний ефект того ж збою у вкладках зі старою версією (lazy-чанка вже немає, сторінка перезавантажується)
+  /Cannot read properties of undefined \(reading 'default'\)/,
 ];
 
 const seen = new Set();

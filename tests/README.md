@@ -66,6 +66,17 @@ node tests/smoke/smoke.mjs admin http://localhost:4173     # у DrivePad-Client:
 ```
 Проходить усі вкладки, падає на помилці JS, порожньому екрані чи горизонтальному скролі. Без Firebase.
 
+## Записи / скасування / перенесення (слоти)
+```bash
+bash tests/flows/run.sh            # booking-flow; потрібен клонований Juno-client поруч (або CLIENT_DIR=...), Java, firebase-tools
+bash tests/flows/run.sh race       # гонка трьох учнів за той самий час (claimSlot → createBooking)
+bash tests/flows/run.sh release    # запис не створився → слоти звільняються (releaseClaimedSlots)
+bash tests/flows/run.sh problem    # «Щось не працює?» → system/contactMessages, notifyNewInstructor
+node tests/flows/booking-rules.test.mjs   # без емулятора: bookingRules.js (інтервал, горизонт, заборона запису, перенос)
+```
+РЕАЛЬНИЙ `db.js` клієнта + РЕАЛЬНІ правила БД + серверна `onBookingChanged` на емуляторах Database+Auth (порти 9000/9099).
+Адмінські операції в тесті — репліка логіки `src/App.jsx`: змінюєш її там — онови й тут. У CI не запускається (потрібен другий репозиторій).
+
 ## CI
 `.github/workflows/tests.yml` запускає все вище; `deploy.yml` викликає його як `needs: tests` — **деплой не йде, поки тести червоні**.
 

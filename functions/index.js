@@ -36,8 +36,8 @@ function iRef(iid, path) {
 // Хелпер: зберегти сповіщення в RTDB для студента
 async function saveNotification(iid, uid, title, body, type = "system") {
   const ts = Date.now();
-  const time = new Date(ts).toLocaleTimeString("uk", { hour: "2-digit", minute: "2-digit" });
-  const date = new Date(ts).toLocaleDateString("uk", { day: "2-digit", month: "2-digit", year: "numeric" });
+  const time = new Date(ts).toLocaleTimeString("uk", { timeZone: "Europe/Kyiv", hour: "2-digit", minute: "2-digit" });
+  const date = new Date(ts).toLocaleDateString("uk", { timeZone: "Europe/Kyiv", day: "2-digit", month: "2-digit", year: "numeric" });
   await iRef(iid, `notifications/${uid}`).push({ title, body, type, ts, time, date }).catch(() => {});
 }
 
@@ -62,6 +62,7 @@ async function pushStudent(iid, uid, title, body, data = {}) {
       await admin.messaging().send({
         token,
         data: Object.fromEntries(Object.entries({ title, body, url: link, ...data }).map(([k,v]) => [k, String(v)])),
+        android: androidPush(title, body),
         webpush: {
           fcmOptions: { link },
         },
@@ -102,6 +103,24 @@ async function inviteNextInQueue(iid, slotKey, excludeUids = [], freedDurationHo
   // onQueueInvite спрацює автоматично
 }
 
+// Місце зайняв новий запис — пропозиції цього часу іншим учням більше не дійсні: вони знову
+// чекають у черзі (на наступне звільнення), а картка пропозиції зникає з їхнього застосунку.
+async function closeQueueOffers(iid, booking, winnerUid) {
+  if (!booking?.date || !booking?.time) return;
+  const slotKey = `${booking.date}_${booking.time}`;
+  const entries = (await iRef(iid, `queue/${slotKey}/entries`).get()).val() || {};
+  const slotId = `slot${booking.time.replace(":", "")}`;
+  const upd = {};
+  for (const [uid, e] of Object.entries(entries)) {
+    if (!e || uid === winnerUid || e.status !== "offered") continue;
+    upd[`queue/${slotKey}/entries/${uid}/status`] = "waiting";
+    upd[`queue/${slotKey}/entries/${uid}/broadcast`] = null;
+    upd[`users/${uid}/queueOffers/${slotKey}`] = null;
+    upd[`timeslots/${booking.date}/${slotId}/offeredTo/${uid}`] = null;
+  }
+  if (Object.keys(upd).length) await iRef(iid).update(upd);
+}
+
 // Хелпер: побудувати deep-link на конкретний запис у розкладі адмінки
 function buildAdminLink(base, { date, time, uid, bookingId } = {}) {
   const p = new URLSearchParams();
@@ -134,6 +153,12 @@ function buildNewBookingBody(after, name, date, time) {
   return note ? `${line1}\n${line2}\n💬 ${note}` : `${line1}\n${line2}`;
 }
 
+// Нативний Android-застосунок (Capacitor): data-only повідомлення у фоні система не показує, тому
+// додаємо android.notification. Веб-токенів (webpush) цей блок не стосується — дубля немає.
+function androidPush(title, body) {
+  return { priority: "high", notification: { title: String(title), body: String(body), channelId: "default" } };
+}
+
 // Хелпер: відправити push адміну (на всі зареєстровані пристрої)
 async function pushAdmin(iid, title, body, data = {}) {
   const snap = await iRef(iid, "fcmTokens").get();
@@ -149,6 +174,7 @@ async function pushAdmin(iid, title, body, data = {}) {
       const result = await admin.messaging().send({
         token,
         data: Object.fromEntries(Object.entries({ title, body, url: link, ...data }).map(([k, v]) => [k, String(v)])),
+        android: androidPush(title, body),
         webpush: {
           fcmOptions: { link },
         },
@@ -211,7 +237,7 @@ async function sendActiveTemplates(iid, uid, triggerId, vars = {}, filterFn = nu
   let delivered = false;
   for (const tpl of matches) {
     const text = renderTemplateBody(tpl.body, fullVars);
-    const time = new Date().toLocaleTimeString("uk", { hour: "2-digit", minute: "2-digit" });
+    const time = new Date().toLocaleTimeString("uk", { timeZone: "Europe/Kyiv", hour: "2-digit", minute: "2-digit" });
     const ts = Date.now();
     // channel:"push" — шаблон налаштований як лише сповіщення, без запису в чат.
     let chatSent = false;
@@ -268,6 +294,23 @@ async function readSlotDay(iid, date) {
 // документа; звільнення видаляє phantom, справжні повертає вільними, а
 // відсутні НЕ створює — тому повторне/паралельне звільнення безпечне і день
 // повертається рівно до стану ДО запису.
+// Час інших АКТИВНИХ записів цього дня (будь-якого учня, адміна, особисті події) — [[start, end), …].
+// Сам запис, що звільняється, пропускаємо (той самий uid + той самий час).
+async function otherActiveRanges(iid, date, uid, r) {
+  const all = (await iRef(iid, "bookings").get().catch(() => null))?.val() || {};
+  const ranges = [];
+  for (const [u, recs] of Object.entries(all)) {
+    for (const b of Object.values(recs || {})) {
+      if (!b || typeof b !== "object" || b.status === "cancelled" || b.date !== date) continue;
+      const br = bookingRange(b);
+      if (!br) continue;
+      if (u === uid && br.start === r.start && br.dur === r.dur) continue;
+      ranges.push([br.start, br.start + br.dur]);
+    }
+  }
+  return ranges;
+}
+
 async function buildSlotUpdates(iid, bookingData, available, uid = null) {
   const r = bookingRange(bookingData);
   if (!r) return {};
@@ -276,13 +319,20 @@ async function buildSlotUpdates(iid, bookingData, available, uid = null) {
   if (!available) return blockRangeUpdates(day, prefix, r.start, r.dur);
   // Слот, який зайняв (bookedBy) інший учень, не звільняємо: запис-«накладка» на чужий час
   // не повинен відкривати чужий слот при скасуванні. bookedBy знімаємо зі звільнених.
-  const mine = uid ? Object.fromEntries(Object.entries(day).filter(([, n]) => !n?.bookedBy || n.bookedBy === uid)) : day;
+  // Так само не звільняємо час, який ще займає інший активний запис (напр. запис інструктора без bookedBy).
+  const keep = await otherActiveRanges(iid, r.date, uid, r);
+  const covered = (id) => {
+    const mm = /^slot(\d{2})(\d{2})$/.exec(id);
+    const min = mm ? Number(mm[1]) * 60 + Number(mm[2]) : -1;
+    return keep.some(([s, e]) => min >= s && min < e);
+  };
+  const mine = Object.fromEntries(Object.entries(day).filter(([id, n]) => !covered(id) && (!uid || !n?.bookedBy || n.bookedBy === uid)));
   return restoreRangeUpdates(mine, prefix, r.start, r.dur, { extra: { bookedBy: null } });
 }
 
 // Перенесення запису: заблокувати нове місце і звільнити старе (крім позицій,
 // що одразу знову блокуються новим місцем).
-async function buildRescheduleSlotUpdates(iid, before, after) {
+async function buildRescheduleSlotUpdates(iid, before, after, uid = null) {
   const oldR = bookingRange(before);
   const newR = bookingRange(after);
   const updates = {};
@@ -293,9 +343,17 @@ async function buildRescheduleSlotUpdates(iid, before, after) {
   }
   if (oldR) {
     const sameDay = newR && newR.date === oldR.date;
-    const oldDay = sameDay ? newDay : await readSlotDay(iid, oldR.date);
+    const oldDayRaw = sameDay ? newDay : await readSlotDay(iid, oldR.date);
+    // час інших активних записів (накладка) на старому місці не звільняємо
+    const keep = await otherActiveRanges(iid, oldR.date, uid, oldR);
+    const oldDay = Object.fromEntries(Object.entries(oldDayRaw).filter(([id]) => {
+      const mm = /^slot(\d{2})(\d{2})$/.exec(id);
+      const min = mm ? Number(mm[1]) * 60 + Number(mm[2]) : -1;
+      return !keep.some(([s, e]) => min >= s && min < e);
+    }));
     Object.assign(updates, restoreRangeUpdates(oldDay, `timeslots/${oldR.date}/`, oldR.start, oldR.dur, {
       skipRange: sameDay ? { start: newR.start, end: newR.start + newR.dur } : null,
+      extra: { bookedBy: null },
     }));
   }
   return updates;
@@ -312,6 +370,10 @@ exports.onBookingChanged = onValueWritten(
     const date       = (after || before)?.date || "—";
     const time       = (after || before)?.time || "—";
     const adminLink  = () => buildAdminLink("https://juno-admin.web.app", { date, time, uid, bookingId });
+
+    // Запис перенесено з картки-дубліката в акаунт учня (mergeStudentInto) — це не
+    // новий урок: слоти вже зайняті, сповіщення не потрібні.
+    if (before === null && after?.mergedFrom) return;
 
     // Новий запис (before = null) — блокуємо слоти
     if (before === null && after) {
@@ -331,8 +393,12 @@ exports.onBookingChanged = onValueWritten(
           return;
         }
       }
+      // Чи місце справді зайняте цим записом ДО того, як сервер блокує слоти (клієнт учня спершу займає слот
+      // через claimSlot, адмін — блокує сам). Вигаданий запис на вільний, запропонований комусь слот пропозицій не закриває.
+      const preSlot = after.date && after.time ? (await iRef(iid, `timeslots/${after.date}/slot${String(after.time).replace(":", "")}`).get().catch(() => null))?.val() : null;
       const slotUpd = await buildSlotUpdates(iid, after, false);
       if (Object.keys(slotUpd).length) await iRef(iid).update(slotUpd).catch(() => {});
+      if (preSlot && preSlot.available === false) await closeQueueOffers(iid, after, uid).catch(() => {});
       await iRef(iid, `activeStudents/${uid}`).set(true).catch(() => {});
       await iRef(iid, `recentStudents/${uid}`).set(Date.now()).catch(() => {});
       if (after.createdBy === "admin" && uid !== "admin") {
@@ -415,6 +481,15 @@ exports.onBookingChanged = onValueWritten(
       return;
     }
 
+    // Учень переносить урок: клієнт спершу займає нове місце, потім скасовує старий запис (cancelledBy "reschedule")
+    // і сам звільняє старі слоти. Якщо правила БД його не пустили (слоти заброньовано до появи bookedBy) —
+    // звільняємо тут. Слоти, зайняті вже кимось іншим (bookedBy), buildSlotUpdates не чіпає.
+    if (after.cancelledBy === "reschedule" && before.cancelledBy !== "reschedule") {
+      const slotUpd = await buildSlotUpdates(iid, before, true, uid);
+      if (Object.keys(slotUpd).length) await iRef(iid).update(slotUpd).catch(() => {});
+      return;
+    }
+
     // Студент підтвердив присутність
     if (after.studentConfirmed && !before.studentConfirmed) {
       console.log(`onBookingChanged: student confirmed iid=${iid} uid=${uid}`);
@@ -426,7 +501,7 @@ exports.onBookingChanged = onValueWritten(
     const rescheduled = after.status !== "cancelled" &&
       (after.date !== before.date || after.time !== before.time);
     if (rescheduled) {
-      const blockUpd = await buildRescheduleSlotUpdates(iid, before, after);
+      const blockUpd = await buildRescheduleSlotUpdates(iid, before, after, uid);
       if (Object.keys(blockUpd).length) await iRef(iid).update(blockUpd).catch(() => {});
       const oldDate = before.date || "—";
       const oldTime = before.time || "—";
@@ -454,53 +529,121 @@ function normPhone(p) {
   return (p || "").replace(/\D/g, "");
 }
 
-// Учень, доданий вручну адміном (картка учня без .profile), запросив
-// себе через посилання ("🔗 Запросити" в картці учня) або просто
-// самостійно зареєструвався з тим самим номером телефону — зливаємо
-// операційні поля (знижку/фікс.ціну/нотатки/години/VIP/медалі) в щойно
-// зареєстрований акаунт. Історію записів/чатів навмисно НЕ переносимо —
-// це критичний модуль, ризик вищий за користь для типового кейсу
-// (запрошення надсилають ДО першого уроку).
+// Один і той самий учень: інструктор завів картку вручну (або записав гостя за
+// телефоном — users/guest_<телефон>), а потім учень сам зареєструвався. Збіг за
+// телефоном (останні 9 цифр, тож 067… і +38067… однакові), поштою або іменем+прізвищем
+// (порядок слів неважливий) — вважаємо однією людиною.
+const phoneTail = (p) => { const d = normPhone(p); return d.length >= 9 ? d.slice(-9) : ""; };
+const normEmail = (e) => String(e || "").trim().toLowerCase();
+const normName = (n) => String(n || "").toLowerCase().replace(/[ʼ’`]/g, "'").split(/\s+/).filter(Boolean).sort().join(" ");
+
+// Ключі «заглушок» (картки без .profile), що збігаються з зареєстрованим учнем.
+// Телефон/пошта — надійні ознаки. Лише ім'я — тільки якщо така картка одна
+// і в ній не записано ІНШИЙ телефон (тоді це, найпевніше, інша людина).
+function findOfflineDuplicates(usersVal, uid, person) {
+  const ph = phoneTail(person?.phone), em = normEmail(person?.email), nm = normName(person?.name);
+  const strong = [], byName = [];
+  Object.entries(usersVal || {}).forEach(([key, u]) => {
+    if (key === uid || !u || typeof u !== "object" || u.profile) return;
+    if ((ph && phoneTail(u.phone) === ph) || (em && normEmail(u.email) === em)) strong.push(key);
+    else if (nm.includes(" ") && normName(u.name) === nm && !(ph && phoneTail(u.phone))) byName.push(key);
+  });
+  return byName.length === 1 ? [...strong, byName[0]] : strong;
+}
+
+// Переносить картку-заглушку oldKey в акаунт uid: поля інструктора (знижка, ціна,
+// нотатки, години, VIP, медалі…), записи на уроки, колір у розкладі. Ім'я/телефон
+// лишаються з реєстрації. Усе одним update — або все, або нічого.
+async function mergeStudentInto(iid, uid, oldKey) {
+  if (!oldKey || oldKey === uid) return 0;
+  const [oldSnap, curSnap, bkSnap, colorSnap] = await Promise.all([
+    iRef(iid, `users/${oldKey}`).get(), iRef(iid, `users/${uid}`).get(),
+    iRef(iid, `bookings/${oldKey}`).get(), iRef(iid, "studentColors").get(),
+  ]);
+  const old = oldSnap.val();
+  // Захист: зливаємо тільки із заглушки адміна — ніколи не чіпаємо чужий акаунт.
+  if (!old || old.profile) return 0;
+  const cur = curSnap.val() || {};
+  const patch = {};
+  Object.entries(old).forEach(([f, v]) => {
+    if (["profile", "fcmTokens", "name", "phone", "email"].includes(f)) return;
+    if (f === "badges" && v && typeof v === "object") {
+      Object.entries(v).forEach(([bid, bv]) => { if (!cur.badges?.[bid]) patch[`users/${uid}/badges/${bid}`] = bv; });
+    } else if (cur[f] === undefined) patch[`users/${uid}/${f}`] = v;
+  });
+  const bookings = bkSnap.val() || {};
+  const existing = (await iRef(iid, `bookings/${uid}`).get()).val() || {};
+  let moved = 0;
+  Object.entries(bookings).forEach(([bid, b]) => {
+    if (!b || typeof b !== "object") return;
+    const key = existing[bid] ? `${bid}_m` : bid;
+    patch[`bookings/${uid}/${key}`] = { ...b, mergedFrom: oldKey };
+    moved++;
+  });
+  patch[`bookings/${oldKey}`] = null;
+  const colors = colorSnap.val() || {};
+  if (colors[oldKey] && !colors[uid]) patch[`studentColors/${uid}`] = colors[oldKey];
+  if (colors[oldKey]) patch[`studentColors/${oldKey}`] = null;
+  patch[`users/${oldKey}`] = null;
+  patch[`mergeLog/${oldKey}`] = { into: uid, name: old.name || null, phone: old.phone || null, bookings: moved, at: Date.now() };
+  await iRef(iid).update(patch);
+  console.log(`mergeStudentInto: iid=${iid} merged ${oldKey} -> ${uid}, bookings=${moved}`);
+  return 1;
+}
+
+// При реєстрації: картка з посилання-запрошення ("🔗 Запросити") + усі заглушки,
+// що збігаються за телефоном/поштою/ім'ям.
 async function mergeInvitedStudentRecord(iid, uid, profile) {
   try {
-    let oldKey = null;
+    const keys = new Set();
     const token = profile?.inviteToken;
     if (token) {
       const invite = (await iRef(iid, `invites/${token}`).get()).val();
-      if (invite?.studentKey) oldKey = invite.studentKey;
+      if (invite?.studentKey) keys.add(invite.studentKey);
+      await iRef(iid, `invites/${token}`).remove().catch(() => {});
+      await iRef(iid, `users/${uid}/profile/inviteToken`).remove().catch(() => {});
     }
-    if (!oldKey) {
-      const phone = normPhone(profile?.phone);
-      if (phone) {
-        const usersVal = (await iRef(iid, "users").get()).val() || {};
-        const matches = Object.entries(usersVal).filter(([key, u]) =>
-          key !== uid && !u.profile && normPhone(u.phone) === phone
-        );
-        if (matches.length === 1) oldKey = matches[0][0];
-      }
-    }
-    if (token) await iRef(iid, `invites/${token}`).remove().catch(() => {});
-    if (!oldKey || oldKey === uid) return;
-
-    const old = (await iRef(iid, `users/${oldKey}`).get()).val();
-    // Захист: зливаємо тільки із "заглушки" адміна (без .profile) —
-    // ніколи не чіпаємо чужий реальний зареєстрований акаунт.
-    if (!old || old.profile) return;
-
-    const patch = {};
-    [
-      "discount", "customPrice", "notes", "hours", "hoursOffset",
-      "isVip", "noIntervalLimit", "blocked", "badges",
-      "maneuverCounts", "maneuverSuccessCounts", "createdAt",
-    ].forEach((f) => { if (old[f] !== undefined) patch[`users/${uid}/${f}`] = old[f]; });
-    patch[`users/${oldKey}`] = null;
-    patch[`users/${uid}/profile/inviteToken`] = null;
-    await iRef(iid).update(patch);
-    console.log(`mergeInvitedStudentRecord: iid=${iid} merged ${oldKey} -> ${uid}`);
+    const usersVal = (await iRef(iid, "users").get()).val() || {};
+    findOfflineDuplicates(usersVal, uid, profile).forEach((k) => keys.add(k));
+    let n = 0;
+    for (const k of keys) n += await mergeStudentInto(iid, uid, k).catch((e) => { console.error("mergeStudentInto failed:", e); return 0; });
+    return n;
   } catch (e) {
     console.error("mergeInvitedStudentRecord failed:", e);
+    return 0;
   }
 }
+
+// Кнопка «Об'єднати» у вкладці «Учні»: проходить усіх уже зареєстрованих учнів
+// і зливає з ними заглушки-дублікати, що лишились з часів до цієї логіки.
+exports.onMergeStudentsRequest = onValueCreated(
+  { ref: "instructors/{iid}/mergeStudentsRequest/{reqId}", region: "europe-west1" },
+  async (event) => {
+    const { iid, reqId } = event.params;
+    const usersVal = (await iRef(iid, "users").get()).val() || {};
+    let merged = 0;
+    for (const [uid, u] of Object.entries(usersVal)) {
+      if (!u?.profile) continue;
+      const fresh = (await iRef(iid, "users").get()).val() || {};
+      for (const k of findOfflineDuplicates(fresh, uid, u.profile)) {
+        merged += await mergeStudentInto(iid, uid, k).catch((e) => { console.error("mergeStudentInto failed:", e); return 0; });
+      }
+    }
+    await iRef(iid, `mergeStudentsRequest/${reqId}`).update({ done: true, merged, doneAt: Date.now() }).catch(() => {});
+  }
+);
+
+// Новий інструктор завершив реєстрацію (анкета → instructor_index) — push власнику сервісу (суперадмінка)
+exports.notifyNewInstructor = onValueCreated(
+  { ref: "instructor_index/{iid}", region: "europe-west1" },
+  async (event) => {
+    const v = event.data.val() || {};
+    const owner = await admin.auth().getUserByEmail(VENDOR_EMAIL).catch(() => null);
+    if (!owner || owner.uid === event.params.iid) return;
+    const who = [v.name || "Новий інструктор", v.phone].filter(Boolean).join(" · ");
+    await pushAdmin(owner.uid, "🚗 Новий інструктор", `${who}${v.slug ? `\n/${v.slug}` : ""}`, {}).catch(() => {});
+  }
+);
 
 // Новий учень зареєструвався (заповнив анкету) — сповіщаємо адміна
 exports.onNewStudentRegistered = onValueCreated(
@@ -508,11 +651,12 @@ exports.onNewStudentRegistered = onValueCreated(
   async (event) => {
     const profile = event.data.val();
     const { iid, uid } = event.params;
-    await mergeInvitedStudentRecord(iid, uid, profile);
+    const merged = await mergeInvitedStudentRecord(iid, uid, profile);
     const name  = profile?.name  || "Новий учень";
     const phone = profile?.phone || "";
-    console.log(`onNewStudentRegistered: iid=${iid} uid=${uid} name="${name}"`);
-    await pushAdmin(iid, "🎉 Новий учень", phone ? `${name} · ${phone}` : name, {
+    console.log(`onNewStudentRegistered: iid=${iid} uid=${uid} name="${name}" merged=${merged}`);
+    const who = phone ? `${name} · ${phone}` : name;
+    await pushAdmin(iid, "🎉 Новий учень", merged ? `${who}\nОб'єднано з карткою, яку ви завели вручну` : who, {
       url: buildAdminLink("https://juno-admin.web.app", { uid }),
     });
     await sendActiveTemplates(iid, uid, "auto_welcome", { "ім'я": name }).catch(() => {});
@@ -534,6 +678,17 @@ exports.onQueueInvite = onValueUpdated(
     const time = slotKey.slice(sep + 1);
     if (!date || !time) return;
     const slotId = `slot${time.replace(":", "")}`;
+
+    // Місце ще зайняте (інструктор натиснув «Запросити», поки там чийсь запис) — пропозицію не надсилаємо,
+    // інакше учень бачить «Слот зарезервовано», а записатись не може. Він лишається в черзі.
+    const slotNow = (await iRef(iid, `timeslots/${date}/${slotId}`).get()).val();
+    if (slotNow && slotNow.available === false) {
+      await iRef(iid, `queue/${slotKey}/entries/${uid}`).update({ status: "waiting", broadcast: null, offerDurationHours: null }).catch(() => {});
+      await pushAdmin(iid, "⚠️ Місце ще зайняте", `${date} о ${time} — запис на цей час ще існує. Запросіть учня з черги після скасування.`, {
+        url: buildAdminLink("https://juno-admin.web.app", { date, time }),
+      }).catch(() => {});
+      return;
+    }
 
     // Додаємо uid до offeredTo зі строком дії (перший → теж залишається)
     const until = Date.now() + OFFER_WINDOW_MS;
@@ -680,6 +835,7 @@ exports.unlockVipSlots = onSchedule("every 1 hours", async () => {
           body: "Відкрились нові години для запису. Поспішай!",
           url: "https://juno-client.web.app/cabinet",
         },
+        android: androidPush("🚗 З'явились нові слоти!", "Відкрились нові години для запису. Поспішай!"),
         webpush: {
           fcmOptions: { link: "https://juno-client.web.app/cabinet" },
         },
@@ -1078,6 +1234,7 @@ exports.onPushTask = onValueCreated(
       const res = await admin.messaging().sendEachForMulticast({
         tokens: batch.map(t => t.token),
         data: { title, body, url, date, time: slotsArr[0] || "" },
+        android: androidPush(title, body),
         webpush: { fcmOptions: { link: url } },
       }).catch(() => ({ successCount: 0 }));
       sentCount += res?.successCount || 0;
@@ -1212,9 +1369,60 @@ exports.submitContact = onRequest({ region: "europe-west1", cors: true }, async 
     });
     if (!rate.committed) { res.status(429).json({ ok: false, error: "rate" }); return; }
     await db.ref("system/contactMessages").push({ name, email, phone, message, at: now, ip: ipHash, status: "new" });
+    // push власнику про нове звернення (ліміт частоти вже обмежує спам)
+    const owner = await admin.auth().getUserByEmail(VENDOR_EMAIL).catch(() => null);
+    if (owner) await pushAdmin(owner.uid, `✉️ Нове звернення: ${name}`, message.slice(0, 120), {}).catch(() => {});
     res.status(200).json({ ok: true });
   } catch (e) {
     console.error("submitContact error:", e);
+    res.status(500).json({ ok: false });
+  }
+});
+
+// ─── «Щось не працює?» (кнопка в адмінці й у застосунку учня → /api/report-problem) ──────
+// Користувач описує проблему текстом; запис іде в ту саму скриньку, що й форма з лендингу
+// (system/contactMessages — її видно в суперадмінці, вкладка «Звернення»), власнику йде push.
+// Токен входу (Authorization: Bearer) необов'язковий: з ним у зверненні видно, хто саме пише.
+exports.submitProblem = onRequest({ region: "europe-west1", cors: true }, async (req, res) => {
+  if (req.method !== "POST") { res.status(405).json({ ok: false }); return; }
+  try {
+    let b = req.body || {};
+    if (typeof b === "string") { try { b = JSON.parse(b); } catch { b = {}; } }
+    const message = String(b.message || "").trim().slice(0, 2000);
+    if (message.length < 5) { res.status(400).json({ ok: false, error: "short" }); return; }
+    const app = b.app === "client" ? "client" : "admin";
+    let uid = "", email = "", name = "";
+    const m = /^Bearer (.+)$/.exec(String(req.get("authorization") || ""));
+    if (m) {
+      const dec = await admin.auth().verifyIdToken(m[1]).catch(() => null);
+      if (dec) { uid = dec.uid; email = String(dec.email || "").slice(0, 120); name = String(dec.name || "").slice(0, 80); }
+    }
+    const ip = String(req.headers["x-forwarded-for"] || req.ip || "").split(",")[0].trim();
+    const ipHash = crypto.createHash("sha256").update(ip).digest("hex").slice(0, 16);
+    const now = Date.now();
+    const rate = await db.ref(`system/problemRate/${uid || ipHash}`).transaction(cur => {
+      const c = cur || { w: now, n: 0, t: 0 };
+      if (now - c.w > 3600000) { c.w = now; c.n = 0; }
+      if (now - c.t < 15000 || c.n >= 10) return; // перевищено ліміт — скасовуємо транзакцію
+      c.n += 1; c.t = now;
+      return c;
+    });
+    if (!rate.committed) { res.status(429).json({ ok: false, error: "rate" }); return; }
+    const ctx = {
+      page: String(b.page || "").replace(/[?#].*$/, "").slice(0, 160),
+      version: String(b.version || "").slice(0, 20),
+      ua: String(b.ua || req.get("user-agent") || "").slice(0, 160),
+    };
+    const who = name || email || (app === "client" ? "Учень" : "Інструктор");
+    await db.ref("system/contactMessages").push({
+      name: who, email, phone: String(b.phone || "").slice(0, 30), message, at: now, ip: ipHash, status: "new",
+      source: app === "client" ? "app-client" : "app-admin", uid, ...ctx,
+    });
+    const owner = await admin.auth().getUserByEmail(VENDOR_EMAIL).catch(() => null);
+    if (owner) await pushAdmin(owner.uid, `🛠 Щось не працює (${app === "client" ? "учень" : "інструктор"}): ${who}`, message.slice(0, 120), {}).catch(() => {});
+    res.status(200).json({ ok: true });
+  } catch (e) {
+    console.error("submitProblem error:", e);
     res.status(500).json({ ok: false });
   }
 });
