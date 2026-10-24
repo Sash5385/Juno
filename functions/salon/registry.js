@@ -32,7 +32,7 @@ const fmtDate = (ts) => new Date(ts).toLocaleDateString("uk-UA", { timeZone: "Eu
 // Кожні 6 годин: за 3 дні — попередження (раз на період), у пільгову добу — нагадування (раз), після неї — suspended
 async function checkSalonLicense(salonId, now) {
   const lic = (await sRef(salonId, "license").get()).val();
-  if (!lic || lic.status === "suspended") return;
+  if (!lic || lic.free || lic.status === "suspended") return;
   const until = licenseUntilTs(lic);
   if (!until) return;
   const link = { url: adminUrl() };

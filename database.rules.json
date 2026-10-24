@@ -356,8 +356,9 @@
           ".read": "auth != null && (auth.uid === $salonId || auth.token.email === 'sash5385@gmail.com')",
           ".write": "auth != null && auth.token.email === 'sash5385@gmail.com'",
           "status":      { ".validate": "auth.token.email === 'sash5385@gmail.com' || (!data.exists() && newData.val() === 'trial')" },
-          "trialEndsAt": { ".validate": "auth.token.email === 'sash5385@gmail.com' || (!data.exists() && newData.isNumber() && newData.val() <= now + 1296000000)" },
+          "trialEndsAt": { ".validate": "auth.token.email === 'sash5385@gmail.com' || (!data.exists() && newData.isNumber() && newData.val() <= now + 2678400000)" },
           "expiresAt":   { ".validate": "auth.token.email === 'sash5385@gmail.com'" },
+          "free":        { ".validate": "auth.token.email === 'sash5385@gmail.com'" },
           "provider":    { ".validate": "auth.token.email === 'sash5385@gmail.com'" },
           "lastPaymentAt": { ".validate": "auth.token.email === 'sash5385@gmail.com'" }
         }

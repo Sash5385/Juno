@@ -22,7 +22,7 @@ export default function Settings() {
   const th = useTh();
   const owner = ctx.role === "owner";
   const lic = ctx.license;
-  const until = lic ? (lic.status === "trial" ? lic.trialEndsAt : lic.expiresAt) : null;
+  const until = lic && !lic.free ? (lic.status === "trial" ? lic.trialEndsAt : lic.expiresAt) : null;
   const me = ctx.masters.find((m) => m.id === ctx.masterId);
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>

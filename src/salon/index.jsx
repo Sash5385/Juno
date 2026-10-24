@@ -111,7 +111,7 @@ function Shell({ user, session, setThemeMode, mode }) {
   const unread = useMemo(() => Object.values(chatMeta.value || {}).reduce((s, m) => s + (role === "owner" ? m?.unreadForAdmin || 0 : m?.unreadForMaster || 0), 0), [chatMeta.value, role]);
 
   const View = VIEWS[tab] || Schedule;
-  const lc = ctx.license, until = lc ? (lc.status === "trial" ? lc.trialEndsAt : lc.expiresAt) : null;
+  const lc = ctx.license?.free ? null : ctx.license, until = lc ? (lc.status === "trial" ? lc.trialEndsAt : lc.expiresAt) : null;
   const daysLeft = until ? Math.ceil((until - now) / 86400000) : null;
   const banner = role !== "owner" || !lc ? null
     : lc.status === "suspended" ? { c: th.RED, t: "Режим читання: підписку не оплачено — нові записи клієнтів вимкнено" }
