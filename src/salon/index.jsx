@@ -64,7 +64,7 @@ export default function SalonApp() {
   if (user === undefined || (user && !session)) body = <Spinner />;
   else if (!user) body = <SalonLogin inviteCode={invite} />;
   else if (session.status === "onboard") body = <Onboarding user={user} inviteCode={invite} onDone={() => { setSess({ uid: null, value: null }); setReload((n) => n + 1); }} />;
-  else body = <Shell user={user} session={session} setThemeMode={setThemeMode} mode={mode} />;
+  else body = <Shell user={user} session={session} setThemeMode={setThemeMode} mode={mode} uiScale={uiScale} />;
 
   return (
     <ThemeContext.Provider value={theme}>
@@ -74,7 +74,7 @@ export default function SalonApp() {
   );
 }
 
-function Shell({ user, session, setThemeMode, mode }) {
+function Shell({ user, session, setThemeMode, mode, uiScale }) {
   const th = useMemo(() => getTheme(mode), [mode]);
   const { salonId, masterId } = session;
   const role = session.status === "owner" ? "owner" : "master";
