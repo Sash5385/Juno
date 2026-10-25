@@ -239,18 +239,19 @@ function Info({ title, text, color }) {
   );
 }
 
-function TimeInput({ value, onChange, min=0, max=24, compact=false }) {
+function TimeInput({ value, onChange, min=0, max=24, step=1/60, compact=false }) {
   const { BG_DEEP, TEXT, FAINT, SI, FOG, SURF_HI } = useContext(ThemeContext);
   const tm = Math.round((Number(value) || 0) * 60);        // хвилини від півночі — точність 1 хв
   const minM = Math.round(min * 60), maxM = Math.round(max * 60);
   const disp = `${String(Math.floor(tm / 60)).padStart(2,"0")}:${String(tm % 60).padStart(2,"0")}`;
   const setM = (n) => onChange(Math.min(maxM, Math.max(minM, n)) / 60);
   // Утримання ‹ › повторює крок із прискоренням: по одній хвилині тапати довго
+  const sm = Math.max(1, Math.round(step * 60));            // крок ‹ › у хвилинах (налаштовується в «Графіку»)
   const hold = useRef(null);
   const stop = () => { clearTimeout(hold.current); hold.current = null; };
   const start = (dir) => {
-    let cur = tm, n = 0;
-    const step = () => { cur = Math.min(maxM, Math.max(minM, cur + dir)); onChange(cur / 60); };
+    let cur = sm > 1 ? Math.round(tm / sm) * sm : tm, n = 0;
+    const step = () => { cur = Math.min(maxM, Math.max(minM, cur + dir * sm)); onChange(cur / 60); };
     const loop = () => { step(); n++; hold.current = setTimeout(loop, n > 12 ? 40 : 120); };
     step(); hold.current = setTimeout(loop, 400); // перший крок одразу, повтор — лише при утриманні
   };
@@ -277,88 +278,6 @@ function TimeInput({ value, onChange, min=0, max=24, compact=false }) {
   );
 }
 
-// ─── БАРАБАН ЧАСУ — крупний вибір часу прокруткою (scroll-snap) ──────────
-// Хвилини 00–59 (точність 1 хв): сітка розкладу вирівнюється по справжніх :00/:30, початок дня може бути будь-якою хвилиною.
-const WHEEL_ITEM = 40;
-const WHEEL_H = Array.from({length:25},(_,i)=>String(i).padStart(2,"0"));
-const WHEEL_M = Array.from({length:60},(_,i)=>String(i).padStart(2,"0"));
-
-function WheelCol({ items, index, onIndex, rows = 5, width = 48 }) {
-  const { TEXT, FAINT } = useContext(ThemeContext);
-  const ref = useRef(null);
-  const timer = useRef(null);
-  const [live, setLive] = useState(index);
-  const [tick, setTick] = useState(0);
-  const pad = ((rows - 1) / 2) * WHEEL_ITEM;
-  useEffect(() => {
-    const el = ref.current;
-    if (el && Math.abs(el.scrollTop - index * WHEEL_ITEM) > 1) el.scrollTo({ top: index * WHEEL_ITEM });
-    setLive(index);
-  }, [index, tick]);
-  useEffect(() => () => clearTimeout(timer.current), []);
-  const onScroll = () => {
-    const el = ref.current;
-    if (!el) return;
-    const i = Math.max(0, Math.min(items.length - 1, Math.round(el.scrollTop / WHEEL_ITEM)));
-    setLive(i);
-    clearTimeout(timer.current);
-    timer.current = setTimeout(() => { if (i !== index) onIndex(i); setTick(t => t + 1); }, 140);
-  };
-  const mask = "linear-gradient(transparent,#000 28%,#000 72%,transparent)";
-  return (
-    <div style={{position:"relative",zIndex:1,width,height:rows*WHEEL_ITEM,flexShrink:0}}>
-      <style>{`.wheel-col::-webkit-scrollbar{display:none}`}</style>
-      <div ref={ref} className="wheel-col" onScroll={onScroll} style={{
-        height:"100%",overflowY:"scroll",scrollSnapType:"y mandatory",scrollbarWidth:"none",
-        overscrollBehavior:"contain",WebkitOverflowScrolling:"touch",
-        maskImage:mask,WebkitMaskImage:mask,
-      }}>
-        <div style={{height:pad}}/>
-        {items.map((it, i) => {
-          const o = i - live;
-          const a = Math.abs(o);
-          return (
-            <div key={i} onClick={()=>ref.current?.scrollTo({top:i*WHEEL_ITEM,behavior:"smooth"})} style={{
-              height:WHEEL_ITEM,scrollSnapAlign:"center",display:"flex",alignItems:"center",justifyContent:"center",
-              fontSize:a===0?30:a===1?22:18,fontWeight:800,cursor:"pointer",userSelect:"none",
-              fontVariantNumeric:"tabular-nums",
-              transform:`perspective(240px) rotateX(${Math.max(-70,Math.min(70,-o*28))}deg)`,
-              color:a===0?TEXT:FAINT,opacity:a===0?1:a===1?0.6:0.28,
-            }}>{it}</div>
-          );
-        })}
-        <div style={{height:pad}}/>
-      </div>
-    </div>
-  );
-}
-
-function TimeWheel({ label, value, onChange, min = 0, max = 24, rows = 5, color }) {
-  const { DIM, TEXT, GREEN, BG_DEEP } = useContext(ThemeContext);
-  const c = color || GREEN;
-  const v = Math.min(max, Math.max(min, Number(value) || 0));
-  const tm = Math.round(v * 60);
-  const h = Math.floor(tm / 60);
-  const m = tm % 60;
-  const set = (nh, nm) => onChange(Math.min(max, Math.max(min, (nh * 60 + nm) / 60)));
-  const pad = ((rows - 1) / 2) * WHEEL_ITEM;
-  return (
-    <div style={{textAlign:"center"}}>
-      <div style={{display:"inline-block",fontSize:11,fontWeight:800,letterSpacing:1.2,color:`color-mix(in srgb,${c} 60%,#fff)`,marginBottom:6,
-        padding:"3px 12px",borderRadius:999,background:`color-mix(in srgb,${c} 14%,transparent)`}}>{label}</div>
-      <div style={{position:"relative",display:"flex",alignItems:"center",justifyContent:"center",gap:2,padding:"0 4px"}}>
-        <div style={{position:"absolute",left:0,right:0,top:pad,height:WHEEL_ITEM,pointerEvents:"none",borderRadius:14,
-          background:`linear-gradient(135deg,color-mix(in srgb,${c} 32%,${BG_DEEP}),color-mix(in srgb,${c} 10%,${BG_DEEP}))`,
-          border:`1px solid color-mix(in srgb,${c} 55%,transparent)`,
-          boxShadow:`0 0 18px color-mix(in srgb,${c} 28%,transparent), inset 0 1px 0 rgba(255,255,255,.12)`}}/>
-        <WheelCol items={WHEEL_H} index={h} onIndex={i=>set(i,m)} rows={rows}/>
-        <span style={{position:"relative",zIndex:1,fontSize:28,fontWeight:800,color:TEXT,marginTop:-3}}>:</span>
-        <WheelCol items={WHEEL_M} index={m} onIndex={i=>set(h,i)} rows={rows}/>
-      </div>
-    </div>
-  );
-}
-
 // Старти слотів дня — та сама логіка, що й у генерації слотів (id4drive-admin):
 // крок 60 хв, слот, що перетинає обід, пропускається, після обіду сітка йде від його кінця.
 function daySlotStarts(d) {
@@ -374,7 +293,7 @@ function daySlotStarts(d) {
   return out;
 }
 
-export function WeekScheduleEditor({ weekSchedule, updDay, setWeek }) {
+export function WeekScheduleEditor({ weekSchedule, updDay, setWeek, step = 30, setStep }) {
   const { BG_DEEP, SURF_HI, SURFACE, TEXT, DIM, FAINT, GREEN, RED, GOLD, ACCENT, SI, SO, BTN_TX } = useContext(ThemeContext);
   const [sel, setSel] = useState(0);
   const day = weekSchedule[sel];
@@ -446,9 +365,16 @@ export function WeekScheduleEditor({ weekSchedule, updDay, setWeek }) {
               <span>00</span><span>06</span><span>12</span><span>18</span><span>24</span>
             </div>
           </div>
-          <div style={{display:"flex",justifyContent:"space-around",flexWrap:"wrap",gap:6,marginTop:6}}>
-            <TimeWheel label="ПОЧАТОК" value={day.start} onChange={v=>updDay(sel,{start:v})} min={0} max={day.end-0.5}/>
-            <TimeWheel label="КІНЕЦЬ" value={day.end} onChange={v=>updDay(sel,{end:v})} min={day.start+0.5} max={24}/>
+          <div style={{display:"flex",alignItems:"center",gap:5,marginTop:10,padding:"0 4px"}}>
+            <span style={{fontSize:11,fontWeight:800,letterSpacing:1.2,color:DIM,marginRight:2,whiteSpace:"nowrap"}}>КРОК, ХВ</span>
+            {[5,10,15,30,60].map(v=>(
+              <button key={v} onClick={()=>setStep?.(v)} style={{flex:1,height:30,borderRadius:10,cursor:"pointer",fontWeight:800,fontSize:12,
+                color:step===v?"#0b1a08":TEXT,background:step===v?GREEN:BG_DEEP,border:`1px solid color-mix(in srgb,${GREEN} ${step===v?90:30}%,transparent)`}}>{v}</button>
+            ))}
+          </div>
+          <div style={{marginTop:6}}>
+            <Row compact label="Початок"><TimeInput value={day.start} onChange={v=>updDay(sel,{start:v})} min={0} max={day.end-step/60} step={step/60}/></Row>
+            <Row compact label="Кінець"><TimeInput value={day.end} onChange={v=>updDay(sel,{end:v})} min={day.start+step/60} max={24} step={step/60}/></Row>
           </div>
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginTop:14,padding:"11px 12px",borderRadius:14,
             background:`linear-gradient(135deg,color-mix(in srgb,${GOLD} 22%,${BG_DEEP}),${BG_DEEP})`,border:`1px solid color-mix(in srgb,${GOLD} 35%,transparent)`}}>
@@ -456,9 +382,9 @@ export function WeekScheduleEditor({ weekSchedule, updDay, setWeek }) {
             <Toggle color={day.lunchEnabled?GREEN:RED} on={!!day.lunchEnabled} onChange={v=>updDay(sel,{lunchEnabled:v})}/>
           </div>
           {day.lunchEnabled && (
-            <div style={{display:"flex",justifyContent:"space-around",flexWrap:"wrap",gap:6,marginTop:10}}>
-              <TimeWheel label="ПЕРЕРВА З" color={GOLD} rows={3} value={lS} onChange={v=>updDay(sel,{lunchStart:v})} min={0} max={lE-0.5}/>
-              <TimeWheel label="ПЕРЕРВА ДО" color={GOLD} rows={3} value={lE} onChange={v=>updDay(sel,{lunchEnd:v})} min={lS+0.5} max={24}/>
+            <div style={{marginTop:10}}>
+              <Row compact label="Перерва з" color={GOLD}><TimeInput value={lS} onChange={v=>updDay(sel,{lunchStart:v})} min={0} max={lE-step/60} step={step/60}/></Row>
+              <Row compact label="Перерва до" color={GOLD}><TimeInput value={lE} onChange={v=>updDay(sel,{lunchEnd:v})} min={lS+step/60} max={24} step={step/60}/></Row>
             </div>
           )}
           <div style={{marginTop:14,padding:"0 4px"}}>
@@ -1029,22 +955,7 @@ select{color-scheme:${isKava?"light":"dark"}}
       case "schedule": return (
         <div>
           {showHint && <Info color={BLUE} title={t('set.schedule.info_t')} text={t('set.schedule.info')}/>}
-          <Row label={t('set.schedule.start')} hint={t('set.schedule.hint_s')}>
-            <TimeInput value={settings.workStart} onChange={v=>{
-              const clamped = Math.min(v, settings.workEnd - 0.5);
-              const updated = weekSchedule.map(d => ({...d, start: d.start === settings.workStart ? clamped : d.start}));
-              upd("workStart", clamped);
-              upd("weekSchedule", updated);
-            }} min={0} max={23.5}/>
-          </Row>
-          <Row label={t('set.schedule.end')} hint={t('set.schedule.hint_e')}>
-            <TimeInput value={settings.workEnd} onChange={v=>{
-              const clamped = Math.max(v, settings.workStart + 0.5);
-              const updated = weekSchedule.map(d => ({...d, end: d.end === settings.workEnd ? clamped : d.end}));
-              upd("workEnd", clamped);
-              upd("weekSchedule", updated);
-            }} min={0.5} max={24}/>
-          </Row>
+          <WeekScheduleEditor weekSchedule={weekSchedule} updDay={updDay} setWeek={v=>upd("weekSchedule",v)} step={settings.scheduleStep ?? 30} setStep={v=>upd("scheduleStep",v)}/>
           <Row label={t('set.schedule.days')}>
             <NumInput value={settings.daysShown} onChange={v=>upd("daysShown",v)} min={1} max={30} suffix={` ${t('days')}`}/>
           </Row>
@@ -1057,7 +968,6 @@ select{color-scheme:${isKava?"light":"dark"}}
           <Row compact last color={svColor(settings.showHelpBtn !== false)} label="Кнопка підказок «?»" hint="Показувати кнопку довідника у верхньому правому куті розкладу">
             <Toggle color={svColor(settings.showHelpBtn !== false)} on={settings.showHelpBtn !== false} onChange={v=>upd("showHelpBtn",v)}/>
           </Row>
-          <WeekScheduleEditor weekSchedule={weekSchedule} updDay={updDay} setWeek={v=>upd("weekSchedule",v)}/>
         </div>
       );
 

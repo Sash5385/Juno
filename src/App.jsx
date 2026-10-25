@@ -668,6 +668,15 @@ function AdminApp({ adminUser, ws, onWs }) {
   const [tabVisits,  setTabVisits]= useState({});
   const [openInfos,  setOpenInfos]= useState({});
   const [settings,   setSettings] = useState(DEFAULT_SETTINGS);
+
+  // Межі розкладу (workStart/workEnd) беремо з тижневого шаблону: найраніший початок і найпізніший кінець увімкнених днів
+  useEffect(() => {
+    const on = (settings.weekSchedule || []).filter(d => d && d.enabled && d.start != null && d.end != null);
+    if (!on.length) return;
+    const workStart = Math.floor(Math.min(...on.map(d => d.start)) + 1e-6);
+    const workEnd = Math.ceil(Math.max(...on.map(d => d.end)) - 1e-6);
+    if (workStart !== settings.workStart || workEnd !== settings.workEnd) setSettings(s => ({ ...s, workStart, workEnd }));
+  }, [settings.weekSchedule]); // eslint-disable-line react-hooks/exhaustive-deps
   setTags(settings.tags); // живий список міток для всіх вкладок (Налаштування → Мітки)
   useEffect(() => { rememberSalonInvite(); rememberWorkspaceInvite(); }, []); // запрошення в салон з посилання (?salon_invite=…)
   useEffect(() => { startTerms(settings.direction); }, [settings.direction]); // слова напрямку (Налаштування → Профіль)

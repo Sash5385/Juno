@@ -11,7 +11,7 @@ on:
 
 jobs:
   database:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
@@ -45,7 +45,7 @@ jobs:
         run: npx --yes firebase-tools@13 emulators:exec --only database --project demo-mon "node functions/test/monitoring.e2e.js"
 
   smoke:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
