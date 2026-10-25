@@ -6,7 +6,7 @@
     "juno-booking": {
       "hosting": {
         "admin": [
-          "juno-admin"
+          "juno-booking-admin"
         ],
         "landing": [
           "juno-booking"

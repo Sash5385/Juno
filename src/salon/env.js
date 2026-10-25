@@ -10,5 +10,5 @@ function detect() {
   } catch { return false; }
 }
 export const SALON_MODE = detect();
-export const CLIENT_URL = import.meta.env.VITE_CLIENT_URL || "https://juno-client.web.app";
+export const CLIENT_URL = import.meta.env.VITE_CLIENT_URL || "https://juno-booking-client.web.app";
 export const FUNCTIONS_BASE = import.meta.env.VITE_FUNCTIONS_BASE || "";

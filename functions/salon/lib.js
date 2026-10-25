@@ -10,8 +10,8 @@ const DEFAULT_TZ = "Europe/Kyiv";
 const VENDOR_EMAIL = "sash5385@gmail.com";
 
 // Адреси застосунків: на окремому Firebase-проєкті (ребрендинг) задаються через .env.<project>
-const adminUrl = () => process.env.SALON_ADMIN_URL || "https://juno-admin.web.app";
-const clientUrl = () => process.env.SALON_CLIENT_URL || "https://juno-client.web.app";
+const adminUrl = () => process.env.SALON_ADMIN_URL || "https://juno-booking-admin.web.app";
+const clientUrl = () => process.env.SALON_CLIENT_URL || "https://juno-booking-client.web.app";
 
 const db = () => admin.database();
 const sRef = (salonId, path) => db().ref(path ? `salons/${salonId}/${path}` : `salons/${salonId}`);

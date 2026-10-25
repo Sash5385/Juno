@@ -57,7 +57,7 @@ async function pushStudent(iid, uid, title, body, data = {}) {
   const snap = await iRef(iid, `users/${uid}/fcmTokens`).get();
   const devices = collectDeviceTokens(snap.val());
   if (!devices.length) return false;
-  const link = data.url || "https://juno-client.web.app/cabinet";
+  const link = data.url || "https://juno-booking-client.web.app/cabinet";
   let sent = false;
   for (const [deviceId, token] of devices) {
     try {
@@ -207,7 +207,7 @@ async function pushAdmin(iid, title, body, data = {}) {
   const devices = collectDeviceTokens(snap.val());
   console.log(`pushAdmin: iid=${iid} devices=${devices.length}, title="${title}"`);
   if (!devices.length) { console.warn(`pushAdmin: no tokens at instructors/${iid}/fcmTokens`); return false; }
-  const link = data.url || "https://juno-admin.web.app";
+  const link = data.url || "https://juno-booking-admin.web.app";
   let sent = false;
   for (const [deviceId, token] of devices) {
     try {
@@ -448,7 +448,7 @@ exports.onBookingChanged = onValueWritten(
     const name       = (after || before)?.studentName || "Учень";
     const date       = (after || before)?.date || "—";
     const time       = (after || before)?.time || "—";
-    const adminLink  = () => buildAdminLink("https://juno-admin.web.app", { date, time, uid, bookingId });
+    const adminLink  = () => buildAdminLink("https://juno-booking-admin.web.app", { date, time, uid, bookingId });
 
     // Запис перенесено з картки-дубліката в акаунт учня (mergeStudentInto) — це не
     // новий урок: слоти вже зайняті, сповіщення не потрібні.
@@ -467,7 +467,7 @@ exports.onBookingChanged = onValueWritten(
           const freeUpd = await buildSlotUpdates(iid, after, true, uid);
           if (Object.keys(freeUpd).length) await iRef(iid).update(freeUpd).catch(() => {});
           await pushStudent(iid, uid, "⚠️ Запис недоступний", "Інструктор тимчасово не приймає нові записи.", {
-            url: "https://juno-client.web.app/cabinet/bookings",
+            url: "https://juno-booking-client.web.app/cabinet/bookings",
           }).catch(() => {});
           return;
         }
@@ -484,7 +484,7 @@ exports.onBookingChanged = onValueWritten(
         // Адмін вручну записав учня — сповіщаємо учня
         console.log(`onBookingChanged: admin manual booking iid=${iid} uid=${uid}`);
         await pushStudent(iid, uid, "📋 Урок заплановано", `${date} о ${time}`, {
-          url: "https://juno-client.web.app/cabinet/bookings",
+          url: "https://juno-booking-client.web.app/cabinet/bookings",
         });
         await saveNotification(iid, uid, "📋 Урок заплановано", `${date} о ${time}`, "booking_confirmed");
       } else if (after.createdBy !== "admin" && after.status !== "personal") {
@@ -525,7 +525,7 @@ exports.onBookingChanged = onValueWritten(
       const usedTpl = await sendActiveTemplates(iid, uid, "auto_confirm", vars).catch(() => false);
       if (!usedTpl) {
         await pushStudent(iid, uid, "✅ Урок підтверджено", `${date} о ${time}`, {
-          url: "https://juno-client.web.app/cabinet/bookings",
+          url: "https://juno-booking-client.web.app/cabinet/bookings",
         });
         await saveNotification(iid, uid, "✅ Урок підтверджено", `${date} о ${time}`, "booking_confirmed");
       }
@@ -551,7 +551,7 @@ exports.onBookingChanged = onValueWritten(
       const usedCancelTpl = cancelMsgOn && await sendActiveTemplates(iid, uid, "auto_cancel", cancelVars).catch(() => false);
       if (cancelMsgOn && !usedCancelTpl) {
         await pushStudent(iid, uid, "❌ Урок скасовано", `${date} о ${time}`, {
-          url: "https://juno-client.web.app/cabinet/bookings",
+          url: "https://juno-booking-client.web.app/cabinet/bookings",
         });
         await saveNotification(iid, uid, "❌ Урок скасовано", `${date} о ${time}`, "booking_cancelled");
       }
@@ -738,7 +738,7 @@ exports.onNewStudentRegistered = onValueCreated(
     console.log(`onNewStudentRegistered: iid=${iid} uid=${uid} name="${name}" merged=${merged}`);
     const who = phone ? `${name} · ${phone}` : name;
     await pushAdmin(iid, "🎉 Новий учень", merged ? `${who}\nОб'єднано з карткою, яку ви завели вручну` : who, {
-      url: buildAdminLink("https://juno-admin.web.app", { uid }),
+      url: buildAdminLink("https://juno-booking-admin.web.app", { uid }),
     });
     await sendActiveTemplates(iid, uid, "auto_welcome", { "ім'я": name }).catch(() => {});
   }
@@ -766,7 +766,7 @@ exports.onQueueInvite = onValueUpdated(
     if (slotNow && slotNow.available === false) {
       await iRef(iid, `queue/${slotKey}/entries/${uid}`).update({ status: "waiting", broadcast: null, offerDurationHours: null }).catch(() => {});
       await pushAdmin(iid, "⚠️ Місце ще зайняте", `${date} о ${time} — запис на цей час ще існує. Запросіть учня з черги після скасування.`, {
-        url: buildAdminLink("https://juno-admin.web.app", { date, time }),
+        url: buildAdminLink("https://juno-booking-admin.web.app", { date, time }),
       }).catch(() => {});
       return;
     }
@@ -783,7 +783,7 @@ exports.onQueueInvite = onValueUpdated(
       ...(after.offerDurationHours ? { durationHours: after.offerDurationHours } : {}),
     }).catch(() => {});
 
-    const url = `https://juno-client.web.app/cabinet?date=${date}&time=${encodeURIComponent(time)}`;
+    const url = `https://juno-booking-client.web.app/cabinet?date=${date}&time=${encodeURIComponent(time)}`;
     const pushTitle = after.broadcast ? "⏳ Звільнилось місце!" : "🎉 Слот зарезервовано для вас!";
     const pushBody = after.broadcast
       ? `${date} о ${time} — хто перший підтвердить, той записаний`
@@ -909,11 +909,11 @@ exports.unlockVipSlots = onSchedule("every 1 hours", async () => {
         data: {
           title: "🚗 З'явились нові слоти!",
           body: "Відкрились нові години для запису. Поспішай!",
-          url: "https://juno-client.web.app/cabinet",
+          url: "https://juno-booking-client.web.app/cabinet",
         },
         android: androidPush("🚗 З'явились нові слоти!", "Відкрились нові години для запису. Поспішай!"),
         webpush: {
-          fcmOptions: { link: "https://juno-client.web.app/cabinet" },
+          fcmOptions: { link: "https://juno-booking-client.web.app/cabinet" },
         },
       }).catch(() => {});
     }
@@ -1014,7 +1014,7 @@ exports.flushSlotFreedQueue = onSchedule(
         const tpl = await getActiveTemplateRaw(iid, "auto_queue").catch(() => null);
         const rawTitle = tpl?.title || "🚗 Звільнився слот!";
         const rawBody  = tpl?.body  || `${dateFormatted} о ${time} — є вільне місце`;
-        const url   = `https://juno-client.web.app/cabinet?date=${date}`;
+        const url   = `https://juno-booking-client.web.app/cabinet?date=${date}`;
 
         for (const uid of notifyUids) {
           if (lastNotifData[uid] && now - lastNotifData[uid] < RATE_LIMIT_MS) continue;
@@ -1054,7 +1054,7 @@ exports.flushRescheduleQueue = onSchedule(
         }
       }
       await Promise.all(tasks.map(async ({ uid, bookingId, body }) => {
-        await pushStudent(iid, uid, "🔄 Урок перенесено", body, { url: "https://juno-client.web.app/cabinet/bookings" });
+        await pushStudent(iid, uid, "🔄 Урок перенесено", body, { url: "https://juno-booking-client.web.app/cabinet/bookings" });
         await saveNotification(iid, uid, "🔄 Урок перенесено", body, "booking_rescheduled");
         await iRef(iid, `rescheduleQueue/${uid}/${bookingId}`).remove();
         console.log(`flushRescheduleQueue: sent to iid=${iid} uid=${uid} bookingId=${bookingId}`);
@@ -1103,7 +1103,7 @@ exports.onInstructorMessage = onValueCreated(
     if (!text) return;
     const name = await getInstructorName(iid);
     await pushStudent(iid, uid, `💬 ${name || "Інструктор"}`, text.length > 100 ? text.slice(0, 100) + "…" : text, {
-      url: "https://juno-client.web.app/cabinet/chat",
+      url: "https://juno-booking-client.web.app/cabinet/chat",
     });
   }
 );
@@ -1202,7 +1202,7 @@ exports.sendLessonReminders = onSchedule(
             }
             const title = H >= 12 ? "🚗 Нагадування про урок" : `⏰ Урок через ${hoursUk(H)}`;
             const body = H >= 12 ? `${H === 24 ? "Завтра" : dateFmt} о ${b.time}${H === 24 ? ` — ${dateFmt}` : ""}` : `о ${b.time} — ${dateFmt}`;
-            const pushed = await pushStudent(iid, uid, title, body, { url: "https://juno-client.web.app/cabinet/bookings" }).catch(() => false);
+            const pushed = await pushStudent(iid, uid, title, body, { url: "https://juno-booking-client.web.app/cabinet/bookings" }).catch(() => false);
             if (pushed) {
               await saveNotification(iid, uid, title, body, "reminder");
               updates[`sentReminders/${uid}/${bookingId}/${key}`] = true;
@@ -1252,7 +1252,7 @@ exports.sendPersonalEventReminders = onSchedule(
             iid,
             `⏰ ${ev.name || "Нагадування"}`,
             `${dateFmt} о ${ev.time}${ev.note ? " · " + ev.note : ""}`,
-            { url: `https://juno-admin.web.app/?date=${ev.date}`, alarm: "1" }
+            { url: `https://juno-booking-admin.web.app/?date=${ev.date}`, alarm: "1" }
           );
           updates[`bookings/personal/${id}/reminderSent`] = true;
         }
@@ -1292,7 +1292,7 @@ exports.onPushTask = onValueCreated(
     const slotsStr = slotsArr.filter(Boolean).join(" та ");
     const title = "🚗 Є вільний слот!";
     const body = `${dateFmt} о ${slotsStr}${comment ? " — " + comment : ""}`;
-    const url = `https://juno-client.web.app/cabinet?date=${date}${slotsArr[0] ? `&time=${encodeURIComponent(slotsArr[0])}` : ""}`;
+    const url = `https://juno-booking-client.web.app/cabinet?date=${date}${slotsArr[0] ? `&time=${encodeURIComponent(slotsArr[0])}` : ""}`;
 
     let sentCount = 0;
     for (let i = 0; i < tokened.length; i += 500) {
@@ -1345,7 +1345,7 @@ exports.flushDayNoteReminders = onSchedule(
         console.log(`flushDayNoteReminders: iid=${iid} sending push for key=${key}`);
         const title = "🔔 Нагадування";
         const body = note.text || `Нотатка на ${dateStr}`;
-        await pushAdmin(iid, title, body, { url: `https://juno-admin.web.app/?date=${dateStr}`, alarm: "1" });
+        await pushAdmin(iid, title, body, { url: `https://juno-booking-admin.web.app/?date=${dateStr}`, alarm: "1" });
         await iRef(iid, `dayNotes/${dateStr}/notes/${key}/notified`).set(true).catch(() => {});
       }
     }
@@ -1381,7 +1381,7 @@ exports.checkLicenseExpiry = onSchedule(
     const instructorsSnap = await db.ref("instructors").get();
     const instructors = instructorsSnap.val() || {};
     const now = Date.now();
-    const link = { url: "https://juno-admin.web.app" };
+    const link = { url: "https://juno-booking-admin.web.app" };
 
     for (const [iid, inst] of Object.entries(instructors)) {
       const license = inst?.license;
@@ -1876,7 +1876,7 @@ exports.createLiqPayOrder = onRequest(
         subscribe_date_start: subscribeDateStart,
         subscribe_periodicity: plan === "year" ? "year" : "month",
         server_url: "https://europe-west1-juno-booking.cloudfunctions.net/liqpayCallback",
-        result_url: "https://juno-admin.web.app/",
+        result_url: "https://juno-booking-admin.web.app/",
         language: "uk",
       };
       const data = Buffer.from(JSON.stringify(payload)).toString("base64");
@@ -1969,7 +1969,7 @@ exports.createMonobankInvoice = onRequest(
             reference: buildPaymentRef(iid, plan),
             destination: (plan === "year" ? "DrivePad — річна підписка" : "DrivePad — місячна підписка") + (testPay ? " (ТЕСТ 1₴)" : ""),
           },
-          redirectUrl: "https://juno-admin.web.app/",
+          redirectUrl: "https://juno-booking-admin.web.app/",
           webHookUrl: "https://europe-west1-juno-booking.cloudfunctions.net/monobankCallback",
           validity: 3600,
         }),

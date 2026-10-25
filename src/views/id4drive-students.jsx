@@ -233,10 +233,17 @@ function StudentDetailSheet({ s, onClose, onUpdate, onDelete, onBlock, onRemoveB
     setHistoryOpen(true);
     if (history !== null) return;
     setHistoryLoading(true);
-    get(iRef( `bookings/${s.id}`)).then(snap => {
-      const data = snap.val() || {};
+    // Записи, створені адміном до реєстрації учня, лежать у bookings/guest_<телефон> —
+    // підтягуємо їх разом з основним uid (інакше години з них не враховуються).
+    const guestDigits = (s.phone||"").replace(/\D/g,"");
+    const guestUid = guestDigits && !String(s.id).startsWith("guest_") ? `guest_${guestDigits}` : null;
+    Promise.all([
+      get(iRef( `bookings/${s.id}`)),
+      guestUid ? get(iRef( `bookings/${guestUid}`)).catch(() => null) : Promise.resolve(null),
+    ]).then(([snap, gSnap]) => {
+      const data = { ...((gSnap && gSnap.val()) || {}), ...(snap.val() || {}) };
       const today = new Date(new Date().toDateString());
-      const list = Object.entries(data).map(([id, b]) => ({ id, ...b }))
+      const list = Object.entries(data).filter(([, b]) => b).map(([id, b]) => ({ id, ...b }))
         .filter(b => b.date && new Date(b.date) < today)
         .sort((a, b) => b.date.localeCompare(a.date) || (b.time||'').localeCompare(a.time||''));
       setHistory(list);

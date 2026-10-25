@@ -43,12 +43,12 @@ messaging.onBackgroundMessage((payload) => {
 self.addEventListener('notificationclick', (e) => {
   e.notification.close()
   const data = e.notification.data || {}
-  const target = data.url || 'https://juno-admin.web.app'
-  const fullUrl = target.startsWith('http') ? target : ('https://juno-admin.web.app' + target)
+  const target = data.url || 'https://juno-booking-admin.web.app'
+  const fullUrl = target.startsWith('http') ? target : ('https://juno-booking-admin.web.app' + target)
   e.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
       for (const c of list) {
-        if (c.url.startsWith('https://juno-admin.web.app') && 'focus' in c) {
+        if (c.url.startsWith('https://juno-booking-admin.web.app') && 'focus' in c) {
           c.focus()
           return c.navigate(fullUrl)
         }
