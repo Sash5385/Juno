@@ -239,7 +239,37 @@ function Info({ title, text, color }) {
   );
 }
 
+// Список часу: тап по часу відкриває вибір зі списку (крок — з налаштувань)
+function TimeListSheet({ loM, hiM, sm, curM, onPick, onClose }) {
+  const { TEXT, FAINT, GREEN, BG_DEEP, SURF_HI } = useContext(ThemeContext);
+  const selRef = useRef(null);
+  const items = [];
+  const st = (hiM - loM) / sm > 300 ? 5 : sm;              // дрібний крок (1 хв) → список по 5 хв, щоб не роздувати його
+  for (let m = Math.ceil(loM / st) * st; m <= hiM; m += st) items.push(m);
+  if (!items.includes(curM)) { items.push(curM); items.sort((a, b) => a - b); }
+  useEffect(() => { selRef.current?.scrollIntoView({ block: "center" }); }, []);
+  const fm = m => `${String(Math.floor(m / 60)).padStart(2,"0")}:${String(m % 60).padStart(2,"0")}`;
+  return createPortal(
+    <div onClick={onClose} style={{position:"fixed",inset:0,zIndex:2000,background:"rgba(0,0,0,.55)",display:"flex",alignItems:"flex-end",justifyContent:"center"}}>
+      <div onClick={e=>e.stopPropagation()} style={{width:"100%",maxWidth:420,maxHeight:"55vh",overflowY:"auto",background:BG_DEEP,borderRadius:"18px 18px 0 0",padding:"8px 10px calc(12px + env(safe-area-inset-bottom))",boxShadow:"0 -8px 30px rgba(0,0,0,.5)"}}>
+        {items.map(m => {
+          const on = m === curM;
+          return (
+            <button key={m} ref={on ? selRef : null} onClick={()=>{ onPick(m); onClose(); }} style={{
+              display:"block",width:"100%",height:44,border:"none",cursor:"pointer",borderRadius:10,marginBottom:2,
+              fontSize:on?20:17,fontWeight:on?800:600,fontVariantNumeric:"tabular-nums",
+              background:on?`color-mix(in srgb,${GREEN} 28%,${SURF_HI||BG_DEEP})`:"transparent",color:on?TEXT:FAINT,
+            }}>{fm(m)}</button>
+          );
+        })}
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 function TimeInput({ value, onChange, min=0, max=24, step=1/60, compact=false }) {
+  const [open, setOpen] = useState(false);
   const { BG_DEEP, TEXT, FAINT, SI, FOG, SURF_HI } = useContext(ThemeContext);
   const tm = Math.round((Number(value) || 0) * 60);        // хвилини від півночі — точність 1 хв
   const minM = Math.round(min * 60), maxM = Math.round(max * 60);
@@ -266,15 +296,14 @@ function TimeInput({ value, onChange, min=0, max=24, step=1/60, compact=false })
       style={{width:bW,height:bH,border:"none",cursor:"pointer",background:"transparent",color:FAINT,fontSize:fS,padding:0,lineHeight:1,touchAction:"none"}}>{ch}</button>
   );
   return (
+    <>
     <div style={{display:"flex",alignItems:"center",background:FOG?SURF_HI:BG_DEEP,borderRadius:FOG?12:7,boxShadow:FOG?"none":SI,overflow:"hidden"}}>
       {btn(-1,"‹")}
-      <label style={{position:"relative",fontSize:dS,fontWeight:700,color:TEXT,minWidth:dW,textAlign:"center",cursor:"pointer",alignSelf:"stretch",display:"flex",alignItems:"center",justifyContent:"center"}}>
-        {disp}
-        <input type="time" step={60} value={disp} onChange={e=>{ const [h,m] = String(e.target.value || "").split(":").map(Number); if (Number.isFinite(h) && Number.isFinite(m)) setM(h * 60 + m); }}
-          style={{position:"absolute",inset:0,width:"100%",height:"100%",opacity:0,cursor:"pointer"}}/>
-      </label>
+      <button onClick={()=>setOpen(true)} style={{fontSize:dS,fontWeight:700,color:TEXT,minWidth:dW,textAlign:"center",cursor:"pointer",border:"none",background:"transparent",padding:0,alignSelf:"stretch"}}>{disp}</button>
       {btn(1,"›")}
     </div>
+    {open && <TimeListSheet loM={minM} hiM={maxM} sm={sm} curM={tm} onPick={m=>setM(m)} onClose={()=>setOpen(false)}/>}
+    </>
   );
 }
 
@@ -355,23 +384,6 @@ export function WeekScheduleEditor({ weekSchedule, updDay, setWeek, step = 30, s
           <Toggle color={day.enabled?GREEN:RED} on={day.enabled} onChange={v=>updDay(sel,{enabled:v})}/>
         </div>
         {day.enabled && (<>
-          <div style={{margin:"12px 4px 4px"}}>
-            <div style={{position:"relative",height:12,borderRadius:6,background:BG_DEEP,boxShadow:SI,overflow:"hidden"}}>
-              <div style={{position:"absolute",top:0,bottom:0,left:pct(day.start),width:`calc(${pct(day.end)} - ${pct(day.start)})`,
-                background:`linear-gradient(90deg,${GREEN},color-mix(in srgb,${GREEN} 60%,#34d399))`,borderRadius:6}}/>
-              {day.lunchEnabled && <div style={{position:"absolute",top:0,bottom:0,left:pct(lS),width:`calc(${pct(lE)} - ${pct(lS)})`,background:GOLD}}/>}
-            </div>
-            <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:DIM,marginTop:3}}>
-              <span>00</span><span>06</span><span>12</span><span>18</span><span>24</span>
-            </div>
-          </div>
-          <div style={{display:"flex",alignItems:"center",gap:5,marginTop:10,padding:"0 4px"}}>
-            <span style={{fontSize:11,fontWeight:800,letterSpacing:1.2,color:DIM,marginRight:2,whiteSpace:"nowrap"}}>КРОК, ХВ</span>
-            {[5,10,15,30,60].map(v=>(
-              <button key={v} onClick={()=>setStep?.(v)} style={{flex:1,height:30,borderRadius:10,cursor:"pointer",fontWeight:800,fontSize:12,
-                color:step===v?"#0b1a08":TEXT,background:step===v?GREEN:BG_DEEP,border:`1px solid color-mix(in srgb,${GREEN} ${step===v?90:30}%,transparent)`}}>{v}</button>
-            ))}
-          </div>
           <div style={{marginTop:6}}>
             <Row compact label="Початок"><TimeInput value={day.start} onChange={v=>updDay(sel,{start:v})} min={0} max={day.end-step/60} step={step/60}/></Row>
             <Row compact label="Кінець"><TimeInput value={day.end} onChange={v=>updDay(sel,{end:v})} min={day.start+step/60} max={24} step={step/60}/></Row>
@@ -955,7 +967,7 @@ select{color-scheme:${isKava?"light":"dark"}}
       case "schedule": return (
         <div>
           {showHint && <Info color={BLUE} title={t('set.schedule.info_t')} text={t('set.schedule.info')}/>}
-          <WeekScheduleEditor weekSchedule={weekSchedule} updDay={updDay} setWeek={v=>upd("weekSchedule",v)} step={settings.scheduleStep ?? 30} setStep={v=>upd("scheduleStep",v)}/>
+          <WeekScheduleEditor weekSchedule={weekSchedule} updDay={updDay} setWeek={v=>upd("weekSchedule",v)} step={settings.slotCreateStep ?? 30}/>
           <Row label={t('set.schedule.days')}>
             <NumInput value={settings.daysShown} onChange={v=>upd("daysShown",v)} min={1} max={30} suffix={` ${t('days')}`}/>
           </Row>
