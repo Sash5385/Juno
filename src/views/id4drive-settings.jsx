@@ -905,22 +905,7 @@ select{color-scheme:${isKava?"light":"dark"}}
       case "schedule": return (
         <div>
           {showHint && <Info color={BLUE} title={t('set.schedule.info_t')} text={t('set.schedule.info')}/>}
-          <Row label={t('set.schedule.start')} hint={t('set.schedule.hint_s')}>
-            <TimeInput value={settings.workStart} onChange={v=>{
-              const clamped = Math.min(v, settings.workEnd - 0.5);
-              const updated = weekSchedule.map(d => ({...d, start: d.start === settings.workStart ? clamped : d.start}));
-              upd("workStart", clamped);
-              upd("weekSchedule", updated);
-            }} min={0} max={23.5}/>
-          </Row>
-          <Row label={t('set.schedule.end')} hint={t('set.schedule.hint_e')}>
-            <TimeInput value={settings.workEnd} onChange={v=>{
-              const clamped = Math.max(v, settings.workStart + 0.5);
-              const updated = weekSchedule.map(d => ({...d, end: d.end === settings.workEnd ? clamped : d.end}));
-              upd("workEnd", clamped);
-              upd("weekSchedule", updated);
-            }} min={0.5} max={24}/>
-          </Row>
+          <WeekScheduleEditor weekSchedule={weekSchedule} updDay={updDay} setWeek={v=>upd("weekSchedule",v)} step={settings.scheduleStep ?? 30} setStep={v=>upd("scheduleStep",v)}/>
           <Row label={t('set.schedule.days')}>
             <NumInput value={settings.daysShown} onChange={v=>upd("daysShown",v)} min={1} max={30} suffix={` ${t('days')}`}/>
           </Row>
@@ -948,7 +933,6 @@ select{color-scheme:${isKava?"light":"dark"}}
               </div>
             </RowBlock>
           </div>
-          <WeekScheduleEditor weekSchedule={weekSchedule} updDay={updDay} setWeek={v=>upd("weekSchedule",v)} step={settings.scheduleStep ?? 30} setStep={v=>upd("scheduleStep",v)}/>
         </div>
       );
 
