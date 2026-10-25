@@ -1,4 +1,4 @@
-import { useState, useContext, useEffect, useRef } from "react";
+import { useState, useContext, useEffect, useRef, memo } from "react";
 import { createPortal } from "react-dom";
 import { get, update, onValue, off } from "firebase/database";
 import { uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
@@ -216,80 +216,75 @@ function TimeInput({ value, onChange, min=0, max=24, compact=false }) {
 // ─── БАРАБАН ЧАСУ — крупний вибір часу прокруткою (scroll-snap) ──────────
 // Крок хвилин 30: календар (сітка, підписи, лінії) побудований на півгодинних
 // рядках, дробові 15/10/5 хв зламали б вирівнювання сітки.
-const WHEEL_ITEM = 40;
-const WHEEL_H = Array.from({length:25},(_,i)=>String(i).padStart(2,"0"));
-const WHEEL_M = ["00","30"];
+const STRIP_W = 84;
+const toMin = (x) => Math.round(Number(x) * 60);          // години (можуть бути дробові) → хвилини, без похибки float
+const stripLabel = (m) => `${String(Math.floor(m / 60)).padStart(2,"0")}:${String(m % 60).padStart(2,"0")}`;
 
-function WheelCol({ items, index, onIndex, rows = 5, width = 48 }) {
+const StripItem = memo(function StripItem({ label, d, off, onClick }) {
   const { TEXT, FAINT } = useContext(ThemeContext);
+  return (
+    <div onClick={onClick} style={{
+      flex:`0 0 ${STRIP_W}px`,scrollSnapAlign:"center",textAlign:"center",cursor:"pointer",userSelect:"none",
+      fontSize:d===0?26:d===1?19:16,fontWeight:800,fontVariantNumeric:"tabular-nums",
+      color:d===0?TEXT:FAINT,opacity:off?0.15:d===0?1:d===1?0.6:0.3,
+    }}>{label}</div>
+  );
+});
+
+// Горизонтальна стрічка часу (крок — з налаштувань). Вертикальний скрол сторінки не блокується.
+function TimeStrip({ label, value, onChange, min = 0, max = 24, step = 5, color }) {
+  const { TEXT, GREEN, BG_DEEP } = useContext(ThemeContext);
+  const c = color || GREEN;
+  const n = Math.floor(1440 / step) + 1;
+  const lo = toMin(min), hi = toMin(max);
+  const clamp = m => Math.min(hi, Math.max(lo, m));
+  const vMin = clamp(Math.round(toMin(value) / step) * step);
+  const index = Math.round(vMin / step);
   const ref = useRef(null);
   const timer = useRef(null);
   const [live, setLive] = useState(index);
-  const [tick, setTick] = useState(0);
-  const pad = ((rows - 1) / 2) * WHEEL_ITEM;
   useEffect(() => {
     const el = ref.current;
-    if (el && Math.abs(el.scrollTop - index * WHEEL_ITEM) > 1) el.scrollTo({ top: index * WHEEL_ITEM });
+    if (el && Math.abs(el.scrollLeft - index * STRIP_W) > 1) el.scrollTo({ left: index * STRIP_W });
     setLive(index);
-  }, [index, tick]);
+  }, [index, step]);
   useEffect(() => () => clearTimeout(timer.current), []);
   const onScroll = () => {
     const el = ref.current;
     if (!el) return;
-    const i = Math.max(0, Math.min(items.length - 1, Math.round(el.scrollTop / WHEEL_ITEM)));
+    const i = Math.max(0, Math.min(n - 1, Math.round(el.scrollLeft / STRIP_W)));
     setLive(i);
     clearTimeout(timer.current);
-    timer.current = setTimeout(() => { if (i !== index) onIndex(i); setTick(t => t + 1); }, 140);
+    timer.current = setTimeout(() => {
+      const m = clamp(i * step);
+      if (m !== vMin) onChange(m / 60);
+      const ci = Math.round(m / step);
+      if (ci !== i) el.scrollTo({ left: ci * STRIP_W, behavior: "smooth" });
+    }, 140);
   };
-  const mask = "linear-gradient(transparent,#000 28%,#000 72%,transparent)";
-  return (
-    <div style={{position:"relative",zIndex:1,width,height:rows*WHEEL_ITEM,flexShrink:0}}>
-      <style>{`.wheel-col::-webkit-scrollbar{display:none}`}</style>
-      <div ref={ref} className="wheel-col" onScroll={onScroll} style={{
-        height:"100%",overflowY:"scroll",scrollSnapType:"y mandatory",scrollbarWidth:"none",
-        overscrollBehavior:"contain",WebkitOverflowScrolling:"touch",
-        maskImage:mask,WebkitMaskImage:mask,
-      }}>
-        <div style={{height:pad}}/>
-        {items.map((it, i) => {
-          const o = i - live;
-          const a = Math.abs(o);
-          return (
-            <div key={i} onClick={()=>ref.current?.scrollTo({top:i*WHEEL_ITEM,behavior:"smooth"})} style={{
-              height:WHEEL_ITEM,scrollSnapAlign:"center",display:"flex",alignItems:"center",justifyContent:"center",
-              fontSize:a===0?30:a===1?22:18,fontWeight:800,cursor:"pointer",userSelect:"none",
-              fontVariantNumeric:"tabular-nums",
-              transform:`perspective(240px) rotateX(${Math.max(-70,Math.min(70,-o*28))}deg)`,
-              color:a===0?TEXT:FAINT,opacity:a===0?1:a===1?0.6:0.28,
-            }}>{it}</div>
-          );
-        })}
-        <div style={{height:pad}}/>
-      </div>
-    </div>
-  );
-}
-
-function TimeWheel({ label, value, onChange, min = 0, max = 24, rows = 5, color }) {
-  const { DIM, TEXT, GREEN, BG_DEEP } = useContext(ThemeContext);
-  const c = color || GREEN;
-  const v = Math.min(max, Math.max(min, Number(value) || 0));
-  const h = Math.floor(v);
-  const m = v % 1 >= 0.5 ? 1 : 0;
-  const set = (nh, nm) => onChange(Math.min(max, Math.max(min, nh + nm * 0.5)));
-  const pad = ((rows - 1) / 2) * WHEEL_ITEM;
+  const mask = "linear-gradient(90deg,transparent,#000 22%,#000 78%,transparent)";
+  const side = `0 0 calc(50% - ${STRIP_W / 2}px)`;
   return (
     <div style={{textAlign:"center"}}>
-      <div style={{display:"inline-block",fontSize:11,fontWeight:800,letterSpacing:1.2,color:c,marginBottom:6,
+      <div style={{display:"inline-block",fontSize:11,fontWeight:800,letterSpacing:1.2,color:`color-mix(in srgb,${c} 60%,#fff)`,marginBottom:6,
         padding:"3px 12px",borderRadius:999,background:`color-mix(in srgb,${c} 14%,transparent)`}}>{label}</div>
-      <div style={{position:"relative",display:"flex",alignItems:"center",justifyContent:"center",gap:2,padding:"0 4px"}}>
-        <div style={{position:"absolute",left:0,right:0,top:pad,height:WHEEL_ITEM,pointerEvents:"none",borderRadius:14,
+      <div style={{position:"relative",height:48}}>
+        <div style={{position:"absolute",left:"50%",top:0,bottom:0,width:STRIP_W-8,transform:"translateX(-50%)",pointerEvents:"none",borderRadius:14,
           background:`linear-gradient(135deg,color-mix(in srgb,${c} 32%,${BG_DEEP}),color-mix(in srgb,${c} 10%,${BG_DEEP}))`,
           border:`1px solid color-mix(in srgb,${c} 55%,transparent)`,
           boxShadow:`0 0 18px color-mix(in srgb,${c} 28%,transparent), inset 0 1px 0 rgba(255,255,255,.12)`}}/>
-        <WheelCol items={WHEEL_H} index={h} onIndex={i=>set(i,m)} rows={rows}/>
-        <span style={{position:"relative",zIndex:1,fontSize:28,fontWeight:800,color:TEXT,marginTop:-3}}>:</span>
-        <WheelCol items={WHEEL_M} index={m} onIndex={i=>set(h,i)} rows={rows}/>
+        <style>{`.strip-row::-webkit-scrollbar{display:none}`}</style>
+        <div ref={ref} className="strip-row" onScroll={onScroll} style={{
+          position:"relative",zIndex:1,height:"100%",display:"flex",alignItems:"center",overflowX:"scroll",scrollSnapType:"x mandatory",
+          scrollbarWidth:"none",overscrollBehaviorX:"contain",WebkitOverflowScrolling:"touch",maskImage:mask,WebkitMaskImage:mask,
+        }}>
+          <div style={{flex:side}}/>
+          {Array.from({length:n},(_,i)=>(
+            <StripItem key={i} label={stripLabel(i*step)} d={Math.min(2,Math.abs(i-live))} off={i*step<lo||i*step>hi}
+              onClick={()=>ref.current?.scrollTo({left:i*STRIP_W,behavior:"smooth"})}/>
+          ))}
+          <div style={{flex:side}}/>
+        </div>
       </div>
     </div>
   );
@@ -310,7 +305,7 @@ function daySlotStarts(d) {
   return out;
 }
 
-function WeekScheduleEditor({ weekSchedule, updDay, setWeek }) {
+function WeekScheduleEditor({ weekSchedule, updDay, setWeek, step = 5, setStep }) {
   const { BG_DEEP, SURF_HI, SURFACE, TEXT, DIM, FAINT, GREEN, RED, GOLD, ACCENT, SI, SO } = useContext(ThemeContext);
   const [sel, setSel] = useState(0);
   const day = weekSchedule[sel];
@@ -381,9 +376,16 @@ function WeekScheduleEditor({ weekSchedule, updDay, setWeek }) {
               <span>00</span><span>06</span><span>12</span><span>18</span><span>24</span>
             </div>
           </div>
-          <div style={{display:"flex",justifyContent:"space-around",flexWrap:"wrap",gap:6,marginTop:6}}>
-            <TimeWheel label="ПОЧАТОК" value={day.start} onChange={v=>updDay(sel,{start:v})} min={0} max={day.end-0.5}/>
-            <TimeWheel label="КІНЕЦЬ" value={day.end} onChange={v=>updDay(sel,{end:v})} min={day.start+0.5} max={24}/>
+          <div style={{display:"flex",alignItems:"center",gap:5,marginTop:10,padding:"0 4px"}}>
+            <span style={{fontSize:11,fontWeight:800,letterSpacing:1.2,color:DIM,marginRight:2,whiteSpace:"nowrap"}}>КРОК, ХВ</span>
+            {[5,10,15,30,60].map(v=>(
+              <button key={v} onClick={()=>setStep?.(v)} style={{flex:1,height:30,borderRadius:10,cursor:"pointer",fontWeight:800,fontSize:12,
+                color:step===v?"#0b1a08":TEXT,background:step===v?GREEN:BG_DEEP,border:`1px solid color-mix(in srgb,${GREEN} ${step===v?90:30}%,transparent)`}}>{v}</button>
+            ))}
+          </div>
+          <div style={{display:"flex",flexDirection:"column",gap:10,marginTop:10}}>
+            <TimeStrip label="ПОЧАТОК" value={day.start} onChange={v=>updDay(sel,{start:v})} min={0} max={day.end-step/60} step={step}/>
+            <TimeStrip label="КІНЕЦЬ" value={day.end} onChange={v=>updDay(sel,{end:v})} min={day.start+step/60} max={24} step={step}/>
           </div>
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginTop:14,padding:"11px 12px",borderRadius:14,
             background:`linear-gradient(135deg,color-mix(in srgb,${GOLD} 22%,${BG_DEEP}),${BG_DEEP})`,border:`1px solid color-mix(in srgb,${GOLD} 35%,transparent)`}}>
@@ -391,9 +393,9 @@ function WeekScheduleEditor({ weekSchedule, updDay, setWeek }) {
             <Toggle color={day.lunchEnabled?GREEN:RED} on={!!day.lunchEnabled} onChange={v=>updDay(sel,{lunchEnabled:v})}/>
           </div>
           {day.lunchEnabled && (
-            <div style={{display:"flex",justifyContent:"space-around",flexWrap:"wrap",gap:6,marginTop:10}}>
-              <TimeWheel label="ПЕРЕРВА З" color={GOLD} rows={3} value={lS} onChange={v=>updDay(sel,{lunchStart:v})} min={0} max={lE-0.5}/>
-              <TimeWheel label="ПЕРЕРВА ДО" color={GOLD} rows={3} value={lE} onChange={v=>updDay(sel,{lunchEnd:v})} min={lS+0.5} max={24}/>
+            <div style={{display:"flex",flexDirection:"column",gap:10,marginTop:8}}>
+              <TimeStrip label="ПЕРЕРВА З" color={GOLD} value={lS} onChange={v=>updDay(sel,{lunchStart:v})} min={0} max={lE-step/60} step={step}/>
+              <TimeStrip label="ПЕРЕРВА ДО" color={GOLD} value={lE} onChange={v=>updDay(sel,{lunchEnd:v})} min={lS+step/60} max={24} step={step}/>
             </div>
           )}
           <div style={{marginTop:14,padding:"0 4px"}}>
@@ -903,7 +905,7 @@ select{color-scheme:${isKava?"light":"dark"}}
           <Row compact last color={svColor(settings.lockPastBookings)} label="Блокувати минулі записи" hint="Заборонити редагувати, переносити й скасовувати записи, що вже минули — вони підсвічуються тьмяніше">
             <Toggle color={svColor(settings.lockPastBookings)} on={!!settings.lockPastBookings} onChange={v=>upd("lockPastBookings",v)}/>
           </Row>
-          <WeekScheduleEditor weekSchedule={weekSchedule} updDay={updDay} setWeek={v=>upd("weekSchedule",v)}/>
+          <WeekScheduleEditor weekSchedule={weekSchedule} updDay={updDay} setWeek={v=>upd("weekSchedule",v)} step={settings.scheduleStep ?? 30} setStep={v=>upd("scheduleStep",v)}/>
         </div>
       );
 
