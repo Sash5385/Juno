@@ -132,14 +132,20 @@ function Shell({ user, session, setThemeMode, mode }) {
         <div className="tab-anim" key={tab} style={{ padding: "4px 14px 0" }}>{ctx.ready ? <View /> : <Spinner />}</div>
       </div>
       {toastEl}
-      <nav id="salon-nav" style={{ position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 100, background: `linear-gradient(180deg,${th.SURF_HI},${th.SURFACE})`, borderTop: `1px solid ${th.BORDER}`, display: "flex", overflowX: "auto", padding: "6px 4px calc(8px + env(safe-area-inset-bottom,0px))" }}>
-        {tabs.map(([id, icon, label]) => (
-          <button key={id} onClick={() => ctx.go(id)} style={{ flex: "1 0 auto", minWidth: 64, border: "none", background: "transparent", cursor: "pointer", fontFamily: "inherit", padding: "4px 6px", position: "relative", color: tab === id ? th.ACCENT : th.DIM, fontWeight: tab === id ? 800 : 600 }}>
-            <div style={{ fontSize: 20, lineHeight: 1.1 }}>{icon}</div>
-            <div style={{ fontSize: 10, marginTop: 2, whiteSpace: "nowrap" }}>{label}</div>
-            {id === "chats" && unread > 0 && <span style={{ position: "absolute", top: 0, right: 10, minWidth: 16, height: 16, borderRadius: 8, background: th.ACCENT, color: "#fff", fontSize: 10, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 4px" }}>{unread}</span>}
-          </button>
-        ))}
+      <nav id="salon-nav" style={{ position: "fixed", left: 0, right: 0, bottom: 0, zIndex: 100, padding: "6px 12px calc(5px + env(safe-area-inset-bottom,0px))", borderTop: `1px solid ${th.BORDER}`, borderRadius: "16px 16px 0 0", background: th.BG, pointerEvents: "none" }}>
+        <div style={{ display: "flex", gap: 5, pointerEvents: "auto" }}>
+          {tabs.map(([id, icon, label]) => {
+            const on = tab === id;
+            return (
+              <button key={id} onClick={() => ctx.go(id)} title={label} aria-label={label} aria-current={on ? "page" : undefined} style={{ flex: "1 1 0", minWidth: 0, height: 46, padding: 0, position: "relative", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontFamily: "inherit", borderRadius: 14, border: `1px solid ${on ? "transparent" : th.BORDER}`, background: on ? `linear-gradient(145deg,${th.ACC_HI},${th.ACCENT})` : th.SURF_HI, backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)", boxShadow: on ? `0 6px 14px ${th.ACCENT}66` : "none", fontSize: 22 }}>
+                <span style={{ position: "relative", display: "flex" }}>
+                  {icon}
+                  {id === "chats" && unread > 0 && <span style={{ position: "absolute", top: -6, right: -10, minWidth: 16, height: 16, borderRadius: 8, background: th.ACCENT, color: "#fff", fontSize: 10, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 4px", lineHeight: 1.4 }}>{unread}</span>}
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </nav>
     </SalonCtx.Provider>
   );
