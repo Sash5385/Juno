@@ -734,7 +734,7 @@ exports.onNewStudentRegistered = onValueCreated(
     const { iid, uid } = event.params;
     const merged = await mergeInvitedStudentRecord(iid, uid, profile);
     const name  = profile?.name  || "Новий учень";
-    await pushAdmin(iid, "🎉 Новий учень", phone ? `${name} · ${phone}` : name, {
+    const phone = profile?.phone || "";
     console.log(`onNewStudentRegistered: iid=${iid} uid=${uid} name="${name}" merged=${merged}`);
     const who = phone ? `${name} · ${phone}` : name;
     await pushAdmin(iid, "🎉 Новий учень", merged ? `${who}\nОб'єднано з карткою, яку ви завели вручну` : who, {
