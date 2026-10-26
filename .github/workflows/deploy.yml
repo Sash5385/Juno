@@ -59,7 +59,7 @@ jobs:
         run: |
           CORE=$(cd functions && node -e "console.log(Object.keys(require('./index.js')).filter(n=>!/^(createLiqPayOrder|liqpayCallback|createMonobankInvoice|monobankCallback)\$/.test(n)).map(n=>'functions:'+n).join(','))")
           echo "Deploying: $CORE"
-          npx firebase-tools deploy --debug --only "$CORE" --token "${{ secrets.FIREBASE_TOKEN }}"
+          npx firebase-tools deploy --only "$CORE" --token "${{ secrets.FIREBASE_TOKEN }}"
 
       - name: Deploy Landing (публічний сайт)
         # Окремо і з continue-on-error: лендинг (папка landing/, сайт juno-booking.web.app)
