@@ -140,7 +140,7 @@ async function pushAdmin(iid, title, body, data = {}) {
   const devices = collectDeviceTokens(snap.val());
   console.log(`pushAdmin: iid=${iid} devices=${devices.length}, title="${title}"`);
   if (!devices.length) { console.warn(`pushAdmin: no tokens at instructors/${iid}/fcmTokens`); return false; }
-  const link = data.url || "https://drivepad-admin.web.app";
+  const link = data.url || "https://juno-booking-admin.web.app";
   let sent = false;
   for (const [deviceId, token] of devices) {
     try {
@@ -311,7 +311,7 @@ exports.onBookingChanged = onValueWritten(
     const name       = (after || before)?.studentName || "Учень";
     const date       = (after || before)?.date || "—";
     const time       = (after || before)?.time || "—";
-    const adminLink  = () => buildAdminLink("https://drivepad-admin.web.app", { date, time, uid, bookingId });
+    const adminLink  = () => buildAdminLink("https://juno-booking-admin.web.app", { date, time, uid, bookingId });
 
     // Новий запис (before = null) — блокуємо слоти
     if (before === null && after) {
@@ -513,7 +513,7 @@ exports.onNewStudentRegistered = onValueCreated(
     const phone = profile?.phone || "";
     console.log(`onNewStudentRegistered: iid=${iid} uid=${uid} name="${name}"`);
     await pushAdmin(iid, "🎉 Новий учень", phone ? `${name} · ${phone}` : name, {
-      url: buildAdminLink("https://drivepad-admin.web.app", { uid }),
+      url: buildAdminLink("https://juno-booking-admin.web.app", { uid }),
     });
     await sendActiveTemplates(iid, uid, "auto_welcome", { "ім'я": name }).catch(() => {});
   }
@@ -1027,7 +1027,7 @@ exports.sendPersonalEventReminders = onSchedule(
             iid,
             `⏰ ${ev.name || "Нагадування"}`,
             `${dateFmt} о ${ev.time}${ev.note ? " · " + ev.note : ""}`,
-            { url: `https://drivepad-admin.web.app/?date=${ev.date}`, alarm: "1" }
+            { url: `https://juno-booking-admin.web.app/?date=${ev.date}`, alarm: "1" }
           );
           updates[`bookings/personal/${id}/reminderSent`] = true;
         }
@@ -1119,7 +1119,7 @@ exports.flushDayNoteReminders = onSchedule(
         console.log(`flushDayNoteReminders: iid=${iid} sending push for key=${key}`);
         const title = "🔔 Нагадування";
         const body = note.text || `Нотатка на ${dateStr}`;
-        await pushAdmin(iid, title, body, { url: `https://drivepad-admin.web.app/?date=${dateStr}`, alarm: "1" });
+        await pushAdmin(iid, title, body, { url: `https://juno-booking-admin.web.app/?date=${dateStr}`, alarm: "1" });
         await iRef(iid, `dayNotes/${dateStr}/notes/${key}/notified`).set(true).catch(() => {});
       }
     }
@@ -1155,7 +1155,7 @@ exports.checkLicenseExpiry = onSchedule(
     const instructorsSnap = await db.ref("instructors").get();
     const instructors = instructorsSnap.val() || {};
     const now = Date.now();
-    const link = { url: "https://drivepad-admin.web.app" };
+    const link = { url: "https://juno-booking-admin.web.app" };
 
     for (const [iid, inst] of Object.entries(instructors)) {
       const license = inst?.license;
@@ -1383,7 +1383,7 @@ exports.deleteAccount = onRequest({ region: "europe-west1", cors: true, timeoutS
 // (system/backupEnabled = true у суперадмінці). Зберігає 30 днів, старіші видаляє.
 // Не копіюються: чати, timeslots (відновлюються генерацією), сповіщення, push-токени.
 // Статус останнього запуску пишеться в system/backupStatus (видно в суперадмінці).
-const BACKUP_BUCKET = "drivepad-86fe1.firebasestorage.app";
+const BACKUP_BUCKET = "juno-booking.firebasestorage.app";
 const BACKUP_KEEP_DAYS = 30;
 const BACKUP_KEYS = [
   "bookings", "bookings_by_phone", "users", "admin_settings", "admin_data",
@@ -1598,8 +1598,8 @@ exports.createLiqPayOrder = onRequest(
         subscribe: 1,
         subscribe_date_start: subscribeDateStart,
         subscribe_periodicity: plan === "year" ? "year" : "month",
-        server_url: "https://europe-west1-drivepad-86fe1.cloudfunctions.net/liqpayCallback",
-        result_url: "https://drivepad-admin.web.app/",
+        server_url: "https://europe-west1-juno-booking.cloudfunctions.net/liqpayCallback",
+        result_url: "https://juno-booking-admin.web.app/",
         language: "uk",
       };
       const data = Buffer.from(JSON.stringify(payload)).toString("base64");
@@ -1692,8 +1692,8 @@ exports.createMonobankInvoice = onRequest(
             reference: buildPaymentRef(iid, plan),
             destination: (plan === "year" ? "DrivePad — річна підписка" : "DrivePad — місячна підписка") + (testPay ? " (ТЕСТ 1₴)" : ""),
           },
-          redirectUrl: "https://drivepad-admin.web.app/",
-          webHookUrl: "https://europe-west1-drivepad-86fe1.cloudfunctions.net/monobankCallback",
+          redirectUrl: "https://juno-booking-admin.web.app/",
+          webHookUrl: "https://europe-west1-juno-booking.cloudfunctions.net/monobankCallback",
           validity: 3600,
         }),
       });
