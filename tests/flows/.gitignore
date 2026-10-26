@@ -1,0 +1,5 @@
+node_modules
+client.bundle.mjs
+database.rules.json
+*.log
+sim-state.json

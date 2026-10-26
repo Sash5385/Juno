@@ -29,12 +29,13 @@ export const LICENSE_GRACE_MS = 24 * 3600 * 1000;
 export const LICENSE_WARN_DAYS = 3;
 
 export function licenseUntil(license) {
-  if (!license) return null;
+  if (!license || license.free) return null; // «без оплат»: ставить суперадмін, терміну немає
   return license.status === "trial" ? (license.trialEndsAt || null) : (license.expiresAt || null);
 }
 
 export function licenseState(license, now = Date.now()) {
   if (!license) return { level: "ok", until: null, daysLeft: null };
+  if (license.free) return { level: "ok", until: null, daysLeft: null, free: true };
   const until = licenseUntil(license);
   const daysLeft = until ? Math.ceil((until - now) / 86400000) : null;
   if (license.status === "suspended") return { level: "readonly", until, daysLeft };

@@ -61,7 +61,7 @@ export function SalonLogin({ inviteCode }) {
         <div className="lg-head">
           <div style={{ fontSize: 44, marginBottom: 6 }}>💈</div>
           <div className="lg-title">Салон</div>
-          <div className="lg-sub">{inviteCode ? "Вас запросили як майстра — увійдіть або зареєструйтесь" : registering ? "Реєстрація · 14 днів безкоштовно" : "Вхід для власника і майстрів"}</div>
+          <div className="lg-sub">{inviteCode ? "Вас запросили як майстра — увійдіть або зареєструйтесь" : registering ? "Реєстрація · 30 днів безкоштовно" : "Вхід для власника і майстрів"}</div>
         </div>
         <div className="lg-body">
           <div className="lg-field"><label className="lg-label" htmlFor="s-email">Email</label>
@@ -108,7 +108,7 @@ export function Onboarding({ user, inviteCode, onDone }) {
       const upd = {
         [`salons/${uid}/profile`]: { name: name.trim(), phone: phone.trim(), slug, timezone: "Europe/Kyiv", slotStep: 30, createdAt: now },
         [`salons/${uid}/license/status`]: "trial",
-        [`salons/${uid}/license/trialEndsAt`]: now + 14 * DAY,
+        [`salons/${uid}/license/trialEndsAt`]: now + 30 * DAY,
         [`salon_slugs/${slug}`]: { salonId: uid },
         [`salon_index/${uid}`]: { name: name.trim(), slug, createdAt: now },
       };
@@ -152,7 +152,7 @@ export function Onboarding({ user, inviteCode, onDone }) {
               {alsoMaster && <div className="lg-field"><label className="lg-label" htmlFor="o-my">Ваше ім'я для клієнтів</label><input id="o-my" className="lg-input" value={myName} onChange={(e) => setMyName(e.target.value)} /></div>}
               {error && <div className="lg-error">{error}</div>}
               <button className="lg-btn" onClick={create} disabled={busy || !name.trim()}>{busy ? "Створюю..." : "Створити салон"}</button>
-              <div className="lg-note">14 днів безкоштовно, без картки.</div>
+              <div className="lg-note">30 днів безкоштовно, без картки.</div>
             </>
           ) : (
             <>

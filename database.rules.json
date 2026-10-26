@@ -91,7 +91,8 @@
             // Учень НЕ може змінювати isVip/discount/hoursOffset/lessonBalance/blocked/customPrice/notes/badges…
             // — лише власну анкету й службові гілки нижче. Інструктор (auth.uid === $iid) пише все.
             ".write": "auth != null && auth.uid === $iid",
-            "profile":       { ".write": "auth != null && auth.uid === $uid" },
+            "profile":       { ".write": "auth != null && auth.uid === $uid",
+                             "photo": { ".validate": "newData.val() === null || (newData.isString() && newData.val().length < 30000 && newData.val().beginsWith('data:image/'))" } },
             "welcomeSent":   { ".write": "auth != null && auth.uid === $uid" },
             "queueOffers":   { ".write": "auth != null && auth.uid === $uid" },
             "fcmTokens":     { ".write": "auth != null && auth.uid === $uid" },
@@ -148,7 +149,14 @@
         "reviews": {
           ".read": true,
           "$uid": {
-            ".write": "auth != null && auth.uid === $iid"
+            ".write": "auth != null && auth.uid === $iid",
+            // Учень лише СТВОРЮЄ власний відгук (редагувати/видаляти не може): оцінка 1–5, текст до 500 символів,
+            // час створення — серверний, статус не задає (приховує лише інструктор)
+            "$id": {
+              ".write": "auth != null && auth.uid === $uid && !data.exists() && root.child('instructors/'+$iid+'/users/'+$uid).exists()",
+              ".validate": "auth.uid === $iid || (newData.hasChildren(['rating','text','studentName','createdAt','atLessons']) && newData.child('rating').isNumber() && newData.child('rating').val() >= 1 && newData.child('rating').val() <= 5 && newData.child('text').isString() && newData.child('text').val().length <= 500 && newData.child('studentName').isString() && newData.child('studentName').val().length <= 60 && newData.child('createdAt').val() === now && newData.child('atLessons').isNumber() && newData.child('atLessons').val() >= 0 && newData.child('atLessons').val() <= 10000)",
+              "$other": { ".validate": "auth.uid === $iid || $other === 'rating' || $other === 'text' || $other === 'studentName' || $other === 'createdAt' || $other === 'atLessons'" }
+            }
           }
         },
         "invites": { },
@@ -161,12 +169,19 @@
           ".read": "auth != null && (auth.uid === $iid || auth.token.email === 'sash5385@gmail.com')",
           ".write": "auth != null && auth.token.email === 'sash5385@gmail.com'",
           "status": {
+            ".read": "auth != null",
             ".validate": "auth.token.email === 'sash5385@gmail.com' || (!data.exists() && newData.val() === 'trial')"
           },
           "trialEndsAt": {
-            ".validate": "auth.token.email === 'sash5385@gmail.com' || (!data.exists() && newData.isNumber() && newData.val() <= now + 1296000000)"
+            ".read": "auth != null",
+            ".validate": "auth.token.email === 'sash5385@gmail.com' || (!data.exists() && newData.isNumber() && newData.val() <= now + 2678400000)"
           },
           "expiresAt": {
+            ".read": "auth != null",
+            ".validate": "auth.token.email === 'sash5385@gmail.com'"
+          },
+          "free": {
+            ".read": "auth != null",
             ".validate": "auth.token.email === 'sash5385@gmail.com'"
           },
           "provider": {
@@ -349,8 +364,9 @@
           ".read": "auth != null && (auth.uid === $salonId || auth.token.email === 'sash5385@gmail.com')",
           ".write": "auth != null && auth.token.email === 'sash5385@gmail.com'",
           "status":      { ".validate": "auth.token.email === 'sash5385@gmail.com' || (!data.exists() && newData.val() === 'trial')" },
-          "trialEndsAt": { ".validate": "auth.token.email === 'sash5385@gmail.com' || (!data.exists() && newData.isNumber() && newData.val() <= now + 1296000000)" },
+          "trialEndsAt": { ".validate": "auth.token.email === 'sash5385@gmail.com' || (!data.exists() && newData.isNumber() && newData.val() <= now + 2678400000)" },
           "expiresAt":   { ".validate": "auth.token.email === 'sash5385@gmail.com'" },
+          "free":        { ".validate": "auth.token.email === 'sash5385@gmail.com'" },
           "provider":    { ".validate": "auth.token.email === 'sash5385@gmail.com'" },
           "lastPaymentAt": { ".validate": "auth.token.email === 'sash5385@gmail.com'" }
         }

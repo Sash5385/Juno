@@ -11,7 +11,7 @@ const VENDOR_EMAIL = "sash5385@gmail.com";
 
 // Адреси застосунків: на окремому Firebase-проєкті (ребрендинг) задаються через .env.<project>
 const adminUrl = () => process.env.SALON_ADMIN_URL || "https://juno-booking-admin.web.app";
-const clientUrl = () => process.env.SALON_CLIENT_URL || "https://drivepad-client.web.app";
+const clientUrl = () => process.env.SALON_CLIENT_URL || "https://juno-booking-client.web.app";
 
 const db = () => admin.database();
 const sRef = (salonId, path) => db().ref(path ? `salons/${salonId}/${path}` : `salons/${salonId}`);
@@ -166,10 +166,10 @@ function buildBookingBody(b, { masterName: mName = "", withMaster = false } = {}
 // ─── Ліцензія (SaaS-підписка власника салону) ───────────────────────────
 const LICENSE_GRACE_MS = 24 * 3600 * 1000;
 const LICENSE_WARN_MS = 3 * 24 * 3600 * 1000;
-const licenseUntilTs = (l) => (l ? (l.status === "trial" ? l.trialEndsAt : l.expiresAt) : null);
+const licenseUntilTs = (l) => (l && !l.free ? (l.status === "trial" ? l.trialEndsAt : l.expiresAt) : null);
 // true — призупинено або термін + пільгова доба минули. Немає вузла license — фіча вимкнена (false)
 function isLicenseReadonly(l) {
-  if (!l) return false;
+  if (!l || l.free) return false; // free — «без оплат» від суперадміна
   if (l.status === "suspended") return true;
   const until = licenseUntilTs(l);
   return !!until && Date.now() > until + LICENSE_GRACE_MS;

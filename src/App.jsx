@@ -1,5 +1,5 @@
 import React, { useState, useEffect, lazy, Suspense, createContext, useContext } from "react";
-import { onValue, update, push, remove, get } from "firebase/database";
+import { onValue, update, push, remove, get, set } from "firebase/database";
 import { iRef, setCurrentIid, registerAdminFCM, onAdminForegroundMessage } from "./firebase";
 import { useAdminAuth, LoginScreen, InstructorSetupScreen, isVendor, SuperAdminScreen } from "./AdminAuth";
 import { useAppUpdate } from "./hooks/useAppUpdate"
@@ -10,11 +10,15 @@ import { setGlobalLang, createT } from "./lang";
 import { ThemeContext, getTheme } from "./theme.js";
 import { useMosaicSwitch, MosaicOverlay } from "./mosaic";
 import { APP_VERSION } from "./version.js";
+import { migratePolite } from "./templateDefaults.js";
+import { readUiScale, uiScaleZoom, UI_SCALE_EVENT } from "./uiScale.js";
+import ReportProblem from "./ReportProblem";
 
 export const LangContext = createContext('uk');
 
 // ─── LAZY VIEWS
 const ScheduleView  = lazy(()=>import("./views/id4drive-admin-v5").then(m=>({default:m.ScheduleView})))
+const AutoSlots     = lazy(()=>import("./views/id4drive-admin-v5").then(m=>({default:m.AutoSlots})))
 const SettingsView  = lazy(()=>import("./views/id4drive-settings"))
 const BookingsView  = lazy(()=>import("./views/id4drive-bookings"))
 const StudentsView  = lazy(()=>import("./views/id4drive-students"))
@@ -226,8 +230,11 @@ function BottomNav({ active, onChange, settings, chatUnread, journalUnread }) {
   return (
     <div id="app-bottomnav" style={{
       flexShrink:0,
-      padding:`0 3px calc(10px + env(safe-area-inset-bottom, 0px))`,
+      padding:`6px 3px calc(10px + env(safe-area-inset-bottom, 0px))`,
       background: isKava ? "#d4ba96" : "transparent",
+      borderTop:`1px solid ${isKava ? theme.BORDER : "rgba(255,255,255,0.14)"}`,
+      borderRadius:"16px 16px 0 0",
+      boxShadow: isKava ? "none" : "inset 0 1px 0 rgba(255,255,255,0.06)",
       zIndex:50,
       pointerEvents:"none",
     }}>
@@ -464,17 +471,28 @@ function TopBar({ tab, onChange, settings, setSettings }) {
 
 const INITIAL_BOOKINGS = [];
 
+// Нагадування з бази. Старе типове значення (#2 «за 2 год» вимкнено), збережене без позначки
+// autoRemindersV, — не вибір інструктора: нагадування за 2 год сервер слав завжди, тож показуємо
+// його увімкненим (та сама логіка в functions/index.js → normalizeReminders). Порожньо — типові.
+const normalizeReminders = (d) => {
+  const list = Array.isArray(d?.autoReminders) ? d.autoReminders.filter(Boolean) : null;
+  if (!list || !list.length) return null;
+  const sig = list.map(r => `${r.hoursBefore}:${r.enabled ? 1 : 0}`).join(",");
+  if (!d.autoRemindersV && sig === "24:1,2:0,1:0") return list.map((r, i) => (i === 1 ? { ...r, enabled: true } : r));
+  return list;
+};
+
 const DEFAULT_SETTINGS = {
   profile: { name:"Олександр", phone:"+380989225442", address:"Київ", experience:8, photo:null },
   workStart:7, workEnd:20, weekends:[6], daysShown:6, snapMin:30, slotCreateStep:30, hourHeightPx:60, autoHourHeight:false,
-  lunchEnabled:true, lunchStart:12, lunchEnd:13, customBlocks:[], pendingEnabled:false, lockPastBookings:false,
+  lunchEnabled:true, lunchStart:12, lunchEnd:13, customBlocks:[], pendingEnabled:false, lockPastBookings:false, calStyle:"classic",
   theme:"dark", language:"uk", queueAutoFifo:true, queueBroadcast:false, queueManual:false,
   studentCanReschedule:true, studentCanCancel:true, bookCutoffHours:2, calendarOpenDays:30, schoolCalendarOpenDays:14, slotGenDays:30,
   stickyTime:"both", notifLocation:"topbar", showCompleteBtn:true, showSlotTimes:true, autoStudentColors:true,
   navTabs:["schedule","journal","bookings","students","services","chats","templates","stats","settings"],
   autoReminders:[
     {enabled:true,  hoursBefore:24},
-    {enabled:false, hoursBefore:2},
+    {enabled:true,  hoursBefore:2},
     {enabled:false, hoursBefore:1},
   ],
   autoWelcome:{enabled:true}, autoConfirm:{enabled:true},
@@ -554,6 +572,16 @@ export default function App() {
       setProfileReady(!!(p && p.name));
     }).catch(() => setProfileReady(false));
   }, [adminUser, vendor]);
+  // Стандартні шаблони повідомлень учням: старі тексти на «ти» → «ви» (відредаговані не чіпаємо)
+  useEffect(() => {
+    if (!adminUser?.uid || vendor) return;
+    get(iRef("admin_data/templates")).then(snap => {
+      const d = snap.val();
+      if (!Array.isArray(d)) return;
+      const r = migratePolite(d);
+      if (r.changed) set(iRef("admin_data/templates"), r.list).catch(() => {});
+    }).catch(() => {});
+  }, [adminUser, vendor]);
   // Deep-link з push-сповіщення (?date=&time=&uid=&bookingId=) — одразу відкриваємо розклад на потрібній даті
   const [jumpTarget, setJumpTarget] = useState(() => {
     const p = new URLSearchParams(window.location.search);
@@ -575,8 +603,23 @@ export default function App() {
     if (jumpTarget || studentJump) window.history.replaceState(null, "", window.location.pathname);
   }, []);
   const [tabVisits,  setTabVisits]= useState({});
+  const [uiScale, setUiScaleState] = useState(readUiScale);
+  useEffect(() => {
+    const on = (e) => setUiScaleState(e.detail || readUiScale());
+    window.addEventListener(UI_SCALE_EVENT, on);
+    return () => window.removeEventListener(UI_SCALE_EVENT, on);
+  }, []);
   const [openInfos,  setOpenInfos]= useState({});
   const [settings,   setSettings] = useState(DEFAULT_SETTINGS);
+
+  // Межі розкладу (workStart/workEnd) беремо з тижневого шаблону: найраніший початок і найпізніший кінець увімкнених днів
+  useEffect(() => {
+    const on = (settings.weekSchedule || []).filter(d => d && d.enabled && d.start != null && d.end != null);
+    if (!on.length) return;
+    const workStart = Math.floor(Math.min(...on.map(d => d.start)) + 1e-6);
+    const workEnd = Math.ceil(Math.max(...on.map(d => d.end)) - 1e-6);
+    if (workStart !== settings.workStart || workEnd !== settings.workEnd) setSettings(s => ({ ...s, workStart, workEnd }));
+  }, [settings.weekSchedule]); // eslint-disable-line react-hooks/exhaustive-deps
   const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [bookings,   setBookings] = useState(INITIAL_BOOKINGS);
   const [selectedBooking,  setSelectedBooking]  = useState(null);
@@ -748,7 +791,7 @@ export default function App() {
               return arr;
             })())
           : s.navTabs,
-          autoReminders: Array.isArray(d.autoReminders) ? d.autoReminders : s.autoReminders,
+          autoReminders: normalizeReminders(d) || s.autoReminders,
           weekSchedule:  Array.isArray(d.weekSchedule)  ? d.weekSchedule  : s.weekSchedule,
           dateOverrides: Array.isArray(d.dateOverrides)  ? d.dateOverrides : s.dateOverrides,
         }));
@@ -792,16 +835,19 @@ export default function App() {
         studentCanReschedule: settings.studentCanReschedule ?? true,
         studentCanCancel:     settings.studentCanCancel     ?? true,
         bookCutoffHours:      settings.bookCutoffHours      ?? 2,
+        cancelCutoffHours:    settings.cancelCutoffHours    ?? settings.bookCutoffHours ?? 2,
         calendarOpenDays:     settings.calendarOpenDays     ?? 30,
         schoolCalendarOpenDays: settings.schoolCalendarOpenDays ?? 14,
         stickyTime:      settings.stickyTime      ?? "both",
         notifLocation:   settings.notifLocation   ?? "topbar",
         navTabs:         settings.navTabs         ?? [],
         autoReminders:   settings.autoReminders   ?? [],
+        autoRemindersV:  2,
         autoWelcome:     settings.autoWelcome,
         autoConfirm:     settings.autoConfirm,
         autoCancel:      settings.autoCancel,
         autoQueueOffer:  settings.autoQueueOffer,
+        autoSlots:       settings.autoSlots       ?? false,
         language:        settings.language        ?? "uk",
         theme:           settings.theme           ?? "dark",
         customBlocks:    settings.customBlocks    ?? [],
@@ -812,6 +858,7 @@ export default function App() {
         minBookingIntervalDays: settings.minBookingIntervalDays ?? 0,
         slotFreedPushEnabled: settings.slotFreedPushEnabled ?? true,
         lockPastBookings: settings.lockPastBookings ?? false,
+        calStyle: settings.calStyle ?? "classic",
       }).catch(() => {});
     }, 800);
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1189,6 +1236,7 @@ const pendingDeletesRef = React.useRef(new Set());
       }}>
         <TopBar tab={tab} onChange={switchTab} settings={settings} setSettings={setSettings}/>
         <LicenseBanner state={licState}/>
+        <ReportProblem/>
         <div className="tab-anim" key={`${displayedTab}-${tabVisits[displayedTab]||0}`} style={{
           position:"relative",
           flex:1, minHeight:0,
@@ -1198,11 +1246,14 @@ const pendingDeletesRef = React.useRef(new Set());
           flexDirection:"column",
           background: theme.BG_IMAGE ? "#d4ba96" : "transparent",
         }}>
+          <div style={displayedTab==="schedule" ? {display:"contents"} : {zoom: uiScaleZoom(uiScale)}}>
           <Suspense fallback={<Loader/>}>
             <ViewRenderer tab={displayedTab} settings={settings} setSettings={setSettings} bookings={bookings} setBookings={handleSetBookings} onSlotClick={setSelectedBooking} onEmptySlotClick={setNewBookingData} openInfos={openInfos} toggleInfo={toggleInfo} activeDragIds={activeDragIds} navTo={switchTab} slotExistsRef={slotExistsRef} openSlotsRef={openSlotsRef} jumpTarget={jumpTarget} setJumpTarget={setJumpTarget} onViewStudent={onViewStudent} studentJump={studentJump} onStudentJumpHandled={()=>setStudentJump(null)}/>
           </Suspense>
+          </div>
           <MosaicOverlay phase={mosaicPhase} tileColor={theme.BG_IMAGE ? "#d4ba96" : theme.BG} speed={0.5}/>
         </div>
+        {settingsLoaded && settings.autoSlots && adminUser && !vendor && <Suspense fallback={null}><AutoSlots settings={settings} bookings={bookings}/></Suspense>}
         <BottomNav active={tab} onChange={switchTab} settings={settings} chatUnread={chatUnread} journalUnread={journalUnread}/>
       </div>
       {needRefresh && (
