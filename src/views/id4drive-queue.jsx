@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo, useContext } from "react";
 import { onValue, update, push, remove } from "firebase/database";
 import { iRef } from "../firebase";
-import { ThemeContext } from "../theme.js";
+import { ThemeContext, plaqueInk } from "../theme.js";
 import { UICss, Modal, Field, Chip, Btn, Section, useFX } from "../ui";
 
 const SERVICES = {
@@ -97,6 +97,7 @@ function getHours(item, svc) {
 }
 
 function QueueRow({ item, pos, onInvite, onBooked, onArchive, onDelete, dragHandleProps, isDragging, svcMap }) {
+  const PK = plaqueInk(useContext(ThemeContext));
   const { BORDER, FAINT, GOLD, GREEN, PURPLE, RED, BG_DEEP } = useContext(ThemeContext);
   const { shade, glow } = useFX();
 
@@ -141,7 +142,7 @@ function QueueRow({ item, pos, onInvite, onBooked, onArchive, onDelete, dragHand
           }}>{pos}</div>
         </div>
         <div style={{flex:1,minWidth:0}}>
-          <div style={{fontSize:13,fontWeight:800,color:"#fff",textShadow:`0 1px 3px ${shade(0.5)}`,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{item.name}</div>
+          <div style={{fontSize:13,fontWeight:800,color:PK.main,textShadow:`0 1px 3px ${shade(0.5)}`,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{item.name}</div>
           <div style={{fontSize:10,color:FAINT,marginTop:2,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
             {item.phone}
             {svcLabel && ` · ${svcLabel}${hrs ? ` ${hrs}г` : ""}`}
@@ -197,6 +198,7 @@ function QueueRow({ item, pos, onInvite, onBooked, onArchive, onDelete, dragHand
 
 // ─── MAIN ────────────────────────────────────────────────────────
 export default function QueueView({ settings }) {
+  const PK = plaqueInk(useContext(ThemeContext));
   const { DIM, FAINT, GOLD, GREEN, PURPLE, BLUE, ACCENT, TEAL, BG_DEEP } = useContext(ThemeContext);
   const [all,       setAll]       = useState([]);
   const [showAdd,   setShowAdd]   = useState(false);
@@ -278,8 +280,8 @@ export default function QueueView({ settings }) {
               background:`linear-gradient(155deg,color-mix(in srgb,${s.color} 22%,${BG_DEEP}),color-mix(in srgb,${s.color} 6%,${BG_DEEP}))`,
               border:`1px solid color-mix(in srgb,${s.color} 32%,transparent)`,
             }}>
-              <div style={{fontSize:18,fontWeight:900,color:"#fff"}}>{s.value}</div>
-              <div style={{fontSize:9,color:"rgba(255,255,255,0.6)",marginTop:2,letterSpacing:0.5}}>{s.label.toUpperCase()}</div>
+              <div style={{fontSize:18,fontWeight:900,color:PK.main}}>{s.value}</div>
+              <div style={{fontSize:9,color:PK.sub,marginTop:2,letterSpacing:0.5}}>{s.label.toUpperCase()}</div>
             </div>
           ))}
         </div>

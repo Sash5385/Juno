@@ -51,3 +51,16 @@ export const getTheme = (mode) => mode === "light" ? LIGHT : DARK;
 export const { BG, BG_DEEP, SURFACE, SURF_HI, SURF_LO, BORDER, TEXT, DIM, FAINT,
   ACCENT, ACC_HI, GREEN, BLUE, PURPLE, GOLD, RED, TEAL, SO, SI,
   GLOW, SHADE, INK, STRIPE_A, STRIPE_B } = DARK;
+
+// Колір тексту на кольорових плашках: у темній темі — білий, у світлій — тема (інакше білий на світлому фоні)
+const _lum = (c) => {
+  const s = String(c || "").trim(); let r, g, b;
+  let m = s.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
+  if (m) { let h = m[1]; if (h.length === 3) h = h.split("").map(x => x + x).join(""); r = parseInt(h.slice(0,2),16); g = parseInt(h.slice(2,4),16); b = parseInt(h.slice(4,6),16); }
+  else if ((m = s.match(/^rgba?\(\s*(\d+)[ ,]+(\d+)[ ,]+(\d+)/i))) { r = +m[1]; g = +m[2]; b = +m[3]; }
+  else return 0;
+  return (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+};
+export const plaqueInk = (t) => _lum(t?.BG_DEEP) > 0.5
+  ? { main: t.TEXT, sub: t.DIM, hi: "#000" }
+  : { main: "#fff", sub: "rgba(255,255,255,0.74)", hi: "#fff" };

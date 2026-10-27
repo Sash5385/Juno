@@ -6,7 +6,7 @@ import { signOut } from "firebase/auth";
 import { deleteAccountRequest } from "../deleteAccountApi";
 import { iRef, iStorageRef, iGalleryStorageRef, auth } from "../firebase";
 import { LangContext } from "../App";
-import { ThemeContext } from "../theme.js";
+import { ThemeContext, plaqueInk } from "../theme.js";
 import { UICss, useFX } from "../ui";
 import { createT } from "../lang";
 import { useLicense, licenseState } from "../hooks/useLicense";
@@ -126,6 +126,7 @@ function Radio({ on, onChange }) {
 }
 
 function Row({ label, hint, children, last, color, compact }) {
+  const PK = plaqueInk(useContext(ThemeContext));
   const { BG_DEEP, ACCENT } = useContext(ThemeContext);
   const c = color || ACCENT;
   return (
@@ -138,8 +139,8 @@ function Row({ label, hint, children, last, color, compact }) {
       marginBottom: last ? 0 : (compact ? 4 : 6),
     }}>
       <div style={{flex:1,minWidth:0}}>
-        <div style={{fontSize:compact?12:13,fontWeight:700,color:"#fff"}}>{label}</div>
-        {hint && <div style={{fontSize:compact?9:10,color:"rgba(255,255,255,0.6)",marginTop:compact?1:2,lineHeight:1.35}}>{hint}</div>}
+        <div style={{fontSize:compact?12:13,fontWeight:700,color:PK.main}}>{label}</div>
+        {hint && <div style={{fontSize:compact?9:10,color:PK.sub,marginTop:compact?1:2,lineHeight:1.35}}>{hint}</div>}
       </div>
       <div style={{flexShrink:0}}>{children}</div>
     </div>
@@ -149,6 +150,7 @@ function Row({ label, hint, children, last, color, compact }) {
 // Кольорова картка-групувальник для «Профілю» — той самий градієнт-тінт
 // і бордер, що в Row (Сповіщення/Ліміти), тільки як контейнер на кілька полів.
 function ProfileCard({ color, icon, title, children }) {
+  const PK = plaqueInk(useContext(ThemeContext));
   const { BG_DEEP } = useContext(ThemeContext);
   return (
     <div style={{
@@ -158,7 +160,7 @@ function ProfileCard({ color, icon, title, children }) {
     }}>
       <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
         <span style={{fontSize:15}}>{icon}</span>
-        <span style={{fontSize:12,fontWeight:800,color:"#fff"}}>{title}</span>
+        <span style={{fontSize:12,fontWeight:800,color:PK.main}}>{title}</span>
       </div>
       {children}
     </div>
@@ -311,6 +313,7 @@ function daySlotStarts(d) {
 }
 
 function WeekScheduleEditor({ weekSchedule, updDay, setWeek }) {
+  const PK = plaqueInk(useContext(ThemeContext));
   const { BG_DEEP, SURF_HI, SURFACE, TEXT, DIM, FAINT, GREEN, RED, GOLD, ACCENT, SI, SO } = useContext(ThemeContext);
   const [sel, setSel] = useState(0);
   const day = weekSchedule[sel];
@@ -334,7 +337,7 @@ function WeekScheduleEditor({ weekSchedule, updDay, setWeek }) {
     : d));
   return (
     <div style={{paddingTop:10}}>
-      <div style={{fontSize:11,color:"#fff",letterSpacing:1.2,textTransform:"uppercase",marginBottom:10,textAlign:"center"}}>Тижневий шаблон</div>
+      <div style={{fontSize:11,color:PK.main,letterSpacing:1.2,textTransform:"uppercase",marginBottom:10,textAlign:"center"}}>Тижневий шаблон</div>
       <div style={{display:"flex",gap:5,marginBottom:10}}>
         {DAY_NAMES.map((n, i) => {
           const d = weekSchedule[i];
@@ -398,9 +401,9 @@ function WeekScheduleEditor({ weekSchedule, updDay, setWeek }) {
           )}
           <div style={{marginTop:14,padding:"0 4px"}}>
             <div style={{fontSize:11,fontWeight:800,letterSpacing:1.2,color:DIM,marginBottom:6}}>СЛОТИ ДНЯ · {slots.length}</div>
-            <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(64px,1fr))",gap:5}}>
               {slots.map(m => (
-                <span key={m} style={{flex:"1 0 auto",textAlign:"center",fontSize:12,fontWeight:800,padding:"4px 8px",borderRadius:8,color:TEXT,
+                <span key={m} style={{textAlign:"center",fontSize:12,fontWeight:800,padding:"4px 8px",borderRadius:8,color:TEXT,
                   background:`color-mix(in srgb,${GREEN} 18%,${BG_DEEP})`,border:`1px solid color-mix(in srgb,${GREEN} 35%,transparent)`}}>{fmt(m/60)}</span>
               ))}
             </div>
@@ -570,6 +573,7 @@ function PhotoViewer({ photos, index, onClose }) {
 
 // ─── MAIN ────────────────────────────────────────────────────────
 export default function SettingsView({ settings, setSettings }) {
+  const PK = plaqueInk(useContext(ThemeContext));
   const { BG_DEEP, SURF_HI, SURFACE, SURF_LO, BORDER, TEXT, DIM, FAINT, ACCENT, ACC_HI, GREEN, BLUE, PURPLE, GOLD, RED, TEAL, SO, SI } = useContext(ThemeContext);
   const lang = useContext(LangContext);
   const t = createT(lang);
@@ -1397,7 +1401,7 @@ select{color-scheme:${isKava?"light":"dark"}}
         }}>
           <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
             <span style={{fontSize:15}}>🔗</span>
-            <span style={{fontSize:12, fontWeight:800, color:"#fff"}}>ПОСИЛАННЯ ДЛЯ ЗАПИСУ УЧНІВ</span>
+            <span style={{fontSize:12, fontWeight:800, color:PK.main}}>ПОСИЛАННЯ ДЛЯ ЗАПИСУ УЧНІВ</span>
           </div>
           <div style={{background:BG_DEEP, border:`1px solid ${BORDER}`, borderRadius:10, padding:"9px 12px", fontSize:12, color:TEXT, wordBreak:"break-all"}}>{bookingLink}</div>
           <button onClick={copyBookingLink} style={{
@@ -1415,7 +1419,7 @@ select{color-scheme:${isKava?"light":"dark"}}
       }}>
         <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
           <span style={{fontSize:15}}>💳</span>
-          <span style={{fontSize:12, fontWeight:800, color:"#fff"}}>ОПЛАТА ПІДПИСКИ</span>
+          <span style={{fontSize:12, fontWeight:800, color:PK.main}}>ОПЛАТА ПІДПИСКИ</span>
         </div>
         <LicensePayPanel/>
       </div>
@@ -1458,13 +1462,13 @@ select{color-scheme:${isKava?"light":"dark"}}
             </div>
             <div style={{fontSize:14, fontWeight:700, color:statusColor}}>{statusLabel}</div>
             {blocked && (
-              <div style={{fontSize:12, color:"rgba(255,255,255,0.6)", marginTop:2}}>Акаунт у режимі читання. Оплатіть підписку нижче, щоб відновити роботу.</div>
+              <div style={{fontSize:12, color:PK.sub, marginTop:2}}>Акаунт у режимі читання. Оплатіть підписку нижче, щоб відновити роботу.</div>
             )}
             <div style={{marginTop:10, paddingTop:10, borderTop:"1px solid rgba(255,255,255,0.1)", display:"flex", flexDirection:"column", gap:5}}>
               {rows.map(([label, value]) => (
                 <div key={label} style={{display:"flex", justifyContent:"space-between", gap:10, fontSize:12}}>
                   <span style={{color:"rgba(255,255,255,0.55)"}}>{label}</span>
-                  <span style={{color:"#fff", fontWeight:700, textAlign:"right"}}>{value}</span>
+                  <span style={{color:PK.main, fontWeight:700, textAlign:"right"}}>{value}</span>
                 </div>
               ))}
             </div>
