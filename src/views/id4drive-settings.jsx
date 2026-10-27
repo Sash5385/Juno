@@ -400,7 +400,7 @@ function WeekScheduleEditor({ weekSchedule, updDay, setWeek }) {
             <div style={{fontSize:11,fontWeight:800,letterSpacing:1.2,color:DIM,marginBottom:6}}>СЛОТИ ДНЯ · {slots.length}</div>
             <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
               {slots.map(m => (
-                <span key={m} style={{fontSize:12,fontWeight:800,padding:"4px 8px",borderRadius:8,color:TEXT,
+                <span key={m} style={{flex:"1 0 auto",textAlign:"center",fontSize:12,fontWeight:800,padding:"4px 8px",borderRadius:8,color:TEXT,
                   background:`color-mix(in srgb,${GREEN} 18%,${BG_DEEP})`,border:`1px solid color-mix(in srgb,${GREEN} 35%,transparent)`}}>{fmt(m/60)}</span>
               ))}
             </div>
