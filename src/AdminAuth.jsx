@@ -161,7 +161,7 @@ export function LoginScreen() {
       <div className="lg-bg" aria-hidden="true"><i/><i/><i/></div>
       <div className="lg-card">
         <div className="lg-head">
-          <img className="lg-logo" src="/icon-192.png" alt="DrivePad"/>
+          <img className="lg-logo" src={import.meta.env.BASE_URL + "icon-192.png"} alt="DrivePad"/>
           <div className="lg-title">DrivePad</div>
           <div className="lg-sub">{registering ? "Реєстрація інструктора · 30 днів безкоштовно" : "Вхід для інструктора"}</div>
         </div>
@@ -327,7 +327,7 @@ export function InstructorSetupScreen({ onDone }) {
     <div style={{ minHeight:"100vh", background:BG_DEEP, display:"flex", alignItems:"center", justifyContent:"center", padding:"20px", paddingTop:"calc(20px + env(safe-area-inset-top, 0px))", paddingBottom:"calc(20px + env(safe-area-inset-bottom, 0px))" }}>
       <div style={{ background:`linear-gradient(135deg,${SURF_HI},${SURFACE})`, borderRadius:20, padding:"32px 28px", width:"100%", maxWidth:400, boxShadow:SO, border:`1px solid ${BORDER}` }}>
         <div style={{ textAlign:"center", marginBottom:28 }}>
-          <img src="/icon-192.png" alt="DrivePad" style={{width:64,height:64,borderRadius:"50%",marginBottom:10,boxShadow:"-3px 5px 14px rgba(0,0,0,0.45)"}}/>
+          <img src={import.meta.env.BASE_URL + "icon-192.png"} alt="DrivePad" style={{width:64,height:64,borderRadius:"50%",marginBottom:10,boxShadow:"-3px 5px 14px rgba(0,0,0,0.45)"}}/>
           <div style={{ fontSize:20, fontWeight:800, color:TEXT }}>Налаштування профілю</div>
           <div style={{ fontSize:13, color:DIM, marginTop:6 }}>Заповніть інформацію про себе — учні побачать її при записі</div>
         </div>

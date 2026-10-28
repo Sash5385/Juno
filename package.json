@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "build:salon": "vite build --mode salon",
+    "build:aldemi": "vite build --mode aldemi --outDir dist-aldemi",
     "dev:salon": "vite --mode salon",
     "lint": "eslint .",
     "preview": "vite preview"

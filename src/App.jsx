@@ -443,7 +443,7 @@ function TopBar({ tab, onChange, settings, setSettings }) {
           </>
         ) : (
           <div style={{display:"flex",alignItems:"center",gap:6,flex:1}}>
-            <img src="/icon-192.png" alt="ID4Drive" style={{width:22,height:22,borderRadius:"50%",flexShrink:0,boxShadow:"-2px 3px 8px rgba(0,0,0,0.45)"}}/>
+            <img src={import.meta.env.BASE_URL + "icon-192.png"} alt="ID4Drive" style={{width:22,height:22,borderRadius:"50%",flexShrink:0,boxShadow:"-2px 3px 8px rgba(0,0,0,0.45)"}}/>
             <div style={{fontSize:13,fontWeight:800,letterSpacing:-0.3,color:theme.TEXT,flex:1}}>{tabLabel}</div>
             {tab==="settings" && (
               <div onClick={forceUpdate} style={{fontSize:11,fontWeight:700,color:btnInactiveColor,cursor:"pointer",flexShrink:0}}>{APP_VERSION}</div>
@@ -684,7 +684,7 @@ export default function App() {
     };
     const check = async () => {
       try {
-        const res = await fetch('/version.json?t=' + Date.now(), { cache: 'no-store' });
+        const res = await fetch(import.meta.env.BASE_URL + 'version.json?t=' + Date.now(), { cache: 'no-store' });
         const { version } = await res.json();
         if (version && version !== APP_VERSION) {
           const flag = 'vreset_' + version;
@@ -745,7 +745,7 @@ export default function App() {
         navigator.serviceWorker.ready.then(reg => {
           reg.showNotification(title, {
             body,
-            icon: "/icon-192.png",
+            icon: import.meta.env.BASE_URL + "icon-192.png",
             badge: "/badge-dp.png",
             tag: "admin-" + Date.now(),
             requireInteraction: true,

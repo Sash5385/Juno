@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import { readFileSync } from 'node:fs'
@@ -21,7 +21,7 @@ function readVersion() {
 // tear down the SW + caches, and reload onto fresh code. This is the only
 // layer that can rescue a wedged client, because it lives in the HTML itself
 // rather than inside the cached JS bundle.
-function versionGuard() {
+function versionGuard(base = '/') {
   let version = ''
   let overlayJs = ''
   return {
@@ -29,7 +29,7 @@ function versionGuard() {
     buildStart() {
       version = readVersion()
       // Анімація оновлення — окремий читабельний файл, вставляється в HTML інлайном.
-      try { overlayJs = readFileSync(resolve(__dirname, 'src/updateOverlay.inline.js'), 'utf8') } catch { overlayJs = '' }
+      try { overlayJs = readFileSync(resolve(__dirname, 'src/updateOverlay.inline.js'), 'utf8').replace("'/version.json?_='", JSON.stringify(base + 'version.json?_=').replace(/"/g, "'")) } catch { overlayJs = '' }
     },
     transformIndexHtml(html) {
       // Перевіряємо версію одразу при завантаженні, а потім періодично (кожні 45с),
@@ -37,7 +37,7 @@ function versionGuard() {
       // без ручного перезавантаження сторінки.
       const guard =
         '<script>(function(){var B=' + JSON.stringify(version) + ';' +
-        'function check(){try{fetch("/version.json?_="+Date.now(),{cache:"no-store"})' +
+        'function check(){try{fetch(' + JSON.stringify(base + 'version.json?_=') + '+Date.now(),{cache:"no-store"})' +
         '.then(function(r){return r.json()}).then(function(d){' +
         'if(d&&d.version&&d.version!==B){' +
         // Ключ зберігає ЧАС останньої спроби, а не постійний прапорець "вже
@@ -93,14 +93,18 @@ function versionGuard() {
   }
 }
 
-export default defineConfig({
+// VITE_BASE — підшлях розміщення (напр. /junoadmin/ на aldemi.com.ua); за замовчуванням корінь, збірка не змінюється.
+export default defineConfig(({ mode }) => {
+const base = loadEnv(mode, process.cwd(), '').VITE_BASE || '/'
+return {
+  base,
   resolve: {
     // Режим лише читання при простроченій підписці — див. src/firebaseDbGuard.js
     alias: [{ find: /^firebase\/database$/, replacement: resolve(__dirname, 'src/firebaseDbGuard.js') }],
   },
   plugins: [
     react(),
-    versionGuard(),
+    versionGuard(base),
     VitePWA({
       registerType: 'prompt',
       includeAssets: ['icon-192.png', 'icon-512.png'],
@@ -113,11 +117,12 @@ export default defineConfig({
         display: 'standalone',
         orientation: 'portrait',
         lang: 'uk',
-        start_url: '/',
+        start_url: base,
+        scope: base,
         icons: [
-          { src: '/icon-192.png', sizes: '192x192', type: 'image/png' },
-          { src: '/icon-512.png', sizes: '512x512', type: 'image/png' },
-          { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' }
+          { src: base + 'icon-192.png', sizes: '192x192', type: 'image/png' },
+          { src: base + 'icon-512.png', sizes: '512x512', type: 'image/png' },
+          { src: base + 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' }
         ]
       },
       workbox: {
@@ -132,7 +137,7 @@ export default defineConfig({
         // Serve navigations network-first so an online client always gets the
         // freshest index.html (and thus the freshest bundle) through the SW,
         // instead of an indefinitely stale precached shell.
-        navigateFallback: '/index.html',
+        navigateFallback: base + 'index.html',
         runtimeCaching: [
           {
             urlPattern: ({ request }) => request.mode === 'navigate',
@@ -158,4 +163,5 @@ export default defineConfig({
     port: 5174,
     host: true
   }
+}
 })

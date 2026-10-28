@@ -18,10 +18,10 @@ export async function registerPush(tokenRefFor) {
   if (DEMO || !("Notification" in window) || !("serviceWorker" in navigator)) return false;
   try {
     if ((await Notification.requestPermission()) !== "granted") return false;
-    const SCOPE = "/firebase-cloud-messaging-push-scope";
+    const SCOPE = import.meta.env.BASE_URL + "firebase-cloud-messaging-push-scope";
     const regs = await navigator.serviceWorker.getRegistrations();
     const isFb = (r) => (r.active?.scriptURL || r.installing?.scriptURL || r.waiting?.scriptURL || "").includes("firebase-messaging-sw");
-    const swReg = regs.find(isFb) || await navigator.serviceWorker.register("/firebase-messaging-sw.js", { scope: SCOPE });
+    const swReg = regs.find(isFb) || await navigator.serviceWorker.register(import.meta.env.BASE_URL + "firebase-messaging-sw.js", { scope: SCOPE });
     const token = await getToken(getMessaging(auth.app), { serviceWorkerRegistration: swReg });
     if (!token) return false;
     await set(tokenRefFor(deviceId()), token);

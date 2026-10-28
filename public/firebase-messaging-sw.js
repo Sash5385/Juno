@@ -27,8 +27,8 @@ messaging.onBackgroundMessage((payload) => {
     body: payload.data?.body || '',
     // favicon.svg — це фіолетова блискавка: Android малював її значком праворуч у сповіщенні.
     // Велика іконка — логотип DrivePad; маленький монохромний значок у шторці/рядку стану — «DP».
-    icon: '/icon-192.png',
-    badge: '/badge-dp.png',
+    icon: new URL('icon-192.png', self.location).href,
+    badge: new URL('badge-dp.png', self.location).href,
     // Без унікального tag кожне наступне сповіщення з тим самим tag (напр.
     // друге повідомлення в чаті поспіль) тихо ЗАМІНЮЄ попереднє на деяких
     // Android/Chrome без нового звуку/вібрації — виглядає, ніби пуш не прийшов.
