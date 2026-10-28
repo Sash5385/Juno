@@ -24,8 +24,8 @@ const VIEWS = { schedule: Schedule, bookings: Bookings, clients: Clients, servic
 
 const inviteFromUrl = () => {
   try {
-    const m = /^\/join\/([^/]+)/.exec(window.location.pathname);
-    if (m) { sessionStorage.setItem("salon_invite", decodeURIComponent(m[1])); window.history.replaceState(null, "", "/"); }
+    const m = /\/join\/([^/]+)\/?$/.exec(window.location.pathname);
+    if (m) { sessionStorage.setItem("salon_invite", decodeURIComponent(m[1])); window.history.replaceState(null, "", import.meta.env.BASE_URL); }
     return sessionStorage.getItem("salon_invite") || null;
   } catch { return null; }
 };

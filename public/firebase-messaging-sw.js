@@ -43,12 +43,14 @@ messaging.onBackgroundMessage((payload) => {
 self.addEventListener('notificationclick', (e) => {
   e.notification.close()
   const data = e.notification.data || {}
-  const target = data.url || 'https://juno-booking-admin.web.app'
-  const fullUrl = target.startsWith('http') ? target : ('https://juno-booking-admin.web.app' + target)
+  // Адреса застосунку = каталог цього SW (корінь сайту або підшлях /junoadmin/ на aldemi.com.ua)
+  const appUrl = new URL('./', self.location).href.replace(/\/$/, '')
+  const target = data.url || appUrl
+  const fullUrl = target.startsWith('http') ? target : (appUrl + target)
   e.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
       for (const c of list) {
-        if (c.url.startsWith('https://juno-booking-admin.web.app') && 'focus' in c) {
+        if (c.url.startsWith(appUrl) && 'focus' in c) {
           c.focus()
           return c.navigate(fullUrl)
         }
