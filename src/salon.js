@@ -3,8 +3,8 @@
 // запрошення — salon_invites/{token} = { salon, ownerIid, expiresAt } (чинні 7 днів). Масив salonSlug у admin_settings
 // майстра лише вказує, у якому він салоні; правда про членство — вузол salons/{slug}/masters/{iid}.
 
-export const CLIENT_URL = "https://juno-booking-client.web.app";
-export const ADMIN_URL = "https://juno-booking-admin.web.app";
+export const CLIENT_URL = "https://aldemi.com.ua/junoclient";
+export const ADMIN_URL = "https://aldemi.com.ua/junoadmin";
 export const INVITE_DAYS = 7;
 export const INVITE_KEY = "juno_salon_invite";
 

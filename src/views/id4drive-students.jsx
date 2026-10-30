@@ -227,7 +227,7 @@ function StudentDetailSheet({ settings, s, onClose, onUpdate, onDelete, onBlock,
       const slug = (await get(iRef("admin_settings/profile/slug"))).val();
       if (!slug) { setInviteError("Спершу задайте адресу запису в Налаштуваннях"); return; }
       const inviteRef = await push(iRef( "invites"), { studentKey: s.id, createdAt: Date.now() });
-      setInviteLink(`https://juno-booking-client.web.app/auth?i=${encodeURIComponent(slug)}&invite=${inviteRef.key}`);
+      setInviteLink(`https://aldemi.com.ua/junoclient/auth?i=${encodeURIComponent(slug)}&invite=${inviteRef.key}`);
       setInviteOpen(true);
     } catch (e) {
       setInviteError("Помилка: " + e.message);
