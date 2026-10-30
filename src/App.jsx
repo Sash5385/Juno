@@ -7,6 +7,7 @@ import { useLicense, useLicenseState } from "./hooks/useLicense"
 import { setLicenseReadOnly } from "./firebaseDbGuard"
 import { LicenseBanner } from "./LicensePay"
 import { setGlobalLang, createT } from "./lang";
+import { readUiScale, uiScaleZoom, UI_SCALE_EVENT } from "./uiScale.js";
 import { ThemeContext, getTheme } from "./theme.js";
 import { FOG_STYLE } from "./uiStyles";
 import { useMosaicSwitch, MosaicOverlay } from "./mosaic";
@@ -665,6 +666,12 @@ function AdminApp({ adminUser, ws, onWs }) {
     return ws && !MASTER_TABS.includes(t0) ? "schedule" : t0; // майстер салону не відкриває чужих розділів
   });
   const [displayedTab, mosaicPhase] = useMosaicSwitch(tab, 0.5);
+  const [uiScale, setUiScaleState] = useState(readUiScale);
+  useEffect(() => {
+    const on = (e) => setUiScaleState(e.detail || readUiScale());
+    window.addEventListener(UI_SCALE_EVENT, on);
+    return () => window.removeEventListener(UI_SCALE_EVENT, on);
+  }, []);
   useEffect(() => {
     if (jumpTarget || studentJump) window.history.replaceState(null, "", window.location.pathname);
   }, []);
@@ -1414,11 +1421,13 @@ const pendingDeletesRef = React.useRef(new Set());
           background: !fogOn && theme.BG_IMAGE ? "#d4ba96" : "transparent",
         }}>
           {salonOn && staffList.length > 1 && displayedTab === "schedule" && <MasterTabs staff={staffList} active={allMode ? ALL_MASTERS : masterId} onPick={setPickedMaster}/>}
+          <div style={displayedTab==="schedule" ? {display:"contents"} : {zoom: uiScaleZoom(uiScale)}}>
           <Suspense fallback={<Loader/>}>
             <div className={displayedTab==="schedule" ? "view-fill" : "pc-wrap"}>
             <ViewRenderer allMode={allMode} staffList={staffList} onPickMaster={setPickedMaster} ws={ws} onWs={onWs} masterKey={masterId} scheduleSettings={scheduleSettings} scheduleBookings={scheduleBookings} scheduleSetBookings={scheduleSetBookings} tab={displayedTab} settings={settings} setSettings={setSettings} bookings={bookings} setBookings={handleSetBookings} onSlotClick={setSelectedBooking} onEmptySlotClick={setNewBookingData} openInfos={openInfos} toggleInfo={toggleInfo} activeDragIds={activeDragIds} navTo={switchTab} slotExistsRef={slotExistsRef} openSlotsRef={openSlotsRef} jumpTarget={jumpTarget} setJumpTarget={setJumpTarget} onViewStudent={onViewStudent} studentJump={studentJump} onStudentJumpHandled={()=>setStudentJump(null)}/>
             </div>
           </Suspense>
+          </div>
           <MosaicOverlay phase={mosaicPhase} tileColor={fogOn ? FOG_STYLE.theme.BG : (theme.BG_IMAGE ? "#d4ba96" : theme.BG)} speed={0.5}/>
         </div>
         <BottomNav active={tab} onChange={switchTab} settings={navSettings} chatUnread={chatUnread} journalUnread={journalUnread}/>
