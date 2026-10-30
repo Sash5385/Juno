@@ -296,7 +296,7 @@ function StudentDetailSheet({ settings, s, onClose, onUpdate, onDelete, onBlock,
             borderRadius:"24px 24px 0 0",
             boxShadow:`0 -2px 0 ${glow(0.08)},0 -16px 60px ${shade(0.8)}`,
             display:"flex",flexDirection:"column",
-            maxHeight:"92vh",overflow:"hidden",
+            maxHeight:"min(92vh, calc(100dvh - 48px - env(safe-area-inset-top, 0px)))",overflow:"hidden",
             pointerEvents:closing?"none":undefined,
             animation:closing ? `_sd-down 0.26s ease-in forwards` : `_sd-up 0.38s cubic-bezier(0.34,1.56,0.64,1)`,
           }}

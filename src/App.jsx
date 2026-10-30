@@ -70,6 +70,9 @@ input::placeholder,textarea::placeholder{color:color-mix(in srgb,currentColor 68
    transform:none знімає containing block — fixed знову рахується від вікна. */
 @keyframes fade-tab{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 .tab-anim{animation:fade-tab .22s ease backwards}
+/* Нижні шторки й панелі, прикріплені до низу екрана, не заходять під системну панель Android / жест-смужку (усі вікна й вкладки) */
+div[style*="position: fixed"][style*="align-items: flex-end"]{padding-bottom:env(safe-area-inset-bottom,0px);box-sizing:border-box}
+div[style*="position: fixed"][style*="bottom: 0px"][style*="left: 0px"]{padding-bottom:env(safe-area-inset-bottom,0px);box-sizing:border-box}
 `;
 };
 
@@ -259,7 +262,7 @@ function BottomNav({ active, onChange, settings, chatUnread, journalUnread }) {
   return (
     <div id="app-bottomnav" style={{
       flexShrink:0,
-      padding:`0 12px calc(12px + env(safe-area-inset-bottom, 0px))`,
+      padding:`0 12px calc(5px + env(safe-area-inset-bottom, 0px))`,
       background: isKava ? "#d4ba96" : "transparent",
       zIndex:50,
       pointerEvents:"none",

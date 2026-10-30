@@ -231,6 +231,8 @@ body, html, #root { margin:0; padding:0; }
 .schedule-scroll::-webkit-scrollbar { display: none; }
 input[type="range"] { accent-color: ${ACCENT}; }
 .tabular { font-variant-numeric: tabular-nums; }
+/* Нижні шторки (оверлей на весь екран, вирівняний донизу) не заходять під системну панель Android / «жест-смужку» */
+div[style*="position: fixed"][style*="align-items: flex-end"] { padding-bottom: env(safe-area-inset-bottom, 0px); box-sizing: border-box; }
 .drum-scroll::-webkit-scrollbar { display: none; }
 `;
 
@@ -2951,6 +2953,9 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   const [personalEventData, setPersonalEventData] = useState(null); // { dateStr, time }
   const [longTapMenu, setLongTapMenu] = useState(null); // { dateStr, startMin, clientX, clientY }
   const [ltmClosing, setLtmClosing] = useState(false);
+  // iOS: клік після відпускання пальця (довгий тап) не має закривати щойно відкриту модалку
+  const overlayOpenedAtRef = useRef(0);
+  useEffect(() => { if (longTapMenu || slotOptions) overlayOpenedAtRef.current = Date.now(); }, [!!longTapMenu, !!slotOptions]);
   const [ltmScatter, setLtmScatter] = useState(false);
   const [personalEventView, setPersonalEventView] = useState(null); // booking object for viewing
   // Поля форми редагування особистої події (заповнюються при відкритті personalEventView)
@@ -2982,7 +2987,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
       padding:"6px 3px 0", overflow:"hidden", flex:1, minHeight:0, display:"flex", flexDirection:"column",
       // Той самий скляний фон, що й у нижньому навбарі — замість суцільного SURFACE.
       background: isLight ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.04)",
-      boxShadow: isLight ? "0 8px 24px rgba(92,42,26,0.14)" : "0 8px 24px rgba(0,0,0,0.45)",
+      boxShadow: isLight ? "0 6px 18px rgba(92,42,26,0.12)" : "0 4px 14px rgba(0,0,0,0.22)", // м'якша тінь: різкий темний «пояс» під карткою розкладу заважав плавному переходу до панелі вкладок
     }}>
       <div style={{display:"flex", flex:1, minHeight:0, overflow:"hidden", position:"relative"}}>
 
@@ -4445,7 +4450,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
           .ltm-btns>button{min-width:0}
           @media (max-width:379px){.ltm-btns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}}
         `}</style>
-        <div onClick={_anyClose ? undefined : _closeLtm} style={{
+        <div onClick={_anyClose ? undefined : ()=>{ if (Date.now() - overlayOpenedAtRef.current < 700) return; _closeLtm(); }} style={{
           position:"fixed",inset:0,zIndex:200,
           background:`${shade(0.55)}`,
           display:"flex",alignItems:"flex-end",
@@ -4601,7 +4606,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
           @keyframes _so-bg-in{from{opacity:0}to{opacity:1}}
           @keyframes _so-bg-out{from{opacity:1}to{opacity:0}}
         `}</style>
-        <div onClick={slotClosing ? undefined : _closeSO} style={{
+        <div onClick={slotClosing ? undefined : ()=>{ if (Date.now() - overlayOpenedAtRef.current < 700) return; _closeSO(); }} style={{
           position:"fixed",inset:0,zIndex:200,
           background:`${shade(0.55)}`,
           display:"flex",alignItems:"flex-end",justifyContent:"center",

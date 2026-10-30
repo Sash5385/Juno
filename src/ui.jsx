@@ -212,7 +212,7 @@ export function Modal({ open, onClose, children, size = "md", sheet = true, titl
   const W = typeof size === "number" ? size : ({ sm: 380, md: 460, lg: 560 }[size] ?? size);
   const bodyPad = !pad ? 0 : footer ? "14px 20px" : sheet ? "14px 20px 28px" : "14px 20px 16px";
   const containerStyle = sheet
-    ? { maxWidth: W, width: "100%", margin: "0 auto", background: SHEET || `linear-gradient(180deg,${SURFACE},${BG})`, borderRadius: `${MODAL_R ?? RADIUS.modal}px ${MODAL_R ?? RADIUS.modal}px 0 0`, overflow: "hidden", display: "flex", flexDirection: "column", maxHeight: maxH || "92vh" }
+    ? { maxWidth: W, width: "100%", margin: "0 auto", background: SHEET || `linear-gradient(180deg,${SURFACE},${BG})`, borderRadius: `${MODAL_R ?? RADIUS.modal}px ${MODAL_R ?? RADIUS.modal}px 0 0`, overflow: "hidden", display: "flex", flexDirection: "column", maxHeight: maxH || "min(92vh, calc(100dvh - 48px - env(safe-area-inset-top, 0px)))" }
     : { maxWidth: W, width: "100%", margin: "0 16px", background: SHEET || panel(SURF_HI, SURFACE), borderRadius: MODAL_R ?? RADIUS.modal, overflow: "hidden", boxShadow: `0 20px 60px ${shade(0.6)}`, display: "flex", flexDirection: "column", maxHeight: maxH || "88vh" };
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 200, background: shade(SCRIM), backdropFilter: "blur(8px)", display: "flex", alignItems: sheet ? "flex-end" : "center", justifyContent: "center" }}>
