@@ -992,6 +992,9 @@ select{color-scheme:${isKava?"light":"dark"}}
           <Row label={t('set.schedule.days')}>
             <NumInput value={settings.daysShown} onChange={v=>upd("daysShown",v)} min={1} max={30} suffix={` ${t('days')}`}/>
           </Row>
+          <Row compact color={svColor(!!settings.autoSlots)} label="Автовідкриття слотів" hint="Дні без слотів заповнюються за тижневим шаблоном самі. Слоти, видалені вручну, не повертаються">
+            <Toggle color={svColor(!!settings.autoSlots)} on={!!settings.autoSlots} onChange={v=>upd("autoSlots",v)}/>
+          </Row>
           <Row compact color={svColor(settings.lockPastBookings)} label="Блокувати минулі записи" hint="Заборонити редагувати, переносити й скасовувати записи, що вже минули — вони підсвічуються тьмяніше">
             <Toggle color={svColor(settings.lockPastBookings)} on={!!settings.lockPastBookings} onChange={v=>upd("lockPastBookings",v)}/>
           </Row>
