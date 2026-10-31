@@ -34,16 +34,17 @@ const Ava = ({ name, hue, size=36, online, isBroadcast }) => {
 };
 
 // ─── CONVERSATION ────────────────────────────────────────────────
-function Conversation({ contact, messages, onSend, isBroadcast }) {
+function Conversation({ contact, messages, onSend, onEdit, isBroadcast }) {
   const { BORDER, BG_DEEP, SURF_LO, SURF_HI, SURFACE, FAINT, DIM, GOLD, SI, SO, ACC_HI, ACCENT, TEXT } = useContext(ThemeContext);
   const { shade } = useFX();
   const [text, setText] = useState("");
   const [quick, setQuick] = useState(false);
+  const [editing, setEditing] = useState(null); // id повідомлення, що редагується
   const bottomRef = useRef(null);
   const listRef = useRef(null);
   const taRef = useRef(null);
 
-  useEffect(() => { setText(""); }, [contact.id]);
+  useEffect(() => { setText(""); setEditing(null); }, [contact.id]);
   // Скрол лише всередині вікна повідомлень (listRef), а не scrollIntoView —
   // той підіймається по всіх предках і смикав всю сторінку вниз при
   // кожному відкритті діалогу чи новому повідомленні.
@@ -54,7 +55,8 @@ function Conversation({ contact, messages, onSend, isBroadcast }) {
 
   const send = () => {
     if (!text.trim()) return;
-    onSend(contact.id, text.trim());
+    if (editing) { onEdit(contact.id, editing, text.trim()); setEditing(null); }
+    else onSend(contact.id, text.trim());
     setText("");
     taRef.current?.focus();
   };
@@ -88,7 +90,13 @@ function Conversation({ contact, messages, onSend, isBroadcast }) {
             <div key={m.id} className="msg-in" style={{display:"flex",justifyContent:isMe?"flex-end":"flex-start",padding:"1px 10px"}}>
               <div className={isMe?(m.broadcast?"bubble-broadcast":"bubble-out"):"bubble-in"} style={{maxWidth:"72%",padding:"8px 12px"}}>
                 <div style={{fontSize:13,color:isMe?"#fff":TEXT,lineHeight:1.4,wordBreak:"break-word"}}>{m.text}</div>
-                <div style={{fontSize:9,color:isMe?"rgba(255,255,255,0.5)":FAINT,marginTop:3,textAlign:"right"}}>{m.time}</div>
+                <div style={{fontSize:9,color:isMe?"rgba(255,255,255,0.5)":FAINT,marginTop:3,textAlign:"right"}}>
+                  {m.editedAt ? `ред. ${new Date(m.editedAt).toLocaleTimeString("uk",{hour:"2-digit",minute:"2-digit"})} · ` : ""}{m.time}
+                  {isMe && !m.broadcast && !isBroadcast && Date.now()-(m.ts||0) < 86400000 && (
+                    <button onClick={()=>{setEditing(m.id);setText(m.text||"");taRef.current?.focus();}} aria-label="Редагувати"
+                      style={{background:"none",border:"none",cursor:"pointer",color:"inherit",opacity:.7,fontSize:11,padding:"0 0 0 8px"}}>✎</button>
+                  )}
+                </div>
               </div>
             </div>
           );
@@ -108,6 +116,12 @@ function Conversation({ contact, messages, onSend, isBroadcast }) {
         </div>
       )}
 
+      {editing && (
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 12px",fontSize:11,color:DIM,borderTop:`1px solid ${borderCol}`}}>
+          <span>✎ Редагування повідомлення</span>
+          <button onClick={()=>{setEditing(null);setText("");}} style={{background:"none",border:"none",cursor:"pointer",color:DIM,fontSize:14}}>✕</button>
+        </div>
+      )}
       <div style={{padding:"8px 10px",borderTop:`1px solid ${borderCol}`,background:SURF_LO,display:"flex",alignItems:"flex-end",gap:7}}>
         <button onClick={()=>setQuick(v=>!v)} style={{background:"none",border:"none",cursor:"pointer",color:quick?GOLD:FAINT,fontSize:16,padding:"4px",flexShrink:0}}>⚡</button>
         <div style={{flex:1,background:BG_DEEP,borderRadius:11,boxShadow:SI,padding:"8px 12px",display:"flex",alignItems:"flex-end",gap:8}}>
@@ -287,6 +301,12 @@ export default function ChatsView() {
     }
   };
 
+  // Редагування власних повідомлень інструктора (до 24 год, з відміткою editedAt)
+  const handleEdit = (contactId, msgId, text) => {
+    const base = contactId === GENERAL_ID ? "chats/general" : `chats/${contactId}`;
+    update(iRef(`${base}/${msgId}`), {text, editedAt: Date.now()}).catch(()=>{});
+  };
+
   const handleSend = (contactId, text) => {
     const time = nowTime(); const ts = Date.now();
     const msg = {from:"admin",text,time,ts};
@@ -414,7 +434,7 @@ export default function ChatsView() {
               <Conversation key={GENERAL_ID}
                 contact={{id:GENERAL_ID,name:"Загальний чат"}}
                 messages={generalMsgs.map(m=>({...m,from:m.uid==="__admin__"?"admin":"student",text:m.uid==="__admin__"?m.text:`${m.name}: ${m.text}`}))}
-                onSend={handleSend}/>
+                onSend={handleSend} onEdit={handleEdit}/>
             )}
           </div>
         )}
@@ -481,7 +501,7 @@ export default function ChatsView() {
                 </div>
 
                 {isOpen && (
-                  <Conversation key={c.id} contact={c} messages={cMsgs} onSend={handleSend}/>
+                  <Conversation key={c.id} contact={c} messages={cMsgs} onSend={handleSend} onEdit={handleEdit}/>
                 )}
               </div>
             );
