@@ -18,13 +18,4 @@ export default defineConfig([
       parserOptions: { ecmaFeatures: { jsx: true } },
     },
   },
-  // Серверний код (Cloud Functions, CommonJS) і тести — Node, а не браузер
-  {
-    files: ['functions/**/*.js'],
-    languageOptions: { globals: globals.node, sourceType: 'commonjs' },
-  },
-  {
-    files: ['tests/**/*.{js,mjs}'],
-    languageOptions: { globals: globals.node },
-  },
 ])

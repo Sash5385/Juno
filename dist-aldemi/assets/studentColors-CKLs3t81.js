@@ -1,0 +1,1 @@
+var e=Array.from({length:50},(e,t)=>`hsl(${Math.round(t*360/50)},68%,56%)`),t=`hsl(215,12%,58%)`;export{e as n,t};

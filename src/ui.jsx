@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-// DrivePad · Shared UI design system
+// Juno · Shared UI design system
 // Single source of truth for windows: panels, modals, fields, buttons.
 // Panel look = gradient SURF_HI→SURFACE. Coffee-correct via glow/shade/ink.
 // ═══════════════════════════════════════════════════════════════
@@ -12,9 +12,12 @@ export function useBackClose(active, onClose) {
   const pushedRef = useRef(false);
   useEffect(() => {
     if (!active) return;
-    window.history.pushState({ ui4Modal: true }, "");
+    // власна позначка запису в історії: закриваємо/відкочуємо лише СВІЙ запис, а глибину вкладок (ui4Tab) зберігаємо
+    const id = Math.random().toString(36).slice(2);
+    window.history.pushState({ ui4Modal: id, ui4Tab: window.history.state?.ui4Tab }, "");
     pushedRef.current = true;
     const onPop = () => {
+      if (window.history.state?.ui4Modal === id) return; // наш запис ще на місці — «назад» стосувалась іншого вікна
       pushedRef.current = false;
       onClose();
     };
@@ -23,7 +26,8 @@ export function useBackClose(active, onClose) {
       window.removeEventListener("popstate", onPop);
       if (pushedRef.current) {
         pushedRef.current = false;
-        window.history.back();
+        // відкочуємо лише якщо наш запис нагорі (інакше, напр. після переходу на іншу вкладку, зняли б чужий крок)
+        if (window.history.state?.ui4Modal === id) window.history.back();
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -50,7 +54,7 @@ export const softA = (c, a) => `color-mix(in srgb, ${c} ${Math.round(a*100)}%, t
 
 // ── shared global CSS (icon3d, animations, scrollbar) ──────────
 export function UICss() {
-  const { GLOW, SHADE, BORDER, SURF_LO, GREEN } = useContext(ThemeContext);
+  const { GLOW, SHADE, BORDER, SURF_LO, GREEN, BTN_GRAD } = useContext(ThemeContext);
   return <style>{`
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 ::-webkit-scrollbar{width:6px;height:6px}
@@ -60,7 +64,7 @@ export function UICss() {
 .icon3d::before{content:'';position:absolute;top:0;right:0;width:60%;height:50%;background:radial-gradient(ellipse at top right,rgba(${GLOW},0.4) 0%,transparent 70%);pointer-events:none}
 .icon3d>svg{position:relative;z-index:1;filter:drop-shadow(0 1px 2px rgba(${SHADE},0.4))}
 .ui-toggle{width:46px;height:26px;border-radius:13px;cursor:pointer;position:relative;transition:background .2s;background:${SURF_LO};box-shadow:inset 2px 2px 5px rgba(${SHADE},0.4);flex-shrink:0}
-.ui-toggle.on{background:linear-gradient(165deg,${GREEN},color-mix(in srgb,${GREEN} 70%,#000))}
+.ui-toggle.on{background:${BTN_GRAD || `linear-gradient(165deg,${GREEN},color-mix(in srgb,${GREEN} 70%,#000))`}}
 .ui-toggle-thumb{position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:10px;background:linear-gradient(135deg,#fff,#ccc);transition:left .2s;box-shadow:-1px 2px 4px rgba(${SHADE},0.3)}
 .ui-toggle.on .ui-toggle-thumb{left:23px}
 .drag-item{transition:transform .12s,box-shadow .12s;touch-action:none}
@@ -141,7 +145,7 @@ export function Section({ title, icon, children, right, defaultOpen = false }) {
 // ── Field: labelled input / textarea ───────────────────────────
 export function Field({ label, value, onChange, placeholder, type = "text", textarea = false, rows = 3, style = {} }) {
   const { BG_DEEP, BORDER, TEXT, FAINT } = useContext(ThemeContext);
-  const base = { width: "100%", background: BG_DEEP, border: `1px solid ${BORDER}`, borderRadius: RADIUS.control, padding: PAD.control, color: TEXT, fontSize: 16, outline: "none", boxSizing: "border-box", fontFamily: "inherit" };
+  const base = { width: "100%", background: BG_DEEP, border: `1px solid ${BORDER}`, borderRadius: RADIUS.control, padding: PAD.control, color: TEXT, fontSize: 14, outline: "none", boxSizing: "border-box", fontFamily: "inherit" };
   return (
     <div style={{ marginBottom: 12, ...style }}>
       {label && <div style={{ fontSize: 11, color: FAINT, letterSpacing: 1, marginBottom: 5 }}>{label.toUpperCase()}</div>}
@@ -153,42 +157,29 @@ export function Field({ label, value, onChange, placeholder, type = "text", text
 }
 
 // ── Chip: selectable colour chip ───────────────────────────────
-export function Chip({ active, color, onClick, children }) {
-  const { SURF_HI, SURFACE, DIM, SO } = useContext(ThemeContext);
+export function Chip({ active, color, onClick, children, style = {} }) {
+  const { SURF_HI, SURFACE, DIM, SO, CHIP_R } = useContext(ThemeContext);
   return (
     <button onClick={onClick} style={{
-      padding: "7px 12px", borderRadius: RADIUS.chip + 1, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 700, fontFamily: "inherit",
+      padding: "7px 12px", borderRadius: CHIP_R ?? RADIUS.chip + 1, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 700, fontFamily: "inherit",
+      display: "inline-flex", alignItems: "center", justifyContent: "center", textAlign: "center", lineHeight: 1.25,
       background: active ? `linear-gradient(145deg,${color}55,${color}22)` : `linear-gradient(145deg,${SURF_HI},${SURFACE})`,
-      color: active ? color : DIM, boxShadow: SO,
+      color: active ? `color-mix(in srgb,${color} 60%,#fff)` : DIM, boxShadow: SO, ...style,
     }}>{children}</button>
   );
 }
 
-// ── Btn: primary (accent) / ghost / danger / dashed ──────────────────────────────
+// ── Btn: primary (accent) / ghost ──────────────────────────────
 export function Btn({ children, onClick, variant = "primary", accent, disabled = false, flex, style = {} }) {
-  const { SURF_HI, SURFACE, DIM, FAINT, ACCENT, RED, SO } = useContext(ThemeContext);
+  const { SURF_HI, SURFACE, DIM, FAINT, ACCENT, SO, BTN_R, BTN_GRAD, BTN_TX, BTN_SH } = useContext(ThemeContext);
   const { glow } = useFX();
   const c = accent || ACCENT;
-  const base = { border: "none", cursor: disabled ? "default" : "pointer", borderRadius: RADIUS.button, padding: PAD.button, fontSize: 13, fontWeight: 700, fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, ...(flex != null ? { flex } : {}), ...style };
-  if (variant === "danger") {
-    return (
-      <button onClick={disabled ? undefined : onClick} style={{ ...base, opacity: disabled ? 0.5 : 1,
-        background: "rgba(239,68,68,0.10)", border: "1px solid rgba(239,68,68,0.35)", color: RED,
-      }}>{children}</button>
-    );
-  }
-  if (variant === "dashed") {
-    return (
-      <button onClick={disabled ? undefined : onClick} style={{ ...base, opacity: disabled ? 0.5 : 1,
-        background: "transparent", border: `1px dashed ${c}88`, color: c,
-      }}>{children}</button>
-    );
-  }
+  const base = { border: "none", cursor: disabled ? "default" : "pointer", borderRadius: BTN_R ?? RADIUS.button, padding: PAD.button, fontSize: 13, fontWeight: 700, fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, ...(flex != null ? { flex } : {}), ...style };
   if (variant === "primary" && !disabled) {
     return (
       <button onClick={onClick} style={{ ...base,
-        background: `linear-gradient(165deg,${c},color-mix(in srgb,${c} 65%,#000))`,
-        color: "#fff", boxShadow: `0 4px 14px ${softA(c, 0.4)},inset 1px 1px 0 ${glow(0.2)}`,
+        background: BTN_GRAD && !accent ? BTN_GRAD : `linear-gradient(165deg,${c},color-mix(in srgb,${c} 65%,#000))`,
+        color: BTN_GRAD && !accent ? BTN_TX : "#fff", boxShadow: BTN_SH && !accent ? BTN_SH : `0 4px 14px ${softA(c, 0.4)},inset 1px 1px 0 ${glow(0.2)}`,
       }}>{children}</button>
     );
   }
@@ -205,7 +196,7 @@ export function StatTile({ value, label, color }) {
   return (
     <div style={{ background: BG_DEEP, borderRadius: RADIUS.control, boxShadow: SI, padding: PAD.tile, textAlign: "center" }}>
       <div style={{ fontSize: 18, fontWeight: 900, color }}>{value}</div>
-      <div style={{ fontSize: 10, color: FAINT, marginTop: 2, letterSpacing: 0.5 }}>{(label || "").toUpperCase()}</div>
+      <div style={{ fontSize: 11, color: FAINT, marginTop: 2, letterSpacing: 0.5 }}>{(label || "").toUpperCase()}</div>
     </div>
   );
 }
@@ -214,15 +205,15 @@ export function StatTile({ value, label, color }) {
 // size: "sm"|"md"|"lg" or a number (px). sheet=true → bottom sheet.
 // icon: optional emoji shown in header icon box.
 export function Modal({ open, onClose, children, size = "md", sheet = true, title, icon, grabber = true, pad = true, footer, maxH }) {
-  const { SURF_HI, SURFACE, BG, TEXT, FAINT, BORDER, RED } = useContext(ThemeContext);
+  const { SURF_HI, SURFACE, BG, TEXT, FAINT, BORDER, SHEET, MODAL_R } = useContext(ThemeContext);
   const { shade, ink } = useFX();
   useBackClose(open, onClose);
   if (!open) return null;
   const W = typeof size === "number" ? size : ({ sm: 380, md: 460, lg: 560 }[size] ?? size);
   const bodyPad = !pad ? 0 : footer ? "14px 20px" : sheet ? "14px 20px 28px" : "14px 20px 16px";
   const containerStyle = sheet
-    ? { maxWidth: W, width: "100%", margin: "0 auto", background: `linear-gradient(180deg,${SURFACE},${BG})`, borderRadius: `${RADIUS.modal}px ${RADIUS.modal}px 0 0`, overflow: "hidden", display: "flex", flexDirection: "column", maxHeight: maxH || "92vh" }
-    : { maxWidth: W, width: "100%", margin: "0 16px", background: panel(SURF_HI, SURFACE), borderRadius: RADIUS.modal, overflow: "hidden", boxShadow: `0 20px 60px ${shade(0.6)}`, display: "flex", flexDirection: "column", maxHeight: maxH || "88vh" };
+    ? { maxWidth: W, width: "100%", margin: "0 auto", background: SHEET || `linear-gradient(180deg,${SURFACE},${BG})`, borderRadius: `${MODAL_R ?? RADIUS.modal}px ${MODAL_R ?? RADIUS.modal}px 0 0`, overflow: "hidden", display: "flex", flexDirection: "column", maxHeight: maxH || "min(92vh, calc(100dvh - 48px - env(safe-area-inset-top, 0px)))" }
+    : { maxWidth: W, width: "100%", margin: "0 16px", background: SHEET || panel(SURF_HI, SURFACE), borderRadius: MODAL_R ?? RADIUS.modal, overflow: "hidden", boxShadow: `0 20px 60px ${shade(0.6)}`, display: "flex", flexDirection: "column", maxHeight: maxH || "88vh" };
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 200, background: shade(SCRIM), backdropFilter: "blur(8px)", display: "flex", alignItems: sheet ? "flex-end" : "center", justifyContent: "center" }}>
       <div onClick={e => e.stopPropagation()} className={sheet ? "modal-sheet-in" : "modal-pop-in"} style={containerStyle}>
@@ -231,7 +222,7 @@ export function Modal({ open, onClose, children, size = "md", sheet = true, titl
           <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 20px 12px", borderBottom: `1px solid ${BORDER}`, flexShrink: 0 }}>
             {icon && <div style={{ width: 34, height: 34, borderRadius: 9, background: ink(0.07), display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>{icon}</div>}
             <div style={{ fontSize: 15, fontWeight: 700, color: TEXT, flex: 1 }}>{title}</div>
-            <div onClick={onClose} role="button" aria-label="Закрити" style={{ width: 40, height: 40, margin: "-6px -8px -6px 0", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0, userSelect: "none" }}><span style={{ width: 28, height: 28, borderRadius: 8, background: "rgba(239,68,68,0.18)", display: "flex", alignItems: "center", justifyContent: "center", color: RED, fontSize: 14, fontWeight: 800 }}>✕</span></div>
+            <div onClick={onClose} style={{ width: 32, height: 32, borderRadius: 8, background: "rgba(239,68,68,0.18)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#ef4444", fontSize: 14, fontWeight: 800, flexShrink: 0, userSelect: "none" }}>✕</div>
           </div>
         )}
         <div style={{ flex: 1, overflowY: "auto", padding: bodyPad }}>
@@ -255,6 +246,45 @@ export function ModalSection({ label, children, first = false }) {
       {!first && <div style={{ height: 1, background: BORDER, margin: "12px 0" }} />}
       {label && <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", color: FAINT, marginBottom: 8, textTransform: "uppercase" }}>{label}</div>}
       {children}
+    </div>
+  );
+}
+
+// Рядок чипів із горизонтальним скролом: з країв — градієнтне затемнення й стрілки ‹ › (видно, що є ще розділи), активний чип підсувається в зону видимості
+export function ScrollChips({ children, activeKey, fade, style }) {
+  const { BG, BORDER, TEXT, SURF_HI } = useContext(ThemeContext);
+  const ref = useRef(null);
+  const [edge, setEdge] = useState({ l: false, r: false });
+  const upd = () => {
+    const el = ref.current; if (!el) return;
+    setEdge({ l: el.scrollLeft > 4, r: el.scrollLeft + el.clientWidth < el.scrollWidth - 4 });
+  };
+  useEffect(() => {
+    upd();
+    const el = ref.current; if (!el) return undefined;
+    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(upd) : null;
+    ro?.observe(el);
+    return () => ro?.disconnect();
+  }, []);
+  useEffect(() => {
+    const el = ref.current; const a = el?.querySelector("[data-active='1']");
+    if (!el || !a) return;
+    const left = a.offsetLeft - 40, right = a.offsetLeft + a.offsetWidth + 40;
+    if (left < el.scrollLeft) el.scrollTo({ left: Math.max(0, left), behavior: "smooth" });
+    else if (right > el.scrollLeft + el.clientWidth) el.scrollTo({ left: right - el.clientWidth, behavior: "smooth" });
+  }, [activeKey]);
+  const go = (dir) => ref.current?.scrollBy({ left: dir * Math.max(120, ref.current.clientWidth * 0.7), behavior: "smooth" });
+  const arrow = (side, show, ch, dir) => (
+    <button tabIndex={show?0:-1} aria-hidden={!show} aria-label={dir<0?"Прокрутити ліворуч":"Прокрутити праворуч"} onClick={()=>go(dir)}
+      style={{position:"absolute",top:"50%",marginTop:-17,[side]:2,width:34,height:34,borderRadius:"50%",border:`1px solid ${BORDER}`,background:"rgba(20,28,48,0.72)",
+        backdropFilter:"blur(8px)",WebkitBackdropFilter:"blur(8px)",boxShadow:"0 2px 10px rgba(0,0,0,0.35)",color:"#fff",fontSize:20,lineHeight:1,cursor:"pointer",fontFamily:"inherit",padding:0,
+        display:"flex",alignItems:"center",justifyContent:"center",opacity:show?1:0,pointerEvents:show?"auto":"none",transition:"opacity .2s",zIndex:2}}>{ch}</button>
+  );
+  return (
+    <div style={{position:"relative",flexShrink:0}}>
+      <div ref={ref} onScroll={upd} style={{display:"flex",gap:6,overflowX:"auto",scrollbarWidth:"none",paddingBottom:2,...style}}>{children}</div>
+      {arrow("left", edge.l, "‹", -1)}
+      {arrow("right", edge.r, "›", 1)}
     </div>
   );
 }

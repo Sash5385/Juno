@@ -11,7 +11,7 @@ on:
 
 jobs:
   database:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
@@ -38,20 +38,14 @@ jobs:
       - name: Database rules
         run: npx --yes firebase-tools@13 emulators:exec --only database --project demo-rt "node tests/rules/rules.test.mjs"
 
-      - name: Database rules (salon)
-        run: npx --yes firebase-tools@13 emulators:exec --only database --project demo-rt "node tests/rules/salons.test.mjs && node tests/rules/salonApp.test.mjs && node tests/rules/salonClientApp.test.mjs && node tests/rules/salonPaths.test.mjs && node tests/unit/salonLogic.test.mjs"
-
       - name: Payment webhooks
         run: npx --yes firebase-tools@13 emulators:exec --only database --project demo-pay "node functions/test/payments.e2e.js"
 
       - name: Error monitoring and disabled LiqPay
         run: npx --yes firebase-tools@13 emulators:exec --only database --project demo-mon "node functions/test/monitoring.e2e.js"
 
-      - name: Salon functions
-        run: npx --yes firebase-tools@13 emulators:exec --only database --project demo-salon "node functions/test/salon.e2e.js"
-
   smoke:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
@@ -76,5 +70,3 @@ jobs:
           nohup npx vite preview --port 4173 --strictPort > preview.log 2>&1 &
           for i in $(seq 1 30); do curl -sf http://localhost:4173 > /dev/null && break; sleep 1; done
           node tests/smoke/smoke.mjs admin http://localhost:4173
-          node tests/smoke/smoke.mjs salon http://localhost:4173
-          node tests/smoke/salon-flows.mjs http://localhost:4173

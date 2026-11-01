@@ -7,17 +7,10 @@
 cd tests/rules && npm install && npm test
 # або з кореня: npx firebase-tools emulators:exec --only database --project demo-rt "node tests/rules/rules.test.mjs"
 ```
-Перевіряє: інструктор не може видалити/продовжити `license`, пробний період ≤ 15 діб; учень не може змінювати
-`isVip/discount/hoursOffset/blocked/…` у своїй картці; слоти розкладу пише лише учень ЦЬОГО інструктора,
+Перевіряє: майстер не може видалити/продовжити `license`, пробний період ≤ 15 діб; клієнт не може змінювати
+`isVip/discount/hoursOffset/blocked/…` у своїй картці; слоти розкладу пише лише клієнт ЦЬОГО майстра,
 адмінські поля слота незмінні, справжній слот не видалити, «вільний» слот не створити.
 **Після будь-якої зміни правил прогнати тест до деплою.**
-
-### Правила салону (`salons/*`)
-```bash
-npx firebase-tools emulators:exec --only database --project demo-rt "node tests/rules/salons.test.mjs"
-```
-Ролі власник / майстер / клієнт: майстер бачить і пише лише свій `masterId` (слоти, записи, черга, токени), клієнт створює лише
-`pending`-запис з каталожною ціною для дозволеного майстра і не може чіпати `paymentStatus`/ціну/`masterId`, `license` — як в `instructors`.
 
 ## Платіжні вебхуки (LiqPay, Monobank)
 ```bash
@@ -27,37 +20,32 @@ npx firebase-tools emulators:exec --only database --project demo-pay "node funct
 Підписані тестові колбеки проходять через справжній код функцій: підпис, продовження ліцензії, ідемпотентність,
 річний тариф, повернення коштів, підроблені запити.
 
+## Записи / скасування / перенесення (слоти)
+```bash
+bash tests/flows/run.sh        # потрібен клонований DrivePad-Client поруч (або CLIENT_DIR=...), Java, firebase-tools
+```
+РЕАЛЬНИЙ `db.js` клієнта + РЕАЛЬНІ правила БД + серверна `onBookingChanged` на емуляторах Database+Auth, два клієнти й майстер.
+Сценарії: запис, перекриття двох клієнтів, скасування клієнтом/адміном, phantom-слоти, перенос клієнтом, перенос адміном (в той самий і інший день),
+скасування вже переніс. запису, атака «звільнити чужий слот», старі слоти без `bookedBy`, «накладка» записів.
+**Гонка за слоти:** `bash tests/flows/run.sh race` — троє клієнтів (три незалежні екземпляри `db.js`) одночасно беруть той самий/перекривний час,
+з випадковими затримками і повним потоком `claimSlot → createBooking`; перевіряє: переможець один, слоти лише його, у програвших не лишається слідів.
+Адмінські операції (`blockSlots/freeSlots/перенос`) у тесті — репліка логіки `src/App.jsx`: змінюєш її там — онови й тут. У CI не запускається (потрібен другий репозиторій).
+
+**Допуслуги і перерва:** `node tests/addons/addons.test.mjs` (розрахунки допуслуг, `slotRules` з перервою — клієнтська/адмінська/серверна копії дають однаковий результат);
+анкета клієнта: `node tests/addons/intake.test.mjs` (+ блок INTAKE у rules-тесті);
+пакети: `node tests/addons/packages.test.mjs` (+ блок PACKAGES у rules-тесті);
+графік і ціни майстра салону: `node tests/addons/master-settings.test.mjs` (+ блок MASTER SETTINGS у rules-тесті);
+нагадування про повторний запис: `node functions/test/rebook.test.js`;
+салон: `node tests/addons/salon.test.mjs` (+ блок SALON у rules-тесті);
+робочий простір (салон: тип акаунта, склад, masterId): `node tests/addons/workspace.test.mjs` (+ блоки WORKSPACE, WORKSPACE INVITES і MASTER SESSION і CLIENT SLOTS IN MASTER CALENDAR у rules-тесті: запрошення майстра, staff_index, що можна й чого не можна майстру салону);
+групи: `node tests/addons/groups.test.mjs` (+ блок GROUP SEATS у rules-тесті);
+у `booking-flow` — блок 16 (клієнт салону: список майстрів, слоти й запис у календарі майстра реальним db.js, скасування звільняє слоти за masterId запису), блок 15 (салон: запис майстра блокує слоти його календаря timeslots_m/{masterId}, слоти власника не зачеплені), блоки 12 (допуслуги/перерва), 13 (пакети), 14 (групи) (запис з допуслугою+перервою, скасування, закритий майстром слот у перерві, чужий запис одразу після, серверне блокування перерви).
+
 ## Моніторинг помилок і вимкнений LiqPay
 ```bash
 npx firebase-tools emulators:exec --only database --project demo-mon "node functions/test/monitoring.e2e.js"
 ```
 `reportError` (групування, ліміт 20/хв на IP, обрізання полів), щоденне очищення `cleanupErrorLog`, `createLiqPayOrder` → 503.
-
-### Адмінка салону (`src/salon/`)
-```bash
-npx firebase-tools emulators:exec --only database --project demo-rt "node tests/rules/salonApp.test.mjs"   # записи UI проти справжніх правил
-node tests/unit/salonLogic.test.mjs                                                                       # чиста логіка: сітка слотів, ціни, вільні вікна, статистика
-npm run build && (npx vite preview --port 4173 &) && node tests/smoke/smoke.mjs salon http://localhost:4173 && node tests/smoke/salon-flows.mjs http://localhost:4173
-```
-`salonApp.test.mjs` повторює кожен запис адмінки (онбордінг, записи, слоти, послуги, майстри, чати) від імені власника й майстра — якщо UI почне писати те, що правила забороняють, тест червоний.
-`salon-flows.mjs` проходить сценарії в демо-режимі на екрані 320px (`?app=salon&demo=1`).
-
-### Клієнтський застосунок салону (DrivePad-Client, `src/salon/`)
-```bash
-npx firebase-tools emulators:exec --only database --project demo-rt "node tests/rules/salonClientApp.test.mjs"   # записи клієнта проти справжніх правил
-# у репозиторії DrivePad-Client: смоук 320px і сценарії (запис, скасування за політикою, перенесення, оцінка, чат, профіль)
-npm run build && (npx vite preview --port 4173 &) && node tests/smoke/smoke.mjs salon http://localhost:4173 && node tests/smoke/salon-flows.mjs http://localhost:4173
-```
-`salonClientApp.test.mjs` перевіряє, зокрема, що захоплення діапазону слотів атомарне, ціна запису = каталожна/персональна ціна майстра, клієнт не може виставити оплату/статус.
-
-## Cloud Functions салону (`functions/salon/`)
-```bash
-npx firebase-tools emulators:exec --only database --project demo-salon "node functions/test/salon.e2e.js"
-```
-FCM, Firebase Auth і Monobank підмінені; у емулятор вантажаться справжні `database.rules.json` (запити по `date`/`bookingId` працюють лише з `.indexOn`).
-Перевіряє: запис і слоти пер майстер (накладки, phantom, перенесення, особистий час), сповіщення клієнту/власнику/майстру, чергу очікування,
-нагадування, чати, запрошення майстрів, налаштування оплати, рахунок, вебхук Monobank (підпис, ідемпотентність, повернення, чужі/підроблені запити),
-таймаут неоплачених записів, ліцензію та прапорець `SALON_FUNCTIONS` (без нього бойові функції DrivePad не змінюються).
 
 ## Смоук-тест інтерфейсу (демо-режим, екран 320px)
 ```bash
@@ -70,8 +58,8 @@ node tests/smoke/smoke.mjs admin http://localhost:4173     # у DrivePad-Client:
 `.github/workflows/tests.yml` запускає все вище; `deploy.yml` викликає його як `needs: tests` — **деплой не йде, поки тести червоні**.
 
 ## Реальна проба платежу (раз перед запуском, вручну)
-1. У Firebase Console → Realtime Database створити `payment_test/{iid тестового інструктора}` = `true` (сума стане 1 ₴).
-2. В адмінці тестового інструктора: Налаштування → оплата → LiqPay, потім Monobank (по одному платежу).
+1. У Firebase Console → Realtime Database створити `payment_test/{iid тестового майстра}` = `true` (сума стане 1 ₴).
+2. В адмінці тестового майстра: Налаштування → оплата → LiqPay, потім Monobank (по одному платежу).
 3. Перевірити `instructors/{iid}/license`: `status: active`, `expiresAt` +31 доба, є `paymentLog/…`.
 4. Повторити надсилання вебхука з кабінету провайдера — `expiresAt` не повинен змінитися.
 5. Повернути платіж у кабінеті провайдера — ліцензія має відкотитися (`lastRefundAt`).

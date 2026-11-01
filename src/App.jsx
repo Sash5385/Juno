@@ -1,23 +1,35 @@
 import React, { useState, useEffect, lazy, Suspense, createContext, useContext } from "react";
-import { onValue, update, push, remove, get } from "firebase/database";
-import { iRef, setCurrentIid, registerAdminFCM, onAdminForegroundMessage } from "./firebase";
+import { ref, onValue, update, push, remove, get, set } from "firebase/database";
+import { iRef, db, slotRoot, setActiveMaster, setMasterTokenUid, setCurrentIid, registerAdminFCM, onAdminForegroundMessage } from "./firebase";
 import { useAdminAuth, LoginScreen, InstructorSetupScreen, isVendor, SuperAdminScreen } from "./AdminAuth";
 import { useAppUpdate } from "./hooks/useAppUpdate"
 import { useLicense, useLicenseState } from "./hooks/useLicense"
 import { setLicenseReadOnly } from "./firebaseDbGuard"
 import { LicenseBanner } from "./LicensePay"
 import { setGlobalLang, createT } from "./lang";
+import { readUiScale, uiScaleZoom, UI_SCALE_EVENT } from "./uiScale.js";
 import { ThemeContext, getTheme } from "./theme.js";
+import { FOG_STYLE } from "./uiStyles";
 import { useMosaicSwitch, MosaicOverlay } from "./mosaic";
 import { APP_VERSION } from "./version.js";
+import { setTags } from "./tags";
+import { startTerms } from "./terms";
+import { bufferOf, bookingAddonTotals } from "./addons";
+import { rememberSalonInvite } from "./salon";
+import { ScrollChips } from "./ui";
+import { applyMasterSettings } from "./masterSettings";
+import { rememberWorkspaceInvite, storedWorkspaceInvite, forgetWorkspaceInvite, isSalon, normStaff, masterOf } from "./workspace";
+import { JoinSalonScreen, MasterProfileView } from "./JoinSalonScreen";
 
 export const LangContext = createContext('uk');
 
 // ─── LAZY VIEWS
 const ScheduleView  = lazy(()=>import("./views/id4drive-admin-v5").then(m=>({default:m.ScheduleView})))
+const AutoSlots     = lazy(()=>import("./views/id4drive-admin-v5").then(m=>({default:m.AutoSlots})))
 const SettingsView  = lazy(()=>import("./views/id4drive-settings"))
 const BookingsView  = lazy(()=>import("./views/id4drive-bookings"))
 const StudentsView  = lazy(()=>import("./views/id4drive-students"))
+const AllMastersView = lazy(()=>import("./views/AllMastersView"))
 const ServicesView  = lazy(()=>import("./views/id4drive-services"))
 const ChatsView     = lazy(()=>import("./views/id4drive-chats"))
 const TemplatesView = lazy(()=>import("./views/id4drive-templates"))
@@ -46,6 +58,8 @@ const makeCSS = (theme) => {
 body,html{margin:0;padding:0;background:${theme.BG}${theme.BG_IMAGE ? `;background-image:${theme.BG_IMAGE};background-size:cover;background-position:center top;background-attachment:fixed;background-repeat:no-repeat` : ""}}
 ::-webkit-scrollbar{width:5px;height:5px}
 ::-webkit-scrollbar-thumb{background:${scrollThumb};border-radius:3px}
+/* підказка в полі — відтінок власного кольору тексту поля (читається і на темному, і на світлому тлі) */
+input::placeholder,textarea::placeholder{color:color-mix(in srgb,currentColor 68%,transparent);opacity:1}
 @keyframes spin{to{transform:rotate(360deg)}}
 .spinner{width:32px;height:32px;border:3px solid ${spinnerBorder};border-top-color:${theme.ACCENT};border-radius:50%;animation:spin .8s linear infinite}
 /* transform:none, а НЕ translateY(0) — критично.
@@ -57,7 +71,10 @@ body,html{margin:0;padding:0;background:${theme.BG}${theme.BG_IMAGE ? `;backgrou
    після автоскролу до дати календар відкривався за межами екрана.
    transform:none знімає containing block — fixed знову рахується від вікна. */
 @keyframes fade-tab{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
-.tab-anim{animation:fade-tab .22s ease both}
+.tab-anim{animation:fade-tab .22s ease backwards}
+/* Нижні шторки й панелі, прикріплені до низу екрана, не заходять під системну панель Android / жест-смужку (усі вікна й вкладки) */
+div[style*="position: fixed"][style*="align-items: flex-end"]{padding-bottom:env(safe-area-inset-bottom,0px);box-sizing:border-box}
+div[style*="position: fixed"][style*="bottom: 0px"][style*="left: 0px"]{padding-bottom:env(safe-area-inset-bottom,0px);box-sizing:border-box}
 `;
 };
 
@@ -88,11 +105,11 @@ function useInstallPrompt() {
 function InstallBanner({ theme }) {
   const { deferredPrompt, installed } = useInstallPrompt();
   const ios = IOS_UA_RE.test(window.navigator.userAgent);
-  const [dismissed, setDismissed] = useState(() => localStorage.getItem('pwa_install_offered') === '1');
+  const [dismissed, setDismissed] = useState(() => localStorage.getItem((import.meta.env.BASE_URL === '/' ? 'pwa_install_offered' : 'pwa_install_offered_admin')) === '1');
   const eligible = !installed && !dismissed && (deferredPrompt || ios);
 
   useEffect(() => {
-    if (eligible) localStorage.setItem('pwa_install_offered', '1');
+    if (eligible) localStorage.setItem((import.meta.env.BASE_URL === '/' ? 'pwa_install_offered' : 'pwa_install_offered_admin'), '1');
   }, [eligible]);
 
   if (!eligible) return null;
@@ -198,13 +215,37 @@ const TAB_IDS = [
 ];
 
 const TAB_TITLES = {
-  schedule:"Розклад", bookings:"Букінги", queue:"Черга", students:"Учні",
+  schedule:"Розклад", bookings:"Букінги", queue:"Черга", students:"Клієнти",
   services:"Послуги", chats:"Чати", templates:"Шаблони",
   stats:"Статистика", journal:"Журнал", settings:"Налаштування"
 };
 
 
 // ─── BOTTOM NAV ──────────────────────────────────────────────────
+// Салон: перемикач календарів майстрів над розкладом (власник бачить усіх, обраний майстер — свій календар)
+const ALL_MASTERS = "__all";
+function MasterTabs({ staff, active, onPick }) {
+  const theme = useContext(ThemeContext);
+  const tabs = [{ id: ALL_MASTERS, name: "Усі", color: "#94a3b8" }, ...staff];
+  return (
+    <ScrollChips fade="rgba(16,20,28,0.92)" style={{padding:"2px 6px 8px"}}>
+      {tabs.map(m => {
+        const on = m.id === active;
+        return (
+          <button key={m.id} onClick={() => onPick(m.id)} style={{
+            flex:"1 0 auto",justifyContent:"center",display:"flex",alignItems:"center",gap:7,padding:"7px 13px",borderRadius:99,cursor:"pointer",fontFamily:"inherit",fontSize:12.5,fontWeight:600,whiteSpace:"nowrap",
+            border:`1px solid ${on ? m.color : theme.BORDER}`,
+            background: on ? `color-mix(in srgb,${m.color} 28%,transparent)` : "rgba(255,255,255,0.05)",
+            color: on ? theme.TEXT : theme.DIM,
+          }}>
+            <span style={{width:10,height:10,borderRadius:"50%",background:m.color,flexShrink:0}}/>{m.name}
+          </button>
+        );
+      })}
+    </ScrollChips>
+  );
+}
+
 function BottomNav({ active, onChange, settings, chatUnread, journalUnread }) {
   const lang = useContext(LangContext);
   const tl = createT(lang);
@@ -212,64 +253,48 @@ function BottomNav({ active, onChange, settings, chatUnread, journalUnread }) {
   const isKava = settings?.theme === "light";
   const tabIcons = isKava ? makeTabIcons(INACTIVE_KAVA) : TabIcons;
   const visible = TAB_IDS.filter(t => settings?.navTabs?.includes(t.id) ?? true);
-  // Вузький екран + багато вкладок: підпис лише в активної (інакше підписи накладаються)
-  const [narrow, setNarrow] = useState(() => typeof window !== "undefined" && window.innerWidth < 400);
-  useEffect(() => {
-    const on = () => setNarrow(window.innerWidth < 400);
-    window.addEventListener("resize", on);
-    return () => window.removeEventListener("resize", on);
-  }, []);
-  const labelOnlyActive = narrow && visible.length > 6;
 
-  // "Щільний ряд скляних чипів" (обраний варіант дизайну) — компактні чипи в
-  // напівпрозорій рамці; активна вкладка підсвічується зеленим (theme.GREEN),
-  // іконки лишають власний фірмовий колір із tabIcons (не чіпаємо).
-  const navBg = isKava ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.04)";
-  const navShadow = isKava
-    ? "0 8px 24px rgba(92,42,26,0.14)"
-    : "0 8px 24px rgba(0,0,0,0.45)";
-  const labelInactive = isKava ? theme.DIM : FAINT;
-  const activeBg = `color-mix(in srgb, ${theme.GREEN} 18%, transparent)`;
+  // «Плитки» (стиль Туман): окрема скляна плитка на кожну вкладку, активна — градієнтна плитка. Підписи сховані (title/aria-label лишаються).
+  const tileBg = isKava ? "rgba(255,255,255,0.55)" : "rgba(255,255,255,0.07)";
+  const tileBorder = isKava ? theme.BORDER : "rgba(255,255,255,0.14)";
+  const activeGrad = isKava
+    ? `linear-gradient(145deg,${theme.ACC_HI},${theme.ACCENT})`
+    : "linear-gradient(145deg,#93c5fd,#60a5fa)";
 
   return (
     <div id="app-bottomnav" style={{
       flexShrink:0,
-      padding:`0 3px calc(10px + env(safe-area-inset-bottom, 0px))`,
+      padding:`0 12px calc(5px + env(safe-area-inset-bottom, 0px))`,
       background: isKava ? "#d4ba96" : "transparent",
       zIndex:50,
       pointerEvents:"none",
     }}>
-      <div style={{
-        background:navBg,
-        borderRadius:16,
-        border:`1px solid ${theme.BORDER}`,
-        boxShadow:navShadow,
-        display:"flex", gap:2, padding:3,
-        pointerEvents:"auto",
-      }}>
+      <div style={{display:"flex", gap:5, pointerEvents:"auto"}}>
         {visible.map(t=>{
           const isActive = active===t.id;
           const badgeCount = t.id === 'chats' ? chatUnread : t.id === 'journal' ? journalUnread : t.badge;
           return (
-          <button key={t.id} onClick={()=>onChange(t.id)} title={tl(t.lk)} aria-label={tl(t.lk)} style={{
-            flex:"1 1 0",minWidth:0,padding:"8px 2px 7px",
-            background: isActive ? activeBg : "transparent",
-            border:"none",cursor:"pointer",borderRadius:11,
-            display:"flex",flexDirection:"column",alignItems:"center",gap:4,
-            position:"relative"
+          <button key={t.id} onClick={()=>onChange(t.id)} title={tl(t.lk)} aria-label={tl(t.lk)} aria-current={isActive ? "page" : undefined} style={{
+            flex:"1 1 0",minWidth:0,height:46,padding:0,
+            background: isActive ? activeGrad : tileBg,
+            border:`1px solid ${isActive ? "transparent" : tileBorder}`,
+            backdropFilter:"blur(16px)", WebkitBackdropFilter:"blur(16px)",
+            boxShadow: isActive ? "0 6px 14px rgba(96,165,250,0.4)" : "none",
+            cursor:"pointer",borderRadius:14,
+            display:"flex",alignItems:"center",justifyContent:"center",
+            position:"relative",
           }}>
-            <div style={{position:"relative"}}>
-              {tabIcons[t.id]?.(34,isActive)}
+            <div style={{position:"relative",display:"flex"}}>
+              {tabIcons[t.id]?.(28,isActive)}
               {badgeCount > 0 && (
-                <div style={{
-                  position:"absolute",top:-4,right:-4,
-                  background:theme.ACCENT,color:"#fff",borderRadius:10,
+                <div data-help="navbadge" style={{
+                  position:"absolute",top:-6,right:-8,
+                  background:theme.ACCENT,color:theme.BTN_TX||"#fff",borderRadius:10,
                   padding:"1px 5px",fontSize:9,fontWeight:800,
                   boxShadow:`0 0 8px ${theme.ACCENT}88`,lineHeight:1.4
                 }}>{badgeCount}</div>
               )}
             </div>
-            <span aria-hidden={labelOnlyActive && !isActive} style={{fontSize:labelOnlyActive?10:9,fontWeight:700,color:isActive?theme.GREEN:labelInactive,whiteSpace:"nowrap",letterSpacing:-0.2,visibility:(labelOnlyActive && !isActive)?"hidden":"visible"}}>{tl(t.lk)}</span>
           </button>
           );
         })}
@@ -312,7 +337,7 @@ function QueueStrip({ tab, onChange }) {
       </span>
       {waiting > 0 && (
         <span style={{
-          background:"linear-gradient(145deg,#c084fc,#7c3aed)",
+          background:"linear-gradient(145deg,#9333ea,#6d28d9)",
           color:"#fff",borderRadius:8,padding:"1px 8px",
           fontSize:11,fontWeight:800,
           boxShadow:"0 0 8px rgba(192,132,252,0.5)",
@@ -327,14 +352,14 @@ function QueueStrip({ tab, onChange }) {
 
 // ─── TAB INSTRUCTIONS ───────────────────────────────────────────
 const INSTRUCTIONS = {
-  schedule: "Розклад уроків. Клік на порожнє місце — записати учня, VIP-слот або заблокувати час. Утримати слот — видалити.",
-  bookings: "Список записів учнів. Натисніть на картку — деталі, телефон, кнопки дій. Черга авто-відкривається якщо є очікуючі.",
+  schedule: "Розклад записів. Клік на порожнє місце — записати клієнта, VIP-слот або заблокувати час. Утримати слот — видалити.",
+  bookings: "Список записів клієнтів. Натисніть на картку — деталі, телефон, кнопки дій. Черга авто-відкривається якщо є очікуючі.",
   queue:    "Черга очікування. Перетягуй ⠿ для зміни пріоритету. Запросити → статус «Запрошено». Архів зберігає історію.",
-  students: "Список учнів. Клік на картку — телефон, знижка, прогрес, записи. Пошук і фільтр за типом.",
-  services: "Типи уроків з ціною і тривалістю. Перемикач — вкл/вимк. ☰ — порядок. ✏️ — редагувати.",
-  chats:    "Листування з учнями. Клік на контакт — розгортає чат. ⚡ — швидкі відповіді.",
+  students: "Список клієнтів. Клік на картку — телефон, знижка, прогрес, записи. Пошук і фільтр за типом.",
+  services: "Типи записів з ціною і тривалістю. Перемикач — вкл/вимк. ☰ — порядок. ✏️ — редагувати.",
+  chats:    "Листування з клієнтами. Клік на контакт — розгортає чат. ⚡ — швидкі відповіді.",
   templates:"Шаблони повідомлень. ➤ надіслати · ✏️ редагувати · 🗑 видалити.",
-  stats:    "Статистика уроків, доходу і учнів за обраний період.",
+  stats:    "Статистика записів, доходу і клієнтів за обраний період.",
   journal:  "Журнал змін графіку. Нові записи, скасування, перенесення — з датою та часом події.",
   settings: "Налаштування розкладу, послуг, черги та автоматичних повідомлень.",
 };
@@ -345,6 +370,13 @@ function TopBar({ tab, onChange, settings, setSettings }) {
   const tl = createT(lang);
   const tabLabel = tl(TAB_IDS.find(x=>x.id===tab)?.lk || tab);
   const [showInfo, setShowInfo] = useState(false);
+  // Вузький екран (≤360px): ховаємо підписи «годин/діб» під цифрами, щоб ряд кнопок не виходив за край
+  const [narrow, setNarrow] = useState(() => typeof window !== "undefined" && window.innerWidth <= 360);
+  useEffect(() => {
+    const onR = () => setNarrow(window.innerWidth <= 360);
+    window.addEventListener("resize", onR);
+    return () => window.removeEventListener("resize", onR);
+  }, []);
   const instruction = INSTRUCTIONS[tab];
 
   // reset when tab changes
@@ -366,7 +398,7 @@ function TopBar({ tab, onChange, settings, setSettings }) {
   };
 
   const btnBase = {
-    flex:"1 1 0",minWidth:0,padding:"4px 2px",borderRadius:9,border:"none",cursor:"pointer",
+    flex:"1 1 0",minWidth:0,overflow:"hidden",padding:"4px 2px",borderRadius:9,border:"none",cursor:"pointer",
     transition:"all .15s",
     display:"flex",flexDirection:"column",alignItems:"center",lineHeight:1,gap:1,
   };
@@ -382,7 +414,7 @@ function TopBar({ tab, onChange, settings, setSettings }) {
   return (
     <div style={{position:"sticky",top:0,zIndex:20}}>
       <div style={{
-        padding:`calc(4px + env(safe-area-inset-top, 0px)) 8px 4px`,
+        padding:`calc(4px + env(safe-area-inset-top, 0px)) 6px 4px`,
         display:"flex",alignItems:"center",
         background:navBg,
         backdropFilter:"blur(20px)",
@@ -393,7 +425,7 @@ function TopBar({ tab, onChange, settings, setSettings }) {
         {tab==="schedule" && settings && setSettings ? (
           <>
             {/* Left: годин buttons */}
-            <div style={{flex:1,display:"flex",gap:3,alignItems:"center"}}>
+            <div data-help="hours" style={{flex:1,minWidth:0,display:"flex",gap:2,alignItems:"center"}}>
               <button key="hauto" onClick={()=>setSettings(s=>({...s,autoHourHeight:true}))} style={{
                 ...btnBase,
                 background:settings.autoHourHeight?`linear-gradient(165deg,#5b9bff,#2563eb)`:btnInactive,
@@ -401,7 +433,7 @@ function TopBar({ tab, onChange, settings, setSettings }) {
                 boxShadow:settings.autoHourHeight?`0 3px 8px rgba(91,155,255,0.5)`:"none",
               }}>
                 <span style={{fontSize:11,fontWeight:800}}>Авто</span>
-                <span style={{fontSize:8,fontWeight:600,opacity:0.8}}>годин</span>
+                {!narrow && <span style={{fontSize:8,fontWeight:600,opacity:0.8}}>годин</span>}
               </button>
               {[8,10,12,14].map(n=>{
                 const totalH = (settings.workEnd - settings.workStart) * 60;
@@ -415,17 +447,17 @@ function TopBar({ tab, onChange, settings, setSettings }) {
                     boxShadow:active?`0 3px 8px rgba(91,155,255,0.5)`:"none",
                   }}>
                     <span style={{fontSize:15,fontWeight:800}}>{n}</span>
-                    <span style={{fontSize:8,fontWeight:600,opacity:0.8}}>годин</span>
+                    {!narrow && <span style={{fontSize:8,fontWeight:600,opacity:0.8}}>годин</span>}
                   </button>
                 );
               })}
             </div>
 
             {/* Center: портал для кнопки «Ключик» (рендериться з ScheduleView через createPortal) */}
-            <div id="topbar-key-portal" style={{flex:"0 0 auto",display:"flex",justifyContent:"center",alignItems:"center",padding:"0 6px",minWidth:36}}/>
+            <div id="topbar-key-portal" style={{flex:"0 0 auto",display:"flex",justifyContent:"center",alignItems:"center",padding:"0 2px",minWidth:28}}/>
 
             {/* Right: діб buttons */}
-            <div style={{flex:1,display:"flex",gap:3,alignItems:"center"}}>
+            <div data-help="days" style={{flex:1,minWidth:0,display:"flex",gap:2,alignItems:"center"}}>
               {[3,4,5,6,7].map(n=>{
                 const active = settings.daysShown===n;
                 return (
@@ -436,7 +468,7 @@ function TopBar({ tab, onChange, settings, setSettings }) {
                     boxShadow:active?`0 3px 8px ${theme.GOLD}55`:"none",
                   }}>
                     <span style={{fontSize:15,fontWeight:800}}>{n}</span>
-                    <span style={{fontSize:8,fontWeight:600,opacity:0.8}}>діб</span>
+                    {!narrow && <span style={{fontSize:8,fontWeight:600,opacity:0.8}}>діб</span>}
                   </button>
                 );
               })}
@@ -444,7 +476,7 @@ function TopBar({ tab, onChange, settings, setSettings }) {
           </>
         ) : (
           <div style={{display:"flex",alignItems:"center",gap:6,flex:1}}>
-            <img src="/icon-192.png" alt="ID4Drive" style={{width:22,height:22,borderRadius:"50%",flexShrink:0,boxShadow:"-2px 3px 8px rgba(0,0,0,0.45)"}}/>
+            <img src={import.meta.env.BASE_URL + "icon-192.png"} alt="Juno" style={{width:22,height:22,borderRadius:"50%",flexShrink:0,boxShadow:"-2px 3px 8px rgba(0,0,0,0.45)"}}/>
             <div style={{fontSize:13,fontWeight:800,letterSpacing:-0.3,color:theme.TEXT,flex:1}}>{tabLabel}</div>
             {tab==="settings" && (
               <div onClick={forceUpdate} style={{fontSize:11,fontWeight:700,color:btnInactiveColor,cursor:"pointer",flexShrink:0}}>{APP_VERSION}</div>
@@ -472,13 +504,28 @@ function TopBar({ tab, onChange, settings, setSettings }) {
 
 const INITIAL_BOOKINGS = [];
 
+// Новий майстер починає з чистого аркуша: ні обіду, ні робочих днів, ні слотів — усе виставляє сам
+// (Налаштування → Робочий графік, потім «ключик» створює слоти). Застосовується лише до акаунта, який ще
+// жодного разу не синхронізував налаштування (workStart у базі з'являється після першого входу).
+const EMPTY_WEEK_DAY = { enabled:false, start:9, end:18, lunchEnabled:false, lunchStart:12, lunchEnd:13 };
+const CLEAN_START_SETTINGS = {
+  lunchEnabled: false,
+  weekSchedule: Array.from({ length: 7 }, () => ({ ...EMPTY_WEEK_DAY })),
+  dateOverrides: [],
+  weekends: [],
+  services: [
+    { id:"sv1", name:"Стандарт", type:"school",  duration:60, price:0, colorId:"green",  active:true, description:"" },
+    { id:"sv2", name:"Індивідуальний", type:"private", duration:60, price:0, colorId:"yellow", active:true, description:"" },
+  ],
+};
+
 const DEFAULT_SETTINGS = {
-  profile: { name:"Олександр", phone:"+380989225442", address:"Київ", experience:8, photo:null },
+  profile: { name:"Майстер", phone:"", address:"", experience:0, photo:null },
   workStart:7, workEnd:20, weekends:[6], daysShown:6, snapMin:30, slotCreateStep:30, hourHeightPx:60, autoHourHeight:false,
-  lunchEnabled:true, lunchStart:12, lunchEnd:13, customBlocks:[], pendingEnabled:false, lockPastBookings:false,
+  lunchEnabled:true, lunchStart:12, lunchEnd:13, customBlocks:[], pendingEnabled:false, lockPastBookings:false, autoSlots:false, showHelpBtn:true, calStyle:"neon", calBg:"fog", calClip:true,
   theme:"dark", language:"uk", queueAutoFifo:true, queueBroadcast:false, queueManual:false,
   studentCanReschedule:true, studentCanCancel:true, bookCutoffHours:2, calendarOpenDays:30, schoolCalendarOpenDays:14, slotGenDays:30,
-  stickyTime:"both", notifLocation:"topbar", showCompleteBtn:true, showSlotTimes:true, autoStudentColors:true,
+  stickyTimeEnabled:false, stickyTime:"both", notifLocation:"topbar", showCompleteBtn:true, showSlotTimes:true, autoStudentColors:true,
   navTabs:["schedule","journal","bookings","students","services","chats","templates","stats","settings"],
   autoReminders:[
     {enabled:true,  hoursBefore:24},
@@ -487,12 +534,10 @@ const DEFAULT_SETTINGS = {
   ],
   autoWelcome:{enabled:true}, autoConfirm:{enabled:true},
   autoCancel:{enabled:true}, autoQueueOffer:{enabled:true},
-  surcharges:[100,200,300],
+  surcharges:[],
   services: [
-    { id:"sv1", name:"Автошкола 1 год", type:"school",  duration:60,  price:700,  colorId:"green",  active:true,  description:"" },
-    { id:"sv2", name:"Автошкола 2 год", type:"school",  duration:120, price:1400, colorId:"green",  active:true,  description:"" },
-    { id:"sv3", name:"Приватний 1 год", type:"private", duration:60,  price:1000, colorId:"yellow", active:true,  description:"" },
-    { id:"sv4", name:"Приватний 2 год", type:"private", duration:120, price:2000, colorId:"yellow", active:true,  description:"" },
+    { id:"sv1", name:"Стандарт", type:"school",  duration:60, price:0, colorId:"green",  active:true, description:"" },
+    { id:"sv2", name:"Індивідуальний", type:"private", duration:60, price:0, colorId:"yellow", active:true, description:"" },
   ],
   categories: [
     { id:"cat-vip", name:"VIP",      colorId:"purple" },
@@ -501,9 +546,10 @@ const DEFAULT_SETTINGS = {
 };
 
 // ─── VIEW RENDERER ───────────────────────────────────────────────
-function ViewRenderer({ tab, settings, setSettings, bookings, setBookings, onSlotClick, onEmptySlotClick, openInfos, toggleInfo, activeDragIds, navTo, slotExistsRef, openSlotsRef, jumpTarget, setJumpTarget, onViewStudent, studentJump, onStudentJumpHandled }) {
-  if (tab === "schedule")  return <ScheduleView settings={settings} setSettings={setSettings} bookings={bookings} setBookings={setBookings} onSlotClick={onSlotClick} onEmptySlotClick={onEmptySlotClick} activeDragIds={activeDragIds} navTo={navTo} slotExistsRef={slotExistsRef} openSlotsRef={openSlotsRef} jumpTarget={jumpTarget} setJumpTarget={setJumpTarget} onViewStudent={onViewStudent}/>;
-  if (tab === "settings")  return <SettingsView settings={settings} setSettings={setSettings}/>;
+function ViewRenderer({ allMode, staffList, onPickMaster, ws, onWs, masterKey, scheduleSettings, scheduleBookings, scheduleSetBookings, tab, settings, setSettings, bookings, setBookings, onSlotClick, onEmptySlotClick, openInfos, toggleInfo, activeDragIds, navTo, slotExistsRef, openSlotsRef, jumpTarget, setJumpTarget, onViewStudent, studentJump, onStudentJumpHandled }) {
+  if (tab === "schedule" && allMode) return <AllMastersView bookings={bookings} staff={staffList} settings={settings} onPick={onPickMaster}/>;
+  if (tab === "schedule")  return <ScheduleView key={masterKey} settings={scheduleSettings || settings} setSettings={setSettings} bookings={scheduleBookings || bookings} setBookings={scheduleSetBookings || setBookings} onSlotClick={onSlotClick} onEmptySlotClick={onEmptySlotClick} activeDragIds={activeDragIds} navTo={navTo} slotExistsRef={slotExistsRef} openSlotsRef={openSlotsRef} jumpTarget={jumpTarget} setJumpTarget={setJumpTarget} onViewStudent={onViewStudent}/>;
+  if (tab === "settings")  return ws ? <MasterProfileView ws={ws} onLeft={() => onWs(null)}/> : <SettingsView settings={settings} setSettings={setSettings}/>;
   if (tab === "bookings")  return <BookingsView settings={settings} bookings={bookings}/>;
   if (tab === "queue")     return <QueueView settings={settings}/>;
   if (tab === "students")  return <StudentsView studentJump={studentJump} onStudentJumpHandled={onStudentJumpHandled} bookings={bookings} settings={settings}/>;
@@ -530,11 +576,47 @@ function dayIdxToDate(dayIdx) {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
 
+const MASTER_TABS = ["schedule", "students", "settings"];
+
 // ─── MAIN APP ────────────────────────────────────────────────────
+// Зовнішній шар: до входу в застосунок з'ясовуємо, чий це простір. Майстер салону (staff_index/{uid} → чужий iid + рядок у складі)
+// працює в просторі власника (iid = власник) лише зі своїм календарем; решта — у власному просторі. Усе нижче монтується ПІСЛЯ цього,
+// тож усі підписки одразу читають потрібний instructors/{iid}.
 export default function App() {
   const adminUser = useAdminAuth();
   const vendor = isVendor(adminUser);
-  const license = useLicense(vendor ? null : adminUser?.uid);
+  const uid = adminUser?.uid || null;
+  const [wsState, setWsState] = useState({ uid: null, ws: undefined }); // ws: undefined — з'ясовуємо, null — власний простір, об'єкт — майстер салону
+  useEffect(() => {
+    if (!uid || vendor) return undefined;
+    let alive = true;
+    (async () => {
+      let ws = null;
+      try {
+        // Без з'єднання get може довго висіти — чекаємо індекс не довше 8 с, далі працюємо як у власному просторі
+        const idx = (await Promise.race([get(ref(db, `staff_index/${uid}`)), new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), 8000))])).val();
+        if (idx?.iid && idx.iid !== uid) {
+          const row = (await get(ref(db, `instructors/${idx.iid}/staff/${uid}`))).val();
+          if (row?.role === "master") {
+            const salonName = (await get(ref(db, `instructors/${idx.iid}/admin_settings/profile/name`)).catch(() => null))?.val() || "";
+            ws = { iid: idx.iid, name: row.name, salonName };
+          }
+        }
+      } catch { /* немає індексу — власний простір */ }
+      setCurrentIid(ws ? ws.iid : uid);
+      if (alive) setWsState({ uid, ws });
+    })();
+    return () => { alive = false; };
+  }, [uid, vendor]);
+  const setWs = ws => { setCurrentIid(ws ? ws.iid : uid); setWsState({ uid, ws }); };
+  if (uid && !vendor && wsState.uid !== uid) return null; // ще з'ясовуємо простір
+  const ws = uid && !vendor ? wsState.ws : null;
+  return <AdminApp key={ws ? ws.iid : "own"} adminUser={adminUser} ws={ws} onWs={setWs}/>;
+}
+
+function AdminApp({ adminUser, ws, onWs }) {
+  const vendor = isVendor(adminUser);
+  const license = useLicense(vendor ? null : (ws?.iid || adminUser?.uid));
   const licState = useLicenseState(license);
   // Режим читання: guard у firebaseDbGuard.js відхиляє записи в instructors/{iid}/… (крім license/fcmTokens)
   useEffect(() => {
@@ -547,21 +629,24 @@ export default function App() {
     window.addEventListener("unhandledrejection", h);
     return () => window.removeEventListener("unhandledrejection", h);
   }, []);
+  const [joinToken, setJoinToken] = useState(() => storedWorkspaceInvite());
   const [profileReady, setProfileReady] = useState(null); // null=перевіряємо, false=потрібне налаштування, true=готово
   const { needRefresh, updateServiceWorker, isUpdating } = useAppUpdate()
 
-  // Multi-tenant: iid інструктора = його ж auth.uid. Встановлюємо його одразу
+  // Multi-tenant: iid майстра = його ж auth.uid. Встановлюємо його одразу
   // при вході (до будь-яких інших ефектів, що читають instructors/{iid}/...),
   // і перевіряємо чи вже заповнений профіль (перший вхід → анкета налаштування).
   // Вендор (ви) не має власного тенанта — бачить SuperAdminScreen замість цього.
   useEffect(() => {
     if (!adminUser?.uid || vendor) { setProfileReady(null); return; }
-    setCurrentIid(adminUser.uid);
+    if (ws) { setProfileReady(true); return undefined; } // майстер салону: власного профілю немає, працює в просторі власника
+    let alive = true;
     get(iRef("admin_settings/profile")).then(snap => {
       const p = snap.val();
-      setProfileReady(!!(p && p.name));
-    }).catch(() => setProfileReady(false));
-  }, [adminUser, vendor]);
+      if (alive) setProfileReady(!!(p && p.name));
+    }).catch(() => { if (alive) setProfileReady(false); });
+    return () => { alive = false; };
+  }, [adminUser, vendor, ws]);
   // Deep-link з push-сповіщення (?date=&time=&uid=&bookingId=) — одразу відкриваємо розклад на потрібній даті
   const [jumpTarget, setJumpTarget] = useState(() => {
     const p = new URLSearchParams(window.location.search);
@@ -569,7 +654,7 @@ export default function App() {
     if (!date) return null;
     return { date, time: p.get("time") || null, uid: p.get("uid") || null, bookingId: p.get("bookingId") || null };
   });
-  // Deep-link з пушу "Новий учень" (?uid=... без date) — одразу відкриваємо картку учня
+  // Deep-link з пушу "Новий клієнт" (?uid=... без date) — одразу відкриваємо картку клієнта
   const [studentJump, setStudentJump] = useState(() => {
     if (jumpTarget) return null;
     const p = new URLSearchParams(window.location.search);
@@ -577,27 +662,57 @@ export default function App() {
     if (!uid) return null;
     return { uid, openHistory: false, ts: Date.now() };
   });
-  const [tab,        setTab]      = useState(() => (jumpTarget ? "schedule" : studentJump ? "students" : (localStorage.getItem("admin_tab") || "schedule")));
+  const [tab,        setTab]      = useState(() => {
+    const t0 = jumpTarget ? "schedule" : studentJump ? "students" : (localStorage.getItem("admin_tab") || "schedule");
+    return ws && !MASTER_TABS.includes(t0) ? "schedule" : t0; // майстер салону не відкриває чужих розділів
+  });
   const [displayedTab, mosaicPhase] = useMosaicSwitch(tab, 0.5);
+  const [uiScale, setUiScaleState] = useState(readUiScale);
+  useEffect(() => {
+    const on = (e) => setUiScaleState(e.detail || readUiScale());
+    window.addEventListener(UI_SCALE_EVENT, on);
+    return () => window.removeEventListener(UI_SCALE_EVENT, on);
+  }, []);
   useEffect(() => {
     if (jumpTarget || studentJump) window.history.replaceState(null, "", window.location.pathname);
   }, []);
   const [tabVisits,  setTabVisits]= useState({});
   const [openInfos,  setOpenInfos]= useState({});
   const [settings,   setSettings] = useState(DEFAULT_SETTINGS);
+
+  // Межі розкладу (workStart/workEnd) беремо з тижневого шаблону: найраніший початок і найпізніший кінець увімкнених днів
+  useEffect(() => {
+    const on = (settings.weekSchedule || []).filter(d => d && d.enabled && d.start != null && d.end != null);
+    if (!on.length) return;
+    const workStart = Math.floor(Math.min(...on.map(d => d.start)) + 1e-6);
+    const workEnd = Math.ceil(Math.max(...on.map(d => d.end)) - 1e-6);
+    if (workStart !== settings.workStart || workEnd !== settings.workEnd) setSettings(s => ({ ...s, workStart, workEnd }));
+  }, [settings.weekSchedule]); // eslint-disable-line react-hooks/exhaustive-deps
+  setTags(settings.tags); // живий список міток для всіх вкладок (Налаштування → Мітки)
+  useEffect(() => { rememberSalonInvite(); rememberWorkspaceInvite(); }, []); // запрошення в салон з посилання (?salon_invite=…)
+  useEffect(() => { startTerms(settings.direction); }, [settings.direction]); // слова напрямку (Налаштування → Профіль)
   const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [bookings,   setBookings] = useState(INITIAL_BOOKINGS);
   const [selectedBooking,  setSelectedBooking]  = useState(null);
   const [newBookingData,   setNewBookingData]    = useState(null);
   const [chatUnread,    setChatUnread]    = useState(0);
   // Розділено на дві частини — записи-події (bookings) і нові реєстрації
-  // учнів (users) — бо це два незалежні onValue-слухачі, і кожен рахує
+  // клієнтів (users) — бо це два незалежні onValue-слухачі, і кожен рахує
   // свою частину бейджа окремо, а бейдж — їхня сума.
   const [journalUnreadBookings, setJournalUnreadBookings] = useState(0);
   const [journalUnreadStudents, setJournalUnreadStudents] = useState(0);
   const journalUnread = journalUnreadBookings + journalUnreadStudents;
 
-  const switchTab = t => {
+  // Системна «назад» = крок назад по вкладках (а не вихід із застосунку): кожен перехід кладе запис в історію
+  const tabRef = React.useRef(tab); tabRef.current = tab;
+  const tabStackRef = React.useRef([]);
+  const switchTab = (t, fromPop) => {
+    if (fromPop !== true) {
+      if (t === tabRef.current) return;
+      tabStackRef.current.push(tabRef.current);
+      window.history.pushState({ ui4Tab: tabStackRef.current.length }, "");
+    }
+    tabRef.current = t;
     setTab(t);
     localStorage.setItem("admin_tab", t);
     setTabVisits(v => ({...v, [t]: (v[t]||0) + 1}));
@@ -608,8 +723,20 @@ export default function App() {
     }
     if (t === 'journal') { setJournalUnreadBookings(0); setJournalUnreadStudents(0); }
   };
+  useEffect(() => {
+    const onPop = (e) => {
+      const depth = e.state && e.state.ui4Tab ? e.state.ui4Tab : 0;
+      if (depth < tabStackRef.current.length) { // це крок назад по вкладках, а не закриття вікна
+        const prev = tabStackRef.current[depth];
+        tabStackRef.current.length = depth;
+        switchTab(prev, true);
+      }
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  });
 
-  // Профіль/Історія з модалки запису → відкрити картку учня на вкладці "Учні"
+  // Профіль/Історія з модалки запису → відкрити картку клієнта на вкладці "Клієнти"
   const onViewStudent = (uid, openHistory) => {
     if (!uid) return;
     setStudentJump({ uid, openHistory: !!openHistory, ts: Date.now() });
@@ -649,7 +776,7 @@ export default function App() {
     };
     const check = async () => {
       try {
-        const res = await fetch('/version.json?t=' + Date.now(), { cache: 'no-store' });
+        const res = await fetch(import.meta.env.BASE_URL + 'version.json?t=' + Date.now(), { cache: 'no-store' });
         const { version } = await res.json();
         if (version && version !== APP_VERSION) {
           const flag = 'vreset_' + version;
@@ -703,15 +830,15 @@ export default function App() {
     if (!adminUser || vendor) return;
     return onAdminForegroundMessage((payload) => {
       // Data-only push — див. firebase-messaging-sw.js чому без "notification"
-      const title = payload.data?.title || "ID4Drive";
+      const title = payload.data?.title || "Juno";
       const body  = payload.data?.body  || "";
       const isAlarm = payload.data?.alarm === "1";
       if (Notification.permission === "granted" && "serviceWorker" in navigator) {
         navigator.serviceWorker.ready.then(reg => {
           reg.showNotification(title, {
             body,
-            icon: "/icon-192.png",
-            badge: "/badge-dp.png",
+            icon: import.meta.env.BASE_URL + "icon-192.png",
+            badge: import.meta.env.BASE_URL + "badge-dp.png",
             tag: "admin-" + Date.now(),
             requireInteraction: true,
             vibrate: isAlarm ? [400, 200, 400, 200, 400, 200, 400] : undefined,
@@ -761,6 +888,7 @@ export default function App() {
           dateOverrides: Array.isArray(d.dateOverrides)  ? d.dateOverrides : s.dateOverrides,
         }));
       }
+      if (!d || d.workStart === undefined) setSettings(s => ({ ...s, ...CLEAN_START_SETTINGS }));
       setSettingsLoaded(true);
     }).catch(() => setSettingsLoaded(true));
   }, [adminUser]);
@@ -768,7 +896,7 @@ export default function App() {
   // Sync all settings to Firebase (guarded until load completes to avoid overwriting with defaults)
   const settingsSyncTimer = React.useRef(null);
   useEffect(() => {
-    if (!adminUser || vendor || !settingsLoaded) return;
+    if (!adminUser || vendor || !settingsLoaded || ws) return; // майстер салону не пише налаштування власника
     clearTimeout(settingsSyncTimer.current);
     settingsSyncTimer.current = setTimeout(() => {
       update(iRef( 'admin_settings'), {
@@ -816,14 +944,77 @@ export default function App() {
         showCompleteBtn:      settings.showCompleteBtn      ?? true,
         showSlotTimes:        settings.showSlotTimes        ?? true,
         autoStudentColors:    settings.autoStudentColors    ?? true,
-        stickyTimeEnabled:    settings.stickyTimeEnabled    ?? true,
+        stickyTimeEnabled:    settings.stickyTimeEnabled    ?? false,
         minBookingIntervalDays: settings.minBookingIntervalDays ?? 0,
+        tags: settings.tags ?? null,
+        direction: settings.direction ?? "universal",
+        intake: settings.intake ?? null,
+        packages: settings.packages ?? null,
+        salonSlug: settings.salonSlug ?? null,
         slotFreedPushEnabled: settings.slotFreedPushEnabled ?? true,
         lockPastBookings: settings.lockPastBookings ?? false,
+        showHelpBtn: settings.showHelpBtn ?? true,
+        calStyle: settings.calStyle ?? "neon",
+        calBg: settings.calBg ?? "fog",
+        calClip: settings.calClip ?? true,
+        autoSlots: settings.autoSlots ?? false,
       }).catch(() => {});
     }, 800);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settings, adminUser, settingsLoaded]);
+
+  // ── Салон: склад майстрів і активний календар ──────────────────────────────────────────
+  // Власник перемикає календарі майстрів; кожен має свій корінь слотів (timeslots_m/{id}), записи — з masterId.
+  // «Один майстер» (accountType solo) цього блоку не торкається: masterId = власник, фільтр не діє.
+  const ownerIid = ws?.iid || adminUser?.uid || null;
+  const salonOn = !!ws || isSalon(settings);
+  const [staffAll, setStaffList] = useState([]);
+  const [pickedMaster, setPickedMaster] = useState(null);
+  useEffect(() => {
+    if (!adminUser?.uid || vendor || !salonOn) return undefined;
+    return onValue(iRef("staff"), snap => setStaffList(normStaff(snap.val(), ownerIid)), () => {});
+  }, [adminUser, vendor, salonOn, ownerIid]);
+  const staffList = salonOn ? staffAll : [];
+  // Публічний список майстрів для сторінки запису клієнта (клієнти склад не читають): власник дзеркалить у instructors/{iid}/masters
+  const lastMastersRef = React.useRef("");
+  useEffect(() => {
+    if (ws || !adminUser?.uid || vendor || !salonOn || staffAll.length === 0) return;
+    const pub = Object.fromEntries(staffAll.map(m => [m.id, { name: m.name, color: m.color, owner: m.owner }]));
+    const key = JSON.stringify(pub);
+    if (key === lastMastersRef.current) return;
+    lastMastersRef.current = key;
+    set(iRef("masters"), pub).catch(() => { lastMastersRef.current = ""; });
+  }, [ws, adminUser, vendor, salonOn, staffAll]);
+  const masterId = ws ? adminUser.uid : (salonOn && pickedMaster && staffList.some(m => m.id === pickedMaster) ? pickedMaster : ownerIid);
+  const allMode = salonOn && !ws && staffList.length > 1 && pickedMaster === ALL_MASTERS; // огляд усіх майстрів (лише перегляд)
+  setMasterTokenUid(ws ? adminUser?.uid : null);
+  setActiveMaster(masterId); // до дочірніх компонентів, щоб їхні ефекти одразу читали слоти потрібного майстра
+  // Власні графік і ціни майстра (master_settings/{id}) — лише для календаря цього майстра
+  const [masterMs, setMasterMs] = useState(null);
+  const msTarget = salonOn && masterId !== ownerIid ? masterId : null;
+  useEffect(() => {
+    if (!msTarget || !adminUser?.uid) return undefined;
+    return onValue(iRef(`master_settings/${msTarget}`), snap => setMasterMs({ id: msTarget, v: snap.val() }), () => {});
+  }, [msTarget, adminUser?.uid]);
+  const scheduleSettings = React.useMemo(
+    () => (msTarget && masterMs?.id === msTarget && masterMs.v ? applyMasterSettings(settings, masterMs.v) : settings),
+    [settings, msTarget, masterMs]);
+  // Майстер салону бачить лише розклад, клієнтів і свій профіль
+  const navSettings = ws ? { ...settings, navTabs: MASTER_TABS } : settings;
+  const inMasterScope = b => !salonOn || masterOf(b, ownerIid) === masterId;
+  const scheduleBookings = salonOn ? bookings.filter(inMasterScope) : bookings;
+  // Розклад бачить лише записи свого майстра, тож його setBookings не має «видаляти» чужі: зливаємо результат із рештою,
+  // а нові записи позначаємо masterId (для власника — без поля).
+  const scheduleSetBookings = fn => {
+    if (!salonOn) return handleSetBookings(fn); // handleSetBookings оголошено нижче — викликається лише пізніше
+    return handleSetBookings(prev => {
+      const mine = prev.filter(inMasterScope);
+      const nextMine = typeof fn === "function" ? fn(mine) : fn;
+      const known = new Set(prev.map(b => b.id));
+      const tagged = nextMine.map(b => (known.has(b.id) || masterId === ownerIid ? b : { ...b, masterId }));
+      return [...tagged, ...prev.filter(b => !inMasterScope(b))];
+    });
+  };
 
   // Load bookings from Firebase
   const processBookingsSnap = React.useCallback((data) => {
@@ -840,7 +1031,7 @@ export default function App() {
           userId:    uid,
           day:       dateToDayIdx(b.date),
           startMin:  b.startMin ?? (parseInt((b.time||"0:0").split(":")[0])*60 + parseInt((b.time||"0:0").split(":")[1])),
-          durMin:    b.durMin   ?? (b.durationHours ? b.durationHours*60 : 60),
+          durMin:    b.durMin   ?? (b.durationHours ? Math.round(b.durationHours*60) : 60),
           name:      b.studentName || b.name || "Без імені",
           type:      b.serviceType || b.type || "private",
         });
@@ -891,8 +1082,8 @@ export default function App() {
     });
   }, [adminUser, processBookingsSnap]);
 
-  // Нові реєстрації учнів — окремий лічильник бейджа "Журнал", щоб адмін
-  // одразу бачив, коли прийшла нова людина (не поточний учень, а саме
+  // Нові реєстрації клієнтів — окремий лічильник бейджа "Журнал", щоб адмін
+  // одразу бачив, коли прийшла нова людина (не поточний клієнт, а саме
   // новий запис у users з createdAt пізніше за останній перегляд журналу).
   useEffect(() => {
     if (!adminUser || vendor) return;
@@ -942,54 +1133,63 @@ const pendingDeletesRef = React.useRef(new Set());
       // cancelBooking роблять у клієнтському застосунку.
       // acc !== null → пишемо в спільний об'єкт (атомарний запис разом з бронюванням),
       // інакше робимо самостійний update.
-      const blockSlots = (date, startMin, durMin, onlyExisting = false, acc = null) => {
+      // bufferMin — перерва після запису: блокуємо лише наявні слоти сітки, не закриті майстром
+      const blockSlots = (date, startMin, durMin, onlyExisting = false, acc = null, bufferMin = 0) => {
         if (!date) return;
         const existsForDate = slotExistsRef.current[date];
         const endMin = startMin + durMin;
         const upd = acc || {};
         const now = Date.now();
-        for (let cur = startMin; cur < endMin; cur += 30) {
+        for (let cur = startMin; cur < endMin + (bufferMin > 0 ? bufferMin : 0); cur += 30) {
           const h = String(Math.floor(cur / 60)).padStart(2, "0");
           const m = String(cur % 60).padStart(2, "0");
+          if (cur >= endMin && (!existsForDate?.has(`${h}:${m}`) || openSlotsRef.current[date]?.[`${h}:${m}`]?.adminBlocked)) continue;
           // При переносі (onlyExisting) позначаємо зайнятими лише вже згенеровані
           // слоти — не створюємо нові вузли в днях без розкладу, інакше
           // перетягування «спавнить» вільні слоти в чужих днях.
           if (onlyExisting && !existsForDate?.has(`${h}:${m}`)) continue;
-          const key = `timeslots/${date}/slot${h}${m}`;
+          const key = `${slotRoot()}/${date}/slot${h}${m}`;
           // Вузол, якого нема в сітці дня, створюється лише під запис —
           // позначаємо phantom, щоб при звільненні видалити, а не оживити.
           if (!existsForDate?.has(`${h}:${m}`)) upd[`${key}/phantom`] = true;
           upd[`${key}/available`] = false;
           upd[`${key}/time`] = `${h}:${m}`;
+          upd[`${key}/bookedBy`] = null; // слот займає майстер: чужий bookedBy (клієнта) не лишаємо
           upd[`${key}/lastChangedBy`] = auditBy;
           upd[`${key}/lastChangedAt`] = now;
         }
         if (!acc && Object.keys(upd).length) update(iRef(), upd).catch(() => {});
       };
 
-      const freeSlots = (date, startMin, durMin, acc = null) => {
+      const freeSlots = (date, startMin, durMin, acc = null, bufferMin = 0) => {
         if (!date) return;
         const existsForDate = slotExistsRef.current[date];
         const endMin = startMin + durMin;
         const upd = acc || {};
         const now = Date.now();
-        for (let i = 0, cur = startMin; cur < endMin; cur += 30, i += 30) {
+        for (let i = 0, cur = startMin; cur < endMin + (bufferMin > 0 ? bufferMin : 0); cur += 30, i += 30) {
           const slotEnd = cur + 30;
           // Не звільняємо інтервал, який все ще перекриває інший активний запис
           // (інакше слот, поділений між двома записами, помилково став би вільним).
+          // Перерва іншого запису теж тримає слот зайнятим.
+          // Лише записи ЦЬОГО календаря: у салоні в кожного майстра свої слоти, тож запис іншого майстра
+          // на той самий час не повинен тримати слот зайнятим.
           const stillTaken = next.some(x =>
-            x.status !== "cancelled" && bookingDateOf(x) === date &&
-            x.startMin < slotEnd && x.startMin + x.durMin > cur);
+            x.status !== "cancelled" && bookingDateOf(x) === date && masterOf(x, ownerIid) === masterId &&
+            x.startMin < slotEnd && x.startMin + x.durMin + bufferOf(x) > cur);
           if (stillTaken) continue;
           const h = String(Math.floor(cur / 60)).padStart(2, "0");
           const m = String(cur % 60).padStart(2, "0");
-          const key = `timeslots/${date}/slot${h}${m}`;
+          // Перерва після запису: відкриваємо лише справжні слоти сітки, не закриті майстром; нічого не видаляємо
+          if (cur >= endMin && (!existsForDate?.has(`${h}:${m}`) || openSlotsRef.current[date]?.[`${h}:${m}`]?.adminBlocked)) continue;
+          const key = `${slotRoot()}/${date}/slot${h}${m}`;
           // Слот, що належить сітці дня (:00 та :30 — обидва канонічні),
           // відновлюємо available:true. Вузол поза сіткою (phantom, створений
           // лише на час бронювання) — видаляємо повністю, щоб не спавнились
           // випадкові вільні слоти.
           if (existsForDate?.has(`${h}:${m}`)) {
             upd[`${key}/available`] = true;
+            upd[`${key}/bookedBy`] = null; // правила БД: власник зайнятого слота (клієнт) знімається
             upd[`${key}/lastChangedBy`] = auditBy;
             upd[`${key}/lastChangedAt`] = now;
           } else {
@@ -1007,10 +1207,10 @@ const pendingDeletesRef = React.useRef(new Set());
           delete moveSaveTimers.current[b.id];
           // Free original slot (before any drag) if booking was moved before deletion
           const orig = moveOriginals.current[b.id];
-          if (orig && orig.date) freeSlots(orig.date, orig.startMin, orig.durMin);
+          if (orig && orig.date) freeSlots(orig.date, orig.startMin, orig.durMin, null, bufferOf(b));
           delete moveOriginals.current[b.id];
           pendingDeletesRef.current.add(b.id);
-          freeSlots(b.date, b.startMin, b.durMin);
+          freeSlots(b.date, b.startMin, b.durMin, null, bufferOf(b));
           Promise.resolve().then(() => {
             const fbKey = b._fbKey || b.id;
             const now = Date.now();
@@ -1037,7 +1237,7 @@ const pendingDeletesRef = React.useRef(new Set());
               time: `${hh}:${mm}`,
               durationHours: b.durMin / 60,
             }).catch(() => {});
-            blockSlots(date, b.startMin, b.durMin);
+            blockSlots(date, b.startMin, b.durMin, false, null, bufferOf(b));
             bookingPatches.set(b.id, { userId: adminUser.uid, date });
             return;
           }
@@ -1052,7 +1252,7 @@ const pendingDeletesRef = React.useRef(new Set());
             if (b.status === 'cancelled') {
               patch.cancelledBy = 'admin';
               patch.cancelledAt = Date.now();
-              freeSlots(b.date, b.startMin, b.durMin);
+              freeSlots(b.date, b.startMin, b.durMin, null, bufferOf(b));
               Promise.resolve().then(() => setBookings(bs => bs.filter(x => x.id !== b.id)));
             }
             update(iRef( `bookings/${b.userId}/${b._fbKey || b.id}`), patch).catch(() => {});
@@ -1085,17 +1285,20 @@ const pendingDeletesRef = React.useRef(new Set());
               const sm = String(slotMin % 60).padStart(2, "0");
               newSurcharge += newSlotsForDate[`${sh}:${sm}`]?.surcharge || 0;
             }
-            // Знижка учня — фіксована сума ₴/год (b.discount, з картки учня), а не відсотки;
+            // Знижка клієнта — фіксована сума ₴/год (b.discount, з картки клієнта), а не відсотки;
             // індивідуальна ціна (b.customPrice, ₴/год) замінює тарифну і знижку.
             const hasCustomPrice = b.customPrice > 0;
-            const discountRub = hasCustomPrice ? 0 : (b.discount || 0) * (b.durMin / 60);
+            // Допуслуги запису: їхні хвилини не множаться на тариф, ціна додається окремо
+            const ax = bookingAddonTotals(b);
+            const baseMin = Math.max(0, b.durMin - ax.minutes);
+            const discountRub = hasCustomPrice ? 0 : (b.discount || 0) * (baseMin / 60);
             // Базова ціна за послугою (як у розкладі/деталях запису) — а не
             // дельта від старої b.price, якої може не бути (записи, створені
             // вручну через NewBookingModal, price/surcharge не зберігають).
             const svc = (settings.services || []).find(s => s.id === b.serviceId)
                      || (settings.services || []).find(s => s.active && s.type === (b.serviceType || b.type) && Number(s.duration) === b.durMin);
             const basePrice = svc
-              ? Math.round((svc.price / svc.duration) * b.durMin)
+              ? Math.round((svc.price / svc.duration) * baseMin) + ax.price
               : b.price && b.durationHours
                 ? Math.round((b.price / (b.durationHours * 60)) * b.durMin)
                 : (b.price || 0);
@@ -1109,9 +1312,9 @@ const pendingDeletesRef = React.useRef(new Set());
             const orig = moveOriginals.current[b.id];
             const origDate = orig ? dayIdxToDate(orig.day) : null;
             if (orig && origDate && (origDate !== newDate || orig.startMin !== b.startMin || orig.durMin !== b.durMin)) {
-              freeSlots(origDate, orig.startMin, orig.durMin, upd);
+              freeSlots(origDate, orig.startMin, orig.durMin, upd, bufferOf(b));
             }
-            blockSlots(newDate, b.startMin, b.durMin, true, upd);
+            blockSlots(newDate, b.startMin, b.durMin, true, upd, bufferOf(b));
             const bp = `bookings/${b.userId}/${b._fbKey || b.id}`;
             upd[`${bp}/startMin`]      = b.startMin;
             upd[`${bp}/durMin`]        = b.durMin;
@@ -1123,8 +1326,8 @@ const pendingDeletesRef = React.useRef(new Set());
             // Завжди перераховуємо ціну під нову позицію (навіть якщо price
             // раніше не зберігався) і надбавку саме нового слоту (0, якщо
             // новий слот без надбавки, — стара надбавка не має «прилипати»).
-            const newPrice = hasCustomPrice
-              ? Math.round(Number(b.customPrice) * (b.durMin / 60)) + newSurcharge
+            const newPrice = (b.packageId && !b.packageError) ? ax.price : hasCustomPrice
+              ? Math.round(Number(b.customPrice) * (baseMin / 60)) + ax.price + newSurcharge
               : Math.max(0, Math.round(basePrice + newSurcharge - discountRub));
             upd[`${bp}/price`] = newPrice;
             upd[`${bp}/surcharge`] = newSurcharge || null;
@@ -1163,12 +1366,16 @@ const pendingDeletesRef = React.useRef(new Set());
   useEffect(() => { setGlobalLang(lang); }, [lang]);
 
   const theme = getTheme(settings.theme);
+  const fogOn = displayedTab !== "schedule"; // «Туман» на всіх вкладках, крім «Записи»
   const css = makeCSS(theme);
 
   if (adminUser === undefined) return null;
   if (adminUser === null) return <LoginScreen/>;
   if (vendor) return <SuperAdminScreen/>;
   if (profileReady === null) return null;
+  if (profileReady === false && joinToken) {
+    return <JoinSalonScreen token={joinToken} onDone={joined => { setJoinToken(""); onWs(joined); }} onCancel={() => { forgetWorkspaceInvite(); setJoinToken(""); }}/>;
+  }
   if (profileReady === false) {
     return <InstructorSetupScreen onDone={profile => {
       setSettings(s => ({ ...s, profile: { ...s.profile, ...profile } }));
@@ -1176,11 +1383,18 @@ const pendingDeletesRef = React.useRef(new Set());
     }}/>;
   }
   return (
-    <ThemeContext.Provider value={theme}>
+    <ThemeContext.Provider value={fogOn ? FOG_STYLE.theme : theme}>
     <LangContext.Provider value={lang}>
     <>
       <style>{css}</style>
-      {!theme.BG_IMAGE && (
+      {fogOn && <div style={{position:"fixed", inset:0, zIndex:0, pointerEvents:"none", background:FOG_STYLE.wrap}}/>}
+      {!fogOn && !theme.BG_IMAGE && (
+        <div style={{
+          position:"fixed", inset:0, zIndex:0, pointerEvents:"none",
+          background: theme.BG === "#1c1d21" ? FOG_STYLE.wrap : undefined, // фон розкладу «Туман» (лише темна тема)
+        }}/>
+      )}
+      {!fogOn && !theme.BG_IMAGE && theme.BG !== "#1c1d21" && (
         <div style={{
           position:"fixed", inset:0, zIndex:0, pointerEvents:"none",
           background:
@@ -1189,13 +1403,15 @@ const pendingDeletesRef = React.useRef(new Set());
             `radial-gradient(circle at 20% 95%, ${theme.TEAL}24, transparent 45%)`,
         }}/>
       )}
-      <div style={{
-        height:"100dvh",background:"transparent",color:theme.TEXT,
-        fontFamily:"ui-sans-serif,-apple-system,BlinkMacSystemFont,system-ui,sans-serif",
+      {/* position:fixed+inset:0 замість height:100dvh: в Android Chrome із системною панеллю навігації
+          100dvh сягає під неї, а fixed-елементи (панель розділів «Налаштувань») — ні; навбар «з'їжджав» вниз. */}
+      <div id="app-shell" style={{
+        position:"fixed", inset:0, background:"transparent",color:fogOn ? FOG_STYLE.theme.TEXT : theme.TEXT,
+        fontFamily:fogOn ? "Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,system-ui,sans-serif" : "ui-sans-serif,-apple-system,BlinkMacSystemFont,system-ui,sans-serif",
         display:"flex",flexDirection:"column",
-        position:"relative", zIndex:1,
+        zIndex:1,
       }}>
-        <TopBar tab={tab} onChange={switchTab} settings={settings} setSettings={setSettings}/>
+        <TopBar tab={tab} onChange={switchTab} settings={navSettings} setSettings={setSettings}/>
         <LicenseBanner state={licState}/>
         <div className="tab-anim" key={`${displayedTab}-${tabVisits[displayedTab]||0}`} style={{
           position:"relative",
@@ -1204,14 +1420,19 @@ const pendingDeletesRef = React.useRef(new Set());
           padding: displayedTab==="schedule" ? "0 3px 11px" : "14px 14px 14px",
           display: displayedTab==="schedule" ? "flex" : "block",
           flexDirection:"column",
-          background: theme.BG_IMAGE ? "#d4ba96" : "transparent",
+          background: !fogOn && theme.BG_IMAGE ? "#d4ba96" : "transparent",
         }}>
+          {salonOn && staffList.length > 1 && displayedTab === "schedule" && <MasterTabs staff={staffList} active={allMode ? ALL_MASTERS : masterId} onPick={setPickedMaster}/>}
+          <div style={displayedTab==="schedule" ? {display:"contents"} : {zoom: uiScaleZoom(uiScale)}}>
           <Suspense fallback={<Loader/>}>
-            <ViewRenderer tab={displayedTab} settings={settings} setSettings={setSettings} bookings={bookings} setBookings={handleSetBookings} onSlotClick={setSelectedBooking} onEmptySlotClick={setNewBookingData} openInfos={openInfos} toggleInfo={toggleInfo} activeDragIds={activeDragIds} navTo={switchTab} slotExistsRef={slotExistsRef} openSlotsRef={openSlotsRef} jumpTarget={jumpTarget} setJumpTarget={setJumpTarget} onViewStudent={onViewStudent} studentJump={studentJump} onStudentJumpHandled={()=>setStudentJump(null)}/>
+            <div className={displayedTab==="schedule" ? "view-fill" : "pc-wrap"}>
+            <ViewRenderer allMode={allMode} staffList={staffList} onPickMaster={setPickedMaster} ws={ws} onWs={onWs} masterKey={masterId} scheduleSettings={scheduleSettings} scheduleBookings={scheduleBookings} scheduleSetBookings={scheduleSetBookings} tab={displayedTab} settings={settings} setSettings={setSettings} bookings={bookings} setBookings={handleSetBookings} onSlotClick={setSelectedBooking} onEmptySlotClick={setNewBookingData} openInfos={openInfos} toggleInfo={toggleInfo} activeDragIds={activeDragIds} navTo={switchTab} slotExistsRef={slotExistsRef} openSlotsRef={openSlotsRef} jumpTarget={jumpTarget} setJumpTarget={setJumpTarget} onViewStudent={onViewStudent} studentJump={studentJump} onStudentJumpHandled={()=>setStudentJump(null)}/>
+            </div>
           </Suspense>
-          <MosaicOverlay phase={mosaicPhase} tileColor={theme.BG_IMAGE ? "#d4ba96" : theme.BG} speed={0.5}/>
+          </div>
+          <MosaicOverlay phase={mosaicPhase} tileColor={fogOn ? FOG_STYLE.theme.BG : (theme.BG_IMAGE ? "#d4ba96" : theme.BG)} speed={0.5}/>
         </div>
-        <BottomNav active={tab} onChange={switchTab} settings={settings} chatUnread={chatUnread} journalUnread={journalUnread}/>
+        <BottomNav active={tab} onChange={switchTab} settings={navSettings} chatUnread={chatUnread} journalUnread={journalUnread}/>
       </div>
       {needRefresh && (
         <div className={`update-banner${isUpdating ? ' update-banner--loading' : ''}`} onClick={updateServiceWorker}>
@@ -1221,6 +1442,7 @@ const pendingDeletesRef = React.useRef(new Set());
           }
         </div>
       )}
+      {settingsLoaded && settings.autoSlots && adminUser && !vendor && !ws && !salonOn && <Suspense fallback={null}><AutoSlots settings={settings} bookings={bookings}/></Suspense>}
       <InstallBanner theme={theme}/>
     </>
     </LangContext.Provider>

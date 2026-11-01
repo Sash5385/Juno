@@ -10,6 +10,9 @@
 //    воскрешало б видалені phantom-и як окремі 30-хв слоти.
 // Обидві функції ідемпотентні: клієнт, сервер і повторний виклик дають
 // однаковий результат у будь-якому порядку.
+//
+// Перерва після запису (service.bufferMin → booking.bufferMin): слоти ЗА записом теж займаються, але
+// лише наявні й не закриті майстром; звільнення (restore) викликають з durMin + bufferMin.
 
 const pad2 = (n) => String(n).padStart(2, '0')
 
@@ -23,11 +26,15 @@ export const slotExists = (node) =>
 
 // day — знімок timeslots/{date} (або {}); prefix — напр. `timeslots/${date}/`.
 export function blockRangeUpdates(day, prefix, startMin, durMin, opts = {}) {
-  const { bookingStart = false, step = 30, extra = null } = opts
+  const { bookingStart = false, step = 30, extra = null, bufferMin = 0 } = opts
   const upd = {}
-  for (let i = 0; i < durMin; i += step) {
+  const buffer = bufferMin > 0 ? bufferMin : 0
+  for (let i = 0; i < durMin + buffer; i += step) {
     const min = startMin + i
     const id = slotIdAt(min)
+    // Перерва після запису (i >= durMin): блокуємо лише наявні слоти — phantom під перерву не створюємо,
+    // а слот, закритий майстром (adminBlocked), не чіпаємо.
+    if (i >= durMin && (!slotExists(day?.[id]) || day[id].adminBlocked)) continue
     if (!slotExists(day?.[id])) upd[`${prefix}${id}/phantom`] = true
     upd[`${prefix}${id}/available`] = false
     upd[`${prefix}${id}/time`] = slotTimeAt(min)
@@ -53,6 +60,8 @@ export function restoreRangeUpdates(day, prefix, startMin, durMin, opts = {}) {
     if (min < startMin || min >= endMin) continue
     if (skipRange && min >= skipRange.start && min < skipRange.end) continue
     if (!slotExists(node)) continue
+    // Слот, який закрив майстер (adminBlocked), скасування запису не відкриває
+    if (node.adminBlocked) continue
     if (node.phantom) {
       upd[`${prefix}${id}`] = null
       continue

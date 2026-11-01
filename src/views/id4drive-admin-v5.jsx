@@ -1,25 +1,30 @@
 import { useState, useRef, useEffect, useLayoutEffect, useMemo, useContext } from "react";
 import { createPortal } from "react-dom";
-import { update, get, onValue, off, remove, push as fbPush, increment } from "firebase/database";
-import { iRef, auth } from "../firebase";
+import { update, get, onValue, off, remove, push as fbPush } from "firebase/database";
+import { iRef, auth, slotRoot, slotBookingsRoot, newBookingMasterFields } from "../firebase";
 import { blockRangeUpdates, restoreRangeUpdates } from "../slotRules";
+import { normPackages, pickPackage } from "../packages";
+import { isGroupService, capacityOf, groupKeyOf } from "../groups";
+import { normAddons, bufferOf, bookingAddonTotals, pickAddons, addonsTotals, addonsSnapshot, addonsLabel } from "../addons";
 
 // Єдині правила timeslots під запис (див. slotRules.js): блокування ставить
 // phantom на позиції без власного документа, звільнення видаляє phantom і
 // повертає справжні слоти такими, якими вони були ДО запису.
 const restoreSlotRange = async (dateStr, startMin, durMin, extra) => {
-  const snap = await get(iRef(`timeslots/${dateStr}`));
-  const upd = restoreRangeUpdates(snap.val() || {}, `timeslots/${dateStr}/`, startMin, durMin, { extra });
+  const snap = await get(iRef(`${slotRoot()}/${dateStr}`));
+  const upd = restoreRangeUpdates(snap.val() || {}, `${slotRoot()}/${dateStr}/`, startMin, durMin, { extra });
   if (Object.keys(upd).length) await update(iRef("/"), upd);
 };
 const blockSlotRange = async (dateStr, startMin, durMin, opts) => {
-  const snap = await get(iRef(`timeslots/${dateStr}`));
-  const upd = blockRangeUpdates(snap.val() || {}, `timeslots/${dateStr}/`, startMin, durMin, opts);
+  const snap = await get(iRef(`${slotRoot()}/${dateStr}`));
+  const upd = blockRangeUpdates(snap.val() || {}, `${slotRoot()}/${dateStr}/`, startMin, durMin, opts);
   if (Object.keys(upd).length) await update(iRef("/"), upd);
 };
 
-import { ThemeContext, GREEN, BLUE, PURPLE, GOLD, RED, TEAL, ACCENT, ACC_HI, SURFACE, SURF_HI, TEXT } from "../theme.js";
-import { useFX } from "../ui";
+import { ThemeContext, GREEN, BLUE, PURPLE, GOLD, RED, ACCENT, ACC_HI, SURFACE, SURF_HI, TEXT } from "../theme.js";
+import { useFX, useBackClose } from "../ui";
+import FogScope from "../FogScope";
+import { TAG_PRESETS, AUTO_TAG_IDS } from "../tags";
 import { MANUAL_DEFAULT_COLOR } from "../studentColors";
 // module-level aliases for vars used in ICONS (arrow fns, cannot use hooks)
 const ACCENT_HI  = ACC_HI;
@@ -39,33 +44,24 @@ const PALETTE = [
   { id:"lime",   name:"Лайм",      color:"#a3e635" },
 ];
 
-// 50 рівномірно розподілених відтінків для кольорів учнів (по колу відтінків,
+// 50 рівномірно розподілених відтінків для кольорів клієнтів (по колу відтінків,
 // фіксовані насиченість/яскравість під темну тему) — з таким запасом кольори
-// НЕ повторюються, поки одночасно активних учнів менше 50.
+// НЕ повторюються, поки одночасно активних клієнтів менше 50.
 const STUDENT_PALETTE = Array.from({ length: 50 }, (_, i) => `hsl(${Math.round(i * 360 / 50)},68%,56%)`);
 
-// Мітки на записі — фіксований список, обираються в модалці бронювання.
-// "exam"/"first"/"debt" також можуть виставлятись автоматично (див. getAutoTag) —
-// але лише поки інструктор жодного разу не чіпав мітку цього запису вручну.
-const TAG_PRESETS = [
-  { id:"exam",   icon:"🚨", label:"Іспит",     color: RED },
-  { id:"check",  icon:"🔍", label:"Перевірка", color: TEAL },
-  { id:"first",  icon:"⭐", label:"1-й урок",  color: BLUE },
-  { id:"debt",   icon:"💸", label:"Борг",      color: GOLD },
-  { id:"repeat", icon:"🔁", label:"Повтор",    color: GREEN },
-];
-// Автотег за порядковим номером запису учня (серед усіх нескасованих, включно з майбутніми)
-const AUTO_TAG_BY_ORDER = { 1: "first", 20: "check", 40: "exam" };
+// Мітки на записі — фіксований список. Автоматично ставиться лише "first" (1-й запис клієнта)
+// і "debt" (коли вписана сума боргу); "check"/"exam" — тільки вручну (деталі запису → Мітка,
+// або при створенні запису). Автомітки діють лише поки майстер не чіпав мітку вручну.
+// Автотег за порядковим номером запису клієнта (серед усіх нескасованих, включно з майбутніми)
+const AUTO_TAG_BY_ORDER = { 1: "first" };
+// Прибрані мітки (напр. старий "repeat") у вже збережених записах не показуються
+const knownTag = (t) => (TAG_PRESETS.some(p => p.id === t) ? t : null);
 
-// Медалі за урок — присвоюються прямо в модалці бронювання (прив'язані до booking.id)
-const BADGE_PRESETS = [
-  { icon:"🏅", label:"Молодець" },
-  { icon:"🥇", label:"Найкращий учень" },
-  { icon:"⭐", label:"Відмінна їзда" },
-  { icon:"🎯", label:"Точне паркування" },
-  { icon:"🚦", label:"Знавець ПДР" },
-  { icon:"🏆", label:"Готовий до іспиту" },
-];
+// Правий клік миші відкриває меню/деталі (ПК). На телефоні довге натискання теж шле contextmenu
+// (Android ~0,5 с) — тоді нічого не відкриваємо, інакше модалка вискакувала замість перетягування.
+let _lastPtrType = "mouse";
+if (typeof window !== "undefined") window.addEventListener("pointerdown", e => { _lastPtrType = e.pointerType || "mouse"; }, true);
+const isMouseContext = (e) => (e?.nativeEvent?.pointerType || _lastPtrType) === "mouse";
 
 // ═══════════════════════════════════════════════════════════════
 // GLOBAL CSS (slots from v4, rest v3)
@@ -110,9 +106,39 @@ body, html, #root { margin:0; padding:0; }
 .slot-pending-ring {
   animation: pulse-ring 2s infinite;
 }
+/* Розклад у стилі «Неонове сяйво» (завжди увімкнено) */
+.cal-neon .cal-slot-wrap { border-radius: 12px !important; } /* підкладка BG_DEEP лишається непрозорою, щоб плашка суми дня не просвічувала крізь картку */
+.cal-neon .slot-base { border-radius: 12px; }
+.cal-neon .slot-colored {
+  background: color-mix(in srgb, var(--c) 22%, transparent);
+  border: 1px solid var(--c);
+  box-shadow: 0 0 9px color-mix(in srgb, var(--c) 45%, transparent), inset 0 0 8px color-mix(in srgb, var(--c) 14%, transparent);
+}
+.cal-neon .slot-colored::before, .cal-neon .slot-colored::after { display: none; }
 @keyframes pulse-ring {
   0%,100% { box-shadow: 4px 4px 9px rgba(${SHADE},0.5), -3px -3px 8px rgba(${GLOW},0.28), 0 0 0 0 rgba(255,90,60,0.6); }
   50%     { box-shadow: 4px 4px 9px rgba(${SHADE},0.5), -3px -3px 8px rgba(${GLOW},0.28), 0 0 0 6px rgba(255,90,60,0); }
+}
+
+/* легке «дихання» жовтого куточка (коментар клієнта до запису) і значка нотатки дня — щоб їх було помітно */
+@keyframes note-corner-glow {
+  0%,100% { filter: drop-shadow(-1px -1px 2px rgba(0,0,0,0.35)) drop-shadow(0 0 0 rgba(247,201,72,0)); }
+  50%     { filter: drop-shadow(-1px -1px 2px rgba(0,0,0,0.35)) drop-shadow(0 0 2px rgba(247,201,72,1)) drop-shadow(0 0 4.5px rgba(247,201,72,0.9)) drop-shadow(0 0 8px rgba(247,201,72,0.7)); }
+}
+/* світла пляма у куті картки: сама картка обрізає тінь за межами, тож світло малюємо всередині */
+@keyframes note-corner-halo {
+  0%,100% { opacity: 0.12; }
+  50%     { opacity: 0.5; }
+}
+@keyframes note-icon-glow {
+  0%,100% { box-shadow: 0 1px 3px rgba(0,0,0,0.5), 0 0 0 0 rgba(247,201,72,0); }
+  50%     { box-shadow: 0 1px 3px rgba(0,0,0,0.5), 0 0 8px 2px rgba(247,201,72,0.85); }
+}
+.note-corner-glow { animation: note-corner-glow 2.6s ease-in-out infinite; }
+.note-corner-halo { animation: note-corner-halo 2.6s ease-in-out infinite; }
+.note-icon-glow   { animation: note-icon-glow 2.6s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .note-corner-glow, .note-corner-halo, .note-icon-glow { animation: none; }
 }
 
 /* resize handles — invisible hit area, no visual bar */
@@ -205,6 +231,8 @@ body, html, #root { margin:0; padding:0; }
 .schedule-scroll::-webkit-scrollbar { display: none; }
 input[type="range"] { accent-color: ${ACCENT}; }
 .tabular { font-variant-numeric: tabular-nums; }
+/* Нижні шторки (оверлей на весь екран, вирівняний донизу) не заходять під системну панель Android / «жест-смужку» */
+div[style*="position: fixed"][style*="align-items: flex-end"] { padding-bottom: env(safe-area-inset-bottom, 0px); box-sizing: border-box; }
 .drum-scroll::-webkit-scrollbar { display: none; }
 `;
 
@@ -367,10 +395,10 @@ const getDayInfo = (offsetFromToday) => {
 const DEFAULT_SETTINGS = {
   // profile
   profile: {
-    name: "Олександр",
-    phone: "+380989225442",
-    address: "Київ, Верховинна 44",
-    experience: 8,
+    name: "Майстер",
+    phone: "",
+    address: "",
+    experience: 0,
     photo: null,
   },
   // schedule
@@ -408,7 +436,7 @@ const DEFAULT_SETTINGS = {
   queueBroadcast: false,
   queueManual: false,
   // push
-  slotFreedPushEnabled: true, // пуш усім учням, коли слот у найближчі 10 днів звільняється
+  slotFreedPushEnabled: true, // пуш усім клієнтам, коли слот у найближчі 10 днів звільняється
   // restrictions
   studentCanReschedule: true,
   studentCanCancel: true,
@@ -430,13 +458,11 @@ const DEFAULT_SETTINGS = {
   autoCancel: { enabled:true },
   autoQueueOffer: { enabled:true },
   // surcharges
-  surcharges: [100, 200, 300],
+  surcharges: [],
   // services
   services: [
-    { id:"sv1", name:"Автошкола 1 год", type:"school",  duration:60,  price:600,  colorId:"green",  active:true,  description:"Урок з автошколи" },
-    { id:"sv2", name:"Автошкола 2 год", type:"school",  duration:120, price:1100, colorId:"green",  active:true,  description:"" },
-    { id:"sv3", name:"Приватний 1 год", type:"private", duration:60,  price:700,  colorId:"yellow", active:true,  description:"" },
-    { id:"sv4", name:"Приватний 2 год", type:"private", duration:120, price:1300, colorId:"yellow", active:true,  description:"" },
+    { id:"sv1", name:"Стандарт", type:"school",  duration:60, price:0, colorId:"green",  active:true, description:"" },
+    { id:"sv2", name:"Індивідуальний", type:"private", duration:60, price:0, colorId:"yellow", active:true, description:"" },
   ],
   // categories
   categories: [
@@ -503,7 +529,7 @@ const fmtDur = (m) => { const h=Math.floor(m/60),min=m%60; return h===0?`${min}�
 const colorOf = (id) => PALETTE.find(p=>p.id===id)?.color || GREEN;
 
 // ═══════════════════════════════════════════════════════════════
-// BROADCAST MODAL — ручна розсилка повідомлень учням
+// BROADCAST MODAL — ручна розсилка повідомлень клієнтам
 // ═══════════════════════════════════════════════════════════════
 function BroadcastModal({ initialDate, initialSlot, onClose }) {
   const { BG_DEEP, SURFACE, SURF_LO, BORDER, TEXT, DIM, FAINT, ACCENT, ACC_HI, SO, SI, GLOW, SHADE, INK } = useContext(ThemeContext);
@@ -522,6 +548,7 @@ function BroadcastModal({ initialDate, initialSlot, onClose }) {
   const slotsArr = [slot1, slot2].filter(Boolean);
   const canSend  = !!(date && slot1 && !sending);
   const _close   = () => setClosing(true);
+  useBackClose(true, _close); // системна «назад» закриває вікно, а не застосунок
 
   const preview = (() => {
     if (!date || !slot1) return null;
@@ -588,7 +615,7 @@ function BroadcastModal({ initialDate, initialSlot, onClose }) {
             borderRadius:"24px 24px 0 0",
           }}>
             <div style={{width:36,height:4,borderRadius:2,background:"rgba(192,132,252,0.4)",margin:"0 auto 12px"}}/>
-            <div style={{fontSize:17,fontWeight:800,color:"#c084fc"}}>📣 Розсилка учням</div>
+            <div style={{fontSize:17,fontWeight:800,color:"#c084fc"}}>📣 Розсилка клієнтам</div>
           </div>
 
           <div style={{padding:"16px 18px 32px"}}>
@@ -596,7 +623,7 @@ function BroadcastModal({ initialDate, initialSlot, onClose }) {
               <div style={{ textAlign:"center", padding:"20px 0" }}>
                 <div style={{ fontSize:40, marginBottom:8 }}>✅</div>
                 <div style={{ fontSize:16, fontWeight:800, color:TEXT }}>Надіслано!</div>
-                <div style={{ fontSize:12, color:DIM, marginTop:6 }}>Сповіщення отримають активні учні</div>
+                <div style={{ fontSize:12, color:DIM, marginTop:6 }}>Сповіщення отримають активні клієнти</div>
                 <button onClick={_close} style={{ marginTop:20, background:"rgba(192,132,252,0.15)", color:"#c084fc", border:"none", borderRadius:12, padding:"10px 28px", fontSize:13, fontWeight:700, cursor:"pointer" }}>Закрити</button>
               </div>
             ) : (
@@ -621,7 +648,7 @@ function BroadcastModal({ initialDate, initialSlot, onClose }) {
                 </div>
                 {preview && (
                   <div style={{ background:"rgba(192,132,252,0.07)", border:"1px solid rgba(192,132,252,0.2)", borderRadius:10, padding:"10px 12px", marginBottom:14 }}>
-                    <div style={{ fontSize:10, color:DIM, marginBottom:4, fontWeight:700, letterSpacing:0.5 }}>ПРЕВ'Ю ПУШУ</div>
+                    <div style={{ fontSize:11, color:DIM, marginBottom:4, fontWeight:700, letterSpacing:0.5 }}>ПРЕВ'Ю ПУШУ</div>
                     <div style={{ fontSize:12, color:TEXT, fontWeight:700 }}>🚗 Є вільний слот!</div>
                     <div style={{ fontSize:11, color:DIM, marginTop:3 }}>{preview}</div>
                   </div>
@@ -648,7 +675,7 @@ function BroadcastModal({ initialDate, initialSlot, onClose }) {
 // MONTH CALENDAR SHEET — bottom-sheet monthly overview, tap a day to jump
 // ═══════════════════════════════════════════════════════════════
 function MonthCalendarSheet({ bookings, onClose, onPickDate }) {
-  const { BG, BG_DEEP, SURFACE, SURF_HI, TEXT, DIM, FAINT, GOLD, GREEN, BLUE, RED } = useContext(ThemeContext);
+  const { BG, BG_DEEP, SURFACE, SURF_HI, TEXT, DIM, GOLD, GREEN, BLUE, RED } = useContext(ThemeContext);
   const { glow, shade, ink } = useFX();
   const isLight = BG_DEEP !== "#161719";
   const [closing, setClosing] = useState(false);
@@ -670,8 +697,8 @@ function MonthCalendarSheet({ bookings, onClose, onPickDate }) {
     closeTimerRef.current = setTimeout(onClose, 320);
   };
 
-  // Мапа день → сумарні хвилини уроків (не кількість записів — щоб два
-  // двогодинні уроки рахувались як 4 год, а не як "2").
+  // Мапа день → сумарні хвилини записів (не кількість записів — щоб два
+  // двогодинні записи рахувались як 4 год, а не як "2").
   const counts = useMemo(() => {
     const map = {};
     for (const b of bookings) {
@@ -821,7 +848,7 @@ function MonthCalendarSheet({ bookings, onClose, onPickDate }) {
             }}>
               <div style={{display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:4, marginBottom:6}}>
                 {["Пн","Вт","Ср","Чт","Пт","Сб","Нд"].map(wd => (
-                  <div key={wd} style={{fontSize:11, fontWeight:700, color:FAINT, textAlign:"center", textTransform:"uppercase"}}>{wd}</div>
+                  <div key={wd} style={{fontSize:11, fontWeight:700, color:TEXT, opacity:0.78, textAlign:"center", textTransform:"uppercase"}}>{wd}</div>
                 ))}
               </div>
 
@@ -864,11 +891,11 @@ function MonthCalendarSheet({ bookings, onClose, onPickDate }) {
                         {n > 0 && (
                           <div style={{
                             position:"absolute", bottom:0, left:0, right:0, height:`${fillH}%`,
-                            background:`linear-gradient(0deg, color-mix(in srgb, ${c} 55%, transparent), color-mix(in srgb, ${c} 22%, transparent))`,
+                            background:`linear-gradient(0deg, color-mix(in srgb, ${c} 42%, transparent), color-mix(in srgb, ${c} 16%, transparent))`,
                           }}/>
                         )}
                         <span style={{position:"relative", zIndex:1}}>{d}</span>
-                        {n > 0 && <span style={{position:"relative", zIndex:1, fontSize:7, fontWeight:700, opacity:0.75, marginTop:1}}>{Number.isInteger(n) ? n : n.toFixed(1)}г</span>}
+                        {n > 0 && <span style={{position:"relative", zIndex:1, fontSize:11, fontWeight:700, opacity:0.95, marginTop:1}}>{Number.isInteger(n) ? n : n.toFixed(1)}г</span>}
                       </button>
                       {isHeld && (
                         <div style={{
@@ -920,6 +947,7 @@ function DayNotesModal({ dateStr, dayLabel, dayNum, dayMonth, note, settings, on
   const [saving, setSaving] = useState(false);
   const [editingHour, setEditingHour] = useState(null);
   const _close = () => setClosing(true);
+  useBackClose(true, _close); // системна «назад» закриває вікно, а не застосунок
 
   const hours = [];
   for (let h = settings.workStart; h < settings.workEnd; h++) hours.push(h);
@@ -934,7 +962,7 @@ function DayNotesModal({ dateStr, dayLabel, dayNum, dayMonth, note, settings, on
     return init;
   });
 
-  const clampMin = (m) => Math.max(settings.workStart*60, Math.min(settings.workEnd*60 - 1, m));
+  const clampMin = (m) => Math.max(Math.round(settings.workStart*60), Math.min(Math.round(settings.workEnd*60) - 1, m));
   const setRow = (h, patch) => setRows(rs => ({ ...rs, [h]: { ...rs[h], ...patch } }));
 
   const handleSave = async () => {
@@ -991,74 +1019,74 @@ function DayNotesModal({ dateStr, dayLabel, dayNum, dayMonth, note, settings, on
           }}>
           <div style={{width:36,height:4,borderRadius:2,background:glow(0.15),margin:"0 auto 12px"}}/>
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
-            <div style={{fontSize:14,fontWeight:800,color:TEXT}}>📝 Нотатки — {dayLabel}, {dayNum} {dayMonth}</div>
+            <div style={{fontSize:16,fontWeight:800,color:TEXT}}>📝 Нотатки — {dayLabel}, {dayNum} {dayMonth}</div>
             <div onClick={_close} style={{
-              width:26,height:26,borderRadius:8,background:"rgba(239,68,68,0.18)",
+              width:40,height:40,borderRadius:12,background:"rgba(239,68,68,0.18)",
               display:"flex",alignItems:"center",justifyContent:"center",
-              cursor:"pointer",color:"#ef4444",fontSize:13,fontWeight:800,flexShrink:0,
+              cursor:"pointer",color:"#ef4444",fontSize:18,fontWeight:800,flexShrink:0,
             }}>✕</div>
           </div>
-          <div style={{fontSize:10.5,color:DIM,marginBottom:12,lineHeight:1.4}}>
+          <div style={{fontSize:12.5,color:DIM,marginBottom:14,lineHeight:1.45}}>
             Тап на час — обрати точний інтервал у межах години. Дзвіночок — увімкнути сповіщення-нагадування.
           </div>
 
-          <div style={{display:"flex",flexDirection:"column",gap:7,marginBottom:16}}>
+          <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:18}}>
             {hours.map(h=>{
               const r = rows[h];
               const isEditing = editingHour === h;
               return (
-                <div key={h} style={{display:"flex",alignItems:"center",gap:8}}>
+                <div key={h} style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
                   {isEditing ? (
-                    <div style={{display:"flex",alignItems:"center",gap:3,flexShrink:0}}>
+                    <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:5,flexBasis:"100%",flexWrap:"wrap"}}>
                       <button onClick={()=>setRow(h,{startMin:clampMin(r.startMin-60)})} style={{
-                        width:18,height:22,borderRadius:5,border:"none",cursor:"pointer",fontFamily:"inherit",
-                        background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,color:DIM,fontSize:12,fontWeight:800,
+                        width:44,height:44,borderRadius:12,border:"none",cursor:"pointer",fontFamily:"inherit",
+                        background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,color:TEXT,fontSize:22,fontWeight:800,
                         display:"flex",alignItems:"center",justifyContent:"center",padding:0,
                       }}>−</button>
-                      <div style={{width:24,textAlign:"center",fontSize:11,fontWeight:800,color:TEXT,fontVariantNumeric:"tabular-nums"}}>
+                      <div style={{width:34,textAlign:"center",fontSize:20,fontWeight:800,color:TEXT,fontVariantNumeric:"tabular-nums"}}>
                         {String(Math.floor(r.startMin/60)).padStart(2,"0")}
                       </div>
                       <button onClick={()=>setRow(h,{startMin:clampMin(r.startMin+60)})} style={{
-                        width:18,height:22,borderRadius:5,border:"none",cursor:"pointer",fontFamily:"inherit",
-                        background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,color:DIM,fontSize:12,fontWeight:800,
+                        width:44,height:44,borderRadius:12,border:"none",cursor:"pointer",fontFamily:"inherit",
+                        background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,color:TEXT,fontSize:22,fontWeight:800,
                         display:"flex",alignItems:"center",justifyContent:"center",padding:0,
                       }}>+</button>
-                      <span style={{color:FAINT,fontSize:10}}>:</span>
+                      <span style={{color:FAINT,fontSize:20,fontWeight:800}}>:</span>
                       <button onClick={()=>setRow(h,{startMin:clampMin(r.startMin-1)})} style={{
-                        width:18,height:22,borderRadius:5,border:"none",cursor:"pointer",fontFamily:"inherit",
-                        background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,color:DIM,fontSize:12,fontWeight:800,
+                        width:44,height:44,borderRadius:12,border:"none",cursor:"pointer",fontFamily:"inherit",
+                        background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,color:TEXT,fontSize:22,fontWeight:800,
                         display:"flex",alignItems:"center",justifyContent:"center",padding:0,
                       }}>−</button>
-                      <div style={{width:24,textAlign:"center",fontSize:11,fontWeight:800,color:TEXT,fontVariantNumeric:"tabular-nums"}}>
+                      <div style={{width:34,textAlign:"center",fontSize:20,fontWeight:800,color:TEXT,fontVariantNumeric:"tabular-nums"}}>
                         {String(r.startMin%60).padStart(2,"0")}
                       </div>
                       <button onClick={()=>setRow(h,{startMin:clampMin(r.startMin+1)})} style={{
-                        width:18,height:22,borderRadius:5,border:"none",cursor:"pointer",fontFamily:"inherit",
-                        background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,color:DIM,fontSize:12,fontWeight:800,
+                        width:44,height:44,borderRadius:12,border:"none",cursor:"pointer",fontFamily:"inherit",
+                        background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,color:TEXT,fontSize:22,fontWeight:800,
                         display:"flex",alignItems:"center",justifyContent:"center",padding:0,
                       }}>+</button>
                       <div onClick={()=>setEditingHour(null)} style={{
-                        width:22,height:22,borderRadius:6,background:`${GOLD}33`,color:GOLD,
-                        display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",fontSize:11,fontWeight:800,flexShrink:0,marginLeft:2,
+                        width:44,height:44,borderRadius:12,background:`${GOLD}33`,color:GOLD,
+                        display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",fontSize:20,fontWeight:800,flexShrink:0,marginLeft:4,
                       }}>✓</div>
                     </div>
                   ) : (
                     <div onClick={()=>setEditingHour(h)} style={{
-                      width:44, flexShrink:0, cursor:"pointer", fontSize:10.5, fontWeight:800, color:GOLD,
-                      fontVariantNumeric:"tabular-nums", overflow:"hidden", whiteSpace:"nowrap", textOverflow:"ellipsis",
+                      width:58, minHeight:44, display:"flex", alignItems:"center", flexShrink:0, cursor:"pointer", fontSize:15, fontWeight:800, color:GOLD,
+                      fontVariantNumeric:"tabular-nums", whiteSpace:"nowrap",
                     }}>{_fmtHM(r.startMin)}</div>
                   )}
                   <input value={r.text} onChange={e=>setRow(h,{text:e.target.value})} placeholder="—"
                     style={{
-                      flex:1, minWidth:0, boxSizing:"border-box",
+                      flex:1, minWidth:0, minHeight:44, boxSizing:"border-box",
                       background:`linear-gradient(135deg,${BG_DEEP},${SURF_LO})`,
-                      border:`1px solid ${BORDER}`, outline:"none", color:TEXT, fontSize:12,
-                      padding:"7px 9px", borderRadius:8, boxShadow:SI, fontFamily:"inherit",
+                      border:`1px solid ${BORDER}`, outline:"none", color:TEXT, fontSize:16,
+                      padding:"10px 12px", borderRadius:12, boxShadow:SI, fontFamily:"inherit",
                     }}/>
                   <div onClick={()=>setRow(h,{notify:!r.notify})} title={r.notify?"Нагадування увімкнено":"Нагадування вимкнено"} style={{
-                    width:26, height:26, borderRadius:8, flexShrink:0, cursor:"pointer",
+                    width:44, height:44, borderRadius:12, flexShrink:0, cursor:"pointer",
                     background: r.notify ? `${GOLD}2a` : `linear-gradient(145deg,${SURF_HI},${SURFACE})`,
-                    display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,
+                    display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,
                     boxShadow: r.notify ? "none" : SO,
                   }}>{r.notify ? "🔔" : "🔕"}</div>
                 </div>
@@ -1069,15 +1097,15 @@ function DayNotesModal({ dateStr, dayLabel, dayNum, dayMonth, note, settings, on
           <div style={{display:"flex",gap:8}}>
             {hasAnyNote && (
               <button onClick={handleDelete} disabled={saving} style={{
-                flex:1, padding:"11px", borderRadius:12, border:"1px solid rgba(239,68,68,0.25)",
+                flex:1, padding:"15px", borderRadius:14, border:"1px solid rgba(239,68,68,0.25)",
                 cursor:"pointer", background:"rgba(239,68,68,0.08)", color:"#fca5a5",
-                fontSize:13, fontWeight:700, fontFamily:"inherit",
+                fontSize:15, fontWeight:700, fontFamily:"inherit",
               }}>Видалити всі</button>
             )}
             <button onClick={handleSave} disabled={saving} style={{
-              flex:2, padding:"11px", borderRadius:12, border:"none", cursor:"pointer",
+              flex:2, padding:"15px", borderRadius:14, border:"none", cursor:"pointer",
               background:`linear-gradient(145deg,${GOLD}cc,${GOLD}88)`, color:"#1a1a1a",
-              fontSize:13, fontWeight:800, fontFamily:"inherit", boxShadow:SO,
+              fontSize:16, fontWeight:800, fontFamily:"inherit", boxShadow:SO,
             }}>{saving ? "Збереження…" : "Зберегти"}</button>
           </div>
         </div>
@@ -1124,9 +1152,142 @@ function VirtualCols({ vRangeRef, subRef, colW, nDays, renderCol }) {
 // ═══════════════════════════════════════════════════════════════
 // SCHEDULE VIEW with drag/resize + pinch-to-zoom + day-count
 // ═══════════════════════════════════════════════════════════════
+function computeDayUpdatesFor(settings, bookings, dateStr, existing, force = false, overridesParam) {
+    const d = new Date(dateStr + "T12:00:00");
+    const dow = (d.getDay() + 6) % 7; // Mon=0..Sun=6
+    const ov = (overridesParam ?? settings.dateOverrides ?? []).find(o => o.date === dateStr);
+    if (ov?.type === "closed") return null;
+    const ws = (settings.weekSchedule || [])[dow] || {};
+    // Явний override на конкретну дату (напр. "custom", доданий при відкритті
+    // шаблонно-закритого дня) має пріоритет над тижневим шаблоном — інакше
+    // масова регенерація (generateAllSlots, force=false) знову закриє день.
+    if (!force && !ov && ws.enabled === false) return null;
+    // When no per-day weekSchedule, fall back to global weekends list
+    if (!force && !ov && !ws.start && (settings.weekends || []).includes(dow)) return null;
+    const start        = ov?.start ?? ws.start ?? settings.workStart ?? 9;
+    const end          = ov?.end   ?? ws.end   ?? settings.workEnd   ?? 18;
+    const lunchEnabled = ov?.lunchEnabled ?? ws.lunchEnabled ?? settings.lunchEnabled ?? true;
+    const lunchStart   = ov?.lunchStart   ?? ws.lunchStart   ?? settings.lunchStart  ?? 12;
+    const lunchEnd     = ov?.lunchEnd     ?? ws.lunchEnd     ?? settings.lunchEnd    ?? 13;
+    // Крок сітки — 1 година від старту робочого дня (мінімум годинний запис).
+    // Якщо день починається на :30 (напр. 17:30), слоти йдуть 17:30, 18:30...
+    // без проміжного 18:00 — тільки старти, розведені рівно на годину.
+    const step = 60;
+    const updates = {};
+    let afterLunch = false;
+    for (let min = Math.round(start * 60); min < Math.round(end * 60); min += step) {
+      // Слот, що перетинає обід (навіть частково), не створюємо; сітка після
+      // обіду стартує рівно з його кінця (обід 12:30–13:00 → ...11:00, 13:00, 14:00).
+      if (lunchEnabled && lunchEnd > lunchStart && min < lunchEnd * 60 && min + step > lunchStart * 60) {
+        min = lunchEnd * 60 - step;
+        afterLunch = true;
+        continue;
+      }
+      // Після обіду слот не повинен виходити за кінець робочого дня.
+      if (afterLunch && min + step > end * 60) break;
+      const h = String(Math.floor(min / 60)).padStart(2, "0");
+      const m = String(min % 60).padStart(2, "0");
+      const id = `slot${h}${m}`;
+      if (!existing[id]?.adminBlocked) {
+        updates[`${slotRoot()}/${dateStr}/${id}/time`] = `${h}:${m}`;
+        updates[`${slotRoot()}/${dateStr}/${id}/available`] = true;
+      }
+    }
+    const intervalMin = settings.snapMin ?? 30;
+    bookings
+      .filter(b => b.date === dateStr && b.status !== "cancelled")
+      .forEach(b => {
+        const bEnd = b.startMin + b.durMin;
+        for (let cur = b.startMin; cur < bEnd + bufferOf(b); cur += intervalMin) {
+          const h = String(Math.floor(cur / 60)).padStart(2, "0");
+          const m = String(cur % 60).padStart(2, "0");
+          const id = `slot${h}${m}`;
+          // Перерва після запису: лише слоти, що щойно згенерувались у сітці дня (без phantom і без закритих майстром)
+          if (cur >= bEnd && updates[`${slotRoot()}/${dateStr}/${id}/available`] !== true) continue;
+          // Слот поза згенерованою сіткою (запис за межами робочих годин) —
+          // позначаємо phantom для довідки; при скасуванні все одно стає вільним.
+          if (!(`${slotRoot()}/${dateStr}/${id}/available` in updates)) {
+            updates[`${slotRoot()}/${dateStr}/${id}/phantom`] = true;
+          }
+          updates[`${slotRoot()}/${dateStr}/${id}/available`] = false;
+          updates[`${slotRoot()}/${dateStr}/${id}/time`] = `${h}:${m}`;
+          updates[`${slotRoot()}/${dateStr}/${id}/bookingStart`] = cur === b.startMin;
+        }
+      });
+    let free = 0, blocked = 0;
+    Object.entries(updates).forEach(([k, v]) => {
+      if (k.endsWith('/available')) { if (v === true) free++; else blocked++; }
+    });
+    return { updates, free, blocked };
+}
+
+const dateStrAhead = (absDay) => {
+  const d = new Date(); d.setHours(0,0,0,0);
+  d.setDate(d.getDate() + absDay);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+};
+
+// «Автовідкриття слотів». Працює з моменту входу в застосунок, на будь-якій вкладці.
+// Дні в межах slotGenDays, де слотів ще немає, заповнюються за тижневим шаблоном; закриті дні очищаються від вільних слотів.
+// Кожен день заповнюється один раз (мітка autoSlotsDone/{дата}), тож вручну видалені слоти не повертаються.
+export function AutoSlots({ settings, bookings }) {
+  const busyRef = useRef(false), againRef = useRef(false), runRef = useRef(null), bookingsRef = useRef(bookings);
+  useEffect(() => { bookingsRef.current = bookings; }, [bookings]);
+  useEffect(() => {
+    if (!settings.autoSlots) return;
+    const run = async () => {
+      if (busyRef.current) { againRef.current = true; return; }
+      busyRef.current = true;
+      try {
+        const root = slotRoot();
+        const limit = settings.slotGenDays || 30;
+        const days = Array.from({ length: limit + 1 }, (_, d) => dateStrAhead(d));
+        const reads = await Promise.all(days.map(dateStr => Promise.all([get(iRef(`autoSlotsDone/${dateStr}`)), get(iRef(`${root}/${dateStr}`))])));
+        const all = {}, marks = {}, removals = {};
+        const freeAuto = (sl) => sl?.available === true && !sl.vipOnly && !sl.privateOnly && !sl.surcharge && !sl.fixedPrice;
+        days.forEach((dateStr, i) => {
+          const [done, snap] = reads[i];
+          const existing = snap.val() || {};
+          const result = computeDayUpdatesFor(settings, bookingsRef.current, dateStr, existing);
+          if (!result) {
+            Object.entries(existing).forEach(([slotId, sl]) => { if (freeAuto(sl)) removals[`${root}/${dateStr}/${slotId}`] = null; });
+            if (done.exists()) removals[`autoSlotsDone/${dateStr}`] = null;
+            return;
+          }
+          // Підпис сітки дня: змінився шаблон (обід, години) — день перебудовується
+          const sig = Object.entries(result.updates).filter(([k]) => k.endsWith("/time")).map(([, v]) => v).sort().join(",");
+          if (!done.exists() && snap.exists()) return;           // слоти заводились вручну — не чіпаємо
+          if (!done.exists() || (done.val() !== sig && snap.exists())) {
+            // вільні слоти поза новою сіткою (напр. годину обіду, яку додали пізніше) прибираємо
+            Object.entries(existing).forEach(([slotId, sl]) => {
+              const inGrid = `${root}/${dateStr}/${slotId}/time` in result.updates;
+              if (!inGrid && freeAuto(sl)) removals[`${root}/${dateStr}/${slotId}`] = null;
+            });
+            Object.assign(all, result.updates);
+            marks[`autoSlotsDone/${dateStr}`] = sig;
+          }
+        });
+        // Пачками: RTDB відхиляє один update() з надто великою кількістю ключів під тригерами (TOO_MANY_TRIGGERS)
+        const chunked = async (u) => { const e = Object.entries(u); for (let i = 0; i < e.length; i += 400) await update(iRef(), Object.fromEntries(e.slice(i, i + 400))); };
+        if (Object.keys(removals).length) await chunked(removals);
+        if (Object.keys(all).length) { await chunked(all); await update(iRef(), marks); }
+      } catch (e) { console.error("autoSlots", e); }
+      finally {
+        busyRef.current = false;
+        if (againRef.current) { againRef.current = false; runRef.current?.(); }
+      }
+    };
+    runRef.current = run;
+    const t = setTimeout(run, 400);
+    return () => clearTimeout(t);
+  }, [settings.autoSlots, settings.slotGenDays, JSON.stringify(settings.weekSchedule), JSON.stringify(settings.dateOverrides)]); // eslint-disable-line react-hooks/exhaustive-deps
+  return null;
+}
+
 function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bookings, setBookings, activeDragIds, navTo, slotExistsRef, openSlotsRef, jumpTarget, setJumpTarget, onViewStudent }) {
   const { BG, BG_DEEP, SURFACE, SURF_HI, SURF_LO, BORDER, TEXT, DIM, FAINT, ACCENT, ACC_HI, BLUE, GREEN, RED, SO, SI, STRIPE_A, STRIPE_B, GLOW, SHADE, INK } = useContext(ThemeContext);
   const isLight = BG !== "#1c1d21";
+  const neonCal = true; // «Неонове сяйво» завжди увімкнено
   const { glow, shade, ink } = useFX();
   const GRID_H      = isLight ? "rgba(0,0,0,0.09)"        : "rgba(255,255,255,0.07)";
   const GRID_HH     = isLight ? "rgba(0,0,0,0.04)"        : "rgba(255,255,255,0.025)";
@@ -1140,7 +1301,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   const [showMonthCal, setShowMonthCal] = useState(false);
   // Лічильник, а не просто boolean — при кожному тапі на кнопку календар
   // монтується заново (key змінюється), навіть якщо попередній стан
-  // технічно ще "відкрито" (напр. учень прогорнув сторінку і календар
+  // технічно ще "відкрито" (напр. клієнт прогорнув сторінку і календар
   // візуально загубився). Тап завжди гарантовано відкриває свіжу шторку.
   const [calOpenKey, setCalOpenKey] = useState(0);
   const openMonthCal = () => { setCalOpenKey(k => k + 1); setShowMonthCal(true); };
@@ -1191,7 +1352,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   };
   const rawSlotIdsRef = useRef({}); // { date: Set<slotId> } — усі реально існуючі документи
   const cancelTimers = useRef({});
-  // Кумулятивні години учня на момент кожного уроку (для кружечка № уроку в слоті)
+  // Кумулятивні години клієнта на момент кожного запису (для кружечка № запису в слоті)
   const cumulativeHoursMap = useMemo(() => {
     const byUser = {};
     for (const b of bookings) {
@@ -1210,8 +1371,8 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
     });
     return map;
   }, [bookings]);
-  // Порядковий номер запису учня серед УСІХ його нескасованих записів (включно
-  // з майбутніми) — основа для автоматичних міток (1-й урок / перевірка / іспит).
+  // Порядковий номер запису клієнта серед УСІХ його нескасованих записів (включно
+  // з майбутніми) — основа для автоматичних міток (1-й запис / перевірка / іспит).
   const studentOrderMap = useMemo(() => {
     const byStudent = {};
     for (const b of bookings) {
@@ -1246,18 +1407,29 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
     byDay.forEach(l => l.sort((a, c) => a.startMin - c.startMin));
     return { bookingsByDay: byDay, bookingsByDate: byDate };
   }, [bookings]);
-  // Автоматична мітка — лише поки інструктор жодного разу не чіпав мітку цього
+  // Автоматична мітка — лише поки майстер жодного разу не чіпав мітку цього
   // запису вручну (booking.tagManual); ручний вибір/зняття завжди має пріоритет.
   const getAutoTag = (b) => {
     if (b.debtAmount > 0) return "debt";
     return AUTO_TAG_BY_ORDER[studentOrderMap[b.id]] || null;
   };
-  const effectiveTag = (b) => (b.tagManual ? (b.tag || null) : (b.tag || getAutoTag(b)));
-  // Сусідні записи одного учня раніше об'єднувались в одну картку — вимкнено
+  const effectiveTag = (b) => knownTag(b.tagManual ? (b.tag || null) : (b.tag || getAutoTag(b)));
+  // Сусідні записи одного клієнта раніше об'єднувались в одну картку — вимкнено
   // на прямий запит: кожен запис тепер своя окрема картка (можна тягати й
   // ресайзити кожну годину окремо). Дані в Firebase й завжди були окремими
   // записами, тут міняється лише відображення.
   const mergeInfoMap = {};
+  // Групові записи (один час, одна послуга) показуємо ОДНІЄЮ карткою «Група N/M»: перший учасник — представник, решта сховані
+  const groupMap = useMemo(() => {
+    const by = {};
+    bookings.forEach(b => { if (b.groupKey && b.status !== "cancelled" && b.type !== "personal") (by[b.groupKey] ||= []).push(b); });
+    const map = {};
+    Object.values(by).forEach(list => {
+      list.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0) || String(a.id).localeCompare(String(b.id)));
+      list.forEach((b, i) => { map[b.id] = i === 0 ? { rep: true, members: list } : { hidden: true }; });
+    });
+    return map;
+  }, [bookings]);
   const [windowW, setWindowW] = useState(window.innerWidth);
   const [windowH, setWindowH] = useState(window.innerHeight);
   const PAST_DAYS = 365;
@@ -1352,7 +1524,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   }, []);
 
   useEffect(() => {
-    const r = iRef( "timeslots");
+    const r = iRef(slotRoot());
     const unsub = onValue(r, snap => {
       const val = snap.val() || {};
       const slots = {};
@@ -1446,7 +1618,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
           if (coveringBk) {
             const hh = String(h).padStart(2, "0");
             const mm = String(m).padStart(2, "0");
-            upd[`timeslots/${date}/slot${hh}${mm}/available`] = false;
+            upd[`${slotRoot()}/${date}/slot${hh}${mm}/available`] = false;
           }
         });
       });
@@ -1463,7 +1635,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
             const hh = String(Math.floor(cur / 60)).padStart(2, "0");
             const mm = String(cur % 60).padStart(2, "0");
             // Лише для існуючих документів — інакше запис у видалений phantom створював би огризок
-            if (rawSlotIdsRef.current[date]?.has(`slot${hh}${mm}`)) upd[`timeslots/${date}/slot${hh}${mm}/bookingStart`] = cur === b.startMin;
+            if (rawSlotIdsRef.current[date]?.has(`slot${hh}${mm}`)) upd[`${slotRoot()}/${date}/slot${hh}${mm}/bookingStart`] = cur === b.startMin;
           }
         });
       });
@@ -1473,78 +1645,13 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   }, [bookings, openSlots]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Returns {free, blocked} counts, or null if day is skipped
-  const computeDayUpdates = (dateStr, existing, force = false, overridesParam) => {
-    const d = new Date(dateStr + "T12:00:00");
-    const dow = (d.getDay() + 6) % 7; // Mon=0..Sun=6
-    const ov = (overridesParam ?? settings.dateOverrides ?? []).find(o => o.date === dateStr);
-    if (ov?.type === "closed") return null;
-    const ws = (settings.weekSchedule || [])[dow] || {};
-    // Явний override на конкретну дату (напр. "custom", доданий при відкритті
-    // шаблонно-закритого дня) має пріоритет над тижневим шаблоном — інакше
-    // масова регенерація (generateAllSlots, force=false) знову закриє день.
-    if (!force && !ov && ws.enabled === false) return null;
-    // When no per-day weekSchedule, fall back to global weekends list
-    if (!force && !ov && !ws.start && (settings.weekends || []).includes(dow)) return null;
-    const start        = ov?.start ?? ws.start ?? settings.workStart ?? 9;
-    const end          = ov?.end   ?? ws.end   ?? settings.workEnd   ?? 18;
-    const lunchEnabled = ov?.lunchEnabled ?? ws.lunchEnabled ?? settings.lunchEnabled ?? true;
-    const lunchStart   = ov?.lunchStart   ?? ws.lunchStart   ?? settings.lunchStart  ?? 12;
-    const lunchEnd     = ov?.lunchEnd     ?? ws.lunchEnd     ?? settings.lunchEnd    ?? 13;
-    // Крок сітки — 1 година від старту робочого дня (мінімум годинний урок).
-    // Якщо день починається на :30 (напр. 17:30), слоти йдуть 17:30, 18:30...
-    // без проміжного 18:00 — тільки старти, розведені рівно на годину.
-    const step = 60;
-    const updates = {};
-    let afterLunch = false;
-    for (let min = start * 60; min < end * 60; min += step) {
-      // Слот, що перетинає обід (навіть частково), не створюємо; сітка після
-      // обіду стартує рівно з його кінця (обід 12:30–13:00 → ...11:00, 13:00, 14:00).
-      if (lunchEnabled && lunchEnd > lunchStart && min < lunchEnd * 60 && min + step > lunchStart * 60) {
-        min = lunchEnd * 60 - step;
-        afterLunch = true;
-        continue;
-      }
-      // Після обіду слот не повинен виходити за кінець робочого дня.
-      if (afterLunch && min + step > end * 60) break;
-      const h = String(Math.floor(min / 60)).padStart(2, "0");
-      const m = String(min % 60).padStart(2, "0");
-      const id = `slot${h}${m}`;
-      if (!existing[id]?.adminBlocked) {
-        updates[`timeslots/${dateStr}/${id}/time`] = `${h}:${m}`;
-        updates[`timeslots/${dateStr}/${id}/available`] = true;
-      }
-    }
-    const intervalMin = settings.snapMin ?? 30;
-    bookings
-      .filter(b => b.date === dateStr && b.status !== "cancelled")
-      .forEach(b => {
-        const bEnd = b.startMin + b.durMin;
-        for (let cur = b.startMin; cur < bEnd; cur += intervalMin) {
-          const h = String(Math.floor(cur / 60)).padStart(2, "0");
-          const m = String(cur % 60).padStart(2, "0");
-          const id = `slot${h}${m}`;
-          // Слот поза згенерованою сіткою (запис за межами робочих годин) —
-          // позначаємо phantom для довідки; при скасуванні все одно стає вільним.
-          if (!(`timeslots/${dateStr}/${id}/available` in updates)) {
-            updates[`timeslots/${dateStr}/${id}/phantom`] = true;
-          }
-          updates[`timeslots/${dateStr}/${id}/available`] = false;
-          updates[`timeslots/${dateStr}/${id}/time`] = `${h}:${m}`;
-          updates[`timeslots/${dateStr}/${id}/bookingStart`] = cur === b.startMin;
-        }
-      });
-    let free = 0, blocked = 0;
-    Object.entries(updates).forEach(([k, v]) => {
-      if (k.endsWith('/available')) { if (v === true) free++; else blocked++; }
-    });
-    return { updates, free, blocked };
-  };
+  const computeDayUpdates = (dateStr, existing, force = false, overridesParam) => computeDayUpdatesFor(settings, bookings, dateStr, existing, force, overridesParam);
 
   const generateDaySlots = async (absDay) => {
     const dateStr = absDayToDateStr(absDay);
     setGenLoadingDays(s => new Set([...s, absDay]));
     try {
-      await remove(iRef( `timeslots/${dateStr}`));
+      await remove(iRef( `${slotRoot()}/${dateStr}`));
       const result = computeDayUpdates(dateStr, {}, true);
       if (result && Object.keys(result.updates).length) {
         await update(iRef(), result.updates);
@@ -1561,11 +1668,11 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
       // Прибираємо лише справді вільні (available:true) слоти — те, що
       // додав автозаповнення. Слоти, зайняті записом чи вручну заблоковані
       // адміном (available:false), не чіпаємо, щоб не "звільнити" зайнятий час.
-      const snap = await get(iRef( `timeslots/${dateStr}`));
+      const snap = await get(iRef( `${slotRoot()}/${dateStr}`));
       const day = snap.val() || {};
       const upd = {};
       Object.entries(day).forEach(([slotId, slot]) => {
-        if (slot?.available === true) upd[`timeslots/${dateStr}/${slotId}`] = null;
+        if (slot?.available === true) upd[`${slotRoot()}/${dateStr}/${slotId}`] = null;
       });
       if (Object.keys(upd).length) await update(iRef(), upd);
     } finally {
@@ -1587,7 +1694,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
       await update(iRef(), Object.fromEntries(entries.slice(i, i + CHUNK_SIZE)));
     }
   };
-  // Видалення ЦІЛОГО дня (`timeslots/{date} = null`) прибирає одразу десятки
+  // Видалення ЦІЛОГО дня (`${slotRoot()}/{date} = null`) прибирає одразу десятки
   // дочірніх слот-записів — на кожному з яких висить той самий Cloud Function
   // тригер. Один multi-path update() з N такими піддеревами зачіпає стільки ж
   // реальних записів, скільки й генерація, і так само може впертися у
@@ -1595,7 +1702,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   // а не кількість самих ключів. Тому видаляємо дні ПО ОДНОМУ послідовно.
   const clearDaysRange = async (limit) => {
     for (let d = 0; d <= limit; d++) {
-      await remove(iRef( `timeslots/${absDayToDateStr(d)}`));
+      await remove(iRef( `${slotRoot()}/${absDayToDateStr(d)}`));
     }
   };
 
@@ -1647,16 +1754,16 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   const toggleSlotFree = (dateStr, time, slot) => {
     const slotId = `slot${time.replace(":", "")}`;
     if (slot.adminBlocked) {
-      update(iRef( `timeslots/${dateStr}/${slotId}`), { available: true, adminBlocked: false, time }).catch(() => {});
+      update(iRef( `${slotRoot()}/${dateStr}/${slotId}`), { available: true, adminBlocked: false, time }).catch(() => {});
     } else {
-      update(iRef( `timeslots/${dateStr}/${slotId}`), { available: false, adminBlocked: true, vipOnly: false, privateOnly: false, surcharge: null, time }).catch(() => {});
+      update(iRef( `${slotRoot()}/${dateStr}/${slotId}`), { available: false, adminBlocked: true, vipOnly: false, privateOnly: false, surcharge: null, time }).catch(() => {});
     }
   };
 
   // Повне видалення слота — прибирає запис із Firebase, комірка зникає з сітки
   const deleteSlot = (dateStr, time) => {
     const slotId = `slot${time.replace(":", "")}`;
-    remove(iRef( `timeslots/${dateStr}/${slotId}`)).catch(() => {});
+    remove(iRef( `${slotRoot()}/${dateStr}/${slotId}`)).catch(() => {});
   };
 
   // Довгий тап: VIP, приватний, надбавка або скидання
@@ -1667,37 +1774,37 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
     if (option === "vip") {
       if (isClosed) {
         // Закритий VIP — залишаємо закритим, додаємо VIP прапор
-        update(iRef( `timeslots/${dateStr}/${slotId}`), { vipOnly: true }).catch(() => {});
+        update(iRef( `${slotRoot()}/${dateStr}/${slotId}`), { vipOnly: true }).catch(() => {});
       } else {
-        update(iRef( `timeslots/${dateStr}/${slotId}`), { available: true, adminBlocked: false, vipOnly: true }).catch(() => {});
+        update(iRef( `${slotRoot()}/${dateStr}/${slotId}`), { available: true, adminBlocked: false, vipOnly: true }).catch(() => {});
       }
     } else if (option === "private") {
       if (isClosed) {
-        update(iRef( `timeslots/${dateStr}/${slotId}`), { privateOnly: true }).catch(() => {});
+        update(iRef( `${slotRoot()}/${dateStr}/${slotId}`), { privateOnly: true }).catch(() => {});
       } else {
-        update(iRef( `timeslots/${dateStr}/${slotId}`), { available: true, adminBlocked: false, privateOnly: true }).catch(() => {});
+        update(iRef( `${slotRoot()}/${dateStr}/${slotId}`), { available: true, adminBlocked: false, privateOnly: true }).catch(() => {});
       }
     } else if (option === "reset") {
       if (isClosed) {
-        update(iRef( `timeslots/${dateStr}/${slotId}`), { vipOnly: false, privateOnly: false, surcharge: null, fixedPrice: null }).catch(() => {});
+        update(iRef( `${slotRoot()}/${dateStr}/${slotId}`), { vipOnly: false, privateOnly: false, surcharge: null, fixedPrice: null }).catch(() => {});
       } else {
-        update(iRef( `timeslots/${dateStr}/${slotId}`), { available: true, adminBlocked: false, vipOnly: false, privateOnly: false, surcharge: null, fixedPrice: null }).catch(() => {});
+        update(iRef( `${slotRoot()}/${dateStr}/${slotId}`), { available: true, adminBlocked: false, vipOnly: false, privateOnly: false, surcharge: null, fixedPrice: null }).catch(() => {});
       }
     } else if (option === "surcharge_remove") {
-      update(iRef( `timeslots/${dateStr}/${slotId}`), { surcharge: null }).catch(() => {});
+      update(iRef( `${slotRoot()}/${dateStr}/${slotId}`), { surcharge: null }).catch(() => {});
     } else if (option && typeof option === "object" && option.fixedPrice != null) {
-      // Фіксована ціна повністю замінює тарифну — незалежна від VIP/Приватний слот,
+      // Фіксована ціна повністю замінює тарифну — незалежна від VIP/Індивідуальний слот,
       // тому не чіпаємо ці прапорці, лише available/adminBlocked за тим самим
-      // патерном, що й VIP/Приватний слот.
+      // патерном, що й VIP/Індивідуальний слот.
       if (isClosed) {
-        update(iRef( `timeslots/${dateStr}/${slotId}`), { fixedPrice: option.fixedPrice }).catch(() => {});
+        update(iRef( `${slotRoot()}/${dateStr}/${slotId}`), { fixedPrice: option.fixedPrice }).catch(() => {});
       } else {
-        update(iRef( `timeslots/${dateStr}/${slotId}`), { available: true, adminBlocked: false, fixedPrice: option.fixedPrice }).catch(() => {});
+        update(iRef( `${slotRoot()}/${dateStr}/${slotId}`), { available: true, adminBlocked: false, fixedPrice: option.fixedPrice }).catch(() => {});
       }
     } else if (option === "fixedPrice_remove") {
-      update(iRef( `timeslots/${dateStr}/${slotId}`), { fixedPrice: null }).catch(() => {});
+      update(iRef( `${slotRoot()}/${dateStr}/${slotId}`), { fixedPrice: null }).catch(() => {});
     } else {
-      update(iRef( `timeslots/${dateStr}/${slotId}`), { surcharge: option }).catch(() => {});
+      update(iRef( `${slotRoot()}/${dateStr}/${slotId}`), { surcharge: option }).catch(() => {});
     }
     setSlotOptions(null);
   };
@@ -1759,6 +1866,13 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   const [createSlotData, setCreateSlotData] = useState(null); // {day, startMin}
   const [localSelectedBooking, setLocalSelectedBooking] = useState(null);
   const [todayDir, setTodayDir] = useState(null);
+  const [helpOpen, setHelpOpen] = useState(false); // довідник «?» по значках розкладу
+  // Позиція кнопки «?»: можна перетягнути куди завгодно, запам'ятовується на цьому пристрої (px від лівого/верхнього краю)
+  const [helpPos, setHelpPos] = useState(() => {
+    try { const v = JSON.parse(localStorage.getItem("helpBtnPos") || "null"); if (v && Number.isFinite(v.x) && Number.isFinite(v.y)) return v; } catch { /* ignore */ }
+    return null;
+  });
+  const helpDrag = useRef(null);
   const todayDirRef = useRef(null);
   const emptyHoldTimerRef = useRef(null);
   const emptyHoldPosRef   = useRef(null);
@@ -1812,7 +1926,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
       // Закриваємо день — прибираємо вже згенеровані слоти. Інакше стара
       // сітка (available:true) лишається в Firebase і день і далі показує
       // "відкриті" слоти та їх видно клієнту, попри позначку "закрито".
-      remove(iRef( `timeslots/${dateStr}`)).catch(()=>{});
+      remove(iRef( `${slotRoot()}/${dateStr}`)).catch(()=>{});
     }
   };
 
@@ -1866,7 +1980,9 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   const effectiveWorkEnd = allDaySchedules.length
     ? Math.max(settings.workEnd, ...allDaySchedules.map(d => d.end ?? settings.workEnd))
     : settings.workEnd;
-  const totalMin = Math.max(60, (effectiveWorkEnd - effectiveWorkStart) * 60);
+  // Межі робочого дня в цілих хвилинах (початок/кінець можуть бути будь-якою хвилиною)
+  const wsMinAbs = Math.round(effectiveWorkStart * 60), weMinAbs = Math.round(effectiveWorkEnd * 60);
+  const totalMin = Math.max(60, weMinAbs - wsMinAbs);
   // Авто-підлаштування: вся висота розкладу = доступна висота viewport
   // hourHeightPx / 60 використовується як zoom-множник (pinch)
   const availGridH = Math.max(120, windowH - 156 - HEADER_H - 4);
@@ -1875,7 +1991,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   const gridHeight = totalMin * PX_PER_MIN;
 
   // Keep calc values fresh for always-on window listeners (avoids stale closure)
-  calcRef.current = { PX_PER_MIN, snapMin: settings.snapMin, workStart: effectiveWorkStart, workEnd: effectiveWorkEnd, COL_W, dayOffset, daysShown: settings.daysShown, N_DAYS, autoHourHeight: !!settings.autoHourHeight };
+  calcRef.current = { PX_PER_MIN, snapMin: settings.snapMin, workStart: effectiveWorkStart, workEnd: effectiveWorkEnd, workStartMin: wsMinAbs, workEndMin: weMinAbs, COL_W, dayOffset, daysShown: settings.daysShown, N_DAYS, autoHourHeight: !!settings.autoHourHeight };
 
   // Часовий діапазон записів/слотів у ВИДИМИХ днях — основа авто-висоти годин.
   // Рахуємо по індексу bookingsByDay (лише видимі дні), а не проходом по всіх записах.
@@ -1980,7 +2096,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
     const gridOffsetTop = timeCol
       ? timeCol.getBoundingClientRect().top - el.getBoundingClientRect().top + el.scrollTop
       : (2 + HEADER_H + 10); // резервне значення, якщо ref ще не змонтований
-    const y = gridOffsetTop + (targetMin - effectiveWorkStart * 60) * PX_PER_MIN;
+    const y = gridOffsetTop + (targetMin - wsMinAbs) * PX_PER_MIN;
     // Шапка дати "плаває" (position:sticky) поверх контенту під час скролу —
     // верхні HEADER_H px видимої області завжди перекриті нею. Тому відступ
     // зверху має бути не просто "трохи" (8px), а щонайменше HEADER_H, інакше
@@ -1988,9 +2104,10 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
     el.scrollTop = Math.max(0, y - HEADER_H - 8);
   }, [settings.hourHeightPx]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const minToPx = (m) => (m - effectiveWorkStart*60) * PX_PER_MIN;
+  const minToPx = (m) => (m - wsMinAbs) * PX_PER_MIN;
 
   const onPointerDown = (e, b, mode) => {
+    if (e.button > 0) return; // права кнопка миші — лише контекстне меню (відкриває деталі), без перетягування
     if (scheduleLocked) {
       // Замочок закритий — редагування заборонене, але дотик на записі/блоці все одно
       // мусить дозволяти свайп-гортання розкладу (не лише порожні ділянки сітки).
@@ -2041,13 +2158,76 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
     // Блоки: жодного hold-таймера — drag активується одразу при русі >4px в onMove
   };
 
+  // Нативне гортання по порожньому місці — пан по обох осях одразу, тому вертикальний свайп із
+  // невеликим боковим зсувом тягнув розклад убік. Фіксуємо вісь за перші ~8px руху: поза віссю
+  // повертаємо scrollLeft/scrollTop до значення на початку жесту (інерцію не чіпаємо).
+  useEffect(() => {
+    const el = gridRef.current;
+    if (!el) return;
+    let g = null, unlockT = 0;
+    const onStart = (e) => {
+      clearTimeout(unlockT);
+      g = e.touches.length === 1 ? { x: e.touches[0].clientX, y: e.touches[0].clientY, sl: el.scrollLeft, st: el.scrollTop, axis: null } : null;
+    };
+    const onMoveT = (e) => {
+      if (!g || e.touches.length !== 1) { g = null; return; }
+      if (!g.axis) {
+        const dx = Math.abs(e.touches[0].clientX - g.x), dy = Math.abs(e.touches[0].clientY - g.y);
+        if (Math.hypot(dx, dy) > 8) g.axis = dx > dy * 1.15 ? "x" : "y";
+      }
+    };
+    const onEnd = () => { clearTimeout(unlockT); unlockT = setTimeout(() => { g = null; }, 700); };
+    const onScrollLock = () => {
+      if (!g || !g.axis || swipeRef.current?.manualScroll) return;
+      if (g.axis === "x") { if (el.scrollTop !== g.st) el.scrollTop = g.st; }
+      else if (el.scrollLeft !== g.sl) el.scrollLeft = g.sl;
+    };
+    // ПК: затиснута ліва кнопка миші на порожньому місці сітки (фон колонки, data-pan) тягне розклад у будь-який бік.
+    // Дотики (touch) не чіпаємо — там нативне панорамування з блокуванням осі.
+    let mp = null;
+    const mDown = (e) => {
+      if (e.pointerType !== "mouse" || e.button !== 0 || !e.target?.hasAttribute?.("data-pan")) return;
+      mp = { x: e.clientX, y: e.clientY, sl: el.scrollLeft, st: el.scrollTop, moved: false };
+    };
+    const mMove = (e) => {
+      if (!mp) return;
+      const dx = e.clientX - mp.x, dy = e.clientY - mp.y;
+      if (!mp.moved) {
+        if (Math.hypot(dx, dy) < 5) return;
+        mp.moved = true;
+        clearTimeout(emptyHoldTimerRef.current); emptyHoldPosRef.current = null; // це тягнення, а не довге натискання «новий слот»
+        el.style.cursor = "grabbing";
+      }
+      el.scrollLeft = mp.sl - dx;
+      el.scrollTop = mp.st - dy;
+    };
+    const mUp = () => { if (mp?.moved) el.style.cursor = ""; mp = null; };
+    el.addEventListener("pointerdown", mDown);
+    window.addEventListener("pointermove", mMove);
+    window.addEventListener("pointerup", mUp);
+    window.addEventListener("pointercancel", mUp);
+    el.addEventListener("touchstart", onStart, { passive: true });
+    el.addEventListener("touchmove", onMoveT, { passive: true });
+    el.addEventListener("touchend", onEnd, { passive: true });
+    el.addEventListener("touchcancel", onEnd, { passive: true });
+    el.addEventListener("scroll", onScrollLock, { passive: true });
+    return () => {
+      clearTimeout(unlockT);
+      el.removeEventListener("pointerdown", mDown);
+      window.removeEventListener("pointermove", mMove); window.removeEventListener("pointerup", mUp); window.removeEventListener("pointercancel", mUp);
+      el.removeEventListener("touchstart", onStart); el.removeEventListener("touchmove", onMoveT);
+      el.removeEventListener("touchend", onEnd); el.removeEventListener("touchcancel", onEnd);
+      el.removeEventListener("scroll", onScrollLock);
+    };
+  }, []);
+
   // Listeners always attached — dragRef gives instant access without useEffect re-fire
   useEffect(() => {
     const onMove = (e) => {
       if (swipeRef.current) {
         // Швидкість пальця (px/ms, згладжена) — щоб на pointerup "докрутити" сітку
         // за інерцією замість миттєвої зупинки. Порожнє місце скролиться нативно
-        // (браузер сам додає інерцію); картки уроків мають touch-action:none і
+        // (браузер сам додає інерцію); картки записів мають touch-action:none і
         // скролляться вручну через scrollLeft/scrollTop нижче — без цього трекінгу
         // ручний скрол зупинявся різко, на відміну від нативного.
         const _now = performance.now();
@@ -2180,7 +2360,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
       }
       if (!dragRef.current) return;
       const drag = dragRef.current;
-      const { PX_PER_MIN, snapMin, workStart, workEnd, COL_W, dayOffset, N_DAYS } = calcRef.current;
+      const { PX_PER_MIN, snapMin, workStartMin, workEndMin, COL_W, dayOffset, N_DAYS } = calcRef.current;
       const snap = (m) => Math.round(m / snapMin) * snapMin;
       const dy = e.clientY - drag.startClientY;
       const dxRaw = e.clientX - drag.startClientX;
@@ -2225,8 +2405,8 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
           const minS = Math.min(...targets.map(t => t.s));
           const maxE = Math.max(...targets.map(t => t.s + t.durMin));
           let shift = 0;
-          if (minS < workStart * 60) shift = workStart * 60 - minS;
-          if (maxE + shift > workEnd * 60) shift = Math.min(shift, workEnd * 60 - maxE);
+          if (minS < workStartMin) shift = workStartMin - minS;
+          if (maxE + shift > workEndMin) shift = Math.min(shift, workEndMin - maxE);
           targets.forEach(t => { t.s += shift; });
           // Атомарна перевірка накладання — якщо хоч один сегмент конфліктує, тримаємо всю групу
           const overlap = targets.some(t => bs.some(x =>
@@ -2242,14 +2422,14 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
           if (drag.mode === "bottom") {
             let d = snap(drag.startDur + deltaMin);
             const nextStart = bs.filter(x=>!allDragIds.has(x.id)&&x.day===b.day&&x.startMin>b.startMin)
-              .reduce((mn,x)=>Math.min(mn,x.startMin), workEnd*60);
+              .reduce((mn,x)=>Math.min(mn,x.startMin), workEndMin);
             d = Math.max(60, Math.min(d, nextStart - b.startMin));
             return {...b, durMin:d};
           } else if (drag.mode === "top") {
             let s = snap(drag.startMinutes + deltaMin);
             const maxS = drag.startMinutes + drag.startDur - 60;
             const floorStart = bs.filter(x=>!allDragIds.has(x.id)&&x.day===b.day&&x.startMin+x.durMin<=drag.startMinutes)
-              .reduce((mx,x)=>Math.max(mx,x.startMin+x.durMin), workStart*60);
+              .reduce((mx,x)=>Math.max(mx,x.startMin+x.durMin), workStartMin);
             s = Math.max(floorStart, Math.min(maxS, s));
             const diff = s - drag.startMinutes;
             return {...b, startMin:s, durMin: drag.startDur - diff};
@@ -2281,7 +2461,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
             const m = draggedMeta.startMinutes + i;
             const sh = String(Math.floor(m / 60)).padStart(2, "0");
             const sm = String(m % 60).padStart(2, "0");
-            oldUpd[`timeslots/${oldDateStr}/slot${sh}${sm}`] = null;
+            oldUpd[`${slotRoot()}/${oldDateStr}/slot${sh}${sm}`] = null;
           }
           if (Object.keys(oldUpd).length) update(iRef(), oldUpd).catch(() => {});
           blockPersonalSlots(newDateStr, finalB.startMin, finalB.durMin);
@@ -2294,7 +2474,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
           update(iRef( `bookings/personal/${key}`), { date: newDateStr, time: `${hh}:${mm}`, startMin: finalB.startMin, reminderSent: false }).catch(() => {});
         } else if (finalB && finalB.type !== "personal" &&
                    !(draggedMeta.mergedIds && draggedMeta.mergedIds.length)) {
-          // Реальний одиночний запис учня (НЕ злитий merged-блок з кількох
+          // Реальний одиночний запис клієнта (НЕ злитий merged-блок з кількох
           // записів — для тих поки лишаємо стару поведінку, див. нижче чому) —
           // перетягування раніше міняло лише локальний React-стан і НІЧОГО не
           // писало в Firebase, тому onBookingChanged на бекенді (пуш студенту
@@ -2303,7 +2483,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
           // нові date/time/startMin.
           //
           // Merged-блок (кілька окремих бронювань, злитих візуально в одну
-          // картку — напр. учень бронював 3 окремі години поспіль) свідомо
+          // картку — напр. клієнт бронював 3 окремі години поспіль) свідомо
           // НЕ зберігаємо тут: запис одразу в кілька bookingId одночасно
           // запускає onBookingChanged кілька разів паралельно, і в проді це
           // одного разу залишило по собі купу сирітських заблокованих
@@ -2459,10 +2639,10 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
         navigator.vibrate?.(15);
       }
       if (!fd.moved) return;
-      const { PX_PER_MIN, snapMin, workStart, workEnd } = calcRef.current;
+      const { PX_PER_MIN, snapMin, workStartMin, workEndMin } = calcRef.current;
       const deltaMin = dy / PX_PER_MIN;
       let ns = Math.round((fd.startMin + deltaMin) / snapMin) * snapMin;
-      ns = Math.max(workStart * 60, Math.min(ns, workEnd * 60 - 60));
+      ns = Math.max(workStartMin, Math.min(ns, workEndMin - 60));
       fd.newStart = ns;
       setFreeDragPreview({ dateStr: fd.dateStr, time: fd.time, newStart: ns });
     };
@@ -2515,11 +2695,11 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
       const oldSlotId = `slot${fd.time.replace(":", "")}`;
       const newSlotId = `slot${h}${m}`;
       const updates = {};
-      updates[`timeslots/${fd.dateStr}/${oldSlotId}`] = null;
-      updates[`timeslots/${fd.dateStr}/${newSlotId}/available`] = true;
-      updates[`timeslots/${fd.dateStr}/${newSlotId}/time`] = newTime;
-      updates[`timeslots/${fd.dateStr}/${newSlotId}/durMin`] = durMin;
-      absorbedTimes.forEach(t => { updates[`timeslots/${fd.dateStr}/slot${t.replace(":", "")}`] = null; });
+      updates[`${slotRoot()}/${fd.dateStr}/${oldSlotId}`] = null;
+      updates[`${slotRoot()}/${fd.dateStr}/${newSlotId}/available`] = true;
+      updates[`${slotRoot()}/${fd.dateStr}/${newSlotId}/time`] = newTime;
+      updates[`${slotRoot()}/${fd.dateStr}/${newSlotId}/durMin`] = durMin;
+      absorbedTimes.forEach(t => { updates[`${slotRoot()}/${fd.dateStr}/slot${t.replace(":", "")}`] = null; });
       update(iRef(), updates).catch(() => {});
       navigator.vibrate?.(20);
     };
@@ -2582,7 +2762,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
       const lunch = lunchForDate(fr.dateStr);
       if (lunch.enabled && startMin < lunch.end && newEnd > lunch.start) { navigator.vibrate?.([10,10,10]); return; }
       const slotId = `slot${fr.time.replace(":", "")}`;
-      const updates = { [`timeslots/${fr.dateStr}/${slotId}/durMin`]: fr.newDur };
+      const updates = { [`${slotRoot()}/${fr.dateStr}/${slotId}/durMin`]: fr.newDur };
       // Ріст поглинає наступні вільні слоти, у які «в’їхав» новий розмір, —
       // прибираємо їхні окремі документи, щоб не лишалось «розрізаних» дублікатів.
       const daySlots = (openSlotsRef?.current || {})[fr.dateStr] || {};
@@ -2592,7 +2772,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
         const [h2, m2] = t.split(":").map(Number);
         const tm = h2 * 60 + m2;
         if (tm > startMin && tm < newEnd) {
-          updates[`timeslots/${fr.dateStr}/slot${t.replace(":", "")}`] = null;
+          updates[`${slotRoot()}/${fr.dateStr}/slot${t.replace(":", "")}`] = null;
           absorbedTimes.push(t);
         }
       });
@@ -2625,10 +2805,10 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   const hours = [];
   for (let h = settings.workStart; h <= settings.workEnd; h++) hours.push(h);
 
-  // Колір картки — стабільний за учнем, і РІЗНІ учні гарантовано отримують
+  // Колір картки — стабільний за клієнтом, і РІЗНІ клієнти гарантовано отримують
   // РІЗНІ кольори (поки їх < 50): порядок призначення визначається часом
-  // першого запису учня (createdAt), а не хешем — хеш у 10-кольоровій палітрі
-  // неминуче колізив уже на кількох учнях.
+  // першого запису клієнта (createdAt), а не хешем — хеш у 10-кольоровій палітрі
+  // неминуче колізив уже на кількох клієнтах.
   const studentColorMap = useMemo(() => {
     const firstSeen = new Map();
     for (const b of bookings) {
@@ -2643,7 +2823,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
     keys.forEach((k, i) => { map[k] = STUDENT_PALETTE[i % STUDENT_PALETTE.length]; });
     return map;
   }, [bookings]);
-  // Ручний режим (тумблер "Автокольори учнів" вимкнено): колір бере з картки учня
+  // Ручний режим (тумблер "Автокольори клієнтів" вимкнено): колір бере з картки клієнта
   // (studentColors/{uid}); без призначеного — нейтральний.
   const [manualStudentColors, setManualStudentColors] = useState({});
   useEffect(() => {
@@ -2662,14 +2842,15 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
     if (dragRef.current || dragEndedRef.current || pendingDragRef.current) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const yRel = e.clientY - rect.top;
-    const { snapMin, workStart, PX_PER_MIN } = calcRef.current;
-    const rawMin = workStart * 60 + yRel / PX_PER_MIN;
+    const { snapMin, workStartMin, PX_PER_MIN } = calcRef.current;
+    const rawMin = workStartMin + yRel / PX_PER_MIN;
     const minute = Math.round(rawMin / snapMin) * snapMin;
     const bData = { day: absDay, startMin: minute, clientX: e.clientX, clientY: e.clientY, dateStr: absDayToDateStr(absDay) };
     setBubbleData(bData);
   };
 
   const handleAction = (action, b) => {
+    if (action === "openMember") { setLocalSelectedBooking(b); return; }
     if (action === "confirm") { setBookings(bs=>bs.map(x=>x.id===b.id?{...x,status:"confirmed"}:x)); return; }
     if (action === "cancel") {
       // Звільняємо timeslots одразу (миттєвий відгук і запис без акаунта, де
@@ -2685,9 +2866,9 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
           ks.forEach(k => update(iRef( `bookings/${mb.userId}/${k}`),
             { status:"cancelled", cancelledAt:Date.now(), cancelledBy:"admin" }).catch(()=>{}));
         }
-        if (mb.startMin !== undefined && mb.durMin) {
+        if (mb.startMin !== undefined && mb.durMin && !mb.groupKey) {
           try {
-            await restoreSlotRange(mb.date || absDayToDateStr(mb.day), mb.startMin, mb.durMin);
+            await restoreSlotRange(mb.date || absDayToDateStr(mb.day), mb.startMin, mb.durMin + bufferOf(mb));
           } catch {}
         }
       };
@@ -2715,8 +2896,8 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
     if (action === "telegram") window.location.href=`https://t.me/${b.phone.replace(/\D/g,"")}`;
     if (action === "setTag") {
       // Ручний вибір/зняття мітки — позначаємо tagManual, щоб автоматична
-      // логіка (порядок уроку/борг) більше НІКОЛИ не перезаписувала цей запис.
-      // debtAmount передається лише коли інструктор явно вписав/змінив суму
+      // логіка (порядок запису/борг) більше НІКОЛИ не перезаписувала цей запис.
+      // debtAmount передається лише коли майстер явно вписав/змінив суму
       // боргу вручну — інакше залишаємо попереднє значення в Firebase як є.
       const patch = { tag: b.tag || null, tagManual: true };
       if (b.debtAmount !== undefined) patch.debtAmount = b.debtAmount || null;
@@ -2767,9 +2948,9 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   // Блокуємо/звільняємо timeslots під особистою подією — так само, як для
   // звичайного бронювання, щоб студент не міг записатись на цей час.
   const blockPersonalSlots = (dateStr, startMin, durMin) => {
-    // personal:true — зайнятість від особистої події адміна, а не уроку:
+    // personal:true — зайнятість від особистої події адміна, а не запису:
     // клієнтський календар (classifyDay) виключає такі слоти з підрахунку,
-    // щоб особиста подія не "підсвічувала" день як зайнятий учням.
+    // щоб особиста подія не "підсвічувала" день як зайнятий клієнтам.
     return blockSlotRange(dateStr, startMin, durMin, { bookingStart: true, extra: { personal: true } }).catch(() => {});
   };
   const unblockPersonalSlots = (dateStr, startMin, durMin) => {
@@ -2822,7 +3003,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
     const dateStr = absDayToDateStr(day);
     const hh = String(Math.floor(startMin / 60)).padStart(2, "0");
     const mm = String(startMin % 60).padStart(2, "0");
-    update(iRef( `timeslots/${dateStr}/slot${hh}${mm}`), {
+    update(iRef( `${slotRoot()}/${dateStr}/slot${hh}${mm}`), {
       time: `${hh}:${mm}`, available: true, vipOnly: true,
     }).catch(() => {});
   };
@@ -2837,6 +3018,9 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   const [personalEventData, setPersonalEventData] = useState(null); // { dateStr, time }
   const [longTapMenu, setLongTapMenu] = useState(null); // { dateStr, startMin, clientX, clientY }
   const [ltmClosing, setLtmClosing] = useState(false);
+  // iOS: клік після відпускання пальця (довгий тап) не має закривати щойно відкриту модалку
+  const overlayOpenedAtRef = useRef(0);
+  useEffect(() => { if (longTapMenu || slotOptions) overlayOpenedAtRef.current = Date.now(); }, [!!longTapMenu, !!slotOptions]);
   const [ltmScatter, setLtmScatter] = useState(false);
   const [personalEventView, setPersonalEventView] = useState(null); // booking object for viewing
   // Поля форми редагування особистої події (заповнюються при відкритті personalEventView)
@@ -2868,7 +3052,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
       padding:"6px 3px 0", overflow:"hidden", flex:1, minHeight:0, display:"flex", flexDirection:"column",
       // Той самий скляний фон, що й у нижньому навбарі — замість суцільного SURFACE.
       background: isLight ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.04)",
-      boxShadow: isLight ? "0 8px 24px rgba(92,42,26,0.14)" : "0 8px 24px rgba(0,0,0,0.45)",
+      boxShadow: isLight ? "0 6px 18px rgba(92,42,26,0.12)" : "0 4px 14px rgba(0,0,0,0.22)", // м'якша тінь: різкий темний «пояс» під карткою розкладу заважав плавному переходу до панелі вкладок
     }}>
       <div style={{display:"flex", flex:1, minHeight:0, overflow:"hidden", position:"relative"}}>
 
@@ -2907,7 +3091,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
               const slotsOn = hasAnyGeneratedSlots();
               const c = slotsOn ? RED : GREEN;
               return (
-                <button
+                <button data-help="key"
                   onClick={isGeneratingAll ? undefined : (slotsOn ? clearAllSlots : generateAllSlots)}
                   title={slotsOn
                     ? `Зняти всі слоти (${settings.slotGenDays||30} днів)`
@@ -2936,15 +3120,12 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
           </div>
           <div style={{overflow:"hidden", flex:1, position:"relative"}}>
             <div ref={timeColRef} style={{position:"absolute", top:0, left:0, right:0, height:gridHeight}}>
-              {Array.from({length:(effectiveWorkEnd-effectiveWorkStart)*2+1},(_,i)=>{
-                const totalMins = i*30;
-                // absMin — абсолютна хвилина від півночі: effectiveWorkStart тепер
-                // може бути дробовим (напр. 8.5 = 8:30), тож просте "workStart+h"
-                // давало биту мітку типу "8.5:00" замість "09:00".
-                const absMin = effectiveWorkStart*60 + totalMins;
+              {Array.from({length:Math.max(0, Math.floor(weMinAbs/30) - Math.ceil(wsMinAbs/30) + 1)},(_,i)=>{
+                // Мітки стоять на справжніх :00 і :30 (початок дня може бути будь-якою хвилиною, напр. 09:07)
+                const absMin = (Math.ceil(wsMinAbs/30) + i) * 30;
+                const totalMins = absMin - wsMinAbs;
                 const h = Math.floor(absMin/60);
                 const m = absMin % 60;
-                if (absMin > effectiveWorkEnd*60) return null;
                 return m === 0 ? (
                   <div key={i} style={{
                     position:"absolute", top:Math.max(2, totalMins*PX_PER_MIN - 5),
@@ -2960,12 +3141,12 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                   }}>{h}:30</div>
                 );
               })}
-              {nowMin >= effectiveWorkStart*60 && nowMin <= effectiveWorkEnd*60 && (
-                <div style={{
+              {nowMin >= wsMinAbs && nowMin <= weMinAbs && (
+                <div data-help="nowline" style={{
                   position:"absolute", left:2, right:2, top:minToPx(nowMin),
                   transform:"translateY(-50%)",
                   background:"#ef4444", color:"#fff",
-                  fontSize:10, fontWeight:900, lineHeight:1,
+                  fontSize:9, fontWeight:900, lineHeight:1,
                   borderRadius:6, padding:"3px 0", textAlign:"center",
                   boxShadow:"0 2px 8px rgba(239,68,68,0.5)",
                 }}>{String(Math.floor(nowMin/60)).padStart(2,"0")}:{String(nowMin%60).padStart(2,"0")}</div>
@@ -2973,7 +3154,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
             </div>
           </div>
           {/* Замок — в нижній частині стовпця часу, вирівняний із сум-рядком */}
-          <div
+          <div data-help="lock"
             onPointerDown={handleLockDown}
             onPointerUp={handleLockUp}
             onPointerCancel={handleLockUp}
@@ -3037,7 +3218,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
             }
           }}
           onContextMenu={e=>e.preventDefault()}
-          className="schedule-scroll"
+          className="schedule-scroll cal-neon"
           style={{flex:1, overflowX:"auto", overflowY:"auto", touchAction:"pan-x pan-y", WebkitOverflowScrolling:"touch", userSelect:"none", WebkitUserSelect:"none", scrollbarWidth:"none", willChange:"scroll-position"}}
         >
           <div ref={gridWrapRef} style={{display:"flex", paddingTop:2}}>
@@ -3085,7 +3266,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
               width:COL_W, marginRight:colIdx<N_DAYS-1?4:0,
             }}>
               {/* DATE HEADER — sticky top, moves with column horizontally */}
-              <div
+              <div data-help="daycolor"
                 onClick={e=>{
                   e.stopPropagation();
                   if(scheduleLocked) return;
@@ -3126,7 +3307,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                   backdropFilter:"blur(10px)", WebkitBackdropFilter:"blur(10px)",
                   boxShadow: `3px 3px 7px rgba(${SHADE},0.4), -2px -2px 6px rgba(${GLOW},0.06)${isToday ? `, inset 0 0 0 1.5px ${GOLD}99` : isClosedDay ? `, inset 0 0 0 1.5px rgba(220,60,60,0.8)` : ""}`,
                 }}>
-                <div style={{fontSize:10, fontWeight:700, lineHeight:1.2,
+                <div style={{fontSize:8.5, fontWeight:700, lineHeight:1.2,
                   color: isWorkDay ? GREEN : RED,
                   letterSpacing:0.3, overflow:"hidden", whiteSpace:"nowrap",
                   maxWidth:"100%", textOverflow:"ellipsis",
@@ -3137,7 +3318,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                   {day.num} {day.monthFull}{day.year !== currentYear ? ` ${day.year}` : ""}
                 </div>
                 {!isPastDay && !isClosedDay && !isLoadingCol && (
-                  <div style={{
+                  <div data-help="daycorner" style={{
                     position:"absolute", top:2, right:2, width:14, height:14, borderRadius:"50%",
                     background: isOpenCol ? `linear-gradient(155deg,#a6e888,${GREEN})` : `linear-gradient(145deg,${SURF_HI},${SURFACE})`,
                     boxShadow:"0 1px 3px rgba(0,0,0,0.5)",
@@ -3151,10 +3332,10 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                   </div>
                 )}
                 {!isPastDay && isLoadingCol && (
-                  <div style={{position:"absolute", top:3, right:4, fontSize:10, lineHeight:1, color:FAINT}}>…</div>
+                  <div style={{position:"absolute", top:3, right:4, fontSize:8, lineHeight:1, color:FAINT}}>…</div>
                 )}
                 {dayNotes[dateStrCol] && (
-                  <div style={{
+                  <div data-help="daynote" className="note-icon-glow" style={{
                     position:"absolute", top:2, left:2, width:14, height:14, borderRadius:"50%",
                     background:`linear-gradient(155deg,#ffe28a,${GOLD})`,
                     boxShadow:"0 1px 3px rgba(0,0,0,0.5)",
@@ -3179,7 +3360,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                   if (e.button > 0) return;
                   if (dragRef.current || pendingDragRef.current) return;
                   const rect = e.currentTarget.getBoundingClientRect();
-                  const rawMin = calcRef.current.workStart * 60 + (e.clientY - rect.top) / calcRef.current.PX_PER_MIN;
+                  const rawMin = calcRef.current.workStartMin + (e.clientY - rect.top) / calcRef.current.PX_PER_MIN;
                   // Округлення вниз (а не до найближчого) — тап у будь-якому місці
                   // 30-хвилинного рядка має відповідати ЙОГО початку, а не сусідньому,
                   // інакше дотик у нижній половині рядка показував час на 30хв пізніше.
@@ -3214,7 +3395,19 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                 }}
                 onPointerCancel={()=>{ clearTimeout(emptyHoldTimerRef.current); emptyHoldPosRef.current = null; }}
                 onPointerLeave={()=>{ clearTimeout(emptyHoldTimerRef.current); emptyHoldPosRef.current = null; }}
-                onContextMenu={e=>e.preventDefault()}
+                data-pan="1"
+                onContextMenu={e=>{
+                  e.preventDefault();
+                  // Права кнопка миші на порожньому місці = довге натискання: меню «новий слот / запис»
+                  if (!isMouseContext(e)) return;
+                  if (e.target !== e.currentTarget || scheduleLocked || isPastDay) return;
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const minute = Math.floor((calcRef.current.workStartMin + (e.clientY - rect.top) / calcRef.current.PX_PER_MIN) / 30) * 30;
+                  if (colLunch.enabled && minute >= colLunch.start * 60 && minute < colLunch.end * 60) return;
+                  clearTimeout(emptyHoldTimerRef.current); emptyHoldPosRef.current = null;
+                  setLtmClosing(false); setLtmScatter(false);
+                  setLongTapMenu({ dateStr: dateStrCol, startMin: minute, selectedMin: minute, clientX: e.clientX, clientY: e.clientY, isClosedDay });
+                }}
                 style={{
                   width:COL_W, height:gridHeight,
                   position:"relative", padding:"0 4px",
@@ -3225,8 +3418,8 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                 }}>
 
               {/* Лінія поточного часу — тільки в колонці сьогодні */}
-              {isToday && nowMin >= effectiveWorkStart*60 && nowMin <= effectiveWorkEnd*60 && (
-                <div style={{
+              {isToday && nowMin >= wsMinAbs && nowMin <= weMinAbs && (
+                <div data-help="nowline" style={{
                   position:"absolute", left:0, right:0, top:minToPx(nowMin),
                   height:3, zIndex:5, pointerEvents:"none",
                   background:"#ef4444", boxShadow:"0 2px 6px rgba(239,68,68,0.6)",
@@ -3247,14 +3440,26 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                 return Object.entries(daySlots).map(([time, slot]) => {
                 const [h, m] = time.split(":").map(Number);
                 const startMin = h * 60 + m;
-                if (startMin < effectiveWorkStart * 60 || startMin >= effectiveWorkEnd * 60) return null;
+                if (startMin < wsMinAbs || startMin >= weMinAbs) return null;
                 // Вільний/доступний слот, накритий записом (хоча б частково), не показуємо.
                 if (slot.available && slotCovered(startMin)) return null;
                 // Якщо після цього слота більше немає документів (наприклад, усі поглинуті
                 // розтягуванням) — межею є кінець робочого дня, а не штучні +60 хв.
-                const nextMin = sortedMins.find(t => t > startMin) ?? (effectiveWorkEnd * 60);
+                const nextMin = sortedMins.find(t => t > startMin) ?? (weMinAbs);
                 const slotDurMin = slot.durMin || 60;
-                const slotHeightMin = Math.min(slotDurMin, nextMin - startMin, effectiveWorkEnd * 60 - startMin);
+                let slotHeightMin = Math.min(slotDurMin, nextMin - startMin, weMinAbs - startMin);
+                // Слот, верх якого накритий кінцем запису (запис о 11:30 на 1 год і слот 12:00), починаємо з кінця запису —
+                // без накладання. Вимикається в Налаштуваннях (calClip).
+                let clipShift = 0;
+                if (settings.calClip !== false) {
+                  const endSlot = startMin + slotHeightMin;
+                  const covEnd = colBookings.reduce((mx, b) => (b.startMin < startMin && b.startMin + b.durMin > startMin ? Math.max(mx, b.startMin + b.durMin) : mx), 0);
+                  if (covEnd > startMin) {
+                    if (endSlot - covEnd < 10) return null;
+                    clipShift = covEnd - startMin;
+                    slotHeightMin = endSlot - covEnd;
+                  }
+                }
                 const isVip = slot.vipOnly;
                 const isBlocked = slot.adminBlocked;
                 const hasSurcharge = !!slot.surcharge;
@@ -3270,11 +3475,11 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                   : "inset 2px 2px 5px rgba(0,0,0,0.45), inset -2px -2px 5px rgba(255,255,255,0.10)";
                 const isPlainFree = slot.available && !isVip && !isBlocked && !hasSurcharge && !isPrivateOnly && !hasFixedPrice;
                 const isBeingDragged = freeDragPreview && freeDragPreview.dateStr===dateStrCol && freeDragPreview.time===time;
-                const displayStartMin = isBeingDragged ? freeDragPreview.newStart : startMin;
+                const displayStartMin = isBeingDragged ? freeDragPreview.newStart : startMin + clipShift;
                 // Розтягування вниз може поглинати наступні вільні слоти підряд (без запису,
                 // блокування, VIP чи надбавки) — межа росту не обмежена одним нижнім слотом,
                 // а йде до першого «непоглинаючого» слота/запису або кінця робочого дня.
-                let resizeLimitMin = effectiveWorkEnd * 60;
+                let resizeLimitMin = weMinAbs;
                 if (isPlainFree) {
                   for (const t of sortedMins) {
                     if (t <= startMin) continue;
@@ -3285,12 +3490,19 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                     if (!s2Free || slotCovered(t)) { resizeLimitMin = t; break; }
                   }
                 }
-                const maxDurMin = Math.max(settings.snapMin || 30, Math.min(resizeLimitMin - startMin, effectiveWorkEnd * 60 - startMin));
+                const maxDurMin = Math.max(settings.snapMin || 30, Math.min(resizeLimitMin - startMin, weMinAbs - startMin));
                 const isBeingResized = freeResizePreview && freeResizePreview.dateStr===dateStrCol && freeResizePreview.time===time;
                 const displayHeightMin = isBeingResized ? freeResizePreview.newDur : slotHeightMin;
                 return (
                   <div key={`os-${time}`}
+                    onContextMenu={e=>{
+                      e.preventDefault();
+                      if (!isMouseContext(e) || isPastDay || scheduleLocked) return;
+                      clearTimeout(slotHoldTimerRef.current); slotPressRef.current = null;
+                      setSlotOptions({ dateStr: dateStrCol, time, startTime: time, slot });
+                    }}
                     onPointerDown={e=>{
+                      if (e.button > 0) return; // права кнопка відкриває меню через onContextMenu, а не запускає перетягування
                       // isClosedDay НЕ блокує тут: слот, який реально існує на
                       // закритому дні (адмін відкрив вручну через довгий тап →
                       // "Вільний слот"), має лишатись керованим — інакше його
@@ -3429,13 +3641,13 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                           position:"absolute", top:6, left:-11, width:56, textAlign:"center",
                           transform:"rotate(-45deg)",
                           background:"rgba(74,222,128,0.95)", color:"#062910",
-                          fontSize:10, fontWeight:800, lineHeight:1.5,
+                          fontSize:8, fontWeight:800, lineHeight:1.5,
                           boxShadow:"0 1px 3px rgba(0,0,0,0.3)",
                         }}>{slot.fixedPrice}₴</div>
                       </div>
-                    ) : hasSurcharge && <span style={{position:"absolute", top:3, left:4, fontSize:10, fontWeight:800, color:"rgba(247,201,72,0.95)", lineHeight:1}}>+{slot.surcharge}₴</span>}
-                    {(isVip || slot.vipOnly) && <span style={{position:"absolute", top:3, right:4, fontSize:10, lineHeight:1}}>👑</span>}
-                    {isPrivateOnly && <span style={{position:"absolute", top:3, right:4, fontSize:10, lineHeight:1}}>🚗</span>}
+                    ) : hasSurcharge && <span style={{position:"absolute", top:3, left:4, fontSize:9, fontWeight:800, color:"rgba(247,201,72,0.95)", lineHeight:1}}>+{slot.surcharge}₴</span>}
+                    {(isVip || slot.vipOnly) && <span data-help="freeicons" style={{position:"absolute", top:3, right:4, fontSize:10, lineHeight:1}}>👑</span>}
+                    {isPrivateOnly && <span data-help="freeicons" style={{position:"absolute", top:3, right:4, fontSize:10, lineHeight:1}}>🚗</span>}
 
                     {settings.showSlotTimes !== false && (slot.available || isVip || isBlocked || isPrivateOnly) && (() => {
                       // Час початку/кінця вільного слота — великий, білий і напівпрозорий
@@ -3455,9 +3667,9 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                         </div>
                       );
                     })()}
-                    {hasViewer && <span style={{position:"absolute", bottom:3, right:4, fontSize:10, lineHeight:1, opacity:0.8}}>👁</span>}
+                    {hasViewer && <span data-help="eye" style={{position:"absolute", bottom:3, right:4, fontSize:8, lineHeight:1, opacity:0.8}}>👁</span>}
                     {isBlocked && (() => { const qc = queueMap[`${dateStrCol}_${time}`]; return qc > 0 ? (
-                      <div style={{position:"absolute", bottom:2, right:4, display:"flex", alignItems:"center", gap:1}}>
+                      <div data-help="queue" style={{position:"absolute", bottom:2, right:4, display:"flex", alignItems:"center", gap:1}}>
                         <svg width="8" height="8" viewBox="0 0 24 24" fill={GOLD}><circle cx="12" cy="7" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
                         <span style={{fontSize:7, fontWeight:800, color:GOLD, lineHeight:1}}>{qc}</span>
                       </div>
@@ -3544,11 +3756,13 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
             })()}
 
               {/* 30-min grid lines */}
-              {Array.from({length:(effectiveWorkEnd-effectiveWorkStart)*2-1},(_,i)=>{
-                const isHour=(i+1)%2===0;
+              {Array.from({length:Math.max(0, Math.ceil(weMinAbs/30) - Math.floor(wsMinAbs/30) - 1)},(_,i)=>{
+                const absMin = (Math.floor(wsMinAbs/30) + 1 + i) * 30;
+                if (absMin <= wsMinAbs || absMin >= weMinAbs) return null;
+                const isHour = absMin % 60 === 0;
                 return <div key={i} style={{
                   position:"absolute",left:0,right:0,
-                  top:(i+1)*30*PX_PER_MIN,
+                  top:(absMin - wsMinAbs)*PX_PER_MIN,
                   height:1,
                   background:isHour ? GRID_H : GRID_HH
                 }}/>;
@@ -3561,8 +3775,8 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                   top:minToPx(colLunch.start*60), left:0, right:0,
                   height:(colLunch.end - colLunch.start)*60*PX_PER_MIN,
                   background: isLight ? `repeating-linear-gradient(135deg, transparent, transparent 6px, rgba(0,0,0,0.05) 6px, rgba(0,0,0,0.05) 12px)` : `repeating-linear-gradient(135deg, transparent, transparent 6px, rgba(255,255,255,0.04) 6px, rgba(255,255,255,0.04) 12px)`,
-                  border:`2px solid #1d4ed8`,
-                  borderRadius:8, pointerEvents:"none",
+                  border: neonCal && !isLight ? "1px solid rgba(96,165,250,0.45)" : `2px solid #1d4ed8`,
+                  borderRadius: neonCal ? 12 : 8, pointerEvents:"none",
                   display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:3,
                 }}>
                   <span style={{fontSize:7,fontWeight:700,color:TEXT_FAINT,letterSpacing:0.5,textTransform:"uppercase"}}>обід</span>
@@ -3575,7 +3789,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                 if (s && !s.adminBlocked) return false;
                 const [h, m] = time.split(":").map(Number);
                 const sm = h * 60 + m;
-                return sm >= effectiveWorkStart * 60 && sm < effectiveWorkEnd * 60;
+                return sm >= wsMinAbs && sm < weMinAbs;
               }).map(time => {
                 const [h, m] = time.split(":").map(Number);
                 const topPx = minToPx(h * 60 + m);
@@ -3589,7 +3803,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                     display:"flex", alignItems:"center", paddingLeft:5,
                     gap:3,
                   }}>
-                    <span style={{fontSize:10, color:"rgba(247,201,72,0.7)", fontWeight:700, letterSpacing:0.5}}>👁 {time}</span>
+                    <span style={{fontSize:8, color:"rgba(247,201,72,0.7)", fontWeight:700, letterSpacing:0.5}}>👁 {time}</span>
                   </div>
                 );
               })}
@@ -3597,16 +3811,19 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
               {/* Bookings */}
               {(bookingsByDay.get(absDay) || EMPTY_LIST).map(origB=>{
                 if (origB.status === "cancelled") return null;
-                // Сусідній (без розриву) запис того ж учня — "поглинутий" сусідньою карткою, не рендеримо окремо.
+                // Сусідній (без розриву) запис того ж клієнта — "поглинутий" сусідньою карткою, не рендеримо окремо.
                 const mi = mergeInfoMap[origB.id];
                 if (mi?.hidden) return null;
+                const gi = groupMap[origB.id];
+                if (gi?.hidden) return null;
                 // Для першого запису об'єднаної групи — синтетична копія лише для геометрії/ціни картки
                 // (клік відкриває деталі саме origB, щоб модалка й дії лишались "чесними" для одного запису).
-                const b = mi?.mergedIds?.length
+                const b0 = mi?.mergedIds?.length
                   ? { ...origB, durMin: mi.mergedDurMin, _mergedIds: mi.mergedIds, _mergedPrice: mi.mergedPrice }
                   : origB;
-                const wsMin = effectiveWorkStart * 60;
-                const weMin = effectiveWorkEnd * 60;
+                const b = gi?.rep ? { ...b0, name: `👥 ${gi.members.length}/${origB.groupCap || "?"} · ${origB.name}` } : b0;
+                const wsMin = wsMinAbs;
+                const weMin = weMinAbs;
                 if (b.startMin >= weMin || b.startMin + b.durMin <= wsMin) return null;
                 const visStart = Math.max(b.startMin, wsMin);
                 const visEnd   = Math.min(b.startMin + b.durMin, weMin);
@@ -3630,7 +3847,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                 const isDimmed = !isBlock && !isVipSlot && !isPersonal && (b.status==="noshow" || isCancelling || isLockedPast);
                 const price = b._mergedPrice != null ? b._mergedPrice : computeBookingPrice(b, settings.services);
                 // Геометрія верху картки: бейдж-мітка → час → текст. Час стоїть ПІД бейджем,
-                // а текст починається ПІД часом — раніше на картках з міткою ("1-й урок",
+                // а текст починається ПІД часом — раніше на картках з міткою ("1-й запис",
                 // "Борг"...) час перекривав першу строку імені. Висоти рахуємо з тих самих
                 // розмірів, що й у бейджа (tagFs/відступи), тож на широких колонках теж без накладання.
                 const _hasTag = !isBlock && !isVipSlot && !isPersonal && height >= 14 && !!effectiveTag(b);
@@ -3647,16 +3864,16 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                 const textTop = _tagRoomy ? _textTopTagged : 11;
                 return (
                   /* Обгортка — overflow:visible щоб значок не обрізався */
-                  <div key={b.id} style={{
+                  <div key={b.id} className="cal-slot-wrap" style={{
                     position:"absolute", top:top+1, left:0, right:0,
                     height:height-2, overflow:"visible",
                     zIndex: dragId===b.id?10:2,
                     background: BG_DEEP,
                     borderRadius: 8,
                   }}>
-                    {/* Мітка (іспит/перевірка/1-й урок/борг/повтор) — бейдж-пігулка у
+                    {/* Мітка (іспит/перевірка/1-й запис/борг/повтор) — бейдж-пігулка у
                         верхньому правому куті картки, під кутом (як цінник на маркерах карт).
-                        Автоматична (за порядком уроку/сумою боргу), поки не змінена вручну.
+                        Автоматична (за порядком запису/сумою боргу), поки не змінена вручну.
                         Розмір шрифту/відступів і сама наявність тексту (проти лише іконки)
                         масштабуються під ширину колонки, щоб охайно виглядало і на
                         вузьких мобільних колонках, і на широких десктопних. */}
@@ -3690,8 +3907,8 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                     <div
                       className={`slot-base ${(isBlock||isPersonal)?"":"slot-colored"} ${!isBlock&&!isPersonal&&isPending?"slot-pending-ring":""} ${!isBlock&&!isPersonal&&holdId===b.id?"slot-holding":""} ${!isBlock&&!isPersonal&&shineId===b.id&&!isDimmed?"shine-active":""}`}
                       onPointerDown={e=>{
-                        if (isLockedPast) {
-                          // Заблокований минулий запис — редагування/перенесення заборонено,
+                        if (isLockedPast || gi?.rep) {
+                          // Заблокований минулий запис (і групова картка: групу не тягнемо — учасників переносять поодинці) — редагування/перенесення заборонено,
                           // але свайп по картці все одно мусить гортати дні (як і по
                           // порожньому місцю), інакше день з минулими уроками "мертвий"
                           // для свайпу. Той самий шлях, що й для scheduleLocked.
@@ -3701,7 +3918,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                         }
                         onPointerDown(e,b,"move");
                       }}
-                      onContextMenu={e=>e.preventDefault()}
+                      onContextMenu={e=>{ e.preventDefault(); if (isMouseContext(e)) e.currentTarget.click(); }}
                       onClick={e=>{
                         e.stopPropagation();
                         if(xJustShownRef.current){ xJustShownRef.current=false; return; }
@@ -3801,19 +4018,19 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                       {!isBlock && !isVipSlot && !isPersonal && height >= 12 && (() => {
                         const [fName, ...lParts] = b.name.split(' ');
                         const lName = lParts.join(' ');
-                        const si = a => `rgba(${INK === "255,255,255" ? "0,0,0" : INK},${a})`;
+                        const si = a => `rgba(${neonCal && !isLight ? "255,255,255" : INK === "255,255,255" ? "0,0,0" : INK},${a})`;
                         const priceColor = b.surcharge ? GOLD : si(0.9);
                         const priceText = price > 0 ? `${price}₴` : null;
-                        const typeLabel = b.type==="school" ? "Автошкола" : "Приватний";
+                        const typeLabel = b.cardLabel || (b.type==="school" ? "Стандарт" : "Індивідуальний"); // cardLabel — лише демо-пресети (назва послуги)
                         const allLines = [
                           { text: fName,     w: 800, c: si(0.95) },
                           ...(lName          ? [{ text: lName,     w: 700, c: si(0.80) }] : []),
                           { text: typeLabel, w: 600, c: si(0.58) },
                           ...(priceText      ? [{ text: priceText, w: 900, c: priceColor, shadow: !!b.surcharge }] : []),
                         ];
-                        // Верхні 9px зарезервовані під час старту уроку (праворуч зверху) —
+                        // Верхні 9px зарезервовані під час старту запису (праворуч зверху) —
                         // інакше прізвище/ім'я могли заходити під нього при малому зумі.
-                        const availH = height - textTop - 4;
+                        const availH = height - textTop - 4 - (queueCount > 0 ? 11 : 0); // знизу-ліворуч — бейдж черги
                         const availW = COL_W - 8;
                         const maxLinesByH = Math.max(1, Math.floor(availH / 10));
                         const maxLinesByW = COL_W < 44 ? 2 : COL_W < 58 ? 3 : 4;
@@ -3827,7 +4044,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                         const fs = Math.min(11, fsByW, fsByH);
                         return (
                           <div style={{
-                            position:"absolute", top:textTop, left:2, right:2, bottom:2,
+                            position:"absolute", top:textTop, left:2, right:2, bottom: queueCount > 0 ? 13 : 2,
                             display:"flex", flexDirection:"column", justifyContent:"center",
                             alignItems:"center", gap:1,
                             overflow:"hidden", zIndex:2,
@@ -3846,7 +4063,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                           </div>
                         );
                       })()}
-                      {/* № уроку — кумулятивні години учня на момент цього уроку */}
+                      {/* № запису — кумулятивні години клієнта на момент цього запису */}
                       {!isBlock && !isVipSlot && !isPersonal && cumulativeHoursMap[b.id] != null && height >= 20 && (
                         <div style={{
                           position:"absolute", top:2, left:2, zIndex:4,
@@ -3858,21 +4075,21 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                           pointerEvents:"none",
                         }}>{cumulativeHoursMap[b.id]}</div>
                       )}
-                      {/* Час початку уроку — праворуч зверху. Опущено нижче, якщо на картці
+                      {/* Час початку запису — праворуч зверху. Опущено нижче, якщо на картці
                           є мітка (бейдж-пігулка), щоб час не перекривався нею. */}
                       {!isBlock && !isVipSlot && !isPersonal && height >= 14 && showTime && (
                         <div style={{
                           position:"absolute", top:timeTop, right:3, zIndex:4,
                           fontSize:_timeFs,
-                          fontWeight:800, lineHeight:1, color:"rgba(0,0,0,0.8)",
+                          fontWeight:800, lineHeight:1, color: neonCal && !isLight ? "rgba(255,255,255,0.92)" : "rgba(0,0,0,0.8)",
                           pointerEvents:"none",
-                          textShadow:"0 0 3px rgba(255,255,255,0.9), 0 0 1px rgba(255,255,255,0.9)",
+                          textShadow: neonCal && !isLight ? "none" : "0 0 3px rgba(255,255,255,0.9), 0 0 1px rgba(255,255,255,0.9)",
                         }}>{b.time || fmtTime(b.startMin)}</div>
                       )}
                       {/* VIP crown badge for regular bookings marked as VIP — ліворуч зверху,
-                          трохи правіше кружечка з к-стю уроків, щоб не перекривались */}
+                          трохи правіше кружечка з к-стю записів, щоб не перекривались */}
                       {b.isVipOnly && !isVipSlot && height >= 14 && (
-                        <div style={{
+                        <div data-help="crown" style={{
                           position:"absolute", top:1, left: cumulativeHoursMap[b.id] != null && height >= 20 ? 13 : 2, zIndex:4,
                           fontSize:Math.min(11, Math.max(7, height/7)),
                           lineHeight:1, pointerEvents:"none",
@@ -3883,14 +4100,14 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                       {isPersonal && b.reminderHours && height >= 14 && (
                         <div style={{
                           position:"absolute", top:3, right:3, zIndex:4,
-                          fontSize:10, lineHeight:1,
+                          fontSize:9, lineHeight:1,
                           filter:`drop-shadow(0 1px 2px ${shade(0.6)})`,
                           pointerEvents:"none",
                         }}>🔔</div>
                       )}
                       {/* Queue badge */}
                       {queueCount > 0 && !isBlock && !isVipSlot && height >= 14 && (
-                        <div style={{
+                        <div data-help="queue" style={{
                           position:"absolute", bottom:3, left:3, zIndex:4,
                           background:`${shade(0.55)}`, borderRadius:5,
                           padding:"1px 4px", display:"flex", alignItems:"center", gap:2,
@@ -3900,11 +4117,17 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                           <span style={{fontSize:7, fontWeight:800, color:GOLD, lineHeight:1}}>{queueCount}</span>
                         </div>
                       )}
-                      {/* Кутик "є нотатка від учня" — низ-право, єдиний вільний
+                      {/* Кутик "є нотатка від клієнта" — низ-право, єдиний вільний
                           кут картки (верхній зайнятий часом/лічильником/короною,
                           нижньо-лівий — бейджем черги) */}
                       {b.studentNote && !isBlock && !isVipSlot && !isPersonal && height >= 14 && (
-                        <div style={{
+                        <>
+                        <div className="note-corner-halo" style={{
+                          position:"absolute", bottom:0, right:0, zIndex:3, width:24, height:24,
+                          background:"radial-gradient(circle at 100% 100%, rgba(255,255,255,0.98) 0%, rgba(255,244,190,0.7) 30%, rgba(255,244,190,0) 72%)",
+                          pointerEvents:"none",
+                        }}/>
+                        <div className="note-corner-glow" style={{
                           position:"absolute", bottom:0, right:0, zIndex:4,
                           width:0, height:0,
                           borderStyle:"solid", borderWidth:"0 0 9px 9px",
@@ -3913,6 +4136,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                           filter:`drop-shadow(-1px -1px 2px ${shade(0.35)})`,
                           pointerEvents:"none",
                         }}/>
+                        </>
                       )}
                       {!b._mergedIds && !isLockedPast && <div className="slot-handle bottom" style={{height:handleH}} onPointerDown={e=>onPointerDown(e,b,"bottom")}/>}
 
@@ -3938,8 +4162,8 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                           // Звільняємо слоти за єдиними правилами (phantom видаляється,
                           // справжні повертаються як були) — раніше ВСІ позиції, включно
                           // з проміжними phantom, ставали окремими 30-хв слотами.
-                          if (b.startMin !== undefined && b.durMin) {
-                            restoreSlotRange(b.date || absDayToDateStr(b.day), b.startMin, b.durMin).catch(()=>{});
+                          if (b.startMin !== undefined && b.durMin && !b.groupKey) {
+                            restoreSlotRange(b.date || absDayToDateStr(b.day), b.startMin, b.durMin + bufferOf(b)).catch(()=>{});
                           }
                           // Починаємо 2с відлік — затемнення → видалення
                           setCancellingSet(s=>new Set([...s, b.id, ...(b._mergedIds || [])]));
@@ -3977,7 +4201,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                   .reduce((s,b)=>s+computeBookingPrice(b, settings.services||[]),0);
                 if (daySum<=0) return null;
                 return (
-                  <div style={{
+                  <div data-help="daysum" style={{
                     // zIndex нижче за картки запису (zIndex:2, рядок ~2653) — щоб
                     // плашка суми лежала ПІД записами, а не ховала їх текст/ціну
                     // при скролі вниз, і показувалась лише над порожнім фоном.
@@ -4004,7 +4228,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
 
       {/* TODAY BUTTON */}
       {todayDir && (
-        <button
+        <button data-help="todayarrow"
           onClick={()=>{
             const el = gridRef.current;
             const cw = calcRef.current.COL_W;
@@ -4034,13 +4258,49 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
           {todayDir==="right" && <svg width="14" height="14" viewBox="0 0 10 10"><path d="M3 1l4 4-4 4" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none"/></svg>}
         </button>
       )}
+      {/* Велика кнопка «?» поверх календаря: 30% висоти екрана зверху, 10% ширини справа. Вимикається в Налаштуваннях → Робочий графік */}
+      {settings.showHelpBtn !== false && createPortal(
+        <button
+          onClick={()=>{ if (helpDrag.current?.moved) { helpDrag.current = null; return; } setHelpOpen(true); }}
+          onPointerDown={e=>{
+            const r = e.currentTarget.getBoundingClientRect();
+            helpDrag.current = { dx:e.clientX - r.left, dy:e.clientY - r.top, sx:e.clientX, sy:e.clientY, moved:false };
+            try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* ignore */ }
+          }}
+          onPointerMove={e=>{
+            const d = helpDrag.current; if (!d) return;
+            if (!d.moved && Math.hypot(e.clientX - d.sx, e.clientY - d.sy) < 6) return;
+            d.moved = true;
+            setHelpPos({ x:Math.min(Math.max(0, e.clientX - d.dx), window.innerWidth - 46), y:Math.min(Math.max(0, e.clientY - d.dy), window.innerHeight - 46) });
+          }}
+          onPointerUp={()=>{
+            if (helpDrag.current?.moved && helpPos) { try { localStorage.setItem("helpBtnPos", JSON.stringify(helpPos)); } catch { /* ignore */ } }
+            if (!helpDrag.current?.moved) helpDrag.current = null; // перетягування: прапорець moved гасить наступний click
+          }}
+          onPointerCancel={()=>{ helpDrag.current = null; }}
+          title="Підказки по розкладу. Утримуйте і перетягніть, щоб перемістити" aria-label="Підказки по розкладу" style={{
+          position:"fixed", zIndex:60,
+          left:Math.min(Math.max(0, helpPos ? helpPos.x : window.innerWidth*0.9 - 46), window.innerWidth - 46),
+          top:Math.min(Math.max(0, helpPos ? helpPos.y : window.innerHeight*0.3), window.innerHeight - 46),
+          touchAction:"none", userSelect:"none", WebkitUserSelect:"none", WebkitTouchCallout:"none",
+          width:46, height:46, borderRadius:"50%", cursor:"grab", fontFamily:"inherit",
+          border:"1.5px solid rgba(255,255,255,0.45)",
+          background:"linear-gradient(145deg,#d8b4fe 0%,#a855f7 45%,#6d28d9 100%)",
+          color:"#fff", fontSize:24, fontWeight:900, lineHeight:1, padding:0,
+          display:"flex", alignItems:"center", justifyContent:"center",
+          boxShadow:"0 6px 18px rgba(168,85,247,0.6), inset 0 1px 0 rgba(255,255,255,0.5)",
+          textShadow:"0 1px 3px rgba(0,0,0,0.4)",
+        }}>?</button>,
+        document.getElementById("app-shell") || document.body
+      )}
+      {helpOpen && <ScheduleHelp onClose={()=>setHelpOpen(false)} onPick={key=>{ setHelpOpen(false); setTimeout(()=>highlightHelp(key), 280); }}/>}
       </div>{/* /outer flex */}
 
     </Card>
 
     {/* Кнопка «📅 Місячний календар» — портується в шапку (по центру, замість лого; ключик — тепер у стовпці часу) */}
     {keyPortalEl && createPortal(
-      <button
+      <button data-help="monthcal"
         onClick={openMonthCal}
         title="Місячний календар"
         style={{
@@ -4063,7 +4323,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
       />
     )}
 
-    <BookingModal booking={localSelectedBooking} onClose={()=>setLocalSelectedBooking(null)}
+    <BookingModalFog booking={localSelectedBooking ? (bookings.find(x=>x.id===localSelectedBooking.id) || localSelectedBooking) : null} onClose={()=>setLocalSelectedBooking(null)}
       onAction={handleAction} settings={settings} bookings={bookings} onViewStudent={onViewStudent}
       autoTag={localSelectedBooking ? getAutoTag(localSelectedBooking) : null}
       mergeInfo={(() => {
@@ -4164,7 +4424,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
           position:"absolute",
           top: Math.max(60, Math.min(addSlotPos.clientY - 50, window.innerHeight - 110)),
           left: Math.max(10, Math.min(addSlotPos.clientX - 10, window.innerWidth - 180)),
-          width:168, maxWidth:"calc(100vw - 24px)",
+          width:168,
           background:`linear-gradient(135deg,${SURFACE},${BG_DEEP})`,
           borderRadius:14, padding:"10px 12px",
           boxShadow:"0 8px 32px rgba(0,0,0,0.65),inset 1px 1px 0 rgba(255,255,255,0.08)",
@@ -4176,7 +4436,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
           <button onClick={()=>{
             const hh = String(Math.floor(addSlotPos.startMin/60)).padStart(2,'0');
             const mm = String(addSlotPos.startMin%60).padStart(2,'0');
-            update(iRef( `timeslots/${addSlotPos.dateStr}/slot${hh}${mm}`), {
+            update(iRef( `${slotRoot()}/${addSlotPos.dateStr}/slot${hh}${mm}`), {
               available: true, time: `${hh}:${mm}`, lunchOverride: true // ручне відкриття: клієнт не ховає слот фільтром обіду/шаблону
             }).catch(()=>{});
             setAddSlotPos(null);
@@ -4196,7 +4456,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
           position:"absolute",
           top: Math.max(60, Math.min(bubbleData.clientY - 50, window.innerHeight - 120)),
           left: Math.max(10, Math.min(bubbleData.clientX - 10, window.innerWidth - 180)),
-          width:168, maxWidth:"calc(100vw - 24px)",
+          width:168,
           background:`linear-gradient(135deg,${SURFACE},${BG_DEEP})`,
           borderRadius:14, padding:"10px 12px",
           boxShadow:`0 8px 32px ${shade(0.65)},inset 1px 1px 0 ${glow(0.08)}`,
@@ -4213,7 +4473,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
             background:`linear-gradient(165deg,#f59e0b,#d97706)`,
             color:"#fff",fontSize:12,fontWeight:800,
             boxShadow:`0 4px 12px rgba(245,158,11,0.4)`,
-          }}>👤 Записати учня</button>
+          }}>👤 Записати клієнта</button>
           <button onClick={()=>{
             const sh = String(Math.floor(bubbleData.startMin/60)).padStart(2,'0');
             const sn = String(bubbleData.startMin%60).padStart(2,'0');
@@ -4251,8 +4511,11 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
           @keyframes _ltm-sc-c{from{transform:translate(0,0) scale(1);opacity:1}to{transform:translate(0,-90px) scale(0.3);opacity:0}}
           @keyframes _ltm-sc-r{from{transform:translate(0,0) rotate(0);opacity:1}to{transform:translate(180px,70px) rotate(22deg);opacity:0}}
           @keyframes _ltm-sc-chips{from{transform:translateY(0);opacity:1}to{transform:translateY(-50px);opacity:0}}
+          .ltm-btns{display:flex;gap:10px}
+          .ltm-btns>button{min-width:0}
+          @media (max-width:379px){.ltm-btns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}}
         `}</style>
-        <div onClick={_anyClose ? undefined : _closeLtm} style={{
+        <div onClick={_anyClose ? undefined : ()=>{ if (Date.now() - overlayOpenedAtRef.current < 700) return; _closeLtm(); }} style={{
           position:"fixed",inset:0,zIndex:200,
           background:`${shade(0.55)}`,
           display:"flex",alignItems:"flex-end",
@@ -4290,8 +4553,8 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
             {!ltmClosing && <div style={{marginBottom:16,
               ...(ltmScatter ? {animation:`_ltm-sc-chips 0.25s ease-in forwards`} : {}),
             }}>
-              <div style={{fontSize:11,color:TEXT_FAINT,fontWeight:600,marginBottom:8}}>{_ltmLabel}</div>
-              <div style={{display:"flex",gap:4,alignItems:"center"}}>
+              <div style={{fontSize:11,color:TEXT_DIM,fontWeight:600,marginBottom:8}}>{_ltmLabel}</div>
+              <div style={{display:"flex",gap:4,alignItems:"stretch"}}>
                 {[-60,-30,0,30,60].map(delta=>{
                   const _cm = _menu.startMin + delta;
                   if (_cm < 0 || _cm > 23*60+30) return null;
@@ -4300,7 +4563,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                     <button key={delta} onClick={()=>setLongTapMenu(prev=>({...prev,selectedMin:_cm}))} style={{
                       flex:1,padding:"8px 2px",borderRadius:20,cursor:"pointer",fontFamily:"inherit",
                       background: _isActive ? ink(0.14) : "transparent",
-                      color: _isActive ? TEXT : TEXT_FAINT,
+                      color: _isActive ? TEXT : TEXT_DIM,
                       fontSize: _isActive ? 18 : 13,
                       fontWeight: _isActive ? 900 : 500,
                       letterSpacing: _isActive ? 0.3 : 0,
@@ -4315,7 +4578,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
               </div>
             </div>}
             {/* buttons row */}
-            {!ltmClosing && <div style={{display:"flex",gap:10}}>
+            {!ltmClosing && <div className="ltm-btns">
               {/* "Вільний слот" доступна і на закритому дні — адмін може вручну
                   відкрити окремий слот, не відкриваючи весь день: клієнт бачить
                   слоти напряму з timeslots/{date} незалежно від статусу дня. */}
@@ -4327,7 +4590,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                   // цей слот своїм окремим фільтром обідньої перерви (він
                   // фільтрує за часом незалежно від того, чи слот реально
                   // існує в базі) — адмін відкрив його вручну саме на цей час.
-                  update(iRef( `timeslots/${_menu.dateStr}/slot${_hh}${_mm}`), { available: true, time: `${_hh}:${_mm}`, lunchOverride: true }).catch(()=>{});
+                  update(iRef( `${slotRoot()}/${_menu.dateStr}/slot${_hh}${_mm}`), { available: true, time: `${_hh}:${_mm}`, lunchOverride: true }).catch(()=>{});
                   _closeLtm();
                 }} style={{
                   flex:1,padding:"16px 8px",borderRadius:16,border:"none",cursor:"pointer",fontFamily:"inherit",
@@ -4408,7 +4671,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
           @keyframes _so-bg-in{from{opacity:0}to{opacity:1}}
           @keyframes _so-bg-out{from{opacity:1}to{opacity:0}}
         `}</style>
-        <div onClick={slotClosing ? undefined : _closeSO} style={{
+        <div onClick={slotClosing ? undefined : ()=>{ if (Date.now() - overlayOpenedAtRef.current < 700) return; _closeSO(); }} style={{
           position:"fixed",inset:0,zIndex:200,
           background:`${shade(0.55)}`,
           display:"flex",alignItems:"flex-end",justifyContent:"center",
@@ -4460,7 +4723,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                     <button key={delta} onClick={()=>setSlotOptions(prev=>({...prev, selectedMin:_cm}))} style={{
                       flex:1,padding:"8px 2px",borderRadius:20,cursor:"pointer",fontFamily:"inherit",
                       background: _isActive ? ink(0.14) : "transparent",
-                      color: _isActive ? TEXT : TEXT_FAINT,
+                      color: _isActive ? TEXT : TEXT_DIM,
                       fontSize: _isActive ? 18 : 13,
                       fontWeight: _isActive ? 900 : 500,
                       border: _isActive ? `1px solid ${ink(0.22)}` : `1px solid ${ink(0.07)}`,
@@ -4502,7 +4765,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
               }}>
                 <span>📌</span> Особиста подія
               </button>
-              {/* Розіслати учням */}
+              {/* Розіслати клієнтам */}
               <button onClick={()=>{
                 setBroadcastInit({ date: _so.dateStr, slot: fmtTime(_soSelMin) });
                 setSlotOptions(null);
@@ -4512,7 +4775,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                 color:"#818cf8",fontSize:15,fontWeight:700,
                 display:"flex",alignItems:"center",gap:10,
               }}>
-                <span>📣</span> Розіслати учням
+                <span>📣</span> Розіслати клієнтам
               </button>
               {/* VIP слот */}
               <button onClick={()=>applySlotOption(_so.dateStr, fmtTime(_soSelMin), "vip")} style={{
@@ -4524,14 +4787,14 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                 <span>👑</span> VIP слот
                 {_so.slot?.vipOnly && <span style={{marginLeft:"auto",fontSize:11,color:"#c084fc",opacity:0.7}}>✓ активний</span>}
               </button>
-              {/* Приватний слот */}
+              {/* Індивідуальний слот */}
               <button onClick={()=>applySlotOption(_so.dateStr, fmtTime(_soSelMin), "private")} style={{
                 width:"100%",padding:"13px 14px",border:"none",cursor:"pointer",
                 background:"rgba(234,179,8,0.09)",borderRadius:12,
                 color:"#eab308",fontSize:15,fontWeight:700,
                 display:"flex",alignItems:"center",gap:10,
               }}>
-                <span>🚗</span> Приватний слот
+                <span>🚗</span> Індивідуальний слот
                 {_so.slot?.privateOnly && <span style={{marginLeft:"auto",fontSize:11,color:"#eab308",opacity:0.7}}>✓ активний</span>}
               </button>
               {/* Фіксована ціна — повністю замінює тарифну ціну послуги для цього слота */}
@@ -4582,7 +4845,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
               </button>
               {surchargeEditing && (
                 <div style={{display:"flex",gap:6,padding:"2px 2px 6px"}}>
-                  {(settings.surcharges?.length ? settings.surcharges : [100,200,300]).map(amt=>{
+                  {(settings.surcharges || []).map(amt=>{
                     const _isActive = _so.slot?.surcharge === amt;
                     return (
                       <button key={amt} onClick={()=>{ applySlotOption(_so.dateStr, fmtTime(_soSelMin), amt); setSurchargeEditing(false); }} style={{
@@ -4700,7 +4963,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                       {getDayInfo(vipSlotModal.day).fullLabel} · {fmtTime(vipSlotModal.startMin)} · {fmtDur(vipSlotModal.durMin)}
                     </div>
                     <div style={{fontSize:11,color:TEXT_FAINT,marginTop:4}}>
-                      Тільки для учнів категорії VIP
+                      Тільки для клієнтів категорії VIP
                     </div>
                   </div>
                 </div>
@@ -4711,7 +4974,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                   const dateStr = v._dateStr || absDayToDateStr(v.day);
                   const hh = String(Math.floor(v.startMin / 60)).padStart(2, "0");
                   const mm = String(v.startMin % 60).padStart(2, "0");
-                  update(iRef( `timeslots/${dateStr}/slot${hh}${mm}`), { vipOnly: false }).catch(() => {});
+                  update(iRef( `${slotRoot()}/${dateStr}/slot${hh}${mm}`), { vipOnly: false }).catch(() => {});
                   _closeVip();
                 }} style={{
                   width:"100%",padding:"14px",borderRadius:18,border:"none",cursor:"pointer",
@@ -4731,7 +4994,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
       );
     })()}
 
-    <NewBookingModal data={formData} onClose={()=>setFormData(null)}
+    <NewBookingModalFog data={formData} onClose={()=>setFormData(null)}
       onConfirm={b=>{
         if (b.id) {
           const fbData = {
@@ -4741,7 +5004,12 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
             serviceId: b.serviceId, serviceType: b.type, type: b.type,
             status: b.status, hours: b.hoursDone || 0,
             createdAt: Date.now(), createdBy: "admin",
+            ...newBookingMasterFields(),
             ...(b.note && { note: b.note }),
+            ...(b.addons?.length && { addons: b.addons, addonsPrice: b.addonsPrice || 0 }),
+            ...(b.bufferMin > 0 && { bufferMin: b.bufferMin }),
+            ...(b.packageId && { packageId: b.packageId, packageName: b.packageName || "" }),
+            ...(b.groupKey && { groupKey: b.groupKey, groupCap: b.groupCap || null }),
           };
           if (b.userId) {
             update(iRef( `bookings/${b.userId}/${b.id}`), fbData).catch(()=>{});
@@ -4754,8 +5022,8 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
             const phone = (b.phone || '').replace(/\D/g, '');
             if (phone) {
               update(iRef( `bookings/guest_${phone}/${b.id}`), fbData).catch(()=>{});
-              // Дзеркалимо у users/, звідки читається вкладка "Учні" — інакше
-              // гість видно тільки в розкладі/бронюваннях, а не в списку учнів.
+              // Дзеркалимо у users/, звідки читається вкладка "Клієнти" — інакше
+              // гість видно тільки в розкладі/бронюваннях, а не в списку клієнтів.
               const studentRef = iRef( `users/guest_${phone}`);
               get(studentRef).then(s => {
                 if (s.exists()) {
@@ -4777,7 +5045,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
           // інакше після скасування вони лишались би окремими 30-хв слотами.
           // bookingStart — явний прапорець реального старту бронювання: клієнт
           // показує лише його, а не кожен 30-хвилинний блок.
-          blockSlotRange(b.date, b.startMin, b.durMin, { bookingStart: true }).catch(() => {});
+          blockSlotRange(b.date, b.startMin, b.durMin, { bookingStart: true, bufferMin: bufferOf(b) }).catch(() => {});
         }
         setFormData(null);
       }}
@@ -4797,6 +5065,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
           type: "personal", status: "personal",
           reminderHours: b.reminderHours || null, reminderSent: false,
           createdAt: Date.now(), createdBy: "admin",
+          ...newBookingMasterFields(),
         };
         update(iRef( `bookings/personal/${b.id}`), fbData).catch(() => {});
         blockPersonalSlots(b.date, b.startMin, b.durMin);
@@ -4813,7 +5082,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
         backdropFilter:"blur(8px)",
       }}>
         <div onClick={e=>e.stopPropagation()} style={{
-          width:300, maxWidth:"calc(100vw - 24px)",background:BG_DEEP,
+          width:300,background:BG_DEEP,
           borderRadius:20,overflow:"hidden",
           boxShadow:`0 8px 40px ${shade(0.7)}, 0 0 0 1.5px rgba(45,212,191,0.3)`,
         }}>
@@ -5006,7 +5275,7 @@ function CreateSlotSheet({ data, settings, onClose }) {
   const slotStep = settings.slotCreateStep || 30;
   const timeItems = useMemo(() => {
     const arr = [];
-    for (let m = settings.workStart * 60; m < settings.workEnd * 60; m += slotStep)
+    for (let m = Math.round(settings.workStart * 60); m < Math.round(settings.workEnd * 60); m += slotStep)
       arr.push({ label: fmtTime(m), value: m });
     return arr;
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -5027,6 +5296,7 @@ function CreateSlotSheet({ data, settings, onClose }) {
 
   const day = getDayInfo(data.day);
   const _close = () => setClosing(true);
+  useBackClose(true, _close); // системна «назад» закриває вікно, а не застосунок
 
   const handleCreate = async () => {
     setSaving(true);
@@ -5039,8 +5309,8 @@ function CreateSlotSheet({ data, settings, onClose }) {
       const h = String(Math.floor(m / 60)).padStart(2, '0');
       const mn = String(m % 60).padStart(2, '0');
       const id = `slot${h}${mn}`;
-      updates[`timeslots/${dateStr}/${id}/time`] = `${h}:${mn}`;
-      updates[`timeslots/${dateStr}/${id}/available`] = true;
+      updates[`${slotRoot()}/${dateStr}/${id}/time`] = `${h}:${mn}`;
+      updates[`${slotRoot()}/${dateStr}/${id}/available`] = true;
     }
     await update(iRef(), updates).catch(() => {});
     setSaving(false);
@@ -5092,11 +5362,11 @@ function CreateSlotSheet({ data, settings, onClose }) {
           <div style={{padding:"16px 20px"}}>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14}}>
               <div>
-                <div style={{fontSize:10,fontWeight:700,color:TEXT_DIM,letterSpacing:1,marginBottom:6,textAlign:"center"}}>ПОЧАТОК</div>
+                <div style={{fontSize:11,fontWeight:700,color:TEXT_DIM,letterSpacing:1,marginBottom:6,textAlign:"center"}}>ПОЧАТОК</div>
                 <DrumRoll items={timeItems} currentIdx={timeIdx} onChange={setTimeIdx} itemH={40} visible={3}/>
               </div>
               <div>
-                <div style={{fontSize:10,fontWeight:700,color:TEXT_DIM,letterSpacing:1,marginBottom:6,textAlign:"center"}}>ТРИВАЛІСТЬ</div>
+                <div style={{fontSize:11,fontWeight:700,color:TEXT_DIM,letterSpacing:1,marginBottom:6,textAlign:"center"}}>ТРИВАЛІСТЬ</div>
                 <DrumRoll items={durItems} currentIdx={durIdx} onChange={setDurIdx} itemH={40} visible={3}/>
               </div>
             </div>
@@ -5117,8 +5387,8 @@ function CreateSlotSheet({ data, settings, onClose }) {
 // ═══════════════════════════════════════════════════════════════
 // BOOKING DETAIL MODAL
 // ═══════════════════════════════════════════════════════════════
-// Ціна послуги на конкретну дату уроку: якщо задано nextPrice/nextPriceFrom
-// і дата уроку вже досягла nextPriceFrom — використовуємо нову ціну.
+// Ціна послуги на конкретну дату запису: якщо задано nextPrice/nextPriceFrom
+// і дата запису вже досягла nextPriceFrom — використовуємо нову ціну.
 function effectivePrice(svc, dateStr) {
   if (!svc) return 0;
   if (svc.nextPrice != null && svc.nextPriceFrom && dateStr && dateStr >= svc.nextPriceFrom) {
@@ -5129,12 +5399,21 @@ function effectivePrice(svc, dateStr) {
 
 function computeBookingPrice(b, services) {
   if (b.manualPrice != null) return b.manualPrice;
-  // Індивідуальна фікс. ціна учня (₴/год у картці учня) — виставляється
-  // адміном вручну і діє на всі уроки цього учня замість тарифу послуги;
+  // Запис за пакетом: послуга вже оплачена пакетом, платяться лише допуслуги (якщо пакет не вдалося списати — рахуємо як звичайний)
+  if (b.packageId && !b.packageError) return bookingAddonTotals(b).price;
+  // Ціна, записана в слот при бронюванні (клієнт: тариф + надбавка − знижка/індив. ціна) —
+  // джерело істини, поки тривалість не змінилась після запису.
+  const _hrs = b.durationHours != null ? b.durationHours : b.durMin / 60;
+  if (typeof b.price === "number" && b.price > 0 && Math.round(_hrs * 60) === b.durMin) return b.price;
+  // Індивідуальна фікс. ціна клієнта (₴/год у картці клієнта) — виставляється
+  // адміном вручну і діє на всі записи цього клієнта замість тарифу послуги;
   // знижка при цьому не застосовується (ціна вже персональна).
+  // Допуслуги (знімок у записі): їхні хвилини не множаться на тариф, а ціна додається окремо
+  const ax = bookingAddonTotals(b);
+  const baseMin = Math.max(0, b.durMin - ax.minutes);
   if (b.customPrice != null) {
-    const base = Math.round((b.customPrice / 60) * b.durMin);
-    return Math.max(0, Math.round(base + (b.surcharge || 0)));
+    const base = Math.round((b.customPrice / 60) * baseMin);
+    return Math.max(0, Math.round(base + ax.price + (b.surcharge || 0)));
   }
   const svc = services.find(s => s.id === b.serviceId)
            || services.find(s => s.active && s.type===(b.serviceType||b.type) && Number(s.duration)===b.durMin);
@@ -5143,16 +5422,19 @@ function computeBookingPrice(b, services) {
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   })();
   const base = svc
-    ? Math.round((effectivePrice(svc, dateStr) / svc.duration) * b.durMin)
+    ? Math.round((effectivePrice(svc, dateStr) / svc.duration) * baseMin) + ax.price
     : b.price && b.durationHours
       ? Math.round((b.price / (b.durationHours * 60)) * b.durMin)
       : (b.price || 0);
-  // Знижка учня (грн/год, фіксована сума) — діє на годину, тож масштабується
+  // Знижка клієнта (грн/год, фіксована сума) — діє на годину, тож масштабується
   // на тривалість запису (2 год = знижка ×2). Не застосовується там, де ціну
   // виставлено вручну (manualPrice — свідомий override адміна).
-  const discount = (b.discount || 0) * (b.durMin / 60);
+  const discount = (b.discount || 0) * (baseMin / 60);
   return Math.max(0, Math.round(base + (b.surcharge || 0) - discount));
 }
+
+const BookingModalFog = (p) => <FogScope><BookingModal {...p}/></FogScope>;
+const NewBookingModalFog = (p) => <FogScope><NewBookingModal {...p}/></FogScope>;
 
 function BookingModal({ booking, onClose, onAction, settings, bookings, onViewStudent, mergeInfo, autoTag }) {
   const { BG, BG_DEEP, SURFACE, SURF_HI, SURF_LO, BORDER, TEXT, DIM, FAINT, ACCENT, ACC_HI, SO, SI , GLOW, SHADE, INK } = useContext(ThemeContext);
@@ -5164,21 +5446,9 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
   const [draftPrice, setDraftPrice] = useState("");
   const [draftDur, setDraftDur] = useState("");
   const [editRate, setEditRate] = useState(0);
-  const [maneuverState, setManeuverState] = useState({});
-  const [maneuverCounts, setManeuverCounts] = useState({});
-  const [maneuverResults, setManeuverResults] = useState({});
-  const [allBadges, setAllBadges] = useState({});
-  const [badgePickerOpen, setBadgePickerOpen] = useState(false);
   const [tagPickerOpen, setTagPickerOpen] = useState(false);
   const [debtInput, setDebtInput] = useState("");
   useEffect(() => { setDebtInput(booking?.debtAmount ? String(booking.debtAmount) : ""); }, [booking?.id]);
-  const [filmingConsent, setFilmingConsent] = useState(null);
-  useEffect(() => {
-    if (!booking || !booking.userId) { setFilmingConsent(null); return; }
-    const r = iRef( `users/${booking.userId}/profile/filmingConsent`);
-    const unsub = onValue(r, snap => setFilmingConsent(snap.exists() ? snap.val() : null));
-    return () => unsub();
-  }, [booking]);
   useEffect(() => {
     if (!booking) return;
     setClosing(false);
@@ -5202,59 +5472,16 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
     return () => unsub();
   }, [booking]);
 
-  // Маневри: залипаюча відмітка "відпрацьовано в цьому уроці" (на бронюванні) +
-  // накопичувальний лічильник за весь час (на профілі учня).
   useEffect(() => {
     if (!booking) return;
-    setManeuverState(booking.maneuvers || {});
-    setManeuverResults(booking.maneuverResults || {});
-    setBadgePickerOpen(false);
     setTagPickerOpen(false);
-    if (!booking.userId) { setManeuverCounts({}); setAllBadges({}); return; }
-    const r = iRef( `users/${booking.userId}/maneuverCounts`);
-    const unsub = onValue(r, snap => setManeuverCounts(snap.val() || {}));
-    const rb = iRef( `users/${booking.userId}/badges`);
-    const unsubB = onValue(rb, snap => setAllBadges(snap.val() || {}));
-    return () => { unsub(); unsubB(); };
   }, [booking]);
-
-  const toggleManeuver = (key) => {
-    if (!booking || maneuverState[key]) return;
-    setManeuverState(s => ({ ...s, [key]: true }));
-    setManeuverResults(s => ({ ...s, [key]: "success" }));
-    update(iRef( `bookings/${booking.userId}/${booking.id}/maneuvers`), { [key]: true }).catch(()=>{});
-    update(iRef( `bookings/${booking.userId}/${booking.id}/maneuverResults`), { [key]: "success" }).catch(()=>{});
-    update(iRef( `users/${booking.userId}/maneuverCounts`), { [key]: increment(1) }).catch(()=>{});
-    update(iRef( `users/${booking.userId}/maneuverSuccessCounts`), { [key]: increment(1) }).catch(()=>{});
-  };
-
-  // Перемикач "вдало/невдало" — доступний лише для вже відпрацьованого в
-  // цьому уроці маневру. За замовчуванням маневр рахується вдалим (щоб не
-  // додавати зайвий тап на типовий кейс); адмін може позначити невдалу спробу.
-  const toggleManeuverResult = (key) => {
-    if (!booking || !maneuverState[key]) return;
-    const next = (maneuverResults[key] || "success") === "success" ? "fail" : "success";
-    setManeuverResults(s => ({ ...s, [key]: next }));
-    update(iRef( `bookings/${booking.userId}/${booking.id}/maneuverResults`), { [key]: next }).catch(()=>{});
-    update(iRef( `users/${booking.userId}/maneuverSuccessCounts`), { [key]: increment(next === "success" ? 1 : -1) }).catch(()=>{});
-  };
-
-  // Медаль за конкретний урок — прив'язана до booking.id, тому клієнт може
-  // показати її саме біля цього завершеного запису, а не загальним списком.
-  const awardBookingBadge = (icon, label) => {
-    if (!booking) return;
-    fbPush(iRef( `users/${booking.userId}/badges`), { icon, label, awardedAt: Date.now(), bookingId: booking.id }).catch(()=>{});
-    setBadgePickerOpen(false);
-  };
-  const removeBookingBadge = (badgeId) => {
-    if (!booking) return;
-    remove(iRef( `users/${booking.userId}/badges/${badgeId}`)).catch(()=>{});
-  };
 
   // booking може стати null синхронно (напр. cancel обнуляє вибір), поки closing=true.
   // Guard "!booking && !closing" пропускав такий кадр далі й падав на booking.serviceId
   // (сірий екран). Достатньо: немає booking — нічого не рендеримо. Анімацію закриття це
   // не ламає — при звичайному закритті booking лишається до кінця анімації (onClose на animationEnd).
+  useBackClose(!!booking, () => setClosing(true)); // системна «назад» закриває вікно, а не застосунок (до раннього return — порядок хуків)
   if (!booking) return null;
 
   // Минулий запис при увімкненому settings.lockPastBookings — заборонено
@@ -5282,14 +5509,14 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
   const day = booking.date
     ? (() => { const d = new Date(booking.date + "T12:00:00"); const dow = (d.getDay()+6)%7; return { num:d.getDate(), month:_MLABELS[d.getMonth()], label:_DLABELS[dow], fullLabel:_DLABELS_FULL[dow], wk:dow>=5 }; })()
     : getDayInfo(booking.day);
-  // Сусідні записи цього учня об'єднані на картці розкладу — тут показуємо
+  // Сусідні записи цього клієнта об'єднані на картці розкладу — тут показуємо
   // сумарну ціну й тривалість (booking сам лишається одним "чесним" записом
   // для дій: скасувати/неявка/повтор/редагування діють лише на нього).
   const durMinDisplay = mergeInfo ? mergeInfo.durMin : booking.durMin;
   const discountAmtDisplay = (booking.discount && booking.customPrice == null) ? Math.round(booking.discount * booking.durMin / 60) : 0;
   const price = mergeInfo ? mergeInfo.price : computeBookingPrice(booking, settings.services);
   const ini   = booking.name.trim().split(" ").slice(0, 2).map(w => w[0]).join("");
-  // Порядковий номер цього уроку серед усіх уроків учня (без особистих подій
+  // Порядковий номер цього запису серед усіх записів клієнта (без особистих подій
   // і скасованих) — бейдж у шапці картки запису.
   const lessonNumber = (() => {
     if (booking.type === "personal") return null;
@@ -5299,7 +5526,7 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
     const idx = studentLessons.findIndex(x => x.id === booking.id);
     return idx >= 0 ? idx + 1 : studentLessons.length + 1;
   })();
-  const typeLabel = booking.type === "school" ? "🎓 Автошкола" : "🚗 Приватний";
+  const typeLabel = booking.type === "school" ? "📋 Стандарт" : "👤 Індивідуальний";
 
   const sameDayBookings = (bookings || []).filter(x =>
     x.id !== booking.id && x.status !== "cancelled" &&
@@ -5328,7 +5555,10 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
   const saveEdit = () => {
     const p = Math.max(0, parseInt(draftPrice, 10) || 0);
     const d = Math.min(maxDurMin, Math.max(15, parseInt(draftDur, 10) || booking.durMin));
-    onAction("editBooking", { ...booking, manualPrice: p, durMin: d, durationHours: d / 60 });
+    // Ручну ціну фіксуємо лише якщо майстер справді змінив суму; збіглася з розрахунковою (тариф, надбавка, знижка) — лишаємо авто,
+    // щоб ціна далі сама відстежувала знижку/зміну тарифу.
+    const autoP = computeBookingPrice({ ...booking, manualPrice: null, durMin: d }, settings.services);
+    onAction("editBooking", { ...booking, manualPrice: (p === autoP && d === booking.durMin) ? null : p, durMin: d, durationHours: d / 60 });
     setEditOpen(false);
   };
 
@@ -5386,7 +5616,7 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
             borderRadius:"24px 24px 0 0",
           }}>
             <div style={{width:36,height:4,borderRadius:2,background:`${c}66`,margin:"0 auto 12px"}}/>
-            <div style={{display:"flex",alignItems:"center",gap:10}}>
+            <div style={{display:"flex",alignItems:"center",gap:10,paddingRight:30}}>{/* праворуч — місце під кнопку ✕ */}
               <div style={{
                 width:40,height:40,borderRadius:12,flexShrink:0,
                 background:`linear-gradient(145deg,${c},color-mix(in srgb,${c} 55%,#000))`,
@@ -5401,27 +5631,38 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
                     <span style={{
                       fontSize:11,fontWeight:800,padding:"2px 7px",borderRadius:99,flexShrink:0,
                       background:`${BLUE}1f`,color:BLUE,
-                    }}>🚗 {lessonNumber}-й урок</span>
+                    }}>{`🚗 ${lessonNumber}-й запис`}</span>
                   )}
                 </div>
-                <div style={{fontSize:10,color:c,fontWeight:700,marginTop:1}}>{typeLabel}</div>
+                <div style={{fontSize:11,color:c,fontWeight:700,marginTop:1}}>{typeLabel}</div>
               </div>
             </div>
-            {filmingConsent != null && (
-              <div style={{
-                display:"flex", alignItems:"center", gap:6, marginTop:8,
-                background:`${filmingConsent ? GREEN : RED}1f`,
-                border:`1px solid ${filmingConsent ? GREEN : RED}44`,
-                borderRadius:8, padding:"5px 9px",
-              }}>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={filmingConsent ? GREEN : RED} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M3 8a2 2 0 0 1 2-2h2l1.5-2h7L17 6h2a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/>
-                  <circle cx="12" cy="13" r="3.2"/>
-                  {!filmingConsent && <line x1="2" y1="2" x2="22" y2="22"/>}
-                </svg>
-                <span style={{fontSize:10.5,fontWeight:700,color:filmingConsent ? GREEN : RED}}>{filmingConsent ? "Дозвіл на зйомку відео/аудіо" : "Зйомка заборонена"}</span>
-              </div>
-            )}
+          </div>
+
+          {/* Action buttons */}
+          <div style={{padding:"10px 10px 0",display:"flex",gap:8}}>
+            <button onClick={() => onAction("call", booking)} style={{
+              flex:1,display:"flex",alignItems:"center",justifyContent:"center",gap:7,
+              padding:"11px",borderRadius:14,border:"none",cursor:"pointer",fontFamily:"inherit",
+              background:`${GREEN}1f`,color:GREEN,fontSize:13,fontWeight:800,
+            }}>{IcoPhone} Дзвонити</button>
+            <button onClick={() => onAction("chat", booking)} style={{
+              flex:1,display:"flex",alignItems:"center",justifyContent:"center",gap:7,
+              padding:"11px",borderRadius:14,border:"none",cursor:"pointer",fontFamily:"inherit",
+              background:`rgba(${GLOW},0.1)`,color:BLUE,fontSize:13,fontWeight:800,
+            }}>{IcoChat} Чат</button>
+          </div>
+          <div style={{padding:"8px 10px 4px",display:"flex",gap:8}}>
+            <button onClick={() => onViewStudent?.(booking.userId, false)} style={{
+              flex:1,display:"flex",alignItems:"center",justifyContent:"center",gap:7,
+              padding:"11px",borderRadius:14,border:"none",cursor:"pointer",fontFamily:"inherit",
+              background:`${PURPLE}1f`,color:PURPLE,fontSize:13,fontWeight:800,
+            }}>{IcoProfile} Профіль</button>
+            <button onClick={() => onViewStudent?.(booking.userId, true)} style={{
+              flex:1,display:"flex",alignItems:"center",justifyContent:"center",gap:7,
+              padding:"11px",borderRadius:14,border:"none",cursor:"pointer",fontFamily:"inherit",
+              background:`${GOLD}1f`,color:GOLD,fontSize:13,fontWeight:800,
+            }}>{IcoHistory} Історія</button>
           </div>
 
           {/* Ціна/час — синя колірна картка (редагувати + дата/час/ціна разом) */}
@@ -5430,7 +5671,7 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
               margin:"12px 14px 0",padding:"10px 14px",borderRadius:14,
               background:`${GOLD}14`,border:`1px solid ${GOLD}4d`,
             }}>
-              <div style={{fontSize:10,fontWeight:700,letterSpacing:.5,color:GOLD,marginBottom:3}}>💬 Коментар учня</div>
+              <div style={{fontSize:11,fontWeight:700,letterSpacing:.5,color:GOLD,marginBottom:3}}>💬 Коментар клієнта</div>
               <div style={{fontSize:13,color:TEXT,lineHeight:1.4,whiteSpace:"pre-wrap",wordBreak:"break-word"}}>{booking.studentNote}</div>
             </div>
           )}
@@ -5450,28 +5691,28 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
             {/* Edit sheet: ціна/тривалість */}
             {editOpen && (
               <div style={{marginBottom:12}}>
-                <div style={{textAlign:"center",fontSize:10,fontWeight:700,color:GOLD,marginBottom:10}}>
+                <div style={{textAlign:"center",fontSize:11,fontWeight:700,color:GOLD,marginBottom:10}}>
                   Разом за день: {otherDayTotal + (parseInt(draftPrice,10)||0)}₴
                 </div>
                 <div style={{display:"flex",gap:10,marginBottom:8}}>
                   <div style={{flex:1}}>
-                    <div style={{fontSize:11,fontWeight:700,letterSpacing:1,color:DIM,textTransform:"uppercase",marginBottom:5,textAlign:"center"}}>Тривалість, хв</div>
+                    <div style={{fontSize:11,fontWeight:700,letterSpacing:1,color:"rgba(255,255,255,.7)",textTransform:"uppercase",marginBottom:5,textAlign:"center"}}>Тривалість, хв</div>
                     <input type="number" min={15} max={maxDurMin} step={5} value={draftDur}
                       onChange={e=>onDurChange(e.target.value)}
                       style={{width:"100%",textAlign:"center",padding:"9px 6px",borderRadius:10,border:"1px solid rgba(255,255,255,0.18)",background:"rgba(0,0,0,0.22)",color:"#fff",fontSize:14,fontWeight:800,fontFamily:"inherit"}}/>
                   </div>
                   <div style={{flex:1}}>
-                    <div style={{fontSize:11,fontWeight:700,letterSpacing:1,color:DIM,textTransform:"uppercase",marginBottom:5,textAlign:"center"}}>Ціна, ₴</div>
+                    <div style={{fontSize:11,fontWeight:700,letterSpacing:1,color:"rgba(255,255,255,.7)",textTransform:"uppercase",marginBottom:5,textAlign:"center"}}>Ціна, ₴</div>
                     <input type="number" min={0} step={50} value={draftPrice}
                       onChange={e=>setDraftPrice(e.target.value)}
                       style={{width:"100%",textAlign:"center",padding:"9px 6px",borderRadius:10,border:"1px solid rgba(255,255,255,0.18)",background:"rgba(0,0,0,0.22)",color:"#fff",fontSize:14,fontWeight:800,fontFamily:"inherit"}}/>
                   </div>
                 </div>
-                <div style={{fontSize:11,color:DIM,textAlign:"center",marginBottom:10}}>
+                <div style={{fontSize:11,color:"rgba(255,255,255,.65)",textAlign:"center",marginBottom:10}}>
                   Макс. тривалість зараз: {maxDurMin}хв · ціна перераховується автоматично при зміні тривалості
                 </div>
                 <div style={{display:"flex",gap:8}}>
-                  <button onClick={()=>setEditOpen(false)} style={{flex:1,padding:"9px",borderRadius:11,border:"none",cursor:"pointer",fontFamily:"inherit",background:"rgba(0,0,0,0.22)",color:DIM,fontSize:12.5,fontWeight:700}}>Скасувати</button>
+                  <button onClick={()=>setEditOpen(false)} style={{flex:1,padding:"9px",borderRadius:11,border:"none",cursor:"pointer",fontFamily:"inherit",background:"rgba(0,0,0,0.22)",color:"rgba(255,255,255,.75)",fontSize:12.5,fontWeight:700}}>Скасувати</button>
                   <button onClick={saveEdit} style={{flex:1,padding:"9px",borderRadius:11,border:"none",cursor:"pointer",fontFamily:"inherit",background:GREEN,color:"#0a0d0a",fontSize:12.5,fontWeight:800}}>Зберегти</button>
                 </div>
               </div>
@@ -5489,7 +5730,7 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
                   display:"flex",flexDirection:"column",alignItems:"center",textAlign:"center",
                   borderRight: i < 2 ? "1px solid rgba(255,255,255,0.18)" : "none",
                 }}>
-                  <div style={{fontSize:10,fontWeight:700,letterSpacing:1,color:DIM,textTransform:"uppercase",marginBottom:5}}>{label}</div>
+                  <div style={{fontSize:11,fontWeight:700,letterSpacing:1,color:"rgba(255,255,255,.7)",textTransform:"uppercase",marginBottom:5}}>{label}</div>
                   <div style={{fontSize:15,fontWeight:900,color: gold ? GOLD : "#fff",lineHeight:1}}>{val}</div>
                   <div style={{fontSize:11,color: gold ? `${GOLD}cc` : "rgba(255,255,255,.65)",marginTop:3,fontWeight:600}}>{sub}</div>
                 </div>
@@ -5497,110 +5738,43 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
             </div>
           </div>
 
-          {/* Маневри — фіолетова колірна картка */}
-          <div style={{
-            margin:"10px 14px 0",padding:"12px 14px",borderRadius:16,
-            background:`linear-gradient(155deg,color-mix(in srgb,${PURPLE} 38%,${BG_DEEP}) 0%,${BG_DEEP} 100%)`,
-            border:`1px solid color-mix(in srgb,${PURPLE} 36%,transparent)`,
-          }}>
-            <div style={{fontSize:11,fontWeight:700,letterSpacing:1,color:DIM,textTransform:"uppercase",marginBottom:8}}>
-              🚗 Маневри
-            </div>
-            <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8}}>
-              {[
-                { key:"rozvorot",   label:"Розворот" },
-                { key:"parking90",  label:"Паркування 90" },
-                { key:"parking45",  label:"Паркування 45" },
-              ].map(m => {
-                const active = !!maneuverState[m.key];
-                const count = maneuverCounts[m.key] || 0;
-                const isSuccess = (maneuverResults[m.key] || "success") === "success";
+          {/* Група: учасники (тап — відкрити окремий запис учасника) */}
+          {booking.groupKey && (() => {
+            const members = (bookings || []).filter(x => x.groupKey === booking.groupKey && x.status !== "cancelled");
+            return (
+              <div style={{margin:"10px 14px 0",padding:"10px 14px",borderRadius:14,background:`rgba(${GLOW},0.06)`,border:`1px solid ${BORDER}`,fontSize:12,color:TEXT}}>
+                <div style={{fontSize:11,fontWeight:700,letterSpacing:1,color:FAINT,textTransform:"uppercase",marginBottom:5}}>👥 Група: {members.length}{booking.groupCap ? ` з ${booking.groupCap}` : ""}</div>
+                {members.map(m => (
+                  <div key={m.id} onClick={() => m.id !== booking.id && onAction("openMember", m)} style={{display:"flex",alignItems:"center",gap:8,padding:"4px 0",cursor:m.id===booking.id?"default":"pointer"}}>
+                    <span style={{flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontWeight:m.id===booking.id?800:600}}>{m.name}</span>
+                    <span style={{color:DIM}}>{m.phone}</span>
+                    {m.id !== booking.id && <span style={{color:FAINT}}>›</span>}
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+
+          {/* Допуслуги й перерва запису (з послуги на момент запису) */}
+          {(normAddons(booking.addons).length > 0 || bufferOf(booking) > 0 || booking.packageId) && (
+            <div style={{margin:"10px 14px 0",padding:"10px 14px",borderRadius:14,background:`rgba(${GLOW},0.06)`,border:`1px solid ${BORDER}`,fontSize:12,color:TEXT,lineHeight:1.5}}>
+              {normAddons(booking.addons).length > 0 && (() => {
+                const ax = bookingAddonTotals(booking);
                 return (
-                  <div key={m.key} style={{position:"relative"}}>
-                    <button onClick={() => toggleManeuver(m.key)} style={{
-                      width:"100%", fontFamily:"inherit",
-                      background: active ? "linear-gradient(155deg,#fff3,rgba(0,0,0,0.15))" : "rgba(0,0,0,0.22)",
-                      border: active ? "1.5px solid rgba(255,255,255,0.55)" : "1.5px solid rgba(255,255,255,0.15)",
-                      borderRadius:12, padding:"10px 4px",
-                      textAlign:"center", fontSize:10.5, fontWeight:700,
-                      color: "#fff",
-                      cursor: active ? "default" : "pointer",
-                      boxShadow: active ? "0 3px 12px rgba(0,0,0,0.3)" : "none",
-                    }}>
-                      {m.label}
-                    </button>
-                    <div style={{
-                      position:"absolute", top:-7, right:-6,
-                      background:GOLD, color:"#1a1200", fontSize:11, fontWeight:900,
-                      width:18, height:18, borderRadius:"50%",
-                      display:"flex", alignItems:"center", justifyContent:"center",
-                      border:"2px solid rgba(0,0,0,0.4)", pointerEvents:"none",
-                    }}>{count}</div>
-                    {active && (
-                      <div onClick={() => toggleManeuverResult(m.key)} style={{
-                        position:"absolute", bottom:-7, right:-6,
-                        background: isSuccess ? GREEN : RED, color:"#fff", fontSize:10, fontWeight:900,
-                        width:18, height:18, borderRadius:"50%",
-                        display:"flex", alignItems:"center", justifyContent:"center",
-                        border:"2px solid rgba(0,0,0,0.4)", cursor:"pointer",
-                      }} title={isSuccess ? "Вдало (тап — позначити невдало)" : "Невдало (тап — позначити вдало)"}>
-                        {isSuccess ? "✓" : "✕"}
-                      </div>
-                    )}
+                  <div>➕ <b>{addonsLabel(normAddons(booking.addons))}</b>
+                    <span style={{color:DIM}}> · +{ax.price}₴{ax.minutes>0?` · +${ax.minutes} хв`:""}</span>
                   </div>
                 );
-              })}
+              })()}
+              {bufferOf(booking) > 0 && <div style={{color:DIM}}>⏸ Перерва після запису: {bufferOf(booking)} хв</div>}
+              {booking.packageId && <div>🎫 {booking.packageError ? <span style={{color:ACCENT}}>Пакет «{booking.packageName}» не списано: {booking.packageError}</span> : <>З пакета «{booking.packageName}»</>}</div>}
             </div>
-          </div>
-
-          {/* Медаль за урок — золота колірна картка (прив'язана до цього booking, видно учню біля завершеного запису) */}
-          <div style={{
-            margin:"10px 14px 0",padding:"12px 14px",borderRadius:16,
-            background:`linear-gradient(155deg,color-mix(in srgb,${GOLD} 38%,${BG_DEEP}) 0%,${BG_DEEP} 100%)`,
-            border:`1px solid color-mix(in srgb,${GOLD} 36%,transparent)`,
-          }}>
-            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
-              <div style={{fontSize:11,fontWeight:700,letterSpacing:1,color:DIM,textTransform:"uppercase"}}>
-                🏅 Медаль за урок
-              </div>
-              <div onClick={() => setBadgePickerOpen(o => !o)} style={{
-                fontSize:11,fontWeight:800,color:"#fff",cursor:"pointer",padding:"2px 8px",
-                borderRadius:8,background:"rgba(0,0,0,0.25)",
-              }}>{badgePickerOpen ? "Закрити" : "+ Додати"}</div>
-            </div>
-            {Object.entries(allBadges).filter(([,b])=>b.bookingId===booking.id).length > 0 && (
-              <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:badgePickerOpen?8:0}}>
-                {Object.entries(allBadges).filter(([,b])=>b.bookingId===booking.id).map(([bid,b])=>(
-                  <div key={bid} onClick={()=>removeBookingBadge(bid)} title="Тап — прибрати" style={{
-                    display:"flex",alignItems:"center",gap:5,padding:"5px 9px",borderRadius:20,
-                    background:"rgba(0,0,0,0.22)",border:"1px solid rgba(255,255,255,0.25)",cursor:"pointer",
-                  }}>
-                    <span style={{fontSize:14}}>{b.icon}</span>
-                    <span style={{fontSize:11,fontWeight:700,color:"#fff"}}>{b.label}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-            {badgePickerOpen && (
-              <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:7,paddingBottom:4}}>
-                {BADGE_PRESETS.map((bp,i)=>(
-                  <button key={i} onClick={()=>awardBookingBadge(bp.icon,bp.label)} style={{
-                    display:"flex",flexDirection:"column",alignItems:"center",gap:4,
-                    padding:"9px 4px",borderRadius:12,border:"1px solid rgba(255,255,255,0.18)",cursor:"pointer",
-                    background:"rgba(0,0,0,0.22)",fontFamily:"inherit",
-                  }}>
-                    <span style={{fontSize:18}}>{bp.icon}</span>
-                    <span style={{fontSize:11,fontWeight:700,color:DIM,textAlign:"center",lineHeight:1.2}}>{bp.label}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          )}
 
           {/* Мітка — booking.tag/tagManual, якщо ручна; інакше показуємо автотег
-              (за порядком уроку/сумою боргу), рахований у батьківському компоненті. */}
+              (за порядком запису/сумою боргу), рахований у батьківському компоненті. */}
           {(() => {
-            const displayTag = booking.tagManual ? (booking.tag || null) : (booking.tag || autoTag || null);
+            const displayTag = knownTag(booking.tagManual ? (booking.tag || null) : (booking.tag || autoTag || null));
             const isAuto = !booking.tagManual && !booking.tag && !!autoTag;
             return (
               <div style={{
@@ -5609,8 +5783,8 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
                 border:`1px solid color-mix(in srgb,${GOLD} 36%,transparent)`,
               }}>
                 <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
-                  <div style={{fontSize:11,fontWeight:700,letterSpacing:1,color:DIM,textTransform:"uppercase"}}>
-                    🏷️ Мітка {isAuto && <span style={{color:DIM,textTransform:"none",letterSpacing:0}}>(авто)</span>}
+                  <div style={{fontSize:11,fontWeight:700,letterSpacing:1,color:"rgba(255,255,255,.8)",textTransform:"uppercase"}}>
+                    🏷️ Мітка {isAuto && <span style={{color:"rgba(255,255,255,.6)",textTransform:"none",letterSpacing:0}}>(авто)</span>}
                   </div>
                   <div onClick={() => setTagPickerOpen(o => !o)} style={{
                     fontSize:11,fontWeight:800,color:"#fff",cursor:"pointer",padding:"2px 8px",
@@ -5666,6 +5840,9 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
                     ))}
                   </div>
                 )}
+                <div style={{marginTop:8,fontSize:11,lineHeight:1.4,color:"rgba(255,255,255,.55)"}}>
+                  Позначка на картці запису в розкладі (1-й запис, важливо, борг тощо). Перший запис ставиться автоматично, решту — вручну («Змінити»).
+                </div>
               </div>
             );
           })()}
@@ -5678,10 +5855,10 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
               </div>
               {queueEntries.map((e, i) => (
                 <div key={e.uid||i} style={{display:"flex",alignItems:"center",gap:8,padding:"4px 0",borderBottom: i < queueEntries.length-1 ? `1px solid ${ink(0.04)}` : "none"}}>
-                  <div style={{width:16,height:16,borderRadius:5,background:ink(0.07),display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:800,color:GOLD,flexShrink:0}}>{i+1}</div>
+                  <div style={{width:16,height:16,borderRadius:5,background:ink(0.07),display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:800,color:GOLD,flexShrink:0}}>{i+1}</div>
                   <div style={{flex:1,minWidth:0}}>
                     <div style={{fontSize:12,fontWeight:700,color:TEXT,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{e.name || "—"}</div>
-                    {e.phone && <div style={{fontSize:10,color:DIM}}>{e.phone}</div>}
+                    {e.phone && <div style={{fontSize:11,color:DIM}}>{e.phone}</div>}
                   </div>
                   {e.uid && (() => {
                     const dateStr = booking.date || (() => {
@@ -5707,46 +5884,20 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
             </div>
           )}
 
-          {/* Action buttons */}
-          <div style={{padding:"10px 10px 0",display:"flex",gap:8}}>
-            <button onClick={() => onAction("call", booking)} style={{
-              flex:1,display:"flex",alignItems:"center",justifyContent:"center",gap:7,
-              padding:"11px",borderRadius:14,border:"none",cursor:"pointer",fontFamily:"inherit",
-              background:`${GREEN}1f`,color:GREEN,fontSize:13,fontWeight:800,
-            }}>{IcoPhone} Дзвонити</button>
-            <button onClick={() => onAction("chat", booking)} style={{
-              flex:1,display:"flex",alignItems:"center",justifyContent:"center",gap:7,
-              padding:"11px",borderRadius:14,border:"none",cursor:"pointer",fontFamily:"inherit",
-              background:`rgba(${GLOW},0.1)`,color:BLUE,fontSize:13,fontWeight:800,
-            }}>{IcoChat} Чат</button>
-          </div>
-          <div style={{padding:"8px 10px 4px",display:"flex",gap:8}}>
-            <button onClick={() => onViewStudent?.(booking.userId, false)} style={{
-              flex:1,display:"flex",alignItems:"center",justifyContent:"center",gap:7,
-              padding:"11px",borderRadius:14,border:"none",cursor:"pointer",fontFamily:"inherit",
-              background:`${PURPLE}1f`,color:PURPLE,fontSize:13,fontWeight:800,
-            }}>{IcoProfile} Профіль</button>
-            <button onClick={() => onViewStudent?.(booking.userId, true)} style={{
-              flex:1,display:"flex",alignItems:"center",justifyContent:"center",gap:7,
-              padding:"11px",borderRadius:14,border:"none",cursor:"pointer",fontFamily:"inherit",
-              background:`${GOLD}1f`,color:GOLD,fontSize:13,fontWeight:800,
-            }}>{IcoHistory} Історія</button>
-          </div>
-
           {/* Cancel link */}
           {isPastLocked ? (
             <div style={{
               width:"100%",padding:"10px",textAlign:"center",
               borderTop:`1px solid ${ink(0.05)}`,
-              color:TEXT_FAINT,fontSize:10.5,fontWeight:600,
+              color:TEXT_FAINT,fontSize:11,fontWeight:600,
               marginTop:4,marginBottom:20,
             }}>🔒 Минулий запис — редагування й скасування заблоковано</div>
           ) : (
             <button onClick={() => { onAction("cancel", booking); _close(); }} style={{
-              width:"100%",padding:"10px",border:"none",cursor:"pointer",
+              width:"100%",padding:"14px 10px",border:"none",cursor:"pointer",
               background:"none",borderTop:`1px solid ${ink(0.05)}`,
-              color:"rgba(248,113,113,0.7)",fontSize:11,fontWeight:600,
-              marginTop:4,marginBottom:20,
+              color:"#fca5a5",fontSize:12,fontWeight:700,
+              marginTop:4,marginBottom:12,
             }}>Скасувати запис</button>
           )}
 
@@ -5917,7 +6068,7 @@ function PersonalEventModal({ data, onClose, onConfirm }) {
             <div style={{display:"flex",alignItems:"flex-start",gap:8}}>
               <div style={{width:26,height:26,borderRadius:8,flexShrink:0,marginTop:18,background:"rgba(45,212,191,0.15)",color:"#2dd4bf",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12}}>✎</div>
               <div style={{flex:1,minWidth:0}}>
-                <div style={{fontSize:10,fontWeight:700,letterSpacing:1.2,color:FAINT,textTransform:"uppercase",marginBottom:7}}>Назва</div>
+                <div style={{fontSize:11,fontWeight:700,letterSpacing:1.2,color:FAINT,textTransform:"uppercase",marginBottom:7}}>Назва</div>
                 <input
                   value={title}
                   onChange={e=>setTitle(e.target.value)}
@@ -5934,7 +6085,7 @@ function PersonalEventModal({ data, onClose, onConfirm }) {
             <div style={{display:"flex",alignItems:"flex-start",gap:8}}>
               <div style={{width:26,height:26,borderRadius:8,flexShrink:0,marginTop:18,background:"rgba(45,212,191,0.15)",color:"#2dd4bf",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12}}>📅</div>
               <div style={{flex:1,minWidth:0}}>
-                <div style={{fontSize:10,fontWeight:700,letterSpacing:1.2,color:FAINT,textTransform:"uppercase",marginBottom:7}}>Дата</div>
+                <div style={{fontSize:11,fontWeight:700,letterSpacing:1.2,color:FAINT,textTransform:"uppercase",marginBottom:7}}>Дата</div>
                 <input
                   type="date"
                   value={peDate}
@@ -5951,7 +6102,7 @@ function PersonalEventModal({ data, onClose, onConfirm }) {
             <div style={{display:"flex",alignItems:"flex-start",gap:8}}>
               <div style={{width:26,height:26,borderRadius:8,flexShrink:0,marginTop:18,background:"rgba(45,212,191,0.15)",color:"#2dd4bf",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12}}>🕐</div>
               <div style={{flex:1,minWidth:0}}>
-                <div style={{fontSize:10,fontWeight:700,letterSpacing:1.2,color:FAINT,textTransform:"uppercase",marginBottom:7}}>Час</div>
+                <div style={{fontSize:11,fontWeight:700,letterSpacing:1.2,color:FAINT,textTransform:"uppercase",marginBottom:7}}>Час</div>
                 <div style={{display:"flex",gap:6}}>
                   <select
                     value={peTime.split(":")[0] || "09"}
@@ -5978,7 +6129,7 @@ function PersonalEventModal({ data, onClose, onConfirm }) {
             <div style={{display:"flex",alignItems:"flex-start",gap:8}}>
               <div style={{width:26,height:26,borderRadius:8,flexShrink:0,marginTop:18,background:"rgba(45,212,191,0.15)",color:"#2dd4bf",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12}}>⏱</div>
               <div style={{flex:1,minWidth:0}}>
-                <div style={{fontSize:10,fontWeight:700,letterSpacing:1.2,color:FAINT,textTransform:"uppercase",marginBottom:7}}>Тривалість</div>
+                <div style={{fontSize:11,fontWeight:700,letterSpacing:1.2,color:FAINT,textTransform:"uppercase",marginBottom:7}}>Тривалість</div>
                 <div style={{display:"flex",gap:6}}>
                   <select
                     value={String(Math.floor(durMin/60))}
@@ -6020,7 +6171,7 @@ function PersonalEventModal({ data, onClose, onConfirm }) {
             </div>
 
             <div>
-              <div style={{fontSize:10,fontWeight:700,letterSpacing:1.2,color:FAINT,textTransform:"uppercase",marginBottom:7}}>Нотатка (необов'язково)</div>
+              <div style={{fontSize:11,fontWeight:700,letterSpacing:1.2,color:FAINT,textTransform:"uppercase",marginBottom:7}}>Нотатка (необов'язково)</div>
               <textarea
                 value={note}
                 onChange={e=>setNote(e.target.value)}
@@ -6037,7 +6188,7 @@ function PersonalEventModal({ data, onClose, onConfirm }) {
             <div style={{display:"flex",alignItems:"flex-start",gap:8}}>
               <div style={{width:26,height:26,borderRadius:8,flexShrink:0,marginTop:18,background:"rgba(45,212,191,0.15)",color:"#2dd4bf",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12}}>⏰</div>
               <div style={{flex:1,minWidth:0}}>
-                <div style={{fontSize:10,fontWeight:700,letterSpacing:1.2,color:FAINT,textTransform:"uppercase",marginBottom:7}}>Нагадування з будильником</div>
+                <div style={{fontSize:11,fontWeight:700,letterSpacing:1.2,color:FAINT,textTransform:"uppercase",marginBottom:7}}>Нагадування з будильником</div>
                 <select
                   value={reminderHours ?? ""}
                   onChange={e=>setReminderHours(e.target.value === "" ? null : Number(e.target.value))}
@@ -6095,6 +6246,139 @@ function PersonalEventModal({ data, onClose, onConfirm }) {
 // ═══════════════════════════════════════════════════════════════
 // NEW BOOKING MODAL — compact bottom sheet
 // ═══════════════════════════════════════════════════════════════
+// ─── ПІДКАЗКИ ПО РОЗКЛАДУ ─────────────────────────────────────────
+// Кнопка «?» над розкладом відкриває довідник: що означає кожен значок і жест на екрані «Записи».
+const HelpDot = ({ bg, color = "#0f2e08", size = 20, children }) => (
+  <div style={{ width:size, height:size, borderRadius:"50%", background:bg, color, display:"flex", alignItems:"center", justifyContent:"center", fontSize:size*0.55, fontWeight:900, flexShrink:0, boxShadow:"0 1px 3px rgba(0,0,0,0.5)" }}>{children}</div>
+);
+const HelpChip = ({ bg, color = "#fff", children, w = 30 }) => (
+  <div style={{ minWidth:w, padding:"3px 6px", borderRadius:8, background:bg, color, fontSize:11, fontWeight:800, textAlign:"center", flexShrink:0 }}>{children}</div>
+);
+const HelpSq = ({ c, deep, children }) => (
+  <div style={{ width:30, height:26, borderRadius:9, background:`linear-gradient(135deg,color-mix(in srgb,${c} 42%,${deep}) 0%,${deep} 100%)`, border:`1px solid color-mix(in srgb,${c} 35%,transparent)`, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>{children}</div>
+);
+// Підсвічує на екрані елементи з data-help="<key>" (рамка з пульсацією на ~3 с). Якщо такого елемента
+// зараз немає (наприклад, нема жодного запису) — показує коротку підказку.
+function highlightHelp(key) {
+  if (typeof document === "undefined") return;
+  if (!document.getElementById("help-ring-css")) {
+    const st = document.createElement("style"); st.id = "help-ring-css";
+    st.textContent = "@keyframes helpRing{0%,100%{box-shadow:0 0 0 0 rgba(247,201,72,.75),0 0 14px 2px rgba(247,201,72,.65)}50%{box-shadow:0 0 0 7px rgba(247,201,72,0),0 0 22px 6px rgba(247,201,72,.9)}}";
+    document.head.appendChild(st);
+  }
+  const els = key ? [...document.querySelectorAll(`[data-help~="${key}"]`)] : [];
+  const vis = els.filter(el => { const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; }).slice(0, 8);
+  const toast = (msg) => {
+    const t = document.createElement("div");
+    t.textContent = msg;
+    t.style.cssText = "position:fixed;left:50%;bottom:96px;transform:translateX(-50%);max-width:86vw;padding:10px 14px;border-radius:12px;background:rgba(20,20,24,.95);color:#fff;font-size:13px;font-weight:600;text-align:center;z-index:9600;box-shadow:0 6px 20px rgba(0,0,0,.5)";
+    document.body.appendChild(t); setTimeout(() => t.remove(), 3000);
+  };
+  if (!vis.length) { toast(key ? "Зараз цього елемента немає на екрані — він з’являється за певних умов" : "Для цього пункту підсвітки немає"); return; }
+  vis[0].scrollIntoView?.({ block: "nearest", inline: "nearest" });
+  setTimeout(() => {
+    vis.forEach(el => {
+      const r = el.getBoundingClientRect();
+      if (r.width <= 0 || r.height <= 0) return;
+      const ring = document.createElement("div");
+      const pad = 3;
+      ring.style.cssText = `position:fixed;left:${r.left - pad}px;top:${r.top - pad}px;width:${r.width + pad * 2}px;height:${r.height + pad * 2}px;border:2px solid #f7c948;border-radius:12px;pointer-events:none;z-index:9500;animation:helpRing 1s ease-in-out 3`;
+      document.body.appendChild(ring);
+      setTimeout(() => ring.remove(), 3100);
+    });
+  }, 250);
+}
+
+// Вікно підказок — прозоре «темне скло з бірюзою» (в стилі нижнього меню)
+const HELP_GLASS = {
+  ov:    { background:"rgba(0,0,0,0.35)", backdropFilter:"blur(8px)", WebkitBackdropFilter:"blur(8px)" },
+  panel: { background:"rgba(8,8,12,0.5)", backdropFilter:"blur(26px)", WebkitBackdropFilter:"blur(26px)", border:"1px solid rgba(45,212,191,0.35)" },
+  item:  { background:"rgba(255,255,255,0.07)", border:"1px solid rgba(45,212,191,0.25)" },
+  ico:   { background:"rgba(45,212,191,0.10)" },
+};
+function ScheduleHelp({ onClose, onPick }) {
+  const hv = HELP_GLASS;
+  const { BG_DEEP, SURFACE, SURF_HI, BORDER, TEXT, DIM } = useContext(ThemeContext);
+  const keySvg = <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.2"/><rect x="14" y="3" width="7" height="7" rx="1.2"/><rect x="3" y="14" width="7" height="7" rx="1.2"/></svg>;
+  const lockSvg = <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>;
+  const SECTIONS = [
+    { title: "Панель угорі", items: [
+      { ico: <HelpChip bg="linear-gradient(165deg,#5b9bff,#2563eb)">Авто</HelpChip>, h: "hours", t: "Авто · 8 · 10 · 12 · 14 годин", d: "Скільки годин робочого дня видно на екрані одночасно. «Авто» сама підбирає висоту під ваш екран." },
+      { ico: <span style={{ fontSize:20 }}>📅</span>, h: "monthcal", t: "Місячний календар", d: "Швидкий перехід на будь-яку дату." },
+      { ico: <HelpChip bg={`linear-gradient(165deg,${GOLD},#e6a800)`} color="#1a1200">5</HelpChip>, h: "days", t: "3 · 4 · 5 · 6 · 7 діб", d: "Скільки днів показувати поряд." },
+    ] },
+    { title: "Шапка дня", items: [
+      { ico: <HelpChip bg="rgba(126,217,87,0.18)" color={GREEN} w={34}>Пн</HelpChip>, h: "daycolor", t: "Колір дня", d: "Зелений — робочий день, червоний зі штриховкою — вихідний. Золота рамка — сьогодні." },
+      { ico: <div style={{ display:"flex", gap:4 }}><HelpDot bg={`linear-gradient(155deg,#a6e888,${GREEN})`}>✓</HelpDot><HelpDot bg={`linear-gradient(145deg,${SURF_HI},${SURFACE})`} color={DIM}>+</HelpDot></div>, h: "daycorner", t: "✓ або + у куті дня", d: "✓ — у дні є вільні слоти для запису. «+» — слотів немає. Тап по дню створює слоти за графіком (або прибирає їх, якщо вони вже є), подвійний тап — закриває чи відкриває день." },
+      { ico: <HelpDot bg={`linear-gradient(155deg,#ffe28a,${GOLD})`} color="#3a2800">📄</HelpDot>, h: "daynote", t: "Нотатка дня", d: "До цього дня є нотатка. Утримайте шапку дня 0,6 с — відкрити або додати нотатку." },
+    ] },
+    { title: "Сітка розкладу", items: [
+      { ico: <HelpChip bg="#ef4444" w={34}>14:51</HelpChip>, h: "nowline", t: "Червона мітка з часом", d: "Поточний час." },
+      { ico: <span style={{ fontSize:18 }}>👆</span>, t: "Утримати порожнє місце", d: "Меню: додати запис, особиста подія, вільний слот, закрити день." },
+      { ico: <div style={{ display:"flex", gap:3, fontSize:16 }}><span>🚗</span><span>👑</span></div>, h: "freeicons", t: "Вільний слот: 🚗 · 👑", d: "🚗 — слот лише для приватних клієнтів, 👑 — лише для VIP. Стрічка «900₴» — фіксована ціна слота, «+100₴» — надбавка." },
+      { ico: <HelpChip bg="rgba(91,155,255,0.18)" color="#93c5fd" w={44}>ОБІД</HelpChip>, t: "ОБІД", d: "Перерва за налаштуваннями графіка — записів на цей час немає." },
+      { ico: <span style={{ fontSize:20 }}>👁</span>, h: "eye", t: "👁 Слот зараз переглядають", d: "Клієнт саме відкрив цей вільний слот у своєму застосунку й обирає час. Позначка зникає, коли він закриє слот або запишеться." },
+      { ico: <div style={{ width:36, height:11, borderRadius:7, background:"rgba(126,217,87,0.45)", border:"1px solid rgba(126,217,87,0.75)" }}/>, t: "Зелена ручка внизу слота", d: "Змінює тривалість вільного слота: утримайте ручку 0,6 с і потягніть вгору або вниз. Є лише на вільних слотах майбутніх днів." },
+    ] },
+    { title: "Картка запису", items: [
+      { ico: <div style={{ display:"flex", gap:3 }}><div style={{ width:11, height:20, borderRadius:4, background:"hsl(140,68%,50%)" }}/><div style={{ width:11, height:20, borderRadius:4, background:"hsl(45,68%,52%)" }}/><div style={{ width:11, height:20, borderRadius:4, background:"hsl(5,68%,56%)" }}/></div>, t: "Колір картки = колір клієнта", d: "Кожен клієнт має свій колір, тож розклад читається з одного погляду. У налаштуваннях можна вимкнути «Автокольори» й призначити кольори вручну в картці клієнта." },
+      { ico: <HelpDot bg="rgba(0,0,0,0.55)" color="#fff">16</HelpDot>, t: "Число в кружку", d: "Порядковий номер запису цього клієнта." },
+      { ico: <div style={{ display:"grid", gridTemplateColumns:"auto auto", gap:"2px 6px", fontSize:16, lineHeight:1.2 }}><span>⭐</span><span>🔍</span><span>🚨</span><span>💸</span></div>, t: "Мітки запису: ⭐ 🔍 🚨 💸", d: "⭐ «1-й запис» ставиться автоматично. 🔍 «Перевірка», 🚨 «Іспит» і 💸 «Борг» — вручну: деталі запису → «Мітка» або під час створення запису. Для боргу можна вписати суму." },
+      { ico: <span style={{ fontSize:20 }}>👑</span>, h: "crown", t: "Корона", d: "VIP-клієнт." },
+      { ico: <div style={{ display:"flex", alignItems:"center", gap:2, fontSize:12, fontWeight:800, color:GOLD }}>👤<span>2</span></div>, h: "queue", t: "👤 + число", d: "Скільки клієнтів стоять у черзі на цей час. Якщо запис скасують, слот автоматично запропонують наступному." },
+      { ico: <div style={{ width:22, height:22, borderRadius:5, background:"rgba(255,255,255,0.12)", position:"relative", overflow:"hidden", flexShrink:0 }}><div style={{ position:"absolute", right:0, bottom:0, width:0, height:0, borderLeft:"10px solid transparent", borderBottom:`10px solid ${GOLD}` }}/></div>, t: "Жовтий куточок", d: "Клієнт залишив нотатку до запису для майстра. Відкрийте картку, щоб прочитати." },
+    ] },
+    { title: "Кнопки по краях", items: [
+      { ico: <div style={{ display:"flex", gap:3 }}><HelpSq c={GREEN} deep={BG_DEEP}>{keySvg}</HelpSq><HelpSq c={RED} deep={BG_DEEP}>{keySvg}</HelpSq></div>, h: "key", t: "Ключик ▦ (угорі зліва)", s: 0.95, d: "Створює слоти за графіком на найближчі дні або знімає їх усі. Зелений — слотів немає (натискання створить), червоний — слоти вже є (натискання зніме)." },
+      { ico: <div style={{ display:"flex", gap:3 }}><HelpSq c={GREEN} deep={BG_DEEP}>{lockSvg}</HelpSq><HelpSq c={RED} deep={BG_DEEP}>{lockSvg}</HelpSq></div>, h: "lock", t: "Замок (внизу зліва)", s: 0.95, d: "Утримайте 0,7 с: червоний замок — календар заблоковано від змін, зелений — редагування дозволено." },
+      { ico: <HelpDot bg={BLUE} color="#fff" size={26}>‹</HelpDot>, h: "todayarrow", t: "Стрілка внизу справа", d: "Повернутися до сьогоднішнього дня. З'являється, коли ви гортаєте далеко від сьогодні." },
+      { ico: <HelpChip bg="rgba(126,217,87,0.15)" color={GREEN} w={44}>6 000₴</HelpChip>, h: "daysum", t: "Сума внизу колонки", d: "Скільки заробляєте за цей день за записами." },
+    ] },
+    { title: "Нижнє меню", items: [
+      { ico: <div style={{ position:"relative", width:24, height:24, fontSize:18, lineHeight:"24px", textAlign:"center" }}>📒<span style={{ position:"absolute", top:-4, right:-8, background:ACCENT, color:"#fff", borderRadius:10, padding:"0 5px", fontSize:9, fontWeight:800, lineHeight:"14px" }}>14</span></div>, h: "navbadge", t: "Червоне число на «Журнал» / «Чати»", d: "Журнал — непрочитані події (нові записи, скасування, перенесення). Чати — непрочитані повідомлення від клієнтів." },
+    ] },
+  ];
+  return createPortal(
+    <div onClick={onClose} style={{ position:"fixed", inset:0, zIndex:9000, background:"rgba(0,0,0,0.62)", display:"flex", alignItems:"flex-end", justifyContent:"center", ...(hv?.ov||{}) }}>
+      <div onClick={e => e.stopPropagation()} style={{
+        width:"100%", maxWidth:680, maxHeight:"92dvh", display:"flex", flexDirection:"column",
+        borderRadius:"22px 22px 0 0", border:`1px solid ${BORDER}`, borderBottom:"none",
+        background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`, color:TEXT,
+        ...(hv?.panel||{}),
+      }}>
+        <div style={{ position:"relative", textAlign:"center", padding:"16px 48px 12px", flexShrink:0 }}>
+          <div style={{ fontSize:17, fontWeight:800 }}>❓ Підказки по розкладу</div>
+          <div style={{ fontSize:12, color:"rgba(255,255,255,0.82)", marginTop:3 }}>Що означає кожен значок на екрані «Записи». Натисніть на блок — покажу, де це на екрані</div>
+          <button onClick={onClose} aria-label="Закрити" style={{ position:"absolute", top:10, right:12, width:34, height:34, borderRadius:"50%", border:`1px solid ${BORDER}`, background:"rgba(255,255,255,0.06)", color:DIM, fontSize:22, lineHeight:1, cursor:"pointer", padding:0 }}>×</button>
+        </div>
+        <div style={{ overflowY:"auto", WebkitOverflowScrolling:"touch", padding:"2px 14px calc(18px + env(safe-area-inset-bottom, 0px))" }}>
+          {SECTIONS.map(sec => (
+            <div key={sec.title} style={{ marginBottom:18 }}>
+              <div style={{ display:"flex", alignItems:"center", gap:12, margin:"6px 0 12px" }}>
+                <div style={{ flex:1, height:1, background:`linear-gradient(90deg,transparent,${GOLD}88)` }}/>
+                <div style={{ fontSize:12, fontWeight:800, letterSpacing:1.5, textTransform:"uppercase", color:GOLD, textAlign:"center", whiteSpace:"nowrap" }}>{sec.title}</div>
+                <div style={{ flex:1, height:1, background:`linear-gradient(270deg,transparent,${GOLD}88)` }}/>
+              </div>
+              <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit,minmax(min(100%,290px),1fr))", gap:10 }}>
+                {sec.items.map((it, i) => (
+                  <div key={i} role="button" tabIndex={0} onClick={() => onPick?.(it.h)} style={{ cursor:"pointer", display:"grid", gridTemplateColumns:"72px 1fr", gap:12, alignItems:"center", padding:"11px 12px", borderRadius:16, background:"rgba(255,255,255,0.04)", border:`1px solid ${BORDER}`, ...(hv?.item||{}), gridColumn: (sec.items.length % 2 === 1 && i === sec.items.length - 1) ? "1 / -1" : undefined }}>
+                    <div style={{ height:58, borderRadius:13, background:"rgba(0,0,0,0.22)", border:`1px solid ${BORDER}`, ...(hv?.ico||{}), display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden", padding:"0 4px" }}><div style={{ transform:`scale(${it.s ?? 1.2})`, display:"flex", alignItems:"center", justifyContent:"center" }}>{it.ico}</div></div>
+                    <div style={{ minWidth:0 }}>
+                      <div style={{ fontSize:14, fontWeight:800, color:TEXT, lineHeight:1.25 }}>{it.t}</div>
+                      <div style={{ fontSize:12.5, lineHeight:1.45, color:"rgba(255,255,255,0.82)", marginTop:3 }}>{it.d}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) {
   const { BG, BG_DEEP, SURFACE, SURF_HI, SURF_LO, BORDER, TEXT, DIM, FAINT, ACCENT, ACC_HI, SO, SI , GLOW, SHADE, INK } = useContext(ThemeContext);
   const glow=a=>`rgba(${GLOW},${a})`,shade=a=>`rgba(${SHADE},${a})`,ink=a=>`rgba(${INK},${a})`;
@@ -6102,7 +6386,7 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
   const timeStep = data?.freeSnap ? 5 : (settings.snapMin || 30);
   const timeItems = useMemo(()=>{
     const arr=[];
-    for(let m=settings.workStart*60; m<settings.workEnd*60; m+=timeStep)
+    for(let m=Math.round(settings.workStart*60); m<Math.round(settings.workEnd*60); m+=timeStep)
       arr.push({label:fmtTime(m), value:m});
     return arr;
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -6120,8 +6404,11 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
   const [dateOffset, setDateOffset] = useState(0);
   const [timeVal,    setTimeVal]    = useState(null);
   const [svcId,      setSvcId]      = useState(null);
+  const [addonIds,   setAddonIds]   = useState([]);
+  const [usePkg,     setUsePkg]     = useState(true);
   const [note,       setNote]       = useState("");
   const [debtAmount, setDebtAmount] = useState("");
+  const [newTag,     setNewTag]     = useState(null); // ручна мітка: id довільної мітки
   const [students,   setStudents]   = useState([]);
   const [closing,    setClosing]    = useState(false);
 
@@ -6131,8 +6418,8 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
       const d = snap.val() || {};
       setStudents(Object.entries(d).map(([uid, u]) => {
         const p = u.profile || {};
-        return { id:uid, name:p.name||u.name||"Учень", phone:p.phone||u.phone||"" };
-      }).filter(s=>s.name!=="Учень"||s.phone));
+        return { id:uid, name:p.name||u.name||"Клієнт", phone:p.phone||u.phone||"", packages:normPackages(u.packages) };
+      }).filter(s=>s.name!=="Клієнт"||s.phone));
     });
     return () => off(r, "value", handler);
   }, []);
@@ -6146,6 +6433,7 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
       setNewName(""); setNewPhone(""); setNote("");
       setDebtAmount("");
       setSvcId(null);
+      setAddonIds([]);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   },[!!data]);
@@ -6168,6 +6456,15 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
 
   const isNewStudent = selStudent?.id === "new";
   const selSvc    = activeServices.find(s=>s.id===svcId) ?? null;
+  // Допуслуги вибраної послуги: ціна додається до запису, хвилини — до його тривалості
+  const svcAddons = normAddons(selSvc?.addons);
+  const chosenAddons = pickAddons(selSvc, addonIds);
+  const axTotals = addonsTotals(chosenAddons);
+  const totalDur = selSvc ? selSvc.duration + axTotals.minutes : 0;
+  // Пакет клієнта, який можна списати на цю послугу в обрану дату
+  const pkgDateStr = (() => { const d0 = new Date(); d0.setHours(0,0,0,0); d0.setDate(d0.getDate() + dateOffset); return `${d0.getFullYear()}-${String(d0.getMonth()+1).padStart(2,"0")}-${String(d0.getDate()).padStart(2,"0")}`; })();
+  const availPkg = (selSvc && selStudent && selStudent.id !== "new") ? pickPackage(selStudent.packages || [], selSvc.id, pkgDateStr) : null;
+  const pkgOn = !!availPkg && usePkg;
   const finalName = isNewStudent ? newName.trim() : selStudent ? selStudent.name : search.trim();
   const finalPhone= isNewStudent ? newPhone.trim() : phone || (selStudent?.phone ?? "");
   const readyToConfirm = finalName.length > 1 && !!selSvc && timeVal != null;
@@ -6183,7 +6480,7 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
   const filtered = q ? sortedStudents.filter(s=>s.name.toLowerCase().includes(q)||s.phone.includes(q)) : sortedStudents;
 
   const SL = ({children})=>(
-    <div style={{fontSize:10,fontWeight:700,letterSpacing:1.2,color:TEXT_FAINT,
+    <div style={{fontSize:11,fontWeight:700,letterSpacing:1.2,color:TEXT_FAINT,
       textTransform:"uppercase",marginBottom:7}}>{children}</div>
   );
 
@@ -6196,13 +6493,18 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
     const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
     onConfirm({
       id:`b-${Date.now()}`,
-      day:dateOffset, date:dateStr, startMin:timeVal, durMin:selSvc.duration,
+      day:dateOffset, date:dateStr, startMin:timeVal, durMin:totalDur,
       name:finalName, phone:finalPhone, serviceId:selSvc.id,
       type:selSvc.type||"private", status:"confirmed",
       hoursDone:0, categoryId:null, isVipOnly:false,
       userId: (!isNewStudent && selStudent?.id) ? selStudent.id : null,
       ...(note.trim() && { note:note.trim() }),
       ...(Number(debtAmount) > 0 && { debtAmount: Number(debtAmount) }),
+      ...(newTag && { tag: newTag, tagManual: true }),
+      ...(chosenAddons.length && { addons: addonsSnapshot(chosenAddons), addonsPrice: axTotals.price }),
+      ...(bufferOf(selSvc) > 0 && { bufferMin: bufferOf(selSvc) }),
+      ...(pkgOn && { packageId: availPkg.id, packageName: availPkg.name }),
+      ...(isGroupService(selSvc) && { groupKey: groupKeyOf(dateStr, fmtTime(timeVal)), groupCap: capacityOf(selSvc) }),
     });
     _close();
   };
@@ -6257,15 +6559,15 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
 
           <div style={{padding:"16px 16px 0",display:"flex",flexDirection:"column",gap:16}}>
 
-          {/* УЧЕНЬ */}
+          {/* КЛІЄНТ */}
           <div>
-            <SL>Учень</SL>
+            <SL>Клієнт</SL>
             {isNewStudent ? (
               <div style={{display:"flex",flexDirection:"column",gap:7}}>
                 <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",
                   padding:"7px 12px",borderRadius:11,
                   background:`${GREEN}18`,border:`1.5px solid ${GREEN}44`}}>
-                  <div style={{fontSize:12,fontWeight:700,color:GREEN}}>Новий учень</div>
+                  <div style={{fontSize:12,fontWeight:700,color:GREEN}}>Новий клієнт</div>
                   <button onClick={()=>{setSelStudent(null);setNewName("");setNewPhone("");}}
                     style={{background:"none",border:"none",cursor:"pointer",color:TEXT_FAINT,fontSize:20,padding:0,lineHeight:1}}>×</button>
                 </div>
@@ -6310,7 +6612,7 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
                         background:`${GREEN}33`,border:`1.5px solid ${GREEN}55`,
                         display:"flex",alignItems:"center",justifyContent:"center",
                         fontSize:14,color:GREEN,fontWeight:800,lineHeight:1}}>+</div>
-                      <div style={{fontSize:13,fontWeight:700,color:GREEN}}>Новий учень</div>
+                      <div style={{fontSize:13,fontWeight:700,color:GREEN}}>Новий клієнт</div>
                     </div>
                   )}
                   {filtered.map(s=>(
@@ -6355,7 +6657,7 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
                     transition:"all .12s",
                   }}>
                     <div>{lbl}</div>
-                    {i>1&&<div style={{fontSize:11,opacity:0.65,marginTop:1}}>{info.month}</div>}
+                    {i>1&&<div style={{fontSize:11,opacity:0.9,marginTop:1}}>{info.month}</div>}
                   </button>
                 );
               })}
@@ -6370,8 +6672,8 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
                 const active = t.value===timeVal;
                 return (
                   <button key={t.value} onClick={()=>setTimeVal(t.value)} style={{
-                    padding:"7px 10px",borderRadius:10,border:"none",cursor:"pointer",minWidth:54,
-                    background:active?`linear-gradient(165deg,${BLUE},#1d4ed8)`:SURFACE_LO,
+                    padding:"9px 10px",borderRadius:10,border:"none",cursor:"pointer",minWidth:54,flex:"1 1 auto",textAlign:"center",
+                    background:active?`linear-gradient(165deg,#2f6fe0,#1d4ed8)`:SURFACE_LO,
                     color:active?"#fff":TEXT_DIM,
                     fontSize:13,fontWeight:active?800:500,
                     boxShadow:active?`0 4px 12px ${BLUE}55`:SHADOW_OUT,
@@ -6390,7 +6692,7 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
                 const active = s.id===svcId;
                 const c = colorOf(s.colorId || (s.type==="school"?"green":"yellow"));
                 return (
-                  <button key={s.id} onClick={()=>setSvcId(s.id)} style={{
+                  <button key={s.id} onClick={()=>{ if (s.id!==svcId) { setSvcId(s.id); setAddonIds([]); } }} style={{
                     display:"flex",alignItems:"center",justifyContent:"space-between",
                     padding:"10px 13px",borderRadius:12,cursor:"pointer",
                     background:active?`${c}1a`:SURFACE_LO,
@@ -6411,6 +6713,48 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
             </div>
           </div>
 
+          {selSvc && isGroupService(selSvc) && (
+            <div style={{padding:"9px 13px",borderRadius:12,background:`${BLUE}14`,border:`1px solid ${BLUE}30`,fontSize:12,color:TEXT_DIM,lineHeight:1.5}}>
+              👥 Групова послуга, до {capacityOf(selSvc)} місць. Запис приєднається до наявної групи на цей час або створить нову; якщо місць немає — його буде відхилено.
+            </div>
+          )}
+
+          {/* ДОПУСЛУГИ — якщо в послуги вони є */}
+          {selSvc && svcAddons.length > 0 && (
+            <div>
+              <SL>Допуслуги</SL>
+              <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                {svcAddons.map(a=>{
+                  const on = addonIds.includes(a.id);
+                  return (
+                    <button key={a.id} type="button" onClick={()=>setAddonIds(ids=>on?ids.filter(x=>x!==a.id):[...ids,a.id])} style={{
+                      padding:"8px 11px",borderRadius:11,cursor:"pointer",fontFamily:"inherit",textAlign:"left",
+                      border: on ? `1.5px solid ${GOLD}` : `1.5px solid ${BORDER}`,
+                      background: on ? `${GOLD}1f` : SURFACE_LO,
+                      color: on ? TEXT : TEXT_DIM, fontSize:12, fontWeight:on?800:600,
+                    }}>
+                      {on?"✓ ":"+ "}{a.name}
+                      <span style={{opacity:0.75,fontWeight:600}}> · {a.price}₴{a.minutes>0?` · +${a.minutes}хв`:""}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* ПАКЕТ клієнта */}
+          {availPkg && (
+            <button type="button" onClick={()=>setUsePkg(v=>!v)} style={{
+              display:"flex",alignItems:"center",gap:10,textAlign:"left",padding:"10px 13px",borderRadius:12,cursor:"pointer",fontFamily:"inherit",
+              border: pkgOn ? `1.5px solid ${GREEN}` : `1.5px solid ${BORDER}`,
+              background: pkgOn ? `${GREEN}1a` : SURFACE_LO, color:TEXT,fontSize:13,fontWeight:700,
+            }}>
+              <span style={{fontSize:16}}>🎫</span>
+              <span style={{flex:1}}>Списати з пакета «{availPkg.name}» <span style={{color:TEXT_DIM,fontWeight:600}}>(лишилось {availPkg.left})</span></span>
+              <span style={{color:pkgOn?GREEN:TEXT_FAINT}}>{pkgOn?"✓":"○"}</span>
+            </button>
+          )}
+
           {/* ЦІНА PREVIEW */}
           {selSvc && (
             <div style={{
@@ -6419,11 +6763,11 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
               background:`${GOLD}14`,border:`1px solid ${GOLD}30`,
             }}>
               <span style={{fontSize:15}}>💰</span>
-              <div style={{fontSize:15,fontWeight:800,color:GOLD}}>{selSvc.price}₴</div>
-              <div style={{fontSize:12,color:TEXT_DIM}}>· {selSvc.duration} хв</div>
+              <div style={{fontSize:15,fontWeight:800,color:GOLD}}>{(pkgOn ? 0 : selSvc.price) + axTotals.price}₴</div>
+              <div style={{fontSize:12,color:TEXT_DIM}}>· {totalDur} хв</div>
               {timeVal!=null && (
                 <div style={{marginLeft:"auto",fontSize:12,color:TEXT_DIM}}>
-                  {fmtTime(timeVal)} → {fmtTime(timeVal + selSvc.duration)}
+                  {fmtTime(timeVal)} → {fmtTime(timeVal + totalDur)}
                 </div>
               )}
             </div>
@@ -6457,9 +6801,25 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
             }}
           />
 
+          {/* МІТКА — вручну: Перевірка / Важливо ("1-й запис" ставиться сама, борг — сумою вище) */}
+          <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+            {TAG_PRESETS.filter(t => !AUTO_TAG_IDS.includes(t.id)).map(tp => {
+              const on = newTag === tp.id;
+              return (
+                <button key={tp.id} type="button" onClick={()=>setNewTag(on ? null : tp.id)} style={{
+                  flex:1,display:"flex",alignItems:"center",justifyContent:"center",gap:6,
+                  padding:"10px 6px",borderRadius:12,cursor:"pointer",fontFamily:"inherit",
+                  border: on ? `1.5px solid ${tp.color}` : `1.5px solid ${BORDER}`,
+                  background: on ? `color-mix(in srgb,${tp.color} 22%,${SURFACE_LO})` : SURFACE_LO,
+                  color:TEXT,fontSize:13,fontWeight:700,
+                }}><span>{tp.icon}</span>{tp.label}</button>
+              );
+            })}
+          </div>
+
           {missingPhone && (
             <div style={{fontSize:12,color:ACCENT,textAlign:"center",marginTop:-4}}>
-              Вкажіть телефон учня, щоб зберегти запис
+              Вкажіть телефон клієнта, щоб зберегти запис
             </div>
           )}
 
@@ -6547,7 +6907,7 @@ function SettingsView({ settings, setSettings }) {
 
       {/* ── PROFILE ── */}
       <Card style={{padding:"20px"}}>
-        <SectionTitle>Профіль інструктора</SectionTitle>
+        <SectionTitle>Профіль майстра</SectionTitle>
         <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:16}}>
           <div className="icon3d" style={{
             width:80,height:80,borderRadius:40,
@@ -6662,12 +7022,12 @@ function SettingsView({ settings, setSettings }) {
       <Card style={{padding:"20px"}}>
         <SectionTitle>Прилипання вільних слотів</SectionTitle>
         <div style={{fontSize:12,color:TEXT_DIM,marginBottom:14}}>
-          Якщо є запис на 12:00–14:00, які слоти показувати учневі для 1-годинного уроку?
+          Якщо є запис на 12:00–14:00, які слоти показувати клієнтові для 1-годинного запису?
         </div>
         {[
           {k:"before",l:"Тільки попередні (11:00)"},
           {k:"after", l:"Тільки наступні (14:00)"},
-          {k:"both",  l:"Обидва (11:00 і 14:00) — вибір учня"},
+          {k:"both",  l:"Обидва (11:00 і 14:00) — вибір клієнта"},
         ].map(o=>(
           <Row key={o.k} label={o.l}>
             <div onClick={()=>upd("stickyTime",o.k)} style={{
@@ -6682,17 +7042,17 @@ function SettingsView({ settings, setSettings }) {
 
       {/* ── RESTRICTIONS ── */}
       <Card style={{padding:"20px"}}>
-        <SectionTitle>Обмеження для учнів</SectionTitle>
-        <Row label="Учень може переносити свої записи">
+        <SectionTitle>Обмеження для клієнтів</SectionTitle>
+        <Row label="Клієнт може переносити свої записи">
           <Toggle on={settings.studentCanReschedule} onChange={v=>upd("studentCanReschedule",v)}/>
         </Row>
-        <Row label="Учень може скасовувати записи">
+        <Row label="Клієнт може скасовувати записи">
           <Toggle on={settings.studentCanCancel} onChange={v=>upd("studentCanCancel",v)}/>
         </Row>
-        <Row label="Заборона запису" hint="За скільки годин до слоту учень не може записатись">
+        <Row label="Заборона запису" hint="За скільки годин до слоту клієнт не може записатись">
           <NumInput value={settings.bookCutoffHours} onChange={v=>upd("bookCutoffHours",v)} min={0} max={48} suffix="год"/>
         </Row>
-        <Row label="Календар наперед" hint="На скільки днів учень бачить вільні слоти">
+        <Row label="Календар наперед" hint="На скільки днів клієнт бачить вільні слоти">
           <NumInput value={settings.calendarOpenDays} onChange={v=>upd("calendarOpenDays",v)} min={1} max={365} suffix="дн"/>
         </Row>
       </Card>
@@ -6755,9 +7115,9 @@ function SettingsView({ settings, setSettings }) {
 
       {/* ── CATEGORIES ── */}
       <Card style={{padding:"20px"}}>
-        <SectionTitle>Категорії учнів</SectionTitle>
+        <SectionTitle>Категорії клієнтів</SectionTitle>
         <div style={{fontSize:12,color:TEXT_DIM,marginBottom:12}}>
-          Категорії для приватних учнів. Допомагає відкривати спецслоти для VIP, давати знижки тощо.
+          Категорії для індивідуальних клієнтів. Допомагає відкривати спецслоти для VIP, давати знижки тощо.
         </div>
         {settings.categories.map(c=>(
           <div key={c.id} style={{
@@ -6817,7 +7177,7 @@ function SettingsView({ settings, setSettings }) {
       {/* ── AUTO MESSAGES ── */}
       <Card style={{padding:"20px"}}>
         <SectionTitle>Автоматичні повідомлення</SectionTitle>
-        <Row label="Нагадування за N годин до уроку">
+        <Row label="Нагадування за N годин до запису">
           <div style={{display:"flex",alignItems:"center",gap:8}}>
             {settings.autoReminder?.enabled && (
               <NumInput value={settings.autoReminder?.hoursBefore ?? 24}
@@ -6827,7 +7187,7 @@ function SettingsView({ settings, setSettings }) {
             <Toggle on={!!settings.autoReminder?.enabled} onChange={v=>updNested("autoReminder","enabled",v)}/>
           </div>
         </Row>
-        <Row label="Вітання при реєстрації нового учня">
+        <Row label="Вітання при реєстрації нового клієнта">
           <Toggle on={!!settings.autoWelcome?.enabled} onChange={v=>updNested("autoWelcome","enabled",v)}/>
         </Row>
         <Row label="Повідомлення про підтвердження запису">
@@ -6845,7 +7205,7 @@ function SettingsView({ settings, setSettings }) {
       <Card style={{padding:"20px"}}>
         <SectionTitle>Черга очікування — режим роботи</SectionTitle>
         <div style={{fontSize:12,color:TEXT_DIM,marginBottom:14}}>
-          Коли учень скасовує запис, як пропонувати слот тим, хто в черзі?
+          Коли клієнт скасовує запис, як пропонувати слот тим, хто в черзі?
         </div>
         <Row label="FIFO" hint="Автоматично записати першого в черзі (без підтвердження)">
           <Toggle on={settings.queueAutoFifo} onChange={v=>upd("queueAutoFifo",v)}/>
@@ -6853,7 +7213,7 @@ function SettingsView({ settings, setSettings }) {
         <Row label="Broadcast" hint="Розіслати всім, хто перший підтвердив — той записаний">
           <Toggle on={settings.queueBroadcast} onChange={v=>upd("queueBroadcast",v)}/>
         </Row>
-        <Row label="Ручний" hint="Інструктор сам обирає кого запросити">
+        <Row label="Ручний" hint="Майстер сам обирає кого запросити">
           <Toggle on={settings.queueManual} onChange={v=>upd("queueManual",v)}/>
         </Row>
       </Card>
@@ -6894,7 +7254,7 @@ function SettingsView({ settings, setSettings }) {
         {[
           {k:"topbar",l:"У верхньому барі (іконка дзвіночка)"},
           {k:"tab",l:"Окрема вкладка в меню"},
-          {k:"profile",l:"У профілі інструктора"},
+          {k:"profile",l:"У профілі майстра"},
         ].map(o=>(
           <Row key={o.k} label={o.l}>
             <div onClick={()=>upd("notifLocation",o.k)} style={{
@@ -6909,10 +7269,10 @@ function SettingsView({ settings, setSettings }) {
 
       {/* ── BROADCAST PUSH ── */}
       <Card style={{padding:"20px"}}>
-        <SectionTitle>Сповіщення учням</SectionTitle>
-        <div style={{fontSize:12,color:DIM,marginBottom:14}}>Ручна розсилка повідомлень активним учням про вільний слот</div>
+        <SectionTitle>Сповіщення клієнтам</SectionTitle>
+        <div style={{fontSize:12,color:DIM,marginBottom:14}}>Ручна розсилка повідомлень активним клієнтам про вільний слот</div>
         <button onClick={()=>setBroadcastOpen(true)} style={{width:"100%",background:`linear-gradient(135deg,${ACCENT},${ACC_HI})`,color:"#fff",border:"none",borderRadius:14,padding:"13px 0",fontSize:14,fontWeight:800,cursor:"pointer"}}>
-          📣 Надіслати сповіщення учням
+          📣 Надіслати сповіщення клієнтам
         </button>
         {broadcastOpen && <BroadcastModal onClose={()=>setBroadcastOpen(false)}/>}
       </Card>
@@ -6924,7 +7284,7 @@ function SettingsView({ settings, setSettings }) {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// STUDENTS VIEW — список учнів з редагуванням даних
+// STUDENTS VIEW — список клієнтів з редагуванням даних
 // ═══════════════════════════════════════════════════════════════
 function StudentsView() {
   const { BG_DEEP, SURF_LO, BORDER, TEXT, DIM, FAINT, ACCENT, ACC_HI, SO, SI, GLOW, SHADE, INK } = useContext(ThemeContext);
@@ -6945,8 +7305,8 @@ function StudentsView() {
       const d = snap.val() || {};
       setStudents(Object.entries(d).map(([uid, u]) => {
         const p = u.profile || {};
-        return { uid, name: p.name||u.name||"Учень", phone: p.phone||u.phone||"", blocked: !!u.blocked };
-      }).filter(s => s.name !== "Учень" || s.phone));
+        return { uid, name: p.name||u.name||"Клієнт", phone: p.phone||u.phone||"", blocked: !!u.blocked };
+      }).filter(s => s.name !== "Клієнт" || s.phone));
     });
     return () => off(r, "value", unsub);
   }, []);
@@ -7025,7 +7385,7 @@ function StudentsView() {
           style={{background:"none",border:"none",cursor:"pointer",color:FT,fontSize:18,padding:0,lineHeight:1}}>×</button>}
       </div>
 
-      <div style={{fontSize:11,color:FT,paddingLeft:4,marginBottom:2}}>{filtered.length} учнів</div>
+      <div style={{fontSize:11,color:FT,paddingLeft:4,marginBottom:2}}>{filtered.length} клієнтів</div>
 
       {filtered.map(s => {
         const isEditing = editing?.uid === s.uid;
@@ -7078,7 +7438,7 @@ function StudentsView() {
 
       {filtered.length===0 && (
         <div style={{textAlign:"center",padding:"30px 0",color:FT,fontSize:13}}>
-          {search?"Не знайдено":"Учнів поки немає"}
+          {search?"Не знайдено":"Клієнтів поки немає"}
         </div>
       )}
     </div>
@@ -7101,7 +7461,7 @@ function TemplatesView() {
   const DEFAULTS = {
     booking_confirmed: { title:"✅ Запис підтверджено", body:"{name}, чекаємо тебе {daySlot} 🎯" },
     booking_cancelled: { title:"❌ Запис скасовано",   body:"Запис {dateLabel} о {time} відмінено. Оберіть інший час ↩️" },
-    lesson_reminder:   { title:"⏰ Нагадування про урок", body:"{name}, завтра урок о {time} 🚗 Чекаємо!" },
+    lesson_reminder:   { title:"⏰ Нагадування про запис", body:"{name}, завтра запис о {time} 🚗 Чекаємо!" },
   };
   const TMETA = [
     { type:"booking_confirmed", label:"✅ Підтвердження запису",
@@ -7110,7 +7470,7 @@ function TemplatesView() {
     { type:"booking_cancelled", label:"❌ Скасування запису",
       vars:["{name}","{dateLabel}","{time}","{date}"],
       sample:{ name:"Маргарита", daySlot:"понеділок 7 липня о 14:00", time:"14:00", date:"2025-07-07", dateLabel:"7 липня" } },
-    { type:"lesson_reminder",   label:"⏰ Нагадування про урок",
+    { type:"lesson_reminder",   label:"⏰ Нагадування про запис",
       vars:["{name}","{time}","{date}"],
       sample:{ name:"Маргарита", daySlot:"завтра о 10:00", time:"10:00", date:"2025-07-07", dateLabel:"7 липня" } },
   ];
@@ -7263,7 +7623,7 @@ function TemplatesView() {
             </div>
             <div style={{fontSize:11,color:DM,flexShrink:0,textAlign:"right"}}>
               {TYPE_LABELS[item.type]||item.type}
-              {item.recipients>1 && <div style={{fontSize:10,color:FT}}>{item.recipients} учнів</div>}
+              {item.recipients>1 && <div style={{fontSize:10,color:FT}}>{item.recipients} клієнтів</div>}
               {item.status && item.status!=="sent" && (
                 <div style={{fontSize:10,color:"#ef4444",fontWeight:700}}>
                   ⚠ {item.status==="no_token" ? "немає токена" : "не надіслано"}
@@ -7294,7 +7654,7 @@ function StubView({ title }) {
 const TABS = [
   {id:"schedule",  label:"Записи",     icon:ICONS.calendar},
   {id:"bookings",  label:"Букінги",    icon:ICONS.list},
-  {id:"students",  label:"Учні",       icon:ICONS.users},
+  {id:"students",  label:"Клієнти",       icon:ICONS.users},
   {id:"services",  label:"Послуги",    icon:ICONS.car},
   {id:"chats",     label:"Чати",       icon:ICONS.chat},
   {id:"templates", label:"Шаблони",    icon:ICONS.bell},
@@ -7302,7 +7662,7 @@ const TABS = [
   {id:"settings",  label:"Налашт.",    icon:ICONS.settings},
 ];
 const TITLES = {
-  schedule:"Розклад", bookings:"Букінги", students:"Учні",
+  schedule:"Розклад", bookings:"Букінги", students:"Клієнти",
   services:"Послуги", chats:"Чати", templates:"Шаблони",
   stats:"Статистика", settings:"Налаштування"
 };
@@ -7358,8 +7718,8 @@ export default function App() {
           day,
           date:     dateStr,
           startMin: raw.startMin ?? (hh * 60 + mm),
-          durMin:   raw.durMin ?? (raw.durationHours ? raw.durationHours * 60 : 60),
-          name:     raw.studentName || raw.name || "Учень",
+          durMin:   raw.durMin ?? (raw.durationHours ? Math.round(raw.durationHours * 60) : 60),
+          name:     raw.studentName || raw.name || "Клієнт",
           phone:    raw.phone || "",
           type:     raw.serviceType || raw.type || "private",
           status:   raw.status || "confirmed",
@@ -7367,7 +7727,7 @@ export default function App() {
           hoursDone: raw.hours || raw.hoursDone || 0,
           categoryId: raw.categoryId || null,
           isVipOnly:  raw.isVipOnly || false,
-          discount: usersMapRef.current[uid]?.discount || 0,
+          discount: usersMapRef.current[uid]?.discount || raw.discountAmt || 0,
           customPrice: usersMapRef.current[uid]?.customPrice ?? null,
         });
       });
@@ -7413,13 +7773,13 @@ export default function App() {
       if (b.userId && b.id) {
         if (b.date && b.startMin !== undefined && b.durMin) {
           // Відновлюємо лише слоти сітки; phantom-вузли видаляємо
-          get(iRef( `timeslots/${b.date}`)).then(s => {
+          get(iRef( `${slotRoot()}/${b.date}`)).then(s => {
             const day = s.val() || {};
             const upd = {};
             for (let i = 0; i < b.durMin; i += 30) {
               const sm = b.startMin + i;
               const hh = String(Math.floor(sm/60)).padStart(2,'0'), mm = String(sm%60).padStart(2,'0');
-              const path = `timeslots/${b.date}/slot${hh}${mm}`;
+              const path = `${slotRoot()}/${b.date}/slot${hh}${mm}`;
               const node = day[`slot${hh}${mm}`];
               if (!node || node.phantom) { upd[path] = null; continue; }
               upd[`${path}/available`] = true; upd[`${path}/time`] = `${hh}:${mm}`; upd[`${path}/bookingStart`] = null;
@@ -7450,8 +7810,10 @@ export default function App() {
         serviceId: b.serviceId, serviceType: b.type, type: b.type,
         status: b.status, tsc: b.tsc || "", hours: b.hoursDone || 0,
         createdAt: Date.now(), createdBy: "admin",
+        ...newBookingMasterFields(),
         ...(b.note && { note: b.note }),
         ...(b.debtAmount > 0 && { debtAmount: b.debtAmount }),
+        ...(b.tag && { tag: b.tag, tagManual: true }),
       };
       if (b.userId) {
         update(iRef( `bookings/${b.userId}/${b.id}`), fbData).catch(()=>{});
@@ -7463,14 +7825,14 @@ export default function App() {
             const slotMin = b.startMin + i;
             const sh = String(Math.floor(slotMin / 60)).padStart(2, '0');
             const sm = String(slotMin % 60).padStart(2, '0');
-            update(iRef( `slotBookings/${b.date}/slot${sh}${sm}`), {phone, bookingId: b.id}).catch(()=>{});
+            update(iRef( `${slotBookingsRoot()}/${b.date}/slot${sh}${sm}`), {phone, bookingId: b.id}).catch(()=>{});
           }
         }
       }
     }
     if (b.date && b.startMin !== undefined && b.durMin) {
       // Вузли поза сіткою дня позначаємо phantom — при скасуванні видаляться
-      get(iRef( `timeslots/${b.date}`)).then(s => {
+      get(iRef( `${slotRoot()}/${b.date}`)).then(s => {
         const day = s.val() || {};
         const slotUpd = {};
         for (let i = 0; i < b.durMin; i += 30) {
@@ -7478,12 +7840,12 @@ export default function App() {
           const sh = String(Math.floor(slotMin / 60)).padStart(2, '0');
           const sm = String(slotMin % 60).padStart(2, '0');
           const id = `slot${sh}${sm}`;
-          if (!day[id]) slotUpd[`timeslots/${b.date}/${id}/phantom`] = true;
-          slotUpd[`timeslots/${b.date}/${id}/available`] = false;
-          slotUpd[`timeslots/${b.date}/${id}/time`] = `${sh}:${sm}`;
+          if (!day[id]) slotUpd[`${slotRoot()}/${b.date}/${id}/phantom`] = true;
+          slotUpd[`${slotRoot()}/${b.date}/${id}/available`] = false;
+          slotUpd[`${slotRoot()}/${b.date}/${id}/time`] = `${sh}:${sm}`;
           // Явний прапорець реального старту бронювання — клієнт показує лише
           // його, а не кожен 30-хвилинний блок.
-          slotUpd[`timeslots/${b.date}/${id}/bookingStart`] = i === 0;
+          slotUpd[`${slotRoot()}/${b.date}/${id}/bookingStart`] = i === 0;
         }
         update(iRef(), slotUpd).catch(() => {});
       }).catch(() => {});
@@ -7529,7 +7891,7 @@ export default function App() {
                 <span style={{
                   position:"absolute",top:-2,right:-2,
                   background:ACCENT,color:"#fff",borderRadius:10,
-                  padding:"1px 6px",fontSize:11,fontWeight:800,
+                  padding:"1px 6px",fontSize:9,fontWeight:800,
                   boxShadow:`0 0 8px ${ACCENT}88`
                 }}>3</span>
               </button>
@@ -7584,7 +7946,7 @@ export default function App() {
                 transition:"transform .15s",
                 opacity:tab===t.id?1:0.52,
               }}>{t.icon(33)}</div>
-              <span style={{fontSize:11,fontWeight:700,letterSpacing:0.2}}>{t.label}</span>
+              <span style={{fontSize:9,fontWeight:700,letterSpacing:0.2}}>{t.label}</span>
               {tab===t.id && (
                 <div style={{
                   position:"absolute",bottom:5,left:"50%",transform:"translateX(-50%)",
@@ -7598,10 +7960,10 @@ export default function App() {
         </div>
 
         {/* MODALS */}
-        <BookingModal booking={selectedBooking} onClose={()=>setSelectedBooking(null)}
+        <BookingModalFog booking={selectedBooking ? (bookings.find(x=>x.id===selectedBooking.id) || selectedBooking) : null} onClose={()=>setSelectedBooking(null)}
           onAction={handleAction} settings={settings}
           autoTag={selectedBooking ? getAutoTag(selectedBooking) : null}/>
-        <NewBookingModal data={newBookingData} onClose={()=>setNewBookingData(null)}
+        <NewBookingModalFog data={newBookingData} onClose={()=>setNewBookingData(null)}
           onConfirm={handleNewBooking} bookings={bookings} settings={(() => {
             const sched = (settings.weekSchedule || []).filter(d => d.start != null);
             const eStart = sched.length ? Math.min(settings.workStart, ...sched.map(d=>d.start)) : settings.workStart;

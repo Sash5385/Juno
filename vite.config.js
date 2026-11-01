@@ -24,8 +24,10 @@ function readVersion() {
 function versionGuard() {
   let version = ''
   let overlayJs = ''
+  let base = '/'
   return {
     name: 'drivepad-version-guard',
+    configResolved(c) { base = c.base || '/' },
     buildStart() {
       version = readVersion()
       // Анімація оновлення — окремий читабельний файл, вставляється в HTML інлайном.
@@ -36,8 +38,9 @@ function versionGuard() {
       // поки вкладка відкрита — так відкрита сесія теж підхоплює новий деплой
       // без ручного перезавантаження сторінки.
       const guard =
+        '<script>window.__BASE=' + JSON.stringify(base) + ';</script>' +
         '<script>(function(){var B=' + JSON.stringify(version) + ';' +
-        'function check(){try{fetch("/version.json?_="+Date.now(),{cache:"no-store"})' +
+        'function check(){try{fetch(window.__BASE+"version.json?_="+Date.now(),{cache:"no-store"})' +
         '.then(function(r){return r.json()}).then(function(d){' +
         'if(d&&d.version&&d.version!==B){' +
         // Ключ зберігає ЧАС останньої спроби, а не постійний прапорець "вже
@@ -93,7 +96,11 @@ function versionGuard() {
   }
 }
 
+// Під-шлях (напр. /junoadmin/) — VITE_BASE; за замовчуванням '/' (без змін).
+const BASE = process.env.VITE_BASE || '/'
+
 export default defineConfig({
+  base: BASE,
   resolve: {
     // Режим лише читання при простроченій підписці — див. src/firebaseDbGuard.js
     alias: [{ find: /^firebase\/database$/, replacement: resolve(__dirname, 'src/firebaseDbGuard.js') }],
@@ -105,19 +112,20 @@ export default defineConfig({
       registerType: 'prompt',
       includeAssets: ['icon-192.png', 'icon-512.png'],
       manifest: {
-        name: 'DrivePad Admin',
-        short_name: 'DrivePad',
-        description: 'Адмінпанель інструктора DrivePad',
+        name: 'Juno',
+        short_name: 'Juno',
+        description: 'Адмінпанель майстра Juno',
         theme_color: '#0f0f14',
         background_color: '#0f0f14',
         display: 'standalone',
         orientation: 'portrait',
         lang: 'uk',
-        start_url: '/',
+        start_url: BASE,
+        scope: BASE,
         icons: [
-          { src: '/icon-192.png', sizes: '192x192', type: 'image/png' },
-          { src: '/icon-512.png', sizes: '512x512', type: 'image/png' },
-          { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' }
+          { src: BASE + 'icon-192.png', sizes: '192x192', type: 'image/png' },
+          { src: BASE + 'icon-512.png', sizes: '512x512', type: 'image/png' },
+          { src: BASE + 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' }
         ]
       },
       workbox: {
@@ -132,7 +140,7 @@ export default defineConfig({
         // Serve navigations network-first so an online client always gets the
         // freshest index.html (and thus the freshest bundle) through the SW,
         // instead of an indefinitely stale precached shell.
-        navigateFallback: '/index.html',
+        navigateFallback: BASE + 'index.html',
         runtimeCaching: [
           {
             urlPattern: ({ request }) => request.mode === 'navigate',

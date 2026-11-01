@@ -4,6 +4,9 @@ import { iRef } from "../firebase";
 
 import { ThemeContext } from "../theme.js";
 import { UICss, Modal, Chip, Btn, Toggle, Pill, useFX } from "../ui";
+import { capacityOf, MAX_CAPACITY } from "../groups";
+import ServicesFog from "./ServicesFog";
+import { rawAddons, normAddons, bufferOf, ADDON_MINUTES, BUFFER_OPTIONS, MAX_ADDONS } from "../addons";
 
 export const makePalette = ({GREEN, GOLD, BLUE, PURPLE, ACCENT, TEAL}) => [
   { id:"green",   name:"Зелений",    color:GREEN  },
@@ -19,19 +22,23 @@ export const makePalette = ({GREEN, GOLD, BLUE, PURPLE, ACCENT, TEAL}) => [
 ];
 
 const makeCategories = ({TEXT, PURPLE, BLUE, TEAL}) => ({
-  "cat-all": { name:"Всі учні", color:TEXT   },
+  "cat-all": { name:"Всі клієнти", color:TEXT   },
   "cat-vip": { name:"VIP",      color:PURPLE },
   "cat-std": { name:"Стандарт", color:BLUE   },
   "cat-new": { name:"Новачок",  color:TEAL   },
 });
 
+// Стандартні послуги («Стандарт» і «Індивідуальний») видаляти й архівувати не можна — лише вимикати.
+const PROTECTED_SERVICE_IDS = ["sv1","sv2"];
+const isProtectedService = svc => PROTECTED_SERVICE_IDS.includes(svc?.id);
+
 const INIT_SERVICES = [
-  { id:"sv1", name:"Автошкола 1 год", type:"school",  duration:60,  price:700,  colorId:"green",  active:true,  archived:false, description:"", accessCats:["cat-all"], lessons:0, income:0, instructions:"" },
-  { id:"sv2", name:"Автошкола 2 год", type:"school",  duration:120, price:1400, colorId:"green",  active:true,  archived:false, description:"", accessCats:["cat-all"], lessons:0, income:0, instructions:"" },
-  { id:"sv3", name:"Приватний 1 год", type:"private", duration:60,  price:1000, colorId:"yellow", active:true,  archived:false, description:"", accessCats:["cat-all"], lessons:0, income:0, instructions:"" },
-  { id:"sv4", name:"Приватний 2 год", type:"private", duration:120, price:2000, colorId:"yellow", active:true,  archived:false, description:"", accessCats:["cat-all"], lessons:0, income:0, instructions:"" },
+  { id:"sv1", name:"Стандарт", type:"school",  duration:60,  price:0,    colorId:"green",  active:true,  archived:false, description:"", accessCats:["cat-all"], lessons:0, income:0, instructions:"" },
+  { id:"sv2", name:"Індивідуальний", type:"private", duration:60,  price:0,    colorId:"yellow", active:true,  archived:false, description:"", accessCats:["cat-all"], lessons:0, income:0, instructions:"" },
 ];
 
+const REBOOK_OPTIONS = [0,14,21,30,45,60,90];
+const rebookOf = svc => { const d = Math.round(Number(svc?.rebookDays)); return d > 0 ? Math.min(365, d) : 0; };
 const fmtDur = min => { const h=Math.floor(min/60),m=min%60; return m?`${h}г ${m}хв`:`${h} год`; };
 
 // ─── ICONS ──────────────────────────────────────────────────────
@@ -63,7 +70,7 @@ function SlotPreview({ svc, height=80 }) {
       display:"flex",flexDirection:"column",justifyContent:"space-between",
     }}>
       <div style={{fontSize:12,fontWeight:800,color:"#fff",textShadow:`0 1px 2px ${shade(0.5)}`,position:"relative",zIndex:3}}>{svc.name}</div>
-      <div style={{fontSize:10,color:"rgba(255,255,255,0.8)",fontWeight:700,position:"relative",zIndex:3}}>{fmtDur(svc.duration)} · {svc.price} ₴</div>
+      <div style={{fontSize:11,color:"rgba(255,255,255,0.94)",fontWeight:700,position:"relative",zIndex:3}}>{fmtDur(svc.duration)} · {svc.price||0} ₴</div>
     </div>
   );
 }
@@ -77,16 +84,21 @@ function Inset({ children, style={} }) {
 // ─── SERVICE FORM MODAL ──────────────────────────────────────────
 function ServiceFormModal({ svc, onSave, onClose }) {
   const theme = useContext(ThemeContext);
-  const { SURF_HI, SURFACE, BG_DEEP, TEXT, DIM, ACCENT, ACC_HI, GOLD, SO } = theme;
+  const { SURF_HI, SURFACE, BG_DEEP, TEXT, DIM, ACCENT, ACC_HI, GOLD, SO, BTN_TX } = theme;
   const PALETTE = makePalette(theme);
   const { glow, shade } = useFX();
   const isNew = !svc;
-  const [form, setForm] = useState(svc || {
+  const [form, setForm] = useState(svc ? {...svc, accessCats:svc.accessCats||["cat-all"], addons:rawAddons(svc.addons), bufferMin:bufferOf(svc), capacity:capacityOf(svc), rebookDays:rebookOf(svc)} : {
     id:`sv-${Date.now()}`,name:"",type:"school",duration:60,price:0,
     colorId:"green",active:true,archived:false,description:"",instructions:"",
-    accessCats:["cat-all"],lessons:0,income:0,
+    accessCats:["cat-all"],lessons:0,income:0,addons:[],bufferMin:0,capacity:1,rebookDays:0,
   });
   const upd = (k,v) => setForm(f=>({...f,[k]:v}));
+  // Допуслуги: назва, ціна (₴ додається до запису) і додатковий час (хв додаються до тривалості)
+  const addons = rawAddons(form.addons);
+  const setAddon = (i,patch) => upd("addons", addons.map((a,j)=>j===i?{...a,...patch}:a));
+  const addAddon = () => addons.length < MAX_ADDONS && upd("addons", [...addons, {id:`ad-${Date.now().toString(36)}${Math.random().toString(36).slice(2,5)}`,name:"",price:0,minutes:0}]);
+  const delAddon = i => upd("addons", addons.filter((_,j)=>j!==i));
   const valid = form.name.trim() && form.accessCats.length > 0;
   const accentColor = PALETTE.find(p=>p.id===form.colorId)?.color || theme.GREEN;
 
@@ -94,7 +106,7 @@ function ServiceFormModal({ svc, onSave, onClose }) {
     <Modal open onClose={onClose} sheet size="lg" title={isNew?"Нова послуга":"Редагування послуги"}
       footer={<>
         <Btn variant="ghost" flex={1} onClick={onClose}>Скасувати</Btn>
-        <Btn variant="primary" flex={1} disabled={!valid} onClick={()=>valid&&onSave(form)}>
+        <Btn variant="primary" flex={1} disabled={!valid} onClick={()=>valid&&onSave({...form,price:Number(form.price)||0,addons:capacityOf(form)>1?[]:normAddons(form.addons),bufferMin:bufferOf(form),capacity:capacityOf(form),rebookDays:rebookOf(form)})}>
           {isNew?"Створити послугу":"Зберегти зміни"}
         </Btn>
       </>}>
@@ -104,17 +116,17 @@ function ServiceFormModal({ svc, onSave, onClose }) {
       }}>
       {/* slot preview */}
       <div style={{marginBottom:16}}>
-        <div style={{fontSize:10,color:"rgba(255,255,255,0.55)",letterSpacing:1.5,textTransform:"uppercase",marginBottom:8}}>ПОПЕРЕДНІЙ ПЕРЕГЛЯД СЛОТУ</div>
+        <div style={{fontSize:11,color:theme.LBL||"rgba(255,255,255,0.74)",letterSpacing:1.5,textTransform:"uppercase",marginBottom:8}}>ПОПЕРЕДНІЙ ПЕРЕГЛЯД СЛОТУ</div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
           <SlotPreview svc={form} height={72}/>
           <SlotPreview svc={{...form,duration:form.duration*2}} height={72}/>
         </div>
-        <div style={{fontSize:10,color:"rgba(255,255,255,0.55)",marginTop:4,textAlign:"center"}}>1 слот · 2 слоти (подвійний)</div>
+        <div style={{fontSize:11,color:theme.LBL||"rgba(255,255,255,0.74)",marginTop:4,textAlign:"center"}}>1 слот · 2 слоти (подвійний)</div>
       </div>
 
       {/* name */}
       <div style={{marginBottom:14}}>
-        <div style={{fontSize:10,color:"rgba(255,255,255,0.55)",letterSpacing:1,marginBottom:6}}>НАЗВА</div>
+        <div style={{fontSize:11,color:theme.LBL||"rgba(255,255,255,0.74)",letterSpacing:1,marginBottom:6}}>НАЗВА</div>
         <Inset style={{padding:"4px 14px"}}>
           <input value={form.name} onChange={e=>upd("name",e.target.value)} placeholder="Назва послуги..."
             style={{width:"100%",background:"transparent",border:"none",outline:"none",color:TEXT,fontSize:15,fontWeight:800,padding:"10px 0",fontFamily:"inherit"}}/>
@@ -123,17 +135,17 @@ function ServiceFormModal({ svc, onSave, onClose }) {
 
       {/* type */}
       <div style={{marginBottom:14}}>
-        <div style={{fontSize:10,color:"rgba(255,255,255,0.55)",letterSpacing:1,marginBottom:8}}>ТИП</div>
+        <div style={{fontSize:11,color:theme.LBL||"rgba(255,255,255,0.74)",letterSpacing:1,marginBottom:8}}>ТИП</div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-          <Chip active={form.type==="school"}  color={theme.GREEN} onClick={()=>upd("type","school")}>🏫 Автошкола</Chip>
-          <Chip active={form.type==="private"} color={GOLD}        onClick={()=>upd("type","private")}>🚗 Приватний</Chip>
+          <Chip active={form.type==="school"}  color={theme.GREEN} onClick={()=>upd("type","school")}>📋 Стандарт</Chip>
+          <Chip active={form.type==="private"} color={GOLD}        onClick={()=>upd("type","private")}>👤 Індивідуальний</Chip>
         </div>
       </div>
 
       {/* duration + price */}
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
         <div>
-          <div style={{fontSize:10,color:"rgba(255,255,255,0.55)",letterSpacing:1,marginBottom:6}}>ТРИВАЛІСТЬ (хв)</div>
+          <div style={{fontSize:11,color:theme.LBL||"rgba(255,255,255,0.74)",letterSpacing:1,marginBottom:6}}>ТРИВАЛІСТЬ (хв)</div>
           <Inset style={{padding:"10px 14px",display:"flex",alignItems:"center",gap:6}}>
             <input type="number" value={form.duration} min={5} max={480} onChange={e=>upd("duration",+e.target.value)}
               style={{flex:1,background:"transparent",border:"none",outline:"none",color:TEXT,fontSize:18,fontWeight:800,width:60,fontFamily:"inherit"}}/>
@@ -142,17 +154,17 @@ function ServiceFormModal({ svc, onSave, onClose }) {
           <div style={{display:"flex",gap:5,marginTop:6,flexWrap:"wrap"}}>
             {[30,60,90,120,180].map(v=>(
               <button key={v} onClick={()=>upd("duration",v)} style={{
-                padding:"4px 8px",borderRadius:8,border:"none",cursor:"pointer",fontSize:11,fontWeight:700,fontFamily:"inherit",
+                flex:"1 1 auto",padding:"7px 8px",borderRadius:theme.CHIP_R??8,border:"none",cursor:"pointer",fontSize:11,fontWeight:700,fontFamily:"inherit",
                 background:form.duration===v?`linear-gradient(165deg,${ACC_HI},${ACCENT})`:`linear-gradient(135deg,${SURF_HI},${SURFACE})`,
-                color:form.duration===v?"#fff":DIM,boxShadow:SO,
+                color:form.duration===v?(BTN_TX||"#fff"):TEXT,boxShadow:SO,
               }}>{v}</button>
             ))}
           </div>
         </div>
         <div>
-          <div style={{fontSize:10,color:"rgba(255,255,255,0.55)",letterSpacing:1,marginBottom:6}}>ЦІНА (₴)</div>
+          <div style={{fontSize:11,color:theme.LBL||"rgba(255,255,255,0.74)",letterSpacing:1,marginBottom:6}}>ЦІНА (₴)</div>
           <Inset style={{padding:"10px 14px",display:"flex",alignItems:"center",gap:6}}>
-            <input type="number" value={form.price} min={0} onChange={e=>upd("price",+e.target.value)}
+            <input type="number" value={form.price} min={0} onChange={e=>upd("price",e.target.value===""?"":+e.target.value)}
               style={{flex:1,background:"transparent",border:"none",outline:"none",color:GOLD,fontSize:18,fontWeight:800,width:80,fontFamily:"inherit"}}/>
             <span style={{color:GOLD,fontSize:14,fontWeight:700}}>₴</span>
           </Inset>
@@ -161,7 +173,7 @@ function ServiceFormModal({ svc, onSave, onClose }) {
 
       {/* scheduled price change */}
       <div style={{marginBottom:14}}>
-        <div style={{fontSize:10,color:"rgba(255,255,255,0.55)",letterSpacing:1,marginBottom:6}}>ЗАПЛАНОВАНА ЗМІНА ЦІНИ (опційно)</div>
+        <div style={{fontSize:11,color:theme.LBL||"rgba(255,255,255,0.74)",letterSpacing:1,marginBottom:6}}>ЗАПЛАНОВАНА ЗМІНА ЦІНИ (опційно)</div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr auto",gap:10,alignItems:"center"}}>
           <Inset style={{padding:"8px 12px"}}>
             <input type="date" value={form.nextPriceFrom||""} onChange={e=>upd("nextPriceFrom", e.target.value||null)}
@@ -175,21 +187,126 @@ function ServiceFormModal({ svc, onSave, onClose }) {
           </Inset>
           {(form.nextPrice != null || form.nextPriceFrom) && (
             <button onClick={()=>{upd("nextPrice",null);upd("nextPriceFrom",null);}} style={{
-              width:32,height:32,borderRadius:9,border:"none",cursor:"pointer",
+              width:32,height:32,borderRadius:theme.BTN_R!=null?Math.min(theme.BTN_R,16):9,border:"none",cursor:"pointer",
               background:`${ACCENT}1f`,color:ACCENT,fontSize:14,fontWeight:800,
             }}>✕</button>
           )}
         </div>
         {form.nextPrice != null && form.nextPriceFrom && (
-          <div style={{fontSize:10,color:"rgba(255,255,255,0.55)",marginTop:6}}>
-            З {form.nextPriceFrom} ціна автоматично стане {form.nextPrice}₴ для записів на уроки з цією датою й пізніше.
+          <div style={{fontSize:11,color:theme.LBL||"rgba(255,255,255,0.74)",marginTop:6}}>
+            З {form.nextPriceFrom} ціна автоматично стане {form.nextPrice}₴ для записів з цією датою й пізніше.
           </div>
         )}
       </div>
 
+      {/* rebook reminder */}
+      <div style={{marginBottom:14}}>
+        <div style={{fontSize:11,color:theme.LBL||"rgba(255,255,255,0.74)",letterSpacing:1,marginBottom:8}}>НАГАДАТИ ПРО ПОВТОРНИЙ ЗАПИС</div>
+        <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+          {REBOOK_OPTIONS.map(v=>(
+            <button key={v} onClick={()=>upd("rebookDays",v)} style={{
+              flex:"1 1 auto",padding:"8px 11px",borderRadius:theme.CHIP_R??9,border:"none",cursor:"pointer",fontSize:12,fontWeight:700,fontFamily:"inherit",
+              background:rebookOf(form)===v?`linear-gradient(165deg,${ACC_HI},${ACCENT})`:`linear-gradient(135deg,${SURF_HI},${SURFACE})`,
+              color:rebookOf(form)===v?(BTN_TX||"#fff"):TEXT,boxShadow:SO,
+            }}>{v===0?"Вимкнено":`${v} дн.`}</button>
+          ))}
+        </div>
+        <div style={{fontSize:11,color:theme.LBL||"rgba(255,255,255,0.74)",marginTop:6}}>
+          {rebookOf(form)>0 ? `Через ${rebookOf(form)} дн. після візиту клієнт отримає пуш «Час записатись знову» (лише якщо в нього немає майбутнього запису; раз за візит).` : "Клієнтам не нагадується."}
+        </div>
+      </div>
+
+      {/* group capacity */}
+      <div style={{marginBottom:14}}>
+        <div style={{fontSize:11,color:theme.LBL||"rgba(255,255,255,0.74)",letterSpacing:1,marginBottom:8}}>МІСЦЬ У ГРУПІ</div>
+        <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+          {[1,2,3,4,6,8,10,12,20].map(v=>(
+            <button key={v} onClick={()=>upd("capacity",v)} style={{
+              flex:"1 1 auto",padding:"8px 11px",borderRadius:theme.CHIP_R??9,border:"none",cursor:"pointer",fontSize:12,fontWeight:700,fontFamily:"inherit",
+              background:capacityOf(form)===v?`linear-gradient(165deg,${ACC_HI},${ACCENT})`:`linear-gradient(135deg,${SURF_HI},${SURFACE})`,
+              color:capacityOf(form)===v?(BTN_TX||"#fff"):TEXT,boxShadow:SO,
+            }}>{v===1?"Індивідуально":v}</button>
+          ))}
+        </div>
+        <div style={{fontSize:11,color:theme.LBL||"rgba(255,255,255,0.74)",marginTop:6}}>
+          {capacityOf(form)>1
+            ? `Група до ${Math.min(capacityOf(form),MAX_CAPACITY)} клієнтів на один час: поки є місця, клієнти приєднуються до наявної групи. Ціна — за кожного учасника. Допуслуги для групових послуг не діють.`
+            : "Один клієнт на час. Оберіть більше місць, щоб послуга стала груповою."}
+        </div>
+      </div>
+
+      {/* add-ons */}
+      {capacityOf(form)<=1 && <div style={{marginBottom:14}}>
+        <div style={{fontSize:11,color:theme.LBL||"rgba(255,255,255,0.74)",letterSpacing:1,marginBottom:6}}>ДОПУСЛУГИ (опційно)</div>
+        <div style={{display:"flex",flexDirection:"column",gap:8}}>
+          {addons.map((a,i)=>(
+            <Inset key={a.id||i} style={{padding:"8px 12px"}}>
+              <div style={{display:"flex",alignItems:"center",gap:8}}>
+                <input value={a.name||""} maxLength={40} onChange={e=>setAddon(i,{name:e.target.value})} placeholder="Назва допуслуги..."
+                  style={{flex:1,minWidth:0,background:"transparent",border:"none",outline:"none",color:TEXT,fontSize:14,fontWeight:800,padding:"6px 0",fontFamily:"inherit"}}/>
+                <button onClick={()=>delAddon(i)} aria-label="Видалити допуслугу" style={{
+                  width:28,height:28,borderRadius:theme.BTN_R!=null?Math.min(theme.BTN_R,14):8,border:"none",cursor:"pointer",flexShrink:0,
+                  background:`${ACCENT}1f`,color:ACCENT,fontSize:13,fontWeight:800,
+                }}>✕</button>
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"minmax(0,1fr) minmax(0,1fr)",gap:10,marginTop:4}}>
+                <div>
+                  <div style={{fontSize:11,color:theme.LBL||"rgba(255,255,255,0.74)",letterSpacing:1,marginBottom:3}}>+ ДО ЦІНИ</div>
+                  <div style={{display:"flex",alignItems:"center",gap:5}}>
+                    <input type="number" value={a.price ?? ""} min={0} onChange={e=>setAddon(i,{price:e.target.value===""?"":+e.target.value})}
+                      style={{flex:1,minWidth:0,width:"100%",background:"transparent",border:"none",outline:"none",color:GOLD,fontSize:15,fontWeight:800,fontFamily:"inherit"}}/>
+                    <span style={{color:GOLD,fontSize:12,fontWeight:700}}>₴</span>
+                  </div>
+                </div>
+                <div>
+                  <div style={{fontSize:11,color:theme.LBL||"rgba(255,255,255,0.74)",letterSpacing:1,marginBottom:3}}>+ ХВИЛИН</div>
+                  <div style={{display:"flex",alignItems:"center",gap:5}}>
+                    <input type="number" value={a.minutes ?? ""} min={0} max={240} step={5} onChange={e=>setAddon(i,{minutes:e.target.value===""?"":+e.target.value})}
+                      style={{flex:1,minWidth:0,width:"100%",background:"transparent",border:"none",outline:"none",color:TEXT,fontSize:15,fontWeight:800,fontFamily:"inherit"}}/>
+                    <span style={{color:DIM,fontSize:11}}>хв</span>
+                  </div>
+                </div>
+              </div>
+              <div style={{display:"flex",gap:4,marginTop:6,flexWrap:"wrap"}}>
+                {[0,...ADDON_MINUTES.filter(v=>v>0&&v<=60)].map(v=>(
+                  <button key={v} onClick={()=>setAddon(i,{minutes:v})} style={{
+                    flex:"1 1 auto",padding:"6px 8px",borderRadius:theme.CHIP_R??7,border:"none",cursor:"pointer",fontSize:11,fontWeight:700,fontFamily:"inherit",
+                    background:Number(a.minutes||0)===v?`linear-gradient(165deg,${ACC_HI},${ACCENT})`:`linear-gradient(135deg,${SURF_HI},${SURFACE})`,
+                    color:Number(a.minutes||0)===v?(BTN_TX||"#fff"):TEXT,boxShadow:SO,
+                  }}>{v===0?"без часу":`+${v}`}</button>
+                ))}
+              </div>
+            </Inset>
+          ))}
+          {addons.length < MAX_ADDONS && (
+            <Btn variant="ghost" onClick={addAddon} style={{width:"100%"}}>＋ Додати допуслугу</Btn>
+          )}
+        </div>
+        <div style={{fontSize:11,color:theme.LBL||"rgba(255,255,255,0.74)",marginTop:6}}>
+          Клієнт відмічає допуслуги при записі: сума додається до ціни, хвилини — до тривалості запису.
+        </div>
+      </div>}
+
+      {/* buffer after booking */}
+      <div style={{marginBottom:14}}>
+        <div style={{fontSize:11,color:theme.LBL||"rgba(255,255,255,0.74)",letterSpacing:1,marginBottom:8}}>ПЕРЕРВА ПІСЛЯ ЗАПИСУ</div>
+        <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+          {BUFFER_OPTIONS.map(v=>(
+            <button key={v} onClick={()=>upd("bufferMin",v)} style={{
+              flex:"1 1 auto",padding:"8px 11px",borderRadius:theme.CHIP_R??9,border:"none",cursor:"pointer",fontSize:12,fontWeight:700,fontFamily:"inherit",
+              background:bufferOf(form)===v?`linear-gradient(165deg,${ACC_HI},${ACCENT})`:`linear-gradient(135deg,${SURF_HI},${SURFACE})`,
+              color:bufferOf(form)===v?(BTN_TX||"#fff"):TEXT,boxShadow:SO,
+            }}>{v===0?"Без перерви":`${v} хв`}</button>
+          ))}
+        </div>
+        <div style={{fontSize:11,color:theme.LBL||"rgba(255,255,255,0.74)",marginTop:6}}>
+          Час на прибирання чи відпочинок: слот одразу після запису буде зайнятий, і клієнти не запишуться впритул. У тривалість і ціну перерва не входить.
+        </div>
+      </div>
+
       {/* color */}
       <div style={{marginBottom:14}}>
-        <div style={{fontSize:10,color:"rgba(255,255,255,0.55)",letterSpacing:1,marginBottom:8}}>КОЛІР СЛОТУ</div>
+        <div style={{fontSize:11,color:theme.LBL||"rgba(255,255,255,0.74)",letterSpacing:1,marginBottom:8}}>КОЛІР СЛОТУ</div>
         <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:8}}>
           {PALETTE.map(p=>(
             <button key={p.id} title={p.name} onClick={()=>upd("colorId",p.id)} style={{
@@ -209,23 +326,24 @@ function ServiceFormModal({ svc, onSave, onClose }) {
 
 // ─── DELETE CONFIRM MODAL ────────────────────────────────────────
 function DeleteConfirm({ svc, onConfirm, onArchive, onClose }) {
-  const { TEXT, DIM } = useContext(ThemeContext);
+  const theme = useContext(ThemeContext);
+  const { TEXT, DIM } = theme;
   return (
     <Modal open onClose={onClose} sheet size="md">
       <div style={{textAlign:"center",marginBottom:20}}>
         <div style={{fontSize:32,marginBottom:8}}>⚠️</div>
         <div style={{fontSize:16,fontWeight:800,color:TEXT,marginBottom:6}}>Видалити «{svc.name}»?</div>
-        <div style={{fontSize:13,color:DIM}}>Послуга має {svc.lessons} проведених уроків. Вибери дію:</div>
+        <div style={{fontSize:13,color:DIM}}>Послуга має {svc.lessons} проведених записів. Вибери дію:</div>
       </div>
       <div style={{display:"flex",flexDirection:"column",gap:10}}>
         <button onClick={()=>{onArchive(svc.id);onClose();}} style={{
-          padding:"14px",borderRadius:14,border:"none",cursor:"pointer",fontFamily:"inherit",
-          background:`linear-gradient(165deg,#fb923c,#ea580c)`,color:"#fff",fontSize:13,fontWeight:700,
+          padding:"14px",borderRadius:theme.BTN_R??14,border:"none",cursor:"pointer",fontFamily:"inherit",
+          background:`linear-gradient(165deg,#c2570c,#9a3f06)`,color:"#fff",fontSize:13,fontWeight:700,
           boxShadow:`-2px 5px 14px rgba(251,146,60,0.4),inset 1px 1px 0 rgba(255,255,255,0.3)`,
         }}>📦 Архівувати (зберегти статистику)</button>
         <button onClick={()=>{onConfirm(svc.id);onClose();}} style={{
-          padding:"14px",borderRadius:14,border:"none",cursor:"pointer",fontFamily:"inherit",
-          background:`linear-gradient(165deg,#f87171,#dc2626)`,color:"#fff",fontSize:13,fontWeight:700,
+          padding:"14px",borderRadius:theme.BTN_R??14,border:"none",cursor:"pointer",fontFamily:"inherit",
+          background:`linear-gradient(165deg,#dc2626,#b91c1c)`,color:"#fff",fontSize:13,fontWeight:700,
           boxShadow:`-2px 5px 14px rgba(239,68,68,0.4),inset 1px 1px 0 rgba(255,255,255,0.3)`,
         }}>🗑 Видалити назавжди</button>
         <Btn variant="ghost" onClick={onClose}>Скасувати</Btn>
@@ -257,7 +375,7 @@ function ServiceCard({ svc, isDragging, onEdit, onToggle, onDelete, dragHandlePr
         <div style={{flex:1,minWidth:0}}>
           <div style={{fontSize:15,fontWeight:800,color:TEXT,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",marginBottom:3}}>{svc.name}</div>
           <div style={{display:"flex",gap:5,alignItems:"center",flexWrap:"wrap"}}>
-            <Pill label={svc.type==="school"?"Автошкола":"Приватний"} color={svc.type==="school"?GREEN:GOLD} bg={svc.type==="school"?`${GREEN}1f`:`${GOLD}1f`}/>
+            <Pill label={svc.type==="school"?"Стандарт":"Індивідуальний"} color={svc.type==="school"?GREEN:GOLD} bg={svc.type==="school"?`${GREEN}1f`:`${GOLD}1f`}/>
             {!svc.active&&!svc.archived && <Pill label="Вимкнена" color={DIM} bg={`${DIM}1a`}/>}
             {svc.archived && <Pill label="Архів" color="#fb923c" bg="rgba(251,146,60,0.15)"/>}
           </div>
@@ -268,11 +386,11 @@ function ServiceCard({ svc, isDragging, onEdit, onToggle, onDelete, dragHandlePr
 
       {/* ROW 2: metrics */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",borderTop:`1px solid ${BORDER}`,borderBottom:`1px solid ${BORDER}`}}>
-        {[{val:fmtDur(svc.duration),label:"Тривалість",c:BLUE},{val:`${svc.price} ₴`,label:"Ціна",c:GOLD},{val:svc.lessons,label:"Уроків",c:TEXT},{val:`${(svc.income/1000).toFixed(0)}к ₴`,label:"Дохід",c:GREEN}]
+        {[{val:fmtDur(svc.duration),label:"Тривалість",c:BLUE},{val:`${svc.price} ₴`,label:"Ціна",c:GOLD},{val:svc.lessons,label:"Записів",c:TEXT},{val:`${(svc.income/1000).toFixed(0)}к ₴`,label:"Дохід",c:GREEN}]
           .map((m,i,arr)=>(
           <div key={m.label} style={{padding:"10px 0",textAlign:"center",borderRight:i<arr.length-1?`1px solid ${BORDER}`:"none"}}>
             <div style={{fontSize:13,fontWeight:800,color:m.c}}>{m.val}</div>
-            <div style={{fontSize:9,color:FAINT,marginTop:2,letterSpacing:0.5,textTransform:"uppercase"}}>{m.label}</div>
+            <div style={{fontSize:11,color:FAINT,marginTop:2,letterSpacing:0.5,textTransform:"uppercase"}}>{m.label}</div>
           </div>
         ))}
       </div>
@@ -283,7 +401,7 @@ function ServiceCard({ svc, isDragging, onEdit, onToggle, onDelete, dragHandlePr
           {svc.description && <div style={{fontSize:12,color:DIM,fontStyle:"italic"}}>"{svc.description}"</div>}
           {svc.accessCats.length>0 && (
             <div style={{display:"flex",gap:5,alignItems:"center",flexWrap:"wrap"}}>
-              <span style={{fontSize:10,color:FAINT,flexShrink:0}}>Доступ:</span>
+              <span style={{fontSize:11,color:FAINT,flexShrink:0}}>Доступ:</span>
               {svc.accessCats.map(id=>{const cc=CATEGORIES[id];return cc?<Pill key={id} label={cc.name} color={cc.color} bg={`${cc.color}22`}/>:null;})}
             </div>
           )}
@@ -291,78 +409,16 @@ function ServiceCard({ svc, isDragging, onEdit, onToggle, onDelete, dragHandlePr
       )}
 
       {/* ROW 4: actions */}
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr"}}>
+      <div style={{display:"grid",gridTemplateColumns:isProtectedService(svc)?"1fr":"1fr 1fr"}}>
         <button onClick={()=>onEdit(svc)} style={{padding:"11px 0",border:"none",borderRight:`1px solid ${BORDER}`,cursor:"pointer",background:"transparent",color:BLUE,fontSize:12,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",gap:6,borderRadius:"0 0 0 13px",fontFamily:"inherit"}}>
           {Ic.edit(20)} Редагувати
         </button>
+        {!isProtectedService(svc) && (
         <button onClick={()=>onDelete(svc)} style={{padding:"11px 0",border:"none",cursor:"pointer",background:"transparent",color:RED,fontSize:12,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",gap:6,borderRadius:"0 0 13px 0",fontFamily:"inherit"}}>
           {Ic.trash(20)} Видалити
         </button>
+        )}
       </div>
-    </div>
-  );
-}
-
-// ─── SERVICE ROW (colorway card) ──────────────────────────────────
-function ServiceRow({ svc, onEdit, onToggle, onDelete, dragHandleProps, isDragging }) {
-  const theme = useContext(ThemeContext);
-  const { BG_DEEP } = theme;
-  const { shade, glow } = useFX();
-  const Ic = makeIc(theme);
-  const PALETTE = makePalette(theme);
-  const [open, setOpen] = useState(false);
-  const c = PALETTE.find(p=>p.id===svc.colorId)?.color || theme.GREEN;
-  const hasInstructions = svc.instructions && svc.instructions.trim();
-  const dimmed = !svc.active || svc.archived;
-  const stop = e => e.stopPropagation();
-  return (
-    <div className={`drag-item color-card ${isDragging?"dragging":""}`} onClick={()=>onEdit(svc)} style={{
-      position:"relative",overflow:"hidden",borderRadius:14,marginBottom:8,padding:"9px 11px 8px",cursor:"pointer",
-      background:`linear-gradient(155deg,color-mix(in srgb,${c} 50%,${BG_DEEP}) 0%,color-mix(in srgb,${c} 18%,${BG_DEEP}) 100%)`,
-      border:`1px solid color-mix(in srgb,${c} 45%,transparent)`,
-      boxShadow:`-2px 5px 13px ${shade(0.45)},inset 1px 1px 0 ${glow(0.15)}`,
-      opacity:dimmed?0.55:1,
-    }}>
-      <div style={{position:"absolute",pointerEvents:"none",top:0,right:"6%",width:"55%",height:"45%",zIndex:1,
-        background:"radial-gradient(ellipse at top right,rgba(255,255,255,0.18) 0%,transparent 65%)"}}/>
-
-      <button onClick={e=>{stop(e);onDelete(svc);}} style={{
-        position:"absolute",top:6,right:6,zIndex:3,width:20,height:20,borderRadius:"50%",border:"none",cursor:"pointer",
-        background:theme.RED,color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",
-        boxShadow:`0 2px 6px ${shade(0.4)}`,
-      }}>
-        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      </button>
-
-      <div style={{position:"relative",zIndex:2,display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8,paddingRight:22}}>
-        <div style={{display:"flex",alignItems:"center",gap:7,minWidth:0,flex:1}}>
-          <div onClick={stop} {...dragHandleProps} style={{cursor:"grab",touchAction:"none",opacity:0.6,flexShrink:0}}>{Ic.drag(18)}</div>
-          <div style={{minWidth:0}}>
-            <div style={{fontSize:13.5,fontWeight:800,color:"#fff",textShadow:`0 1px 3px ${shade(0.5)}`,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{svc.name}</div>
-            <div style={{fontSize:10,color:"rgba(255,255,255,0.78)",fontWeight:700,marginTop:1,display:"flex",gap:5,alignItems:"center",flexWrap:"wrap"}}>
-              <span>{svc.type==="school"?"🏫 Автошкола":"🚗 Приватний"}</span>
-              {svc.archived && <Pill label="Архів" color="#fff" bg="rgba(0,0,0,0.28)"/>}
-              {!svc.active && !svc.archived && <Pill label="Вимкнена" color="#fff" bg="rgba(0,0,0,0.28)"/>}
-            </div>
-          </div>
-        </div>
-        <div style={{fontSize:15,fontWeight:800,color:"#fff",textShadow:`0 1px 3px ${shade(0.5)}`,flexShrink:0,whiteSpace:"nowrap"}}>{svc.price} ₴</div>
-      </div>
-
-      <div style={{position:"relative",zIndex:2,display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:6}}>
-        <div style={{fontSize:10.5,color:"rgba(255,255,255,0.85)",fontWeight:700}}>{fmtDur(svc.duration)} · {svc.lessons} уроків</div>
-        <div onClick={stop}><Toggle on={svc.active&&!svc.archived} onChange={v=>onToggle(svc.id,v)}/></div>
-      </div>
-
-      {hasInstructions && (
-        <button onClick={e=>{stop(e);setOpen(v=>!v);}} style={{position:"relative",zIndex:2,background:"rgba(0,0,0,0.22)",border:"none",borderRadius:7,cursor:"pointer",marginTop:6,padding:"4px 7px",color:"rgba(255,255,255,0.85)",fontSize:10,fontWeight:700,display:"flex",alignItems:"center",gap:5,fontFamily:"inherit"}}>
-          📋 Інструкція
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" style={{transform:open?"rotate(180deg)":"none",transition:"transform .2s"}}><polyline points="6 9 12 15 18 9"/></svg>
-        </button>
-      )}
-      {open && hasInstructions && (
-        <div onClick={stop} style={{position:"relative",zIndex:2,marginTop:5,padding:"7px 9px",borderRadius:9,background:"rgba(0,0,0,0.22)",fontSize:11,color:"rgba(255,255,255,0.9)",lineHeight:1.5}}>{svc.instructions}</div>
-      )}
     </div>
   );
 }
@@ -394,9 +450,11 @@ function useDragReorder(items, setItems) {
 
 // ─── MAIN ────────────────────────────────────────────────────────
 export default function ServicesView() {
+  return <ServicesBody/>;
+}
+
+function ServicesBody() {
   const theme = useContext(ThemeContext);
-  const { SURF_HI, SURFACE, TEXT, DIM, FAINT, ACCENT, ACC_HI, SO } = theme;
-  const Ic = makeIc(theme);
   const css = `
 .slot-preview{position:relative;overflow:hidden;border-radius:14px}
 .slot-preview::before{content:'';position:absolute;pointer-events:none;top:2px;right:8%;width:50%;height:35%;background:radial-gradient(ellipse at top right,rgba(255,255,255,0.22) 0%,transparent 65%);border-radius:50%;filter:blur(1px);z-index:2}
@@ -408,7 +466,6 @@ export default function ServicesView() {
 `;
   const [services,     setServices]     = useState(INIT_SERVICES);
   const [loaded,       setLoaded]       = useState(false);
-  const [showArchived, setShowArchived] = useState(false);
   const [editSvc,      setEditSvc]      = useState(null);
   const [deleteSvc,    setDeleteSvc]    = useState(null);
   const saveTimer = useRef(null);
@@ -425,48 +482,17 @@ export default function ServicesView() {
     saveTimer.current=setTimeout(()=>set(iRef('admin_data/services'),services).catch(()=>{}),800);
   }, [services, loaded]);
 
-  const active   = services.filter(s=>!s.archived);
-  const archived = services.filter(s=>s.archived);
-  const shown    = showArchived ? services : active;
-
   const onToggle  = (id,val) => { dirtyRef.current = true; setServices(ss=>ss.map(s=>s.id===id?{...s,active:val,archived:false}:s)); };
   const onSave    = form => { dirtyRef.current = true; setServices(ss=>{const idx=ss.findIndex(s=>s.id===form.id);if(idx>=0){const n=[...ss];n[idx]=form;return n;}return[...ss,form];}); setEditSvc(null); };
-  const onArchive = id => { dirtyRef.current = true; setServices(ss=>ss.map(s=>s.id===id?{...s,archived:true,active:false}:s)); };
-  const onDelete  = id => { dirtyRef.current = true; setServices(ss=>ss.filter(s=>s.id!==id)); };
+  const onArchive = id => { if (PROTECTED_SERVICE_IDS.includes(id)) return; dirtyRef.current = true; setServices(ss=>ss.map(s=>s.id===id?{...s,archived:true,active:false}:s)); };
+  const onDelete  = id => { if (PROTECTED_SERVICE_IDS.includes(id)) return; dirtyRef.current = true; setServices(ss=>ss.filter(s=>s.id!==id)); };
 
+  const fogColor = svc => (makePalette(theme).find(p=>p.id===svc.colorId)?.color || theme.GREEN);
   return (
     <>
       <UICss/>
       <style>{css}</style>
-      <div style={{display:"flex",flexDirection:"column",gap:8,fontFamily:"ui-sans-serif,-apple-system,system-ui,sans-serif",color:TEXT}}>
-
-        <div onPointerMove={e=>getHandlers(0).onPointerMove(e)} onPointerUp={()=>getHandlers(0).onPointerUp()}>
-          {shown.map((svc,idx)=>(
-            <div key={svc.id} data-drag-idx={idx}>
-              <ServiceRow svc={svc} isDragging={false} onEdit={setEditSvc} onToggle={onToggle} onDelete={setDeleteSvc} dragHandleProps={getHandlers(idx)}/>
-            </div>
-          ))}
-        </div>
-
-        {shown.length===0 && (
-          <div style={{textAlign:"center",padding:"40px 20px",color:FAINT}}>
-            <div style={{fontSize:32,marginBottom:10}}>📋</div>
-            <div style={{fontSize:14,fontWeight:700}}>Немає послуг</div>
-          </div>
-        )}
-
-        {archived.length>0 && (
-          <button onClick={()=>setShowArchived(v=>!v)} style={{
-            width:"100%",padding:"11px",borderRadius:12,border:"none",cursor:"pointer",fontSize:12,fontWeight:700,fontFamily:"inherit",
-            background:showArchived?`linear-gradient(165deg,#fb923c,#ea580c)`:`linear-gradient(135deg,${SURF_HI},${SURFACE})`,
-            color:showArchived?"#fff":DIM,boxShadow:SO,display:"flex",alignItems:"center",justifyContent:"center",gap:8,
-          }}>📦 Архів ({archived.length})</button>
-        )}
-
-        <Btn variant="primary" onClick={()=>setEditSvc(false)} style={{width:"100%"}}>
-          {Ic.plus(28)} Додати нову послугу
-        </Btn>
-      </div>
+      <ServicesFog services={services} colorOf={fogColor} fmt={fmtDur} capOf={capacityOf} isProtected={isProtectedService} onEdit={setEditSvc} onToggle={onToggle} onDelete={setDeleteSvc} onAdd={()=>setEditSvc(false)} getHandlers={getHandlers}/>
 
       {editSvc!==null && <ServiceFormModal svc={editSvc||null} onSave={onSave} onClose={()=>setEditSvc(null)}/>}
       {deleteSvc && <DeleteConfirm svc={deleteSvc} onConfirm={onDelete} onArchive={onArchive} onClose={()=>setDeleteSvc(null)}/>}
