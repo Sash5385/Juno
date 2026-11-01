@@ -17,7 +17,6 @@ import { iRef, iStorageRef, iGalleryStorageRef, auth } from "../firebase";
 import { LangContext } from "../App";
 import { ThemeContext } from "../theme.js";
 import { UICss, useFX, ScrollChips } from "../ui";
-import LangSwitch from "../i18n/LangSwitch";
 import { createT } from "../lang";
 import { useLicense, licenseState } from "../hooks/useLicense";
 import { LicensePayPanel } from "../LicensePay";
@@ -1651,7 +1650,6 @@ select{color-scheme:${isKava?"light":"dark"}}
                   <span style={{minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{activeSec.title}</span>
                 </div>
               )}
-              <LangSwitch style={{ minHeight: 36, padding: "4px 8px", fontSize: 12, marginLeft: "auto", marginRight: 8, maxWidth: 84, minWidth: 0, flexShrink: 1, textOverflow: "ellipsis" }} />
               <button onClick={()=>setShowHint(v=>!v)} style={{
                 width:36,height:36,borderRadius:12,border:"none",cursor:"pointer",flexShrink:0,
                 background:showHint?`${GOLD}33`:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,

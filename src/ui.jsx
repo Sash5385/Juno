@@ -254,10 +254,10 @@ export function ModalSection({ label, children, first = false }) {
 export function ScrollChips({ children, activeKey, fade, style }) {
   const { BG, BORDER, TEXT, SURF_HI } = useContext(ThemeContext);
   const ref = useRef(null);
-  const [edge, setEdge] = useState({ l: false, r: false });
+  const [edge, setEdge] = useState({ l: false, r: false, x: 0 }); // змінюється при скролі → перемальовує крапки
   const upd = () => {
     const el = ref.current; if (!el) return;
-    setEdge({ l: el.scrollLeft > 4, r: el.scrollLeft + el.clientWidth < el.scrollWidth - 4 });
+    setEdge({ l: el.scrollLeft > 4, r: el.scrollLeft + el.clientWidth < el.scrollWidth - 4, x: Math.round(el.scrollLeft / 8) });
   };
   useEffect(() => {
     upd();
@@ -273,18 +273,23 @@ export function ScrollChips({ children, activeKey, fade, style }) {
     if (left < el.scrollLeft) el.scrollTo({ left: Math.max(0, left), behavior: "smooth" });
     else if (right > el.scrollLeft + el.clientWidth) el.scrollTo({ left: right - el.clientWidth, behavior: "smooth" });
   }, [activeKey]);
-  const go = (dir) => ref.current?.scrollBy({ left: dir * Math.max(120, ref.current.clientWidth * 0.7), behavior: "smooth" });
-  const arrow = (side, show, ch, dir) => (
-    <button tabIndex={show?0:-1} aria-hidden={!show} aria-label={dir<0?"Прокрутити ліворуч":"Прокрутити праворуч"} onClick={()=>go(dir)}
-      style={{position:"absolute",top:"50%",marginTop:-17,[side]:2,width:34,height:34,borderRadius:"50%",border:`1px solid ${BORDER}`,background:"rgba(20,28,48,0.72)",
-        backdropFilter:"blur(8px)",WebkitBackdropFilter:"blur(8px)",boxShadow:"0 2px 10px rgba(0,0,0,0.35)",color:"#fff",fontSize:20,lineHeight:1,cursor:"pointer",fontFamily:"inherit",padding:0,
-        display:"flex",alignItems:"center",justifyContent:"center",opacity:show?1:0,pointerEvents:show?"auto":"none",transition:"opacity .2s",zIndex:2}}>{ch}</button>
-  );
+  // Крапки-індикатори замість стрілок: кількість «сторінок» = scrollWidth / clientWidth
+  const el0 = ref.current;
+  const pages = el0 && el0.clientWidth ? Math.ceil(el0.scrollWidth / el0.clientWidth - 0.05) : 1;
+  const cur = el0 && pages > 1 ? Math.min(pages - 1, Math.round(el0.scrollLeft / Math.max(1, (el0.scrollWidth - el0.clientWidth) / (pages - 1)))) : 0;
+  const toPage = (i) => { const el = ref.current; if (el) el.scrollTo({ left: i * (el.scrollWidth - el.clientWidth) / Math.max(1, pages - 1), behavior: "smooth" }); };
   return (
     <div style={{position:"relative",flexShrink:0}}>
       <div ref={ref} onScroll={upd} style={{display:"flex",gap:6,overflowX:"auto",scrollbarWidth:"none",paddingBottom:2,...style}}>{children}</div>
-      {arrow("left", edge.l, "‹", -1)}
-      {arrow("right", edge.r, "›", 1)}
+      {pages > 1 && (
+        <div style={{display:"flex",justifyContent:"center",gap:2,marginTop:2}}>
+          {Array.from({length:pages}).map((_, i) => (
+            <button key={i} aria-label={`Сторінка ${i+1}`} onClick={()=>toPage(i)} style={{border:"none",background:"none",padding:"6px 3px",cursor:"pointer"}}>
+              <span style={{display:"block",height:6,width:i===cur?18:6,borderRadius:3,background:i===cur?"#60a5fa":BORDER,transition:"all .2s"}}/>
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

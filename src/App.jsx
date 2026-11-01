@@ -12,6 +12,7 @@ import { ThemeContext, getTheme } from "./theme.js";
 import { FOG_STYLE } from "./uiStyles";
 import { useMosaicSwitch, MosaicOverlay } from "./mosaic";
 import { APP_VERSION } from "./version.js";
+import LangSwitch from "./i18n/LangSwitch";
 import { setTags } from "./tags";
 import { startTerms } from "./terms";
 import { bufferOf, bookingAddonTotals } from "./addons";
@@ -479,7 +480,10 @@ function TopBar({ tab, onChange, settings, setSettings }) {
             <img src={import.meta.env.BASE_URL + "icon-192.png"} alt="Juno" style={{width:22,height:22,borderRadius:"50%",flexShrink:0,boxShadow:"-2px 3px 8px rgba(0,0,0,0.45)"}}/>
             <div style={{fontSize:13,fontWeight:800,letterSpacing:-0.3,color:theme.TEXT,flex:1}}>{tabLabel}</div>
             {tab==="settings" && (
-              <div onClick={forceUpdate} style={{fontSize:11,fontWeight:700,color:btnInactiveColor,cursor:"pointer",flexShrink:0}}>{APP_VERSION}</div>
+              <>
+                <LangSwitch />
+                <div onClick={forceUpdate} style={{fontSize:11,fontWeight:700,color:btnInactiveColor,cursor:"pointer",flexShrink:0}}>{APP_VERSION}</div>
+              </>
             )}
             {/* Портал для кнопки «Місячний календар» — рендериться з Journal/Bookings через createPortal, той самий слот що і в Розкладі */}
             <div id="topbar-key-portal" style={{flex:"0 0 auto",display:"flex",justifyContent:"center",alignItems:"center",minWidth:0}}/>
