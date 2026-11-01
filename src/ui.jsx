@@ -141,10 +141,10 @@ export function Section({ title, icon, children, right, defaultOpen = false }) {
 // ── Field: labelled input / textarea ───────────────────────────
 export function Field({ label, value, onChange, placeholder, type = "text", textarea = false, rows = 3, style = {} }) {
   const { BG_DEEP, BORDER, TEXT, FAINT } = useContext(ThemeContext);
-  const base = { width: "100%", background: BG_DEEP, border: `1px solid ${BORDER}`, borderRadius: RADIUS.control, padding: PAD.control, color: TEXT, fontSize: 14, outline: "none", boxSizing: "border-box", fontFamily: "inherit" };
+  const base = { width: "100%", background: BG_DEEP, border: `1px solid ${BORDER}`, borderRadius: RADIUS.control, padding: PAD.control, color: TEXT, fontSize: 16, outline: "none", boxSizing: "border-box", fontFamily: "inherit" };
   return (
     <div style={{ marginBottom: 12, ...style }}>
-      {label && <div style={{ fontSize: 10, color: FAINT, letterSpacing: 1, marginBottom: 5 }}>{label.toUpperCase()}</div>}
+      {label && <div style={{ fontSize: 11, color: FAINT, letterSpacing: 1, marginBottom: 5 }}>{label.toUpperCase()}</div>}
       {textarea
         ? <textarea value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} rows={rows} style={{ ...base, resize: "vertical" }} />
         : <input type={type} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} style={base} />}
@@ -164,12 +164,26 @@ export function Chip({ active, color, onClick, children }) {
   );
 }
 
-// ── Btn: primary (accent) / ghost ──────────────────────────────
+// ── Btn: primary (accent) / ghost / danger / dashed ──────────────────────────────
 export function Btn({ children, onClick, variant = "primary", accent, disabled = false, flex, style = {} }) {
-  const { SURF_HI, SURFACE, DIM, FAINT, ACCENT, SO } = useContext(ThemeContext);
+  const { SURF_HI, SURFACE, DIM, FAINT, ACCENT, RED, SO } = useContext(ThemeContext);
   const { glow } = useFX();
   const c = accent || ACCENT;
   const base = { border: "none", cursor: disabled ? "default" : "pointer", borderRadius: RADIUS.button, padding: PAD.button, fontSize: 13, fontWeight: 700, fontFamily: "inherit", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, ...(flex != null ? { flex } : {}), ...style };
+  if (variant === "danger") {
+    return (
+      <button onClick={disabled ? undefined : onClick} style={{ ...base, opacity: disabled ? 0.5 : 1,
+        background: "rgba(239,68,68,0.10)", border: "1px solid rgba(239,68,68,0.35)", color: RED,
+      }}>{children}</button>
+    );
+  }
+  if (variant === "dashed") {
+    return (
+      <button onClick={disabled ? undefined : onClick} style={{ ...base, opacity: disabled ? 0.5 : 1,
+        background: "transparent", border: `1px dashed ${c}88`, color: c,
+      }}>{children}</button>
+    );
+  }
   if (variant === "primary" && !disabled) {
     return (
       <button onClick={onClick} style={{ ...base,
@@ -191,7 +205,7 @@ export function StatTile({ value, label, color }) {
   return (
     <div style={{ background: BG_DEEP, borderRadius: RADIUS.control, boxShadow: SI, padding: PAD.tile, textAlign: "center" }}>
       <div style={{ fontSize: 18, fontWeight: 900, color }}>{value}</div>
-      <div style={{ fontSize: 9, color: FAINT, marginTop: 2, letterSpacing: 0.5 }}>{(label || "").toUpperCase()}</div>
+      <div style={{ fontSize: 10, color: FAINT, marginTop: 2, letterSpacing: 0.5 }}>{(label || "").toUpperCase()}</div>
     </div>
   );
 }
@@ -200,7 +214,7 @@ export function StatTile({ value, label, color }) {
 // size: "sm"|"md"|"lg" or a number (px). sheet=true → bottom sheet.
 // icon: optional emoji shown in header icon box.
 export function Modal({ open, onClose, children, size = "md", sheet = true, title, icon, grabber = true, pad = true, footer, maxH }) {
-  const { SURF_HI, SURFACE, BG, TEXT, FAINT, BORDER } = useContext(ThemeContext);
+  const { SURF_HI, SURFACE, BG, TEXT, FAINT, BORDER, RED } = useContext(ThemeContext);
   const { shade, ink } = useFX();
   useBackClose(open, onClose);
   if (!open) return null;
@@ -217,7 +231,7 @@ export function Modal({ open, onClose, children, size = "md", sheet = true, titl
           <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 20px 12px", borderBottom: `1px solid ${BORDER}`, flexShrink: 0 }}>
             {icon && <div style={{ width: 34, height: 34, borderRadius: 9, background: ink(0.07), display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>{icon}</div>}
             <div style={{ fontSize: 15, fontWeight: 700, color: TEXT, flex: 1 }}>{title}</div>
-            <div onClick={onClose} style={{ width: 28, height: 28, borderRadius: 8, background: "rgba(239,68,68,0.18)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", color: "#ef4444", fontSize: 14, fontWeight: 800, flexShrink: 0, userSelect: "none" }}>✕</div>
+            <div onClick={onClose} role="button" aria-label="Закрити" style={{ width: 40, height: 40, margin: "-6px -8px -6px 0", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0, userSelect: "none" }}><span style={{ width: 28, height: 28, borderRadius: 8, background: "rgba(239,68,68,0.18)", display: "flex", alignItems: "center", justifyContent: "center", color: RED, fontSize: 14, fontWeight: 800 }}>✕</span></div>
           </div>
         )}
         <div style={{ flex: 1, overflowY: "auto", padding: bodyPad }}>
@@ -239,7 +253,7 @@ export function ModalSection({ label, children, first = false }) {
   return (
     <div>
       {!first && <div style={{ height: 1, background: BORDER, margin: "12px 0" }} />}
-      {label && <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", color: FAINT, marginBottom: 8, textTransform: "uppercase" }}>{label}</div>}
+      {label && <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.1em", color: FAINT, marginBottom: 8, textTransform: "uppercase" }}>{label}</div>}
       {children}
     </div>
   );

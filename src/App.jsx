@@ -261,7 +261,7 @@ function BottomNav({ active, onChange, settings, chatUnread, journalUnread }) {
                 }}>{badgeCount}</div>
               )}
             </div>
-            <span style={{fontSize:9,fontWeight:700,color:isActive?theme.GREEN:labelInactive,whiteSpace:"nowrap"}}>{tl(t.lk)}</span>
+            <span style={{fontSize:9,fontWeight:700,color:isActive?theme.GREEN:labelInactive,whiteSpace:"nowrap",letterSpacing:-0.2}}>{tl(t.lk)}</span>
           </button>
           );
         })}

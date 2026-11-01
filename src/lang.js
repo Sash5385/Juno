@@ -7,8 +7,8 @@ const S = {
   'nav.students':   { uk:'Учні',        en:'Students'   },
   'nav.services':   { uk:'Послуги',     en:'Services'   },
   'nav.chats':      { uk:'Чати',        en:'Chats'      },
-  'nav.templates':  { uk:'Шаблони',     en:'Templates'  },
-  'nav.stats':      { uk:'Статист.',    en:'Stats'      },
+  'nav.templates':  { uk:'Шабл.',       en:'Templates'  },
+  'nav.stats':      { uk:'Стат.',    en:'Stats'      },
   'nav.settings':   { uk:'Налашт.',     en:'Settings'   },
   'nav.journal':    { uk:'Журнал',      en:'Journal'    },
 

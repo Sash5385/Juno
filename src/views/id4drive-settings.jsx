@@ -7,7 +7,7 @@ import { deleteAccountRequest } from "../deleteAccountApi";
 import { iRef, iStorageRef, iGalleryStorageRef, auth } from "../firebase";
 import { LangContext } from "../App";
 import { ThemeContext } from "../theme.js";
-import { UICss, useFX } from "../ui";
+import { UICss, useFX, Btn } from "../ui";
 import { createT } from "../lang";
 import { useLicense, licenseState } from "../hooks/useLicense";
 import { LicensePayPanel } from "../LicensePay";
@@ -31,6 +31,8 @@ const SEC_ICON_SVG = {
   surcharges: <><circle cx="12" cy="12" r="9"/><path d="M12 7.5v9M15 9.7c0-1.1-1.2-2-3-2s-3 .9-3 1.9 1.3 1.5 3 1.8c1.7.3 3 .8 3 1.9s-1.2 1.9-3 1.9-3-.9-3-2"/></>,
   push:       <><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></>,
   reviews:    <><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></>,
+  booking:    <><circle cx="12" cy="12" r="9"/><path d="M7.5 12.5l3 3 6-6.5"/></>,
+  account:    <><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></>,
   profile:    <><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></>,
 };
 function SecIcon({ id, color, active, isKava, size=34 }) {
@@ -126,7 +128,7 @@ function Radio({ on, onChange }) {
 }
 
 function Row({ label, hint, children, last, color, compact }) {
-  const { BG_DEEP, ACCENT } = useContext(ThemeContext);
+  const { BG_DEEP, ACCENT, TEXT, DIM } = useContext(ThemeContext);
   const c = color || ACCENT;
   return (
     <div style={{
@@ -138,8 +140,8 @@ function Row({ label, hint, children, last, color, compact }) {
       marginBottom: last ? 0 : (compact ? 4 : 6),
     }}>
       <div style={{flex:1,minWidth:0}}>
-        <div style={{fontSize:compact?12:13,fontWeight:700,color:"#fff"}}>{label}</div>
-        {hint && <div style={{fontSize:compact?9:10,color:"rgba(255,255,255,0.6)",marginTop:compact?1:2,lineHeight:1.35}}>{hint}</div>}
+        <div style={{fontSize:compact?12:13,fontWeight:700,color:TEXT}}>{label}</div>
+        {hint && <div style={{fontSize:compact?11:12,color:DIM,marginTop:compact?1:2,lineHeight:1.35}}>{hint}</div>}
       </div>
       <div style={{flexShrink:0}}>{children}</div>
     </div>
@@ -149,7 +151,7 @@ function Row({ label, hint, children, last, color, compact }) {
 // Кольорова картка-групувальник для «Профілю» — той самий градієнт-тінт
 // і бордер, що в Row (Сповіщення/Ліміти), тільки як контейнер на кілька полів.
 function ProfileCard({ color, icon, title, children }) {
-  const { BG_DEEP } = useContext(ThemeContext);
+  const { BG_DEEP, TEXT } = useContext(ThemeContext);
   return (
     <div style={{
       borderRadius:14,padding:"12px 14px",marginBottom:12,
@@ -158,7 +160,7 @@ function ProfileCard({ color, icon, title, children }) {
     }}>
       <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
         <span style={{fontSize:15}}>{icon}</span>
-        <span style={{fontSize:12,fontWeight:800,color:"#fff"}}>{title}</span>
+        <span style={{fontSize:12,fontWeight:800,color:TEXT}}>{title}</span>
       </div>
       {children}
     </div>
@@ -334,7 +336,7 @@ function WeekScheduleEditor({ weekSchedule, updDay, setWeek }) {
     : d));
   return (
     <div style={{paddingTop:10}}>
-      <div style={{fontSize:11,color:"#fff",letterSpacing:1.2,textTransform:"uppercase",marginBottom:10,textAlign:"center"}}>Тижневий шаблон</div>
+      <div style={{fontSize:11,color:DIM,letterSpacing:1.2,textTransform:"uppercase",marginBottom:10,textAlign:"center"}}>Тижневий шаблон</div>
       <div style={{display:"flex",gap:5,marginBottom:10}}>
         {DAY_NAMES.map((n, i) => {
           const d = weekSchedule[i];
@@ -351,8 +353,8 @@ function WeekScheduleEditor({ weekSchedule, updDay, setWeek }) {
               boxShadow:on?`0 4px 14px color-mix(in srgb,${col} 45%,transparent)`:"none",
               transform:on?"translateY(-2px)":"none",transition:"all .15s",
             }}>
-              <span style={{fontSize:14,fontWeight:800,color:on?"#0b1a08":d.enabled?"#fff":FAINT}}>{n}</span>
-              <span style={{fontSize:10,fontWeight:700,color:on?"#0b1a08":FAINT}}>{d.enabled ? `${hrs(d)}г` : "—"}</span>
+              <span style={{fontSize:14,fontWeight:800,color:on?"#0b1a08":d.enabled?TEXT:FAINT}}>{n}</span>
+              <span style={{fontSize:11,fontWeight:700,color:on?"#0b1a08":FAINT}}>{d.enabled ? `${hrs(d)}г` : "—"}</span>
             </button>
           );
         })}
@@ -377,7 +379,7 @@ function WeekScheduleEditor({ weekSchedule, updDay, setWeek }) {
                 background:`linear-gradient(90deg,${GREEN},color-mix(in srgb,${GREEN} 60%,#34d399))`,borderRadius:6}}/>
               {day.lunchEnabled && <div style={{position:"absolute",top:0,bottom:0,left:pct(lS),width:`calc(${pct(lE)} - ${pct(lS)})`,background:GOLD}}/>}
             </div>
-            <div style={{display:"flex",justifyContent:"space-between",fontSize:9,color:FAINT,marginTop:3}}>
+            <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:DIM,marginTop:3}}>
               <span>00</span><span>06</span><span>12</span><span>18</span><span>24</span>
             </div>
           </div>
@@ -861,7 +863,7 @@ select{color-scheme:${isKava?"light":"dark"}}
   }, [active]);
 
   const uk = lang !== "en";
-  const SECTIONS = [
+  const PARTS = [
     { id:"schedule",   icon:"🕐", color:BLUE,   title:t('set.schedule.title'), label:uk?"Графік":"Sched." },
     { id:"snap",       icon:"⏱",  color:TEAL,   title:t('set.snap.title'),     label:uk?"Сітка":"Grid"   },
     { id:"restr",      icon:"🔒", color:RED,    title:t('set.restr.title'),    label:uk?"Ліміти":"Limits" },
@@ -871,10 +873,19 @@ select{color-scheme:${isKava?"light":"dark"}}
     { id:"push",       icon:"🔔", color:GREEN,  title:"Сповіщення",            label:"Сповіщення"        },
     { id:"reviews",    icon:"⭐", color:GOLD,   title:"Відгуки учнів",         label:"Відгуки"           },
     { id:"profile",    icon:"👤", color:BLUE,   title:"Профіль інструктора",   label:"Профіль"           },
+    { id:"auto",       icon:"⚙️", color:GREEN,  title:uk?"Автоправила":"Auto rules", label:"" },
+  ];
+  // 5 груп замість 9 плоских вкладок: PARTS — окремі блоки, що складаються в групу
+  const SECTIONS = [
+    { id:"schedule", icon:"🕐", color:BLUE,   title:uk?"Розклад":"Schedule",       label:uk?"Розклад":"Schedule", parts:["schedule","snap","sticky"] },
+    { id:"booking",  icon:"✅", color:GREEN,  title:uk?"Запис учнів":"Booking",     label:uk?"Запис":"Booking",    parts:["restr","queue","auto","surcharges"] },
+    { id:"push",     icon:"🔔", color:GREEN,  title:uk?"Сповіщення":"Notifications", label:uk?"Сповіщ.":"Alerts", parts:["push"] },
+    { id:"profile",  icon:"👤", color:BLUE,   title:uk?"Профіль інструктора":"Profile", label:uk?"Профіль":"Profile", parts:["profile","reviews"] },
+    { id:"account",  icon:"🔐", color:GOLD,   title:uk?"Акаунт і підписка":"Account", label:uk?"Акаунт":"Account",  parts:[] },
   ];
 
-  function renderSection(id) {
-    const secColor = SECTIONS.find(s=>s.id===id)?.color || ACCENT;
+  function renderPart(id) {
+    const secColor = PARTS.find(s=>s.id===id)?.color || ACCENT;
     const svColor = (on) => on ? GREEN : RED;
     switch(id) {
 
@@ -936,14 +947,14 @@ select{color-scheme:${isKava?"light":"dark"}}
           <div style={{borderRadius:10,padding:"10px",marginTop:5,background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,boxShadow:SO,display:"flex",alignItems:"center",justifyContent:"space-between",gap:10}}>
             <div style={{minWidth:0}}>
               <div style={{fontSize:12,color:DIM}}>Час у слоті</div>
-              <div style={{fontSize:10,color:DIM,opacity:0.7,marginTop:2}}>Показувати "з–до" всередині слотів у графіку</div>
+              <div style={{fontSize:11,color:DIM,marginTop:2}}>Показувати "з–до" всередині слотів у графіку</div>
             </div>
             <Toggle color={svColor(settings.showSlotTimes !== false)} on={settings.showSlotTimes !== false} onChange={v=>upd("showSlotTimes",v)}/>
           </div>
           <div style={{borderRadius:10,padding:"10px",marginTop:5,background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,boxShadow:SO,display:"flex",alignItems:"center",justifyContent:"space-between",gap:10}}>
             <div style={{minWidth:0}}>
               <div style={{fontSize:12,color:DIM}}>Автокольори учнів</div>
-              <div style={{fontSize:10,color:DIM,opacity:0.7,marginTop:2}}>Увімкнено — кольори слотів розподіляються автоматично. Вимкнено — колір задається вручну в картці учня</div>
+              <div style={{fontSize:11,color:DIM,marginTop:2}}>Увімкнено — кольори слотів розподіляються автоматично. Вимкнено — колір задається вручну в картці учня</div>
             </div>
             <Toggle color={svColor(settings.autoStudentColors !== false)} on={settings.autoStudentColors !== false} onChange={v=>upd("autoStudentColors",v)}/>
           </div>
@@ -995,7 +1006,7 @@ select{color-scheme:${isKava?"light":"dark"}}
         <div>
           {showHint && <Info color={GREEN} title={t('set.queue.info_t')} text={t('set.queue.info')}/>}
           <div style={{paddingTop:2}}>
-            <div style={{fontSize:9,color:"#fff",letterSpacing:1,textTransform:"uppercase",marginBottom:8,textAlign:"center"}}>{t('set.queue.mode')}</div>
+            <div style={{fontSize:11,color:DIM,letterSpacing:1,textTransform:"uppercase",marginBottom:8,textAlign:"center"}}>{t('set.queue.mode')}</div>
             {[
               {k:"fifo",      label:t('set.queue.fifo'),   hint:t('set.queue.fifo_h')   },
               {k:"broadcast", label:t('set.queue.bc'),     hint:t('set.queue.bc_h')     },
@@ -1039,7 +1050,7 @@ select{color-scheme:${isKava?"light":"dark"}}
               ? "Configure extra paid add-ons the instructor can attach to a booking right from the schedule slot menu (e.g. \"driving range\", \"harder route\", etc.) — the student then sees the total price including the surcharge. Each \"Surcharge\" below is a fixed amount in UAH that can be quickly added to a lesson's price — add as many as you need, or remove one with the \"×\" button."
               : "Тут налаштовуються додаткові платні опції, які інструктор може додати до запису прямо в меню слота розкладу (наприклад, «виїзд на автодром», «складніший маршрут» тощо) — учень одразу бачить підсумкову суму з надбавкою. Кожна «Надбавка» нижче — це фіксована сума в гривнях, яку можна швидко додати до вартості уроку; додай стільки варіантів, скільки потрібно, або видали кнопкою «×»."}
           />}
-          <div style={{fontSize:12,color:FAINT,marginBottom:12}}>
+          <div style={{fontSize:12,color:DIM,marginBottom:12}}>
             Суми відображаються в меню слота при виборі надбавки.
           </div>
           {(settings.surcharges || []).map((amt, i) => (
@@ -1056,20 +1067,28 @@ select{color-scheme:${isKava?"light":"dark"}}
               />
               <button onClick={()=>upd("surcharges", (settings.surcharges||[]).filter((_,j)=>j!==i))} style={{
                 background:"none",border:"none",cursor:"pointer",
-                color:"rgba(248,113,113,0.8)",fontSize:20,lineHeight:1,padding:"0 4px",
-              }}>×</button>
+                color:RED,fontSize:22,lineHeight:1,padding:0,minWidth:40,minHeight:40,
+              }} aria-label="Видалити">×</button>
             </div>
           ))}
           {(settings.surcharges||[]).length < 5 ? (
-            <button onClick={()=>upd("surcharges", [...(settings.surcharges||[]), 100])} style={{
-              width:"100%",padding:"11px",borderRadius:12,border:`1px dashed ${GREEN}88`,cursor:"pointer",
-              background:"transparent",color:GREEN,fontSize:13,fontWeight:700,marginTop:2,
-            }}>+ Додати надбавку</button>
+            <Btn variant="dashed" accent={GREEN} onClick={()=>upd("surcharges", [...(settings.surcharges||[]), 100])} style={{ width:"100%", marginTop:2 }}>+ Додати надбавку</Btn>
           ) : (
-            <div style={{textAlign:"center",fontSize:12,color:"rgba(255,255,255,0.4)",padding:"6px 0"}}>
+            <div style={{textAlign:"center",fontSize:12,color:DIM,padding:"6px 0"}}>
               Максимум 5 надбавок
             </div>
           )}
+        </div>
+      );
+
+      case "auto": return (
+        <div>
+          <Row color={svColor(!!settings.autoCancel?.enabled)} label={t('set.auto.cancel')}>
+            <Toggle color={svColor(!!settings.autoCancel?.enabled)} on={!!settings.autoCancel?.enabled} onChange={v=>setSettings(s=>({...s,autoCancel:{...(s.autoCancel||{}),enabled:v}}))}/>
+          </Row>
+          <Row last color={svColor(!!settings.autoQueueOffer?.enabled)} label={t('set.auto.queue')}>
+            <Toggle color={svColor(!!settings.autoQueueOffer?.enabled)} on={!!settings.autoQueueOffer?.enabled} onChange={v=>setSettings(s=>({...s,autoQueueOffer:{...(s.autoQueueOffer||{}),enabled:v}}))}/>
+          </Row>
         </div>
       );
 
@@ -1082,7 +1101,7 @@ select{color-scheme:${isKava?"light":"dark"}}
               : "Автоматичні нагадування перед уроком, повідомлення при скасуванні, пропозиція з черги при звільненні слоту, і розсилка всім учням, коли в найближчі 10 днів звільняється слот."}
           />}
           <div style={{paddingTop:10,display:"flex",flexDirection:"column",gap:5}}>
-            <div style={{fontSize:9,color:"#fff",letterSpacing:1,textTransform:"uppercase",marginBottom:2,textAlign:"center"}}>{t('set.auto.reminder')}</div>
+            <div style={{fontSize:11,color:DIM,letterSpacing:1,textTransform:"uppercase",marginBottom:2,textAlign:"center"}}>{t('set.auto.reminder')}</div>
             {reminders.map((r,i)=>(
               <div key={i} style={{
                 display:"flex",alignItems:"center",gap:8,
@@ -1099,12 +1118,6 @@ select{color-scheme:${isKava?"light":"dark"}}
               </div>
             ))}
           </div>
-          <Row color={svColor(!!settings.autoCancel?.enabled)} label={t('set.auto.cancel')}>
-            <Toggle color={svColor(!!settings.autoCancel?.enabled)} on={!!settings.autoCancel?.enabled} onChange={v=>setSettings(s=>({...s,autoCancel:{...(s.autoCancel||{}),enabled:v}}))}/>
-          </Row>
-          <Row color={svColor(!!settings.autoQueueOffer?.enabled)} label={t('set.auto.queue')}>
-            <Toggle color={svColor(!!settings.autoQueueOffer?.enabled)} on={!!settings.autoQueueOffer?.enabled} onChange={v=>setSettings(s=>({...s,autoQueueOffer:{...(s.autoQueueOffer||{}),enabled:v}}))}/>
-          </Row>
           <Row color={svColor(settings.slotFreedPushEnabled !== false)} label={lang==="en"?"Notify on freed slot":"Сповіщення при звільненні слоту"} hint={lang==="en"?"Notify all students when a slot within the next 10 days becomes free":"Сповіщення усім учням, коли в найближчі 10 днів звільняється слот"} last>
             <Toggle color={svColor(settings.slotFreedPushEnabled !== false)} on={settings.slotFreedPushEnabled !== false} onChange={v=>upd("slotFreedPushEnabled",v)}/>
           </Row>
@@ -1127,9 +1140,9 @@ select{color-scheme:${isKava?"light":"dark"}}
               </div>
               {rv.text && <div style={{fontSize:12,color:DIM,lineHeight:1.5,marginBottom:6}}>{rv.text}</div>}
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                <div style={{fontSize:10,color:FAINT}}>{rv.createdAt ? new Date(rv.createdAt).toLocaleDateString("uk-UA") : ""}</div>
+                <div style={{fontSize:11,color:DIM}}>{rv.createdAt ? new Date(rv.createdAt).toLocaleDateString("uk-UA") : ""}</div>
                 <button onClick={()=>toggleReviewHidden(rv)} style={{
-                  padding:"4px 10px",borderRadius:8,border:"none",cursor:"pointer",fontSize:11,fontWeight:700,
+                  padding:"8px 14px",minHeight:36,borderRadius:8,border:"none",cursor:"pointer",fontSize:12,fontWeight:700,
                   background:rv.status==="hidden"?`linear-gradient(145deg,${GREEN},${GREEN})`:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,
                   color:rv.status==="hidden"?"#fff":DIM,boxShadow:rv.status==="hidden"?"none":SO,
                 }}>{rv.status==="hidden"?"Показати":"Сховати"}</button>
@@ -1160,13 +1173,13 @@ select{color-scheme:${isKava?"light":"dark"}}
                   background:`linear-gradient(145deg,${ACC_HI},${ACCENT})`,color:"#fff",boxShadow:SO,opacity:photoUploading?0.6:1,
                 }}>{photoUploading?"Завантаження…":"Завантажити фото"}</button>
                 <input ref={photoInputRef} type="file" accept="image/*" onChange={handlePhotoChange} style={{display:"none"}}/>
-                <div style={{fontSize:10,color:"rgba(255,255,255,0.55)",marginTop:6}}>JPG/PNG, до 5 МБ — покажеться учням на сторінці запису</div>
+                <div style={{fontSize:11,color:DIM,marginTop:6}}>JPG/PNG, до 5 МБ — покажеться учням на сторінці запису</div>
                 {photoError && <div style={{fontSize:11,color:RED,marginTop:4}}>{photoError}</div>}
               </div>
             </div>
 
             {/* GALLERY — фотоколаж на сторінці запису (Landing.jsx), до 9 фото */}
-            <div style={{fontSize:10,fontWeight:800,color:"rgba(255,255,255,0.7)",letterSpacing:0.5,marginBottom:6}}>ФОТОКОЛАЖ НА СТОРІНЦІ ЗАПИСУ ({(profile?.galleryPhotos||[]).length}/{GALLERY_MAX})</div>
+            <div style={{fontSize:11,fontWeight:800,color:DIM,letterSpacing:0.5,marginBottom:6}}>ФОТОКОЛАЖ НА СТОРІНЦІ ЗАПИСУ ({(profile?.galleryPhotos||[]).length}/{GALLERY_MAX})</div>
             <div style={{display:"grid",gridTemplateColumns:"repeat(3, 1fr)",gap:8,marginBottom:6}}>
               {(profile?.galleryPhotos||[]).map((p, idx) => (
                 <div key={p.name} onClick={()=>openViewer(allProfilePhotos, (profile?.photoUrl?1:0)+idx)} style={{position:"relative",width:"100%",aspectRatio:"1",borderRadius:10,overflow:"hidden",boxShadow:SO,cursor:"pointer"}}>
@@ -1179,8 +1192,8 @@ select{color-scheme:${isKava?"light":"dark"}}
               ))}
               {(profile?.galleryPhotos||[]).length < GALLERY_MAX && (
                 <button onClick={()=>galleryInputRef.current?.click()} disabled={galleryUploading} style={{
-                  width:"100%",aspectRatio:"1",borderRadius:10,border:`1px dashed rgba(255,255,255,0.25)`,cursor:galleryUploading?"default":"pointer",
-                  background:"transparent",color:"rgba(255,255,255,0.7)",fontSize:11,fontWeight:700,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:2,
+                  width:"100%",aspectRatio:"1",borderRadius:10,border:`1px dashed ${DIM}`,cursor:galleryUploading?"default":"pointer",
+                  background:"transparent",color:DIM,fontSize:12,fontWeight:700,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:2,
                 }}>
                   <span style={{fontSize:20,lineHeight:1}}>{galleryUploading?"…":"+"}</span>
                   {!galleryUploading && "Додати"}
@@ -1188,13 +1201,13 @@ select{color-scheme:${isKava?"light":"dark"}}
               )}
               <input ref={galleryInputRef} type="file" accept="image/*" onChange={handleGalleryAdd} style={{display:"none"}}/>
             </div>
-            <div style={{fontSize:10,color:"rgba(255,255,255,0.55)"}}>Фото учнів за кермом, з іспиту, з авто — на сторінці запису вони показуються анімованим колажем, як у ID4Drive.</div>
+            <div style={{fontSize:11,color:DIM}}>Фото учнів за кермом, з іспиту, з авто — на сторінці запису вони показуються анімованим колажем, як у ID4Drive.</div>
             {galleryError && <div style={{fontSize:11,color:RED,marginTop:6}}>{galleryError}</div>}
           </ProfileCard>
 
           {/* КОНТАКТИ — телефон, джерело для кнопок дзвінка/Viber/WhatsApp/Telegram на лендингу */}
           <ProfileCard color={BLUE} icon="📞" title="КОНТАКТИ">
-            <div style={{fontSize:10,fontWeight:800,color:"rgba(255,255,255,0.7)",letterSpacing:0.5,marginBottom:5}}>ТЕЛЕФОН</div>
+            <div style={{fontSize:11,fontWeight:800,color:DIM,letterSpacing:0.5,marginBottom:5}}>ТЕЛЕФОН</div>
             <input
               value={profile?.phone ?? ""}
               onChange={e=>updProfile("phone", e.target.value)}
@@ -1202,7 +1215,7 @@ select{color-scheme:${isKava?"light":"dark"}}
               type="tel"
               style={{width:"100%",boxSizing:"border-box",background:BG_DEEP,border:"none",outline:"none",color:TEXT,fontSize:13,padding:"10px 12px",borderRadius:10,boxShadow:SI,fontFamily:"inherit",marginBottom:6}}
             />
-            <div style={{fontSize:10,color:"rgba(255,255,255,0.55)"}}>Дзвінок, Viber, WhatsApp і Telegram на сторінці запису працюють через цей номер.</div>
+            <div style={{fontSize:11,color:DIM}}>Дзвінок, Viber, WhatsApp і Telegram на сторінці запису працюють через цей номер.</div>
           </ProfileCard>
 
           {/* УМОВИ */}
@@ -1214,7 +1227,7 @@ select{color-scheme:${isKava?"light":"dark"}}
               placeholder="Наприклад: скасування пізніше ніж за 24 год оплачується повністю; запізнення не продовжує заняття; при собі мати документ, що посвідчує особу…"
               style={{width:"100%",boxSizing:"border-box",background:BG_DEEP,border:"none",outline:"none",color:TEXT,fontSize:12,padding:"10px 12px",borderRadius:10,boxShadow:SI,resize:"vertical",fontFamily:"inherit",lineHeight:1.5,marginBottom:6}}
             />
-            <div style={{fontSize:10,color:"rgba(255,255,255,0.55)"}}>Порожнє поле — блок «Умови відвідування» просто не покажеться на сайті.</div>
+            <div style={{fontSize:11,color:DIM}}>Порожнє поле — блок «Умови відвідування» просто не покажеться на сайті.</div>
           </ProfileCard>
 
           {/* ЛОКАЦІЯ */}
@@ -1244,8 +1257,8 @@ select{color-scheme:${isKava?"light":"dark"}}
                       aria-label="Очистити"
                       style={{
                         position:"absolute",right:6,top:"50%",transform:"translateY(-50%)",
-                        width:20,height:20,borderRadius:"50%",border:"none",cursor:"pointer",
-                        background:"rgba(255,255,255,0.12)",color:"rgba(255,255,255,0.75)",
+                        width:28,height:28,borderRadius:"50%",border:"none",cursor:"pointer",
+                        background:SURF_LO,color:DIM,
                         fontSize:12,lineHeight:1,display:"flex",alignItems:"center",justifyContent:"center",
                       }}
                     >×</button>
@@ -1268,8 +1281,8 @@ select{color-scheme:${isKava?"light":"dark"}}
                 </div>
               )}
             </div>
-            {addressError && <div style={{fontSize:10,color:RED,marginTop:8}}>{addressError}</div>}
-            <div style={{fontSize:10,color:"rgba(255,255,255,0.55)",marginTop:8}}>Знайдіть адресу нижче, клікніть на карту або перетягніть мітку — учні побачать саме цю точку і адресу на сторінці запису.</div>
+            {addressError && <div style={{fontSize:11,color:RED,marginTop:8}}>{addressError}</div>}
+            <div style={{fontSize:11,color:DIM,marginTop:8}}>Знайдіть адресу нижче, клікніть на карту або перетягніть мітку — учні побачать саме цю точку і адресу на сторінці запису.</div>
           </ProfileCard>
 
           <button onClick={saveProfile} disabled={profileSaving} style={{
@@ -1287,6 +1300,26 @@ select{color-scheme:${isKava?"light":"dark"}}
     }
   }
 
+  // група = кілька блоків із підзаголовками (крім групи з одним блоком)
+  function renderSection(id) {
+    const grp = SECTIONS.find(g => g.id === id);
+    if (!grp) return null;
+    const ids = grp.parts;
+    return ids.map((pid, i) => {
+      const meta = PARTS.find(p => p.id === pid);
+      return (
+        <div key={pid} style={i > 0 ? {marginTop:18, paddingTop:14, borderTop:`1px solid ${BORDER}`} : undefined}>
+          {ids.length > 1 && meta?.title && (
+            <div style={{fontSize:13,fontWeight:800,color:meta.color,display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
+              <span>{meta.icon}</span><span>{meta.title}</span>
+            </div>
+          )}
+          {renderPart(pid)}
+        </div>
+      );
+    });
+  }
+
   const [displayedSection, mosaicPhase] = useMosaicSwitch(active);
   const activeSec = SECTIONS.find(s => s.id === displayedSection);
 
@@ -1299,8 +1332,8 @@ select{color-scheme:${isKava?"light":"dark"}}
         fontFamily:"ui-sans-serif,-apple-system,system-ui,sans-serif", color:TEXT,
       }}>
 
-        {/* PANEL — section content */}
-        <div style={{padding:"4px 4px 0", minWidth:0}}>
+        {/* PANEL — section content (вкладка «Акаунт» без панелі: лише картки нижче) */}
+        {displayedSection !== "account" && <div style={{padding:"4px 4px 0", minWidth:0}}>
           <div style={{
             position:"relative",
             borderRadius:16,
@@ -1326,7 +1359,7 @@ select{color-scheme:${isKava?"light":"dark"}}
             {renderSection(displayedSection)}
             <MosaicOverlay phase={mosaicPhase} tileColor={SURFACE}/>
           </div>
-        </div>
+        </div>}
 
         {/* SECTION RAIL — друга пігулка, візуально ідентична нижньому навбару
             (BottomNav у App.jsx: "скляні чипи" — той самий напівпрозорий фон,
@@ -1370,7 +1403,7 @@ select{color-scheme:${isKava?"light":"dark"}}
                 }}>
                   <SecIcon id={sec.id} color={sec.color} active={isActive} isKava={isKava}/>
                   <span style={{
-                    fontSize:9, fontWeight:700,
+                    fontSize:10, fontWeight:700,
                     color: isActive ? GREEN : (isKava ? DIM : FAINT),
                     whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis", maxWidth:"100%",
                   }}>{sec.label}</span>
@@ -1383,11 +1416,9 @@ select{color-scheme:${isKava?"light":"dark"}}
       )}
 
       {installPrompt && !installed && (
-        <button onClick={handleInstallClick} style={{
-          display:"block", margin:"12px auto 0", background:"rgba(255,255,255,0.05)",
-          border:`1px solid ${BORDER}`, color:TEXT, cursor:"pointer",
-          padding:"10px 24px", borderRadius:14, fontSize:13, fontWeight:700,
-        }}>📲 Встановити додаток</button>
+        <div style={{ margin:"12px 14px 0" }}>
+          <Btn variant="ghost" onClick={handleInstallClick} style={{ width:"100%" }}>📲 Встановити додаток</Btn>
+        </div>
       )}
       {active === "profile" && bookingSlug && (
         <div style={{
@@ -1397,17 +1428,13 @@ select{color-scheme:${isKava?"light":"dark"}}
         }}>
           <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
             <span style={{fontSize:15}}>🔗</span>
-            <span style={{fontSize:12, fontWeight:800, color:"#fff"}}>ПОСИЛАННЯ ДЛЯ ЗАПИСУ УЧНІВ</span>
+            <span style={{fontSize:12, fontWeight:800, color:TEXT}}>ПОСИЛАННЯ ДЛЯ ЗАПИСУ УЧНІВ</span>
           </div>
           <div style={{background:BG_DEEP, border:`1px solid ${BORDER}`, borderRadius:10, padding:"9px 12px", fontSize:12, color:TEXT, wordBreak:"break-all"}}>{bookingLink}</div>
-          <button onClick={copyBookingLink} style={{
-            marginTop:8, width:"100%", padding:"10px", borderRadius:10, border:"none", cursor:"pointer",
-            background: slugCopied ? "linear-gradient(135deg,#4ade80,#34d399)" : `linear-gradient(135deg,${ACC_HI},${ACCENT})`,
-            color: slugCopied ? "#0a2e1a" : "#fff", fontSize:13, fontWeight:800,
-          }}>{slugCopied ? "✓ Скопійовано" : "Копіювати"}</button>
+          <Btn onClick={copyBookingLink} accent={slugCopied ? GREEN : ACCENT} style={{ marginTop:8, width:"100%" }}>{slugCopied ? "✓ Скопійовано" : "Копіювати"}</Btn>
         </div>
       )}
-      {active === "profile" && (
+      {active === "account" && (
       <div style={{
         margin:"10px 14px 0", padding:"12px 14px", borderRadius:14,
         background:`linear-gradient(135deg,color-mix(in srgb,${GOLD} 42%,${BG_DEEP}) 0%,${BG_DEEP} 100%)`,
@@ -1415,12 +1442,12 @@ select{color-scheme:${isKava?"light":"dark"}}
       }}>
         <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
           <span style={{fontSize:15}}>💳</span>
-          <span style={{fontSize:12, fontWeight:800, color:"#fff"}}>ОПЛАТА ПІДПИСКИ</span>
+          <span style={{fontSize:12, fontWeight:800, color:TEXT}}>ОПЛАТА ПІДПИСКИ</span>
         </div>
         <LicensePayPanel/>
       </div>
       )}
-      {active === "profile" && license && (() => {
+      {active === "account" && license && (() => {
         // eslint-disable-next-line react-hooks/purity -- лише для відображення "днів залишилось", не впливає на логіку
         const now = Date.now();
         const untilTs = license.status === "trial" ? license.trialEndsAt : license.expiresAt;
@@ -1454,50 +1481,46 @@ select{color-scheme:${isKava?"light":"dark"}}
           }}>
             <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
               <span style={{fontSize:15}}>🔔</span>
-              <span style={{fontSize:12, fontWeight:800, color:"#fff"}}>ПІДПИСКА</span>
+              <span style={{fontSize:12, fontWeight:800, color:TEXT}}>ПІДПИСКА</span>
             </div>
             <div style={{fontSize:14, fontWeight:700, color:statusColor}}>{statusLabel}</div>
             {blocked && (
-              <div style={{fontSize:12, color:"rgba(255,255,255,0.6)", marginTop:2}}>Акаунт у режимі читання. Оплатіть підписку нижче, щоб відновити роботу.</div>
+              <div style={{fontSize:12, color:DIM, marginTop:2}}>Акаунт у режимі читання. Оплатіть підписку нижче, щоб відновити роботу.</div>
             )}
-            <div style={{marginTop:10, paddingTop:10, borderTop:"1px solid rgba(255,255,255,0.1)", display:"flex", flexDirection:"column", gap:5}}>
+            <div style={{marginTop:10, paddingTop:10, borderTop:`1px solid ${BORDER}`, display:"flex", flexDirection:"column", gap:5}}>
               {rows.map(([label, value]) => (
                 <div key={label} style={{display:"flex", justifyContent:"space-between", gap:10, fontSize:12}}>
-                  <span style={{color:"rgba(255,255,255,0.55)"}}>{label}</span>
-                  <span style={{color:"#fff", fontWeight:700, textAlign:"right"}}>{value}</span>
+                  <span style={{color:DIM}}>{label}</span>
+                  <span style={{color:TEXT, fontWeight:700, textAlign:"right"}}>{value}</span>
                 </div>
               ))}
             </div>
           </div>
         );
       })()}
-      {active === "profile" && (
+      {active === "account" && (
         <div style={{margin:"10px 14px 0"}}>
-          <button onClick={() => { if (window.confirm("Вийти з акаунта?")) signOut(auth).catch(() => {}); }} style={{
-            width:"100%", padding:"12px", borderRadius:12, cursor:"pointer", fontFamily:"inherit",
-            background:"rgba(239,68,68,0.10)", border:"1px solid rgba(239,68,68,0.35)",
-            color:"#f87171", fontSize:13, fontWeight:800,
-          }}>Вийти з акаунта</button>
-          <div style={{fontSize:11, color:"rgba(255,255,255,0.4)", textAlign:"center", marginTop:6}}>{auth.currentUser?.email || ""}</div>
+          <Btn variant="danger" onClick={() => { if (window.confirm("Вийти з акаунта?")) signOut(auth).catch(() => {}); }} style={{ width:"100%" }}>Вийти з акаунта</Btn>
+          <div style={{fontSize:12, color:DIM, textAlign:"center", marginTop:6, wordBreak:"break-all", padding:"0 8px"}}>{auth.currentUser?.email || ""}</div>
           <div style={{marginTop:14, textAlign:"center"}}>
             {!delOpen ? (
-              <button onClick={() => setDelOpen(true)} style={{background:"none",border:"none",color:"#f87171",fontSize:12,fontWeight:700,cursor:"pointer",textDecoration:"underline"}}>Видалити акаунт</button>
+              <button onClick={() => setDelOpen(true)} style={{background:"none",border:"none",color:RED,fontSize:13,fontWeight:700,cursor:"pointer",textDecoration:"underline",padding:"12px 16px",minHeight:44}}>Видалити акаунт</button>
             ) : (
               <div style={{padding:"14px",borderRadius:14,border:"1px solid rgba(239,68,68,0.4)",background:"rgba(239,68,68,0.08)",textAlign:"left"}}>
                 <div style={{fontSize:13,fontWeight:800,color:"#f87171",marginBottom:6}}>Видалити акаунт назавжди?</div>
-                <div style={{fontSize:12,color:"rgba(255,255,255,0.65)",lineHeight:1.5,marginBottom:10}}>
+                <div style={{fontSize:12,color:DIM,lineHeight:1.5,marginBottom:10}}>
                   Буде видалено ваш профіль, розклад, усіх учнів, записи, чати та сторінку запису. Оплачена підписка не повертається, а автосписання LiqPay (якщо є) потрібно скасувати окремо. Неможливо скасувати.
-                  Щоб підтвердити, введіть слово <b style={{color:"#fff"}}>ВИДАЛИТИ</b>.
+                  Щоб підтвердити, введіть слово <b style={{color:TEXT}}>ВИДАЛИТИ</b>.
                 </div>
                 <input value={delText} onChange={e=>setDelText(e.target.value)} placeholder="ВИДАЛИТИ"
-                  style={{width:"100%",boxSizing:"border-box",padding:"10px 12px",borderRadius:10,border:"1px solid rgba(255,255,255,0.18)",background:"rgba(0,0,0,0.3)",color:"#fff",fontSize:14,outline:"none",marginBottom:10}}/>
+                  style={{width:"100%",boxSizing:"border-box",padding:"10px 12px",borderRadius:10,border:`1px solid ${BORDER}`,background:BG_DEEP,color:TEXT,fontSize:16,outline:"none",marginBottom:10}}/>
                 <div style={{display:"flex",gap:8}}>
                   <button disabled={deleting || delText.trim().toUpperCase()!=="ВИДАЛИТИ"} onClick={async()=>{
                     setDeleting(true);
                     try { await deleteAccountRequest({ type:"instructor", iid:auth.currentUser.uid }); try{localStorage.clear();}catch{/* ignore */} await signOut(auth).catch(()=>{}); window.location.href="/"; }
                     catch { setDeleting(false); alert("Не вдалося видалити акаунт. Спробуйте пізніше."); }
                   }} style={{flex:1,padding:"10px",borderRadius:10,border:"none",cursor:"pointer",background:(deleting||delText.trim().toUpperCase()!=="ВИДАЛИТИ")?"rgba(239,68,68,0.25)":"#ef4444",color:"#fff",fontWeight:800,fontSize:13}}>{deleting?"Видалення…":"Видалити"}</button>
-                  <button disabled={deleting} onClick={()=>{setDelOpen(false);setDelText("");}} style={{padding:"10px 16px",borderRadius:10,border:"1px solid rgba(255,255,255,0.18)",background:"transparent",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer"}}>Скасувати</button>
+                  <button disabled={deleting} onClick={()=>{setDelOpen(false);setDelText("");}} style={{padding:"10px 16px",borderRadius:10,border:`1px solid ${BORDER}`,background:"transparent",color:TEXT,fontWeight:700,fontSize:13,cursor:"pointer"}}>Скасувати</button>
                 </div>
               </div>
             )}

@@ -821,7 +821,7 @@ function MonthCalendarSheet({ bookings, onClose, onPickDate }) {
             }}>
               <div style={{display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:4, marginBottom:6}}>
                 {["Пн","Вт","Ср","Чт","Пт","Сб","Нд"].map(wd => (
-                  <div key={wd} style={{fontSize:9, fontWeight:700, color:FAINT, textAlign:"center", textTransform:"uppercase"}}>{wd}</div>
+                  <div key={wd} style={{fontSize:11, fontWeight:700, color:FAINT, textAlign:"center", textTransform:"uppercase"}}>{wd}</div>
                 ))}
               </div>
 
@@ -2965,7 +2965,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                   position:"absolute", left:2, right:2, top:minToPx(nowMin),
                   transform:"translateY(-50%)",
                   background:"#ef4444", color:"#fff",
-                  fontSize:9, fontWeight:900, lineHeight:1,
+                  fontSize:10, fontWeight:900, lineHeight:1,
                   borderRadius:6, padding:"3px 0", textAlign:"center",
                   boxShadow:"0 2px 8px rgba(239,68,68,0.5)",
                 }}>{String(Math.floor(nowMin/60)).padStart(2,"0")}:{String(nowMin%60).padStart(2,"0")}</div>
@@ -3126,7 +3126,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                   backdropFilter:"blur(10px)", WebkitBackdropFilter:"blur(10px)",
                   boxShadow: `3px 3px 7px rgba(${SHADE},0.4), -2px -2px 6px rgba(${GLOW},0.06)${isToday ? `, inset 0 0 0 1.5px ${GOLD}99` : isClosedDay ? `, inset 0 0 0 1.5px rgba(220,60,60,0.8)` : ""}`,
                 }}>
-                <div style={{fontSize:8.5, fontWeight:700, lineHeight:1.2,
+                <div style={{fontSize:10, fontWeight:700, lineHeight:1.2,
                   color: isWorkDay ? GREEN : RED,
                   letterSpacing:0.3, overflow:"hidden", whiteSpace:"nowrap",
                   maxWidth:"100%", textOverflow:"ellipsis",
@@ -3151,7 +3151,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                   </div>
                 )}
                 {!isPastDay && isLoadingCol && (
-                  <div style={{position:"absolute", top:3, right:4, fontSize:8, lineHeight:1, color:FAINT}}>…</div>
+                  <div style={{position:"absolute", top:3, right:4, fontSize:10, lineHeight:1, color:FAINT}}>…</div>
                 )}
                 {dayNotes[dateStrCol] && (
                   <div style={{
@@ -3429,11 +3429,11 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                           position:"absolute", top:6, left:-11, width:56, textAlign:"center",
                           transform:"rotate(-45deg)",
                           background:"rgba(74,222,128,0.95)", color:"#062910",
-                          fontSize:8, fontWeight:800, lineHeight:1.5,
+                          fontSize:10, fontWeight:800, lineHeight:1.5,
                           boxShadow:"0 1px 3px rgba(0,0,0,0.3)",
                         }}>{slot.fixedPrice}₴</div>
                       </div>
-                    ) : hasSurcharge && <span style={{position:"absolute", top:3, left:4, fontSize:9, fontWeight:800, color:"rgba(247,201,72,0.95)", lineHeight:1}}>+{slot.surcharge}₴</span>}
+                    ) : hasSurcharge && <span style={{position:"absolute", top:3, left:4, fontSize:10, fontWeight:800, color:"rgba(247,201,72,0.95)", lineHeight:1}}>+{slot.surcharge}₴</span>}
                     {(isVip || slot.vipOnly) && <span style={{position:"absolute", top:3, right:4, fontSize:10, lineHeight:1}}>👑</span>}
                     {isPrivateOnly && <span style={{position:"absolute", top:3, right:4, fontSize:10, lineHeight:1}}>🚗</span>}
 
@@ -3455,7 +3455,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                         </div>
                       );
                     })()}
-                    {hasViewer && <span style={{position:"absolute", bottom:3, right:4, fontSize:8, lineHeight:1, opacity:0.8}}>👁</span>}
+                    {hasViewer && <span style={{position:"absolute", bottom:3, right:4, fontSize:10, lineHeight:1, opacity:0.8}}>👁</span>}
                     {isBlocked && (() => { const qc = queueMap[`${dateStrCol}_${time}`]; return qc > 0 ? (
                       <div style={{position:"absolute", bottom:2, right:4, display:"flex", alignItems:"center", gap:1}}>
                         <svg width="8" height="8" viewBox="0 0 24 24" fill={GOLD}><circle cx="12" cy="7" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
@@ -3589,7 +3589,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                     display:"flex", alignItems:"center", paddingLeft:5,
                     gap:3,
                   }}>
-                    <span style={{fontSize:8, color:"rgba(247,201,72,0.7)", fontWeight:700, letterSpacing:0.5}}>👁 {time}</span>
+                    <span style={{fontSize:10, color:"rgba(247,201,72,0.7)", fontWeight:700, letterSpacing:0.5}}>👁 {time}</span>
                   </div>
                 );
               })}
@@ -3883,7 +3883,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                       {isPersonal && b.reminderHours && height >= 14 && (
                         <div style={{
                           position:"absolute", top:3, right:3, zIndex:4,
-                          fontSize:9, lineHeight:1,
+                          fontSize:10, lineHeight:1,
                           filter:`drop-shadow(0 1px 2px ${shade(0.6)})`,
                           pointerEvents:"none",
                         }}>🔔</div>
@@ -4164,7 +4164,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
           position:"absolute",
           top: Math.max(60, Math.min(addSlotPos.clientY - 50, window.innerHeight - 110)),
           left: Math.max(10, Math.min(addSlotPos.clientX - 10, window.innerWidth - 180)),
-          width:168,
+          width:168, maxWidth:"calc(100vw - 24px)",
           background:`linear-gradient(135deg,${SURFACE},${BG_DEEP})`,
           borderRadius:14, padding:"10px 12px",
           boxShadow:"0 8px 32px rgba(0,0,0,0.65),inset 1px 1px 0 rgba(255,255,255,0.08)",
@@ -4196,7 +4196,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
           position:"absolute",
           top: Math.max(60, Math.min(bubbleData.clientY - 50, window.innerHeight - 120)),
           left: Math.max(10, Math.min(bubbleData.clientX - 10, window.innerWidth - 180)),
-          width:168,
+          width:168, maxWidth:"calc(100vw - 24px)",
           background:`linear-gradient(135deg,${SURFACE},${BG_DEEP})`,
           borderRadius:14, padding:"10px 12px",
           boxShadow:`0 8px 32px ${shade(0.65)},inset 1px 1px 0 ${glow(0.08)}`,
@@ -4813,7 +4813,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
         backdropFilter:"blur(8px)",
       }}>
         <div onClick={e=>e.stopPropagation()} style={{
-          width:300,background:BG_DEEP,
+          width:300, maxWidth:"calc(100vw - 24px)",background:BG_DEEP,
           borderRadius:20,overflow:"hidden",
           boxShadow:`0 8px 40px ${shade(0.7)}, 0 0 0 1.5px rgba(45,212,191,0.3)`,
         }}>
@@ -5399,7 +5399,7 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
                   <div style={{fontSize:15,fontWeight:800,color:TEXT,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{booking.name}</div>
                   {lessonNumber != null && (
                     <span style={{
-                      fontSize:9,fontWeight:800,padding:"2px 7px",borderRadius:99,flexShrink:0,
+                      fontSize:11,fontWeight:800,padding:"2px 7px",borderRadius:99,flexShrink:0,
                       background:`${BLUE}1f`,color:BLUE,
                     }}>🚗 {lessonNumber}-й урок</span>
                   )}
@@ -5455,23 +5455,23 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
                 </div>
                 <div style={{display:"flex",gap:10,marginBottom:8}}>
                   <div style={{flex:1}}>
-                    <div style={{fontSize:9,fontWeight:700,letterSpacing:1,color:"rgba(255,255,255,.7)",textTransform:"uppercase",marginBottom:5,textAlign:"center"}}>Тривалість, хв</div>
+                    <div style={{fontSize:11,fontWeight:700,letterSpacing:1,color:DIM,textTransform:"uppercase",marginBottom:5,textAlign:"center"}}>Тривалість, хв</div>
                     <input type="number" min={15} max={maxDurMin} step={5} value={draftDur}
                       onChange={e=>onDurChange(e.target.value)}
                       style={{width:"100%",textAlign:"center",padding:"9px 6px",borderRadius:10,border:"1px solid rgba(255,255,255,0.18)",background:"rgba(0,0,0,0.22)",color:"#fff",fontSize:14,fontWeight:800,fontFamily:"inherit"}}/>
                   </div>
                   <div style={{flex:1}}>
-                    <div style={{fontSize:9,fontWeight:700,letterSpacing:1,color:"rgba(255,255,255,.7)",textTransform:"uppercase",marginBottom:5,textAlign:"center"}}>Ціна, ₴</div>
+                    <div style={{fontSize:11,fontWeight:700,letterSpacing:1,color:DIM,textTransform:"uppercase",marginBottom:5,textAlign:"center"}}>Ціна, ₴</div>
                     <input type="number" min={0} step={50} value={draftPrice}
                       onChange={e=>setDraftPrice(e.target.value)}
                       style={{width:"100%",textAlign:"center",padding:"9px 6px",borderRadius:10,border:"1px solid rgba(255,255,255,0.18)",background:"rgba(0,0,0,0.22)",color:"#fff",fontSize:14,fontWeight:800,fontFamily:"inherit"}}/>
                   </div>
                 </div>
-                <div style={{fontSize:9,color:"rgba(255,255,255,.65)",textAlign:"center",marginBottom:10}}>
+                <div style={{fontSize:11,color:DIM,textAlign:"center",marginBottom:10}}>
                   Макс. тривалість зараз: {maxDurMin}хв · ціна перераховується автоматично при зміні тривалості
                 </div>
                 <div style={{display:"flex",gap:8}}>
-                  <button onClick={()=>setEditOpen(false)} style={{flex:1,padding:"9px",borderRadius:11,border:"none",cursor:"pointer",fontFamily:"inherit",background:"rgba(0,0,0,0.22)",color:"rgba(255,255,255,.75)",fontSize:12.5,fontWeight:700}}>Скасувати</button>
+                  <button onClick={()=>setEditOpen(false)} style={{flex:1,padding:"9px",borderRadius:11,border:"none",cursor:"pointer",fontFamily:"inherit",background:"rgba(0,0,0,0.22)",color:DIM,fontSize:12.5,fontWeight:700}}>Скасувати</button>
                   <button onClick={saveEdit} style={{flex:1,padding:"9px",borderRadius:11,border:"none",cursor:"pointer",fontFamily:"inherit",background:GREEN,color:"#0a0d0a",fontSize:12.5,fontWeight:800}}>Зберегти</button>
                 </div>
               </div>
@@ -5489,9 +5489,9 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
                   display:"flex",flexDirection:"column",alignItems:"center",textAlign:"center",
                   borderRight: i < 2 ? "1px solid rgba(255,255,255,0.18)" : "none",
                 }}>
-                  <div style={{fontSize:8,fontWeight:700,letterSpacing:1,color:"rgba(255,255,255,.7)",textTransform:"uppercase",marginBottom:5}}>{label}</div>
+                  <div style={{fontSize:10,fontWeight:700,letterSpacing:1,color:DIM,textTransform:"uppercase",marginBottom:5}}>{label}</div>
                   <div style={{fontSize:15,fontWeight:900,color: gold ? GOLD : "#fff",lineHeight:1}}>{val}</div>
-                  <div style={{fontSize:9,color: gold ? `${GOLD}cc` : "rgba(255,255,255,.65)",marginTop:3,fontWeight:600}}>{sub}</div>
+                  <div style={{fontSize:11,color: gold ? `${GOLD}cc` : "rgba(255,255,255,.65)",marginTop:3,fontWeight:600}}>{sub}</div>
                 </div>
               ))}
             </div>
@@ -5503,7 +5503,7 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
             background:`linear-gradient(155deg,color-mix(in srgb,${PURPLE} 38%,${BG_DEEP}) 0%,${BG_DEEP} 100%)`,
             border:`1px solid color-mix(in srgb,${PURPLE} 36%,transparent)`,
           }}>
-            <div style={{fontSize:9,fontWeight:700,letterSpacing:1,color:"rgba(255,255,255,.75)",textTransform:"uppercase",marginBottom:8}}>
+            <div style={{fontSize:11,fontWeight:700,letterSpacing:1,color:DIM,textTransform:"uppercase",marginBottom:8}}>
               🚗 Маневри
             </div>
             <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8}}>
@@ -5531,7 +5531,7 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
                     </button>
                     <div style={{
                       position:"absolute", top:-7, right:-6,
-                      background:GOLD, color:"#1a1200", fontSize:9, fontWeight:900,
+                      background:GOLD, color:"#1a1200", fontSize:11, fontWeight:900,
                       width:18, height:18, borderRadius:"50%",
                       display:"flex", alignItems:"center", justifyContent:"center",
                       border:"2px solid rgba(0,0,0,0.4)", pointerEvents:"none",
@@ -5560,7 +5560,7 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
             border:`1px solid color-mix(in srgb,${GOLD} 36%,transparent)`,
           }}>
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
-              <div style={{fontSize:9,fontWeight:700,letterSpacing:1,color:"rgba(255,255,255,.8)",textTransform:"uppercase"}}>
+              <div style={{fontSize:11,fontWeight:700,letterSpacing:1,color:DIM,textTransform:"uppercase"}}>
                 🏅 Медаль за урок
               </div>
               <div onClick={() => setBadgePickerOpen(o => !o)} style={{
@@ -5590,7 +5590,7 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
                     background:"rgba(0,0,0,0.22)",fontFamily:"inherit",
                   }}>
                     <span style={{fontSize:18}}>{bp.icon}</span>
-                    <span style={{fontSize:9,fontWeight:700,color:"rgba(255,255,255,.85)",textAlign:"center",lineHeight:1.2}}>{bp.label}</span>
+                    <span style={{fontSize:11,fontWeight:700,color:DIM,textAlign:"center",lineHeight:1.2}}>{bp.label}</span>
                   </button>
                 ))}
               </div>
@@ -5609,8 +5609,8 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
                 border:`1px solid color-mix(in srgb,${GOLD} 36%,transparent)`,
               }}>
                 <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
-                  <div style={{fontSize:9,fontWeight:700,letterSpacing:1,color:"rgba(255,255,255,.8)",textTransform:"uppercase"}}>
-                    🏷️ Мітка {isAuto && <span style={{color:"rgba(255,255,255,.6)",textTransform:"none",letterSpacing:0}}>(авто)</span>}
+                  <div style={{fontSize:11,fontWeight:700,letterSpacing:1,color:DIM,textTransform:"uppercase"}}>
+                    🏷️ Мітка {isAuto && <span style={{color:DIM,textTransform:"none",letterSpacing:0}}>(авто)</span>}
                   </div>
                   <div onClick={() => setTagPickerOpen(o => !o)} style={{
                     fontSize:11,fontWeight:800,color:"#fff",cursor:"pointer",padding:"2px 8px",
@@ -5673,12 +5673,12 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
           {/* Queue */}
           {queueEntries.length > 0 && (
             <div style={{padding:"10px 14px",borderBottom:`1px solid ${ink(0.06)}`}}>
-              <div style={{fontSize:9,fontWeight:700,letterSpacing:1,color:GOLD,textTransform:"uppercase",marginBottom:6}}>
+              <div style={{fontSize:11,fontWeight:700,letterSpacing:1,color:GOLD,textTransform:"uppercase",marginBottom:6}}>
                 ⏳ Черга ({queueEntries.length})
               </div>
               {queueEntries.map((e, i) => (
                 <div key={e.uid||i} style={{display:"flex",alignItems:"center",gap:8,padding:"4px 0",borderBottom: i < queueEntries.length-1 ? `1px solid ${ink(0.04)}` : "none"}}>
-                  <div style={{width:16,height:16,borderRadius:5,background:ink(0.07),display:"flex",alignItems:"center",justifyContent:"center",fontSize:8,fontWeight:800,color:GOLD,flexShrink:0}}>{i+1}</div>
+                  <div style={{width:16,height:16,borderRadius:5,background:ink(0.07),display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:800,color:GOLD,flexShrink:0}}>{i+1}</div>
                   <div style={{flex:1,minWidth:0}}>
                     <div style={{fontSize:12,fontWeight:700,color:TEXT,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{e.name || "—"}</div>
                     {e.phone && <div style={{fontSize:10,color:DIM}}>{e.phone}</div>}
@@ -5783,7 +5783,7 @@ function DrumRoll({ items, currentIdx, onChange, label, itemH=42, visible=4 }) {
 
   return (
     <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"stretch"}}>
-      {label && <div style={{fontSize:9,color:TEXT_FAINT,letterSpacing:1.5,textTransform:"uppercase",fontWeight:700,textAlign:"center",marginBottom:5}}>{label}</div>}
+      {label && <div style={{fontSize:11,color:TEXT_FAINT,letterSpacing:1.5,textTransform:"uppercase",fontWeight:700,textAlign:"center",marginBottom:5}}>{label}</div>}
       <div style={{position:"relative",height:containerH,borderRadius:14,overflow:"hidden",
         background:`linear-gradient(135deg,${BG_DEEP},${SURFACE_LO})`,boxShadow:SHADOW_IN}}>
         {/* Center green highlight */}
@@ -6355,7 +6355,7 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
                     transition:"all .12s",
                   }}>
                     <div>{lbl}</div>
-                    {i>1&&<div style={{fontSize:9,opacity:0.65,marginTop:1}}>{info.month}</div>}
+                    {i>1&&<div style={{fontSize:11,opacity:0.65,marginTop:1}}>{info.month}</div>}
                   </button>
                 );
               })}
@@ -7529,7 +7529,7 @@ export default function App() {
                 <span style={{
                   position:"absolute",top:-2,right:-2,
                   background:ACCENT,color:"#fff",borderRadius:10,
-                  padding:"1px 6px",fontSize:9,fontWeight:800,
+                  padding:"1px 6px",fontSize:11,fontWeight:800,
                   boxShadow:`0 0 8px ${ACCENT}88`
                 }}>3</span>
               </button>
@@ -7584,7 +7584,7 @@ export default function App() {
                 transition:"transform .15s",
                 opacity:tab===t.id?1:0.52,
               }}>{t.icon(33)}</div>
-              <span style={{fontSize:9,fontWeight:700,letterSpacing:0.2}}>{t.label}</span>
+              <span style={{fontSize:11,fontWeight:700,letterSpacing:0.2}}>{t.label}</span>
               {tab===t.id && (
                 <div style={{
                   position:"absolute",bottom:5,left:"50%",transform:"translateX(-50%)",
