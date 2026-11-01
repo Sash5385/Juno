@@ -173,8 +173,8 @@ function Row({ label, hint, children, last, color, compact }) {
       marginBottom: last ? 0 : (compact ? 4 : 6),
     }}>
       <div style={{flex:1,minWidth:0}}>
-        <div style={{fontSize:compact?12:13,fontWeight:700,color:"#fff"}}>{label}</div>
-        {hint && <div style={{fontSize:compact?9:10,color:"rgba(255,255,255,0.74)",marginTop:compact?1:2,lineHeight:1.35}}>{hint}</div>}
+        <div style={{fontSize:compact?12:13,fontWeight:700,color:TEXT}}>{label}</div>
+        {hint && <div style={{fontSize:compact?11:11,color:DIM,marginTop:compact?1:2,lineHeight:1.35}}>{hint}</div>}
       </div>
       <div style={{flexShrink:0}}>{children}</div>
     </div>
@@ -202,7 +202,7 @@ function ProfileCard({ color, icon, title, children }) {
     }}>
       <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
         <span style={{fontSize:15}}>{icon}</span>
-        <span style={{fontSize:12,fontWeight:800,color:"#fff"}}>{title}</span>
+        <span style={{fontSize:12,fontWeight:800,color:TEXT}}>{title}</span>
       </div>
       {children}
     </div>
@@ -210,7 +210,7 @@ function ProfileCard({ color, icon, title, children }) {
 }
 
 function RowBlock({ label, hint, children, last, color }) {
-  const { BG_DEEP, ACCENT } = useContext(ThemeContext);
+  const { BG_DEEP, ACCENT, TEXT, DIM } = useContext(ThemeContext);
   const c = color || ACCENT;
   return (
     <div style={{
@@ -220,8 +220,8 @@ function RowBlock({ label, hint, children, last, color }) {
       backgroundClip:"padding-box",
       marginBottom: last ? 0 : 6,
     }}>
-      <div style={{fontSize:13,fontWeight:700,color:"#fff",marginBottom:hint?2:8}}>{label}</div>
-      {hint && <div style={{fontSize:10,color:"rgba(255,255,255,0.6)",marginBottom:8,lineHeight:1.35}}>{hint}</div>}
+      <div style={{fontSize:13,fontWeight:700,color:TEXT,marginBottom:hint?2:8}}>{label}</div>
+      {hint && <div style={{fontSize:11,color:DIM,marginBottom:8,lineHeight:1.35}}>{hint}</div>}
       {children}
     </div>
   );
@@ -366,7 +366,7 @@ export function WeekScheduleEditor({ weekSchedule, updDay, setWeek, step = 30, s
     : d));
   return (
     <div style={{paddingTop:10}}>
-      <div style={{fontSize:11,color:"#fff",letterSpacing:1.2,textTransform:"uppercase",marginBottom:10,textAlign:"center"}}>Тижневий шаблон</div>
+      <div style={{fontSize:11,color:TEXT,letterSpacing:1.2,textTransform:"uppercase",marginBottom:10,textAlign:"center"}}>Тижневий шаблон</div>
       <div style={{display:"flex",gap:5,marginBottom:10}}>
         {DAY_NAMES.map((n, i) => {
           const d = weekSchedule[i];
@@ -753,6 +753,18 @@ select{color-scheme:${isKava?"light":"dark"}}
     get(iRef("admin_settings/profile/slug")).then(snap => setBookingSlug(snap.val() || "")).catch(() => {});
   }, []);
   const bookingLink = bookingSlug ? `https://aldemi.com.ua/junoclient/i/${bookingSlug}` : "";
+  // QR-код посилання (qrcode підвантажується лише за потреби)
+  const [qrUrl, setQrUrl] = useState("");
+  useEffect(() => {
+    if (!bookingLink) return undefined;
+    let alive = true;
+    import("qrcode").then(m => m.default.toDataURL(bookingLink, { width: 320, margin: 1 }))
+      .then(u => { if (alive) setQrUrl(u); }).catch(() => {});
+    return () => { alive = false; };
+  }, [bookingLink]);
+  const shareBookingLink = () => {
+    if (navigator.share) navigator.share({ title: "Запис онлайн", url: bookingLink }).catch(() => {});
+  };
   const copyBookingLink = () => {
     if (!bookingLink) return;
     navigator.clipboard?.writeText(bookingLink).catch(() => {});
@@ -1181,7 +1193,7 @@ select{color-scheme:${isKava?"light":"dark"}}
               background:"transparent",color:GREEN,fontSize:13,fontWeight:700,marginTop:2,
             }}>+ Додати надбавку</button>
           ) : (
-            <div style={{textAlign:"center",fontSize:12,color:"rgba(255,255,255,0.74)",padding:"6px 0"}}>
+            <div style={{textAlign:"center",fontSize:12,color:DIM,padding:"6px 0"}}>
               Максимум 5 надбавок
             </div>
           )}
@@ -1462,13 +1474,13 @@ select{color-scheme:${isKava?"light":"dark"}}
                   background:`linear-gradient(145deg,${ACC_HI},${ACCENT})`,color:BTN_TX||"#fff",boxShadow:SO,opacity:photoUploading?0.6:1,
                 }}>{photoUploading?"Завантаження…":"Завантажити фото"}</button>
                 <input ref={photoInputRef} type="file" accept="image/*" onChange={handlePhotoChange} style={{display:"none"}}/>
-                <div style={{fontSize:11,color:"rgba(255,255,255,0.74)",marginTop:6}}>JPG/PNG, до 5 МБ — покажеться клієнтам на сторінці запису</div>
+                <div style={{fontSize:11,color:DIM,marginTop:6}}>JPG/PNG, до 5 МБ — покажеться клієнтам на сторінці запису</div>
                 {photoError && <div style={{fontSize:11,color:RED,marginTop:4}}>{photoError}</div>}
               </div>
             </div>
 
             {/* GALLERY — фотоколаж на сторінці запису (Landing.jsx), до 9 фото */}
-            <div style={{fontSize:11,fontWeight:800,color:"rgba(255,255,255,0.7)",letterSpacing:0.5,marginBottom:6}}>ФОТОКОЛАЖ НА СТОРІНЦІ ЗАПИСУ ({(profile?.galleryPhotos||[]).length}/{GALLERY_MAX})</div>
+            <div style={{fontSize:11,fontWeight:800,color:DIM,letterSpacing:0.5,marginBottom:6}}>ФОТОКОЛАЖ НА СТОРІНЦІ ЗАПИСУ ({(profile?.galleryPhotos||[]).length}/{GALLERY_MAX})</div>
             <div style={{display:"grid",gridTemplateColumns:"repeat(3, 1fr)",gap:8,marginBottom:6}}>
               {(profile?.galleryPhotos||[]).map((p, idx) => (
                 <div key={p.name} onClick={()=>openViewer(allProfilePhotos, (profile?.photoUrl?1:0)+idx)} style={{position:"relative",width:"100%",aspectRatio:"1",borderRadius:10,overflow:"hidden",boxShadow:SO,cursor:"pointer"}}>
@@ -1482,7 +1494,7 @@ select{color-scheme:${isKava?"light":"dark"}}
               {(profile?.galleryPhotos||[]).length < GALLERY_MAX && (
                 <button onClick={()=>galleryInputRef.current?.click()} disabled={galleryUploading} style={{
                   width:"100%",aspectRatio:"1",borderRadius:10,border:`1px dashed rgba(255,255,255,0.25)`,cursor:galleryUploading?"default":"pointer",
-                  background:"transparent",color:"rgba(255,255,255,0.7)",fontSize:11,fontWeight:700,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:2,
+                  background:"transparent",color:DIM,fontSize:11,fontWeight:700,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:2,
                 }}>
                   <span style={{fontSize:20,lineHeight:1}}>{galleryUploading?"…":"+"}</span>
                   {!galleryUploading && "Додати"}
@@ -1490,7 +1502,7 @@ select{color-scheme:${isKava?"light":"dark"}}
               )}
               <input ref={galleryInputRef} type="file" accept="image/*" onChange={handleGalleryAdd} style={{display:"none"}}/>
             </div>
-            <div style={{fontSize:11,color:"rgba(255,255,255,0.74)"}}>Фото ваших робіт і робочого місця — на сторінці запису вони показуються анімованим колажем.</div>
+            <div style={{fontSize:11,color:DIM}}>Фото ваших робіт і робочого місця — на сторінці запису вони показуються анімованим колажем.</div>
             {galleryError && <div style={{fontSize:11,color:RED,marginTop:6}}>{galleryError}</div>}
           </ProfileCard>
 
@@ -1504,7 +1516,7 @@ select{color-scheme:${isKava?"light":"dark"}}
               placeholder="Розкажіть про себе: досвід, авто, підхід до навчання, чим ви кращі за інших, чому варто обрати саме вас…"
               style={{width:"100%",boxSizing:"border-box",background:BG_DEEP,border:"none",outline:"none",color:TEXT,fontSize:12,padding:"10px 12px",borderRadius:10,boxShadow:SI,resize:"vertical",fontFamily:"inherit",lineHeight:1.5,marginBottom:6}}
             />
-            <div style={{display:"flex",justifyContent:"space-between",gap:10,fontSize:11,color:"rgba(255,255,255,0.74)"}}>
+            <div style={{display:"flex",justifyContent:"space-between",gap:10,fontSize:11,color:DIM}}>
               <span>Це бачать клієнти угорі сторінки запису. Довгий текст згортається кнопкою «Читати далі». Порожнє поле — блок не показується.</span>
               <span style={{flexShrink:0}}>{(profile?.about ?? "").length}/1500</span>
             </div>
@@ -1512,7 +1524,7 @@ select{color-scheme:${isKava?"light":"dark"}}
 
           {/* КОНТАКТИ — телефон, джерело для кнопок дзвінка/Viber/WhatsApp/Telegram на лендингу */}
           <ProfileCard color={BLUE} icon="📞" title="КОНТАКТИ">
-            <div style={{fontSize:11,fontWeight:800,color:"rgba(255,255,255,0.7)",letterSpacing:0.5,marginBottom:5}}>ТЕЛЕФОН</div>
+            <div style={{fontSize:11,fontWeight:800,color:DIM,letterSpacing:0.5,marginBottom:5}}>ТЕЛЕФОН</div>
             <input
               value={profile?.phone ?? ""}
               onChange={e=>updProfile("phone", e.target.value)}
@@ -1520,7 +1532,7 @@ select{color-scheme:${isKava?"light":"dark"}}
               type="tel"
               style={{width:"100%",boxSizing:"border-box",background:BG_DEEP,border:"none",outline:"none",color:TEXT,fontSize:13,padding:"10px 12px",borderRadius:10,boxShadow:SI,fontFamily:"inherit",marginBottom:6}}
             />
-            <div style={{fontSize:11,color:"rgba(255,255,255,0.74)"}}>Дзвінок, Viber, WhatsApp і Telegram на сторінці запису працюють через цей номер.</div>
+            <div style={{fontSize:11,color:DIM}}>Дзвінок, Viber, WhatsApp і Telegram на сторінці запису працюють через цей номер.</div>
           </ProfileCard>
 
           {/* УМОВИ */}
@@ -1532,7 +1544,7 @@ select{color-scheme:${isKava?"light":"dark"}}
               placeholder="Наприклад: скасування пізніше ніж за 24 год оплачується повністю; запізнення не продовжує запис; при собі мати документ, що посвідчує особу…"
               style={{width:"100%",boxSizing:"border-box",background:BG_DEEP,border:"none",outline:"none",color:TEXT,fontSize:12,padding:"10px 12px",borderRadius:10,boxShadow:SI,resize:"vertical",fontFamily:"inherit",lineHeight:1.5,marginBottom:6}}
             />
-            <div style={{fontSize:11,color:"rgba(255,255,255,0.74)"}}>Порожнє поле — блок «Умови відвідування» просто не покажеться на сайті.</div>
+            <div style={{fontSize:11,color:DIM}}>Порожнє поле — блок «Умови відвідування» просто не покажеться на сайті.</div>
           </ProfileCard>
 
           {/* ЛОКАЦІЯ */}
@@ -1587,7 +1599,7 @@ select{color-scheme:${isKava?"light":"dark"}}
               )}
             </div>
             {addressError && <div style={{fontSize:11,color:RED,marginTop:8}}>{addressError}</div>}
-            <div style={{fontSize:11,color:"rgba(255,255,255,0.74)",marginTop:8}}>Знайдіть адресу нижче, клікніть на карту або перетягніть мітку — клієнти побачать саме цю точку і адресу на сторінці запису.</div>
+            <div style={{fontSize:11,color:DIM,marginTop:8}}>Знайдіть адресу нижче, клікніть на карту або перетягніть мітку — клієнти побачать саме цю точку і адресу на сторінці запису.</div>
           </ProfileCard>
 
           <button onClick={saveProfile} disabled={profileSaving} style={{
@@ -1699,6 +1711,14 @@ select{color-scheme:${isKava?"light":"dark"}}
             background: slugCopied ? "linear-gradient(135deg,#4ade80,#34d399)" : `linear-gradient(135deg,${ACC_HI},${ACCENT})`,
             color: slugCopied ? "#0a2e1a" : (BTN_TX||"#fff"), fontSize:13, fontWeight:800,
           }}>{slugCopied ? "✓ Скопійовано" : "Копіювати"}</button>
+          {typeof navigator !== "undefined" && navigator.share && (
+            <button onClick={shareBookingLink} style={{marginTop:6,width:"100%",padding:"10px",borderRadius:10,cursor:"pointer",background:"transparent",border:`1px solid ${BORDER}`,color:TEXT,fontSize:13,fontWeight:700,fontFamily:"inherit"}}>📤 Поділитись</button>
+          )}
+          {qrUrl && (
+            <div style={{display:"flex",justifyContent:"center",marginTop:10}}>
+              <img src={qrUrl} alt="QR-код посилання для запису" width={160} height={160} style={{borderRadius:10,background:"#fff",padding:6,maxWidth:"100%"}}/>
+            </div>
+          )}
         </div>
       )}
       {active === "profile" && (
@@ -1752,12 +1772,12 @@ select{color-scheme:${isKava?"light":"dark"}}
             </div>
             <div style={{fontSize:14, fontWeight:700, color:statusColor}}>{statusLabel}</div>
             {blocked && (
-              <div style={{fontSize:12, color:"rgba(255,255,255,0.74)", marginTop:2}}>Акаунт у режимі читання. Оплатіть підписку нижче, щоб відновити роботу.</div>
+              <div style={{fontSize:12, color:DIM, marginTop:2}}>Акаунт у режимі читання. Оплатіть підписку нижче, щоб відновити роботу.</div>
             )}
             <div style={{marginTop:10, paddingTop:10, borderTop:"1px solid rgba(255,255,255,0.1)", display:"flex", flexDirection:"column", gap:5}}>
               {rows.map(([label, value]) => (
                 <div key={label} style={{display:"flex", justifyContent:"space-between", gap:10, fontSize:12}}>
-                  <span style={{color:"rgba(255,255,255,0.74)"}}>{label}</span>
+                  <span style={{color:DIM}}>{label}</span>
                   <span style={{color:"#fff", fontWeight:700, textAlign:"right"}}>{value}</span>
                 </div>
               ))}
@@ -1772,14 +1792,14 @@ select{color-scheme:${isKava?"light":"dark"}}
             background:"rgba(239,68,68,0.10)", border:"1px solid rgba(239,68,68,0.35)",
             color:"#f87171", fontSize:13, fontWeight:800,
           }}>Вийти з акаунта</button>
-          <div style={{fontSize:11, color:"rgba(255,255,255,0.74)", textAlign:"center", marginTop:6}}>{auth.currentUser?.email || ""}</div>
+          <div style={{fontSize:11, color:DIM, textAlign:"center", marginTop:6}}>{auth.currentUser?.email || ""}</div>
           <div style={{marginTop:14, textAlign:"center"}}>
             {!rstOpen ? (
               <button onClick={() => setRstOpen(true)} style={{background:"none",border:"none",color:"#f87171",fontSize:12,fontWeight:700,cursor:"pointer",textDecoration:"underline",padding:"8px 6px"}}>Повне скидання даних (тест)</button>
             ) : (
               <div style={{padding:"14px",borderRadius:14,border:"1px solid rgba(239,68,68,0.4)",background:"rgba(239,68,68,0.08)",textAlign:"left"}}>
                 <div style={{fontSize:13,fontWeight:800,color:"#f87171",marginBottom:6}}>Скинути все до початкового стану?</div>
-                <div style={{fontSize:12,color:"rgba(255,255,255,0.74)",lineHeight:1.5,marginBottom:10}}>
+                <div style={{fontSize:12,color:DIM,lineHeight:1.5,marginBottom:10}}>
                   Буде видалено розклад і слоти, усі записи, чергу, чати, нотатки, налаштування та послуги. Акаунт, підписка і зв'язок з клієнтами залишаються. Після скидання все як у нового майстра. Щоб підтвердити, введіть слово <b style={{color:"#fff"}}>СКИНУТИ</b>.
                 </div>
                 <input value={rstText} onChange={e=>setRstText(e.target.value)} placeholder="СКИНУТИ"
@@ -1805,7 +1825,7 @@ select{color-scheme:${isKava?"light":"dark"}}
             ) : (
               <div style={{padding:"14px",borderRadius:14,border:"1px solid rgba(239,68,68,0.4)",background:"rgba(239,68,68,0.08)",textAlign:"left"}}>
                 <div style={{fontSize:13,fontWeight:800,color:"#f87171",marginBottom:6}}>Видалити акаунт назавжди?</div>
-                <div style={{fontSize:12,color:"rgba(255,255,255,0.74)",lineHeight:1.5,marginBottom:10}}>
+                <div style={{fontSize:12,color:DIM,lineHeight:1.5,marginBottom:10}}>
                   Буде видалено ваш профіль, розклад, усіх клієнтів, записи, чати та сторінку запису. Оплачена підписка не повертається, а автосписання LiqPay (якщо є) потрібно скасувати окремо. Неможливо скасувати.
                   Щоб підтвердити, введіть слово <b style={{color:"#fff"}}>ВИДАЛИТИ</b>.
                 </div>
