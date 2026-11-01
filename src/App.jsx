@@ -212,6 +212,14 @@ function BottomNav({ active, onChange, settings, chatUnread, journalUnread }) {
   const isKava = settings?.theme === "light";
   const tabIcons = isKava ? makeTabIcons(INACTIVE_KAVA) : TabIcons;
   const visible = TAB_IDS.filter(t => settings?.navTabs?.includes(t.id) ?? true);
+  // Вузький екран + багато вкладок: підпис лише в активної (інакше підписи накладаються)
+  const [narrow, setNarrow] = useState(() => typeof window !== "undefined" && window.innerWidth < 400);
+  useEffect(() => {
+    const on = () => setNarrow(window.innerWidth < 400);
+    window.addEventListener("resize", on);
+    return () => window.removeEventListener("resize", on);
+  }, []);
+  const labelOnlyActive = narrow && visible.length > 6;
 
   // "Щільний ряд скляних чипів" (обраний варіант дизайну) — компактні чипи в
   // напівпрозорій рамці; активна вкладка підсвічується зеленим (theme.GREEN),
@@ -243,7 +251,7 @@ function BottomNav({ active, onChange, settings, chatUnread, journalUnread }) {
           const isActive = active===t.id;
           const badgeCount = t.id === 'chats' ? chatUnread : t.id === 'journal' ? journalUnread : t.badge;
           return (
-          <button key={t.id} onClick={()=>onChange(t.id)} style={{
+          <button key={t.id} onClick={()=>onChange(t.id)} title={tl(t.lk)} aria-label={tl(t.lk)} style={{
             flex:"1 1 0",minWidth:0,padding:"8px 2px 7px",
             background: isActive ? activeBg : "transparent",
             border:"none",cursor:"pointer",borderRadius:11,
@@ -261,7 +269,7 @@ function BottomNav({ active, onChange, settings, chatUnread, journalUnread }) {
                 }}>{badgeCount}</div>
               )}
             </div>
-            <span style={{fontSize:9,fontWeight:700,color:isActive?theme.GREEN:labelInactive,whiteSpace:"nowrap",letterSpacing:-0.2}}>{tl(t.lk)}</span>
+            <span aria-hidden={labelOnlyActive && !isActive} style={{fontSize:labelOnlyActive?10:9,fontWeight:700,color:isActive?theme.GREEN:labelInactive,whiteSpace:"nowrap",letterSpacing:-0.2,visibility:(labelOnlyActive && !isActive)?"hidden":"visible"}}>{tl(t.lk)}</span>
           </button>
           );
         })}

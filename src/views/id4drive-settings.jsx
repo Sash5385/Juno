@@ -7,7 +7,7 @@ import { deleteAccountRequest } from "../deleteAccountApi";
 import { iRef, iStorageRef, iGalleryStorageRef, auth } from "../firebase";
 import { LangContext } from "../App";
 import { ThemeContext } from "../theme.js";
-import { UICss, useFX, Btn } from "../ui";
+import { UICss, useFX, Btn, Modal } from "../ui";
 import { createT } from "../lang";
 import { useLicense, licenseState } from "../hooks/useLicense";
 import { LicensePayPanel } from "../LicensePay";
@@ -629,12 +629,24 @@ select{color-scheme:${isKava?"light":"dark"}}
   const [bookingSlug, setBookingSlug] = useState(null);
   const [delOpen, setDelOpen] = useState(false);
   const [delText, setDelText] = useState("");
+  const [logoutOpen, setLogoutOpen] = useState(false);
+  const [qrUrl, setQrUrl] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [slugCopied,  setSlugCopied]  = useState(false);
   useEffect(() => {
     get(iRef("admin_settings/profile/slug")).then(snap => setBookingSlug(snap.val() || "")).catch(() => {});
   }, []);
   const bookingLink = bookingSlug ? `https://drivepad-client.web.app/i/${bookingSlug}` : "";
+  useEffect(() => {
+    let alive = true;
+    if (!bookingLink) return;
+    import("qrcode").then(m => m.default.toDataURL(bookingLink, { width: 320, margin: 1 }))
+      .then(u => { if (alive) setQrUrl(u); }).catch(() => {});
+    return () => { alive = false; };
+  }, [bookingLink]);
+  const shareBookingLink = () => {
+    if (navigator.share) navigator.share({ title: "Запис онлайн", url: bookingLink }).catch(() => {});
+  };
   const copyBookingLink = () => {
     if (!bookingLink) return;
     navigator.clipboard?.writeText(bookingLink).catch(() => {});
@@ -1431,7 +1443,16 @@ select{color-scheme:${isKava?"light":"dark"}}
             <span style={{fontSize:12, fontWeight:800, color:TEXT}}>ПОСИЛАННЯ ДЛЯ ЗАПИСУ УЧНІВ</span>
           </div>
           <div style={{background:BG_DEEP, border:`1px solid ${BORDER}`, borderRadius:10, padding:"9px 12px", fontSize:12, color:TEXT, wordBreak:"break-all"}}>{bookingLink}</div>
-          <Btn onClick={copyBookingLink} accent={slugCopied ? GREEN : ACCENT} style={{ marginTop:8, width:"100%" }}>{slugCopied ? "✓ Скопійовано" : "Копіювати"}</Btn>
+          <div style={{display:"flex",gap:8,marginTop:8}}>
+            <Btn onClick={copyBookingLink} accent={slugCopied ? GREEN : ACCENT} flex={1}>{slugCopied ? "✓ Скопійовано" : "Копіювати"}</Btn>
+            {typeof navigator !== "undefined" && navigator.share && <Btn variant="ghost" onClick={shareBookingLink} flex={1}>📤 Поділитись</Btn>}
+          </div>
+          {bookingLink && qrUrl && (
+            <div style={{marginTop:12,textAlign:"center"}}>
+              <img src={qrUrl} alt="QR-код посилання для запису" width={160} height={160} style={{borderRadius:10,background:"#fff",padding:6,maxWidth:"100%"}}/>
+              <div style={{fontSize:12,color:DIM,marginTop:6}}>QR для візитки або авто — учень наводить камеру й записується</div>
+            </div>
+          )}
         </div>
       )}
       {active === "account" && (
@@ -1500,7 +1521,7 @@ select{color-scheme:${isKava?"light":"dark"}}
       })()}
       {active === "account" && (
         <div style={{margin:"10px 14px 0"}}>
-          <Btn variant="danger" onClick={() => { if (window.confirm("Вийти з акаунта?")) signOut(auth).catch(() => {}); }} style={{ width:"100%" }}>Вийти з акаунта</Btn>
+          <Btn variant="danger" onClick={() => setLogoutOpen(true)} style={{ width:"100%" }}>Вийти з акаунта</Btn>
           <div style={{fontSize:12, color:DIM, textAlign:"center", marginTop:6, wordBreak:"break-all", padding:"0 8px"}}>{auth.currentUser?.email || ""}</div>
           <div style={{marginTop:14, textAlign:"center"}}>
             {!delOpen ? (
@@ -1527,6 +1548,13 @@ select{color-scheme:${isKava?"light":"dark"}}
           </div>
         </div>
       )}
+      <Modal open={logoutOpen} onClose={()=>setLogoutOpen(false)} sheet={false} size="sm" title="Вийти з акаунта?"
+        footer={<>
+          <Btn variant="ghost" onClick={()=>setLogoutOpen(false)}>Скасувати</Btn>
+          <Btn variant="danger" onClick={()=>{ setLogoutOpen(false); signOut(auth).catch(()=>{}); }}>Вийти</Btn>
+        </>}>
+        <div style={{fontSize:13,color:DIM,lineHeight:1.5}}>Щоб увійти знову, знадобиться email і пароль.</div>
+      </Modal>
       <div style={{height:railH + 16}}/>
     </>
   );
