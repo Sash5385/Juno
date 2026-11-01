@@ -1002,27 +1002,6 @@ select{color-scheme:${isKava?"light":"dark"}}
           <Row label={t('set.schedule.days')}>
             <NumInput value={settings.daysShown} onChange={v=>upd("daysShown",v)} min={1} max={30} suffix={` ${t('days')}`}/>
           </Row>
-          <Row compact color={svColor(!!settings.autoSlots)} label="Автовідкриття слотів" hint="Дні без слотів заповнюються за тижневим шаблоном самі. Слоти, видалені вручну, не повертаються">
-            <Toggle color={svColor(!!settings.autoSlots)} on={!!settings.autoSlots} onChange={v=>upd("autoSlots",v)}/>
-          </Row>
-          <Row compact color={svColor(settings.lockPastBookings)} label="Блокувати минулі записи" hint="Заборонити редагувати, переносити й скасовувати записи, що вже минули — вони підсвічуються тьмяніше">
-            <Toggle color={svColor(settings.lockPastBookings)} on={!!settings.lockPastBookings} onChange={v=>upd("lockPastBookings",v)}/>
-          </Row>
-          <div style={{marginTop:4}}>
-            <RowBlock color={BLUE} label="Розмір інтерфейсу" hint="Усі розділи, крім розкладу">
-              <div style={{display:"flex",gap:6}}>
-                {UI_SCALES.map(sc=>(
-                  <Chip equal key={sc.id} label={sc.name} active={uiScale===sc.id} onClick={()=>{setUiScale(sc.id);setUiScaleLocal(sc.id);}}/>
-                ))}
-              </div>
-            </RowBlock>
-          </div>
-          <Row compact color={svColor(settings.calClip !== false)} label="Слот починається після запису" hint="Запис 10:00–11:30, сітка по годині: вільний слот буде з 11:30, а не з 11:00. Вимкніть — слот піде за сіткою і заповзе під запис.">
-            <Toggle color={svColor(settings.calClip !== false)} on={settings.calClip !== false} onChange={v=>upd("calClip",v)}/>
-          </Row>
-          <Row compact last color={svColor(settings.showHelpBtn !== false)} label="Кнопка підказок «?»" hint="Показувати кнопку довідника у верхньому правому куті розкладу">
-            <Toggle color={svColor(settings.showHelpBtn !== false)} on={settings.showHelpBtn !== false} onChange={v=>upd("showHelpBtn",v)}/>
-          </Row>
         </div>
       );
 
@@ -1155,6 +1134,15 @@ select{color-scheme:${isKava?"light":"dark"}}
               ))}
             </div>
           )}
+          <Row compact color={svColor(!!settings.autoSlots)} label="Автовідкриття слотів" hint="Дні без слотів заповнюються за тижневим шаблоном самі. Слоти, видалені вручну, не повертаються">
+            <Toggle color={svColor(!!settings.autoSlots)} on={!!settings.autoSlots} onChange={v=>upd("autoSlots",v)}/>
+          </Row>
+          <Row compact color={svColor(settings.lockPastBookings)} label="Блокувати минулі записи" hint="Заборонити редагувати, переносити й скасовувати записи, що вже минули — вони підсвічуються тьмяніше">
+            <Toggle color={svColor(settings.lockPastBookings)} on={!!settings.lockPastBookings} onChange={v=>upd("lockPastBookings",v)}/>
+          </Row>
+          <Row compact last color={svColor(settings.calClip !== false)} label="Слот починається після запису" hint="Запис 10:00–11:30, сітка по годині: вільний слот буде з 11:30, а не з 11:00. Вимкніть — слот піде за сіткою і заповзе під запис.">
+            <Toggle color={svColor(settings.calClip !== false)} on={settings.calClip !== false} onChange={v=>upd("calClip",v)}/>
+          </Row>
         </div>
       );
 
@@ -1404,6 +1392,19 @@ select{color-scheme:${isKava?"light":"dark"}}
 
       case "profile": return (
         <div>
+          <div style={{marginTop:4}}>
+            <RowBlock color={BLUE} label="Розмір інтерфейсу" hint="Усі розділи, крім розкладу">
+              <div style={{display:"flex",gap:6}}>
+                {UI_SCALES.map(sc=>(
+                  <Chip equal key={sc.id} label={sc.name} active={uiScale===sc.id} onClick={()=>{setUiScale(sc.id);setUiScaleLocal(sc.id);}}/>
+                ))}
+              </div>
+            </RowBlock>
+          </div>
+          <Row compact last color={svColor(settings.showHelpBtn !== false)} label="Кнопка підказок «?»" hint="Показувати кнопку довідника у верхньому правому куті розкладу">
+            <Toggle color={svColor(settings.showHelpBtn !== false)} on={settings.showHelpBtn !== false} onChange={v=>upd("showHelpBtn",v)}/>
+          </Row>
+          <div style={{height:10}}/>
           <div data-notrans="1" style={{marginBottom:14,padding:"12px 12px 10px",borderRadius:14,background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,boxShadow:SO}}>
             <div style={{fontSize:12,fontWeight:800,letterSpacing:1,color:`color-mix(in srgb,${TEAL} 60%,#fff)`,textTransform:"uppercase",marginBottom:4}}>🧭 Напрямок послуг</div>
             <div style={{fontSize:11.5,color:DIM,marginBottom:10,lineHeight:1.45}}>Змінює слова в усьому застосунку (і в клієнта): майстер, клієнт, запис. Сторінка перезавантажиться.</div>
