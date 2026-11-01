@@ -420,12 +420,23 @@ export function WeekScheduleEditor({ weekSchedule, updDay, setWeek, step = 30, s
           )}
           <div style={{marginTop:14,padding:"0 4px"}}>
             <div style={{fontSize:11,fontWeight:800,letterSpacing:1.2,color:DIM,marginBottom:6}}>СЛОТИ ДНЯ · {slots.length}</div>
-            <div style={{display:"flex",flexWrap:"wrap",gap:5}}>
-              {slots.map(m => (
-                <span key={m} style={{fontSize:12,fontWeight:800,padding:"4px 8px",borderRadius:8,color:TEXT,
-                  background:`color-mix(in srgb,${GREEN} 18%,${BG_DEEP})`,border:`1px solid color-mix(in srgb,${GREEN} 35%,transparent)`}}>{fmt(m/60)}</span>
-              ))}
-            </div>
+            {(() => {
+              // Рядки по ≤4 слоти, розподілені порівну; кожен рядок на всю ширину
+              const rows = Math.max(1, Math.ceil(slots.length / 4));
+              const out = []; let from = 0;
+              for (let r = 0; r < rows; r++) {
+                const n = Math.ceil((slots.length - from) / (rows - r));
+                out.push(slots.slice(from, from + n)); from += n;
+              }
+              return out.map((row, ri) => (
+                <div key={ri} style={{display:"flex",gap:5,marginTop:ri?5:0}}>
+                  {row.map(m => (
+                    <span key={m} style={{flex:"1 1 0",minWidth:0,textAlign:"center",fontSize:12,fontWeight:800,padding:"6px 4px",borderRadius:8,color:TEXT,
+                      background:`color-mix(in srgb,${GREEN} 18%,${BG_DEEP})`,border:`1px solid color-mix(in srgb,${GREEN} 35%,transparent)`}}>{fmt(m/60)}</span>
+                  ))}
+                </div>
+              ));
+            })()}
             {gaps.map((g, i) => (
               <div key={i} style={{fontSize:11,color:GOLD,marginTop:6}}>⚠ {fmt(g[0]/60)}–{fmt(g[1]/60)} без слота (не вміщається запис 1 год)</div>
             ))}
