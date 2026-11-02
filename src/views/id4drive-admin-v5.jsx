@@ -1236,7 +1236,7 @@ export function AutoSlots({ settings, bookings }) {
   useEffect(() => {
     if (!settings.autoSlots) return;
     const run = async () => {
-      if (busyRef.current) { againRef.current = true; return; }
+      if (busyRef.current) { againRef.current = true; return null; }
       busyRef.current = true;
       try {
         const root = slotRoot();
@@ -1271,15 +1271,19 @@ export function AutoSlots({ settings, bookings }) {
         const chunked = async (u) => { const e = Object.entries(u); for (let i = 0; i < e.length; i += 400) await update(iRef(), Object.fromEntries(e.slice(i, i + 400))); };
         if (Object.keys(removals).length) await chunked(removals);
         if (Object.keys(all).length) { await chunked(all); await update(iRef(), marks); }
-      } catch (e) { console.error("autoSlots", e); }
+        return { days: Object.keys(marks).length, removed: Object.keys(removals).length };
+      } catch (e) { console.error("autoSlots", e); return null; }
       finally {
         busyRef.current = false;
         if (againRef.current) { againRef.current = false; runRef.current?.(); }
       }
     };
     runRef.current = run;
+    // Кнопка «Заповнити зараз» у налаштуваннях: подія з callback, що отримує підсумок
+    const onManual = (e) => { run().then(r => e.detail?.cb?.(r)); };
+    window.addEventListener("autoslots-run", onManual);
     const t = setTimeout(run, 400);
-    return () => clearTimeout(t);
+    return () => { clearTimeout(t); window.removeEventListener("autoslots-run", onManual); };
   }, [settings.autoSlots, settings.slotGenDays, JSON.stringify(settings.weekSchedule), JSON.stringify(settings.dateOverrides)]); // eslint-disable-line react-hooks/exhaustive-deps
   return null;
 }

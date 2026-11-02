@@ -209,6 +209,33 @@ function ProfileCard({ color, icon, title, children }) {
   );
 }
 
+// Кнопка «Заповнити зараз»: одразу запускає автовідкриття слотів (AutoSlots слухає подію) і показує підсумок
+function AutoSlotsRunButton() {
+  const { BORDER, TEXT, DIM } = useContext(ThemeContext);
+  const [state, setState] = useState("idle"); // idle | busy | msg
+  const [msg, setMsg] = useState("");
+  const run = () => {
+    setState("busy");
+    let answered = false;
+    const done = (r) => {
+      answered = true;
+      setMsg(!r ? "Помилка — спробуйте ще раз" : r.days || r.removed ? `Готово: оновлено днів — ${r.days}, прибрано вільних слотів — ${r.removed}` : "Усе вже заповнено — нових днів немає");
+      setState("msg");
+      setTimeout(() => setState("idle"), 6000);
+    };
+    window.dispatchEvent(new CustomEvent("autoslots-run", { detail: { cb: done } }));
+    setTimeout(() => { if (!answered) done(null); }, 15000);
+  };
+  return (
+    <div style={{marginBottom:6}}>
+      <button onClick={run} disabled={state==="busy"} style={{width:"100%",minHeight:44,padding:"10px",borderRadius:12,cursor:state==="busy"?"default":"pointer",background:"transparent",border:`1px solid ${BORDER}`,color:TEXT,fontSize:13,fontWeight:700,fontFamily:"inherit",opacity:state==="busy"?0.6:1}}>
+        {state==="busy" ? "Заповнюю…" : "⚡ Заповнити зараз"}
+      </button>
+      {state==="msg" && <div style={{fontSize:11,color:DIM,marginTop:4,textAlign:"center"}}>{msg}</div>}
+    </div>
+  );
+}
+
 function RowBlock({ label, hint, children, last, color }) {
   const { BG_DEEP, ACCENT, TEXT, DIM } = useContext(ThemeContext);
   const c = color || ACCENT;
@@ -1149,6 +1176,7 @@ select{color-scheme:${isKava?"light":"dark"}}
           <Row compact color={svColor(!!settings.autoSlots)} label="Автовідкриття слотів" hint="Дні без слотів заповнюються за тижневим шаблоном самі. Слоти, видалені вручну, не повертаються">
             <Toggle color={svColor(!!settings.autoSlots)} on={!!settings.autoSlots} onChange={v=>upd("autoSlots",v)}/>
           </Row>
+          {!!settings.autoSlots && <AutoSlotsRunButton/>}
           <Row compact color={svColor(settings.lockPastBookings)} label="Блокувати минулі записи" hint="Заборонити редагувати, переносити й скасовувати записи, що вже минули — вони підсвічуються тьмяніше">
             <Toggle color={svColor(settings.lockPastBookings)} on={!!settings.lockPastBookings} onChange={v=>upd("lockPastBookings",v)}/>
           </Row>
