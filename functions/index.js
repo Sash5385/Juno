@@ -311,7 +311,7 @@ async function sendActiveTemplates(iid, uid, triggerId, vars = {}, filterFn = nu
       }
     }
     const pushed = await pushStudent(iid, uid, tplTitle, text, {}).catch(() => false);
-    if (pushed) await saveNotification(iid, uid, tplTitle, text, "template").catch(() => {});
+    if (pushed || chatSent) await saveNotification(iid, uid, tplTitle, text, "template").catch(() => {}); // «Події» клієнта — і без push-токена
     if (chatSent || pushed) delivered = true;
   }
   return delivered;
@@ -529,6 +529,12 @@ exports.onBookingChanged = onValueWritten(
     const date       = (after || before)?.date || "—";
     const time       = (after || before)?.time || "—";
     const adminLink  = () => buildAdminLink("https://aldemi.com.ua/junoadmin", { date, time, uid, bookingId });
+
+    // Салон: клієнт майстра (masterClients/{майстер}/{клієнт}) — за цим індексом правила БД пускають майстра в чат цього клієнта
+    const mcMaster = after?.masterId;
+    if (mcMaster && mcMaster !== iid && uid !== "personal" && uid !== "admin" && after.status !== "personal") {
+      await iRef(iid, `masterClients/${mcMaster}/${uid}`).set(true).catch(() => {});
+    }
 
     // Новий запис (before = null) — блокуємо слоти
     if (before === null && after) {
@@ -778,7 +784,7 @@ exports.onQueueInvite = onValueUpdated(
 
     const url = `https://aldemi.com.ua/junoclient/cabinet?date=${date}&time=${encodeURIComponent(time)}${master ? `&master=${master}` : ""}`;
     const pushTitle = (L) => t(L, "🎉 Слот зарезервовано для вас!");
-    const pushBody = (L) => t(L, "{date} о {time} — у вас 30 хвилин щоб записатись", { date: fmtDate(L, date), time });
+    const pushBody = (L) => t(L, "{date} о {time} — у вас 30 хвилин щоб записатись", { date: fmtDateLong(L, date), time }); // «вт, 3 листопада», не ISO
     await pushStudent(iid, uid, pushTitle, pushBody, { url, date, time, slotKey });
     await saveNotification(iid, uid, pushTitle, pushBody, "queue_offer");
   }
@@ -1186,10 +1192,13 @@ exports.onInstructorMessage = onValueCreated(
 
     const text = msg.text || "";
     if (!text) return;
-    const name = await getInstructorName(iid);
-    await pushStudent(iid, uid, (L) => `💬 ${name || t(L, "Майстер")}`, text.length > 100 ? text.slice(0, 100) + "…" : text, {
+    const name = (typeof msg.senderName === "string" && msg.senderName.trim()) || await getInstructorName(iid);
+    const chatTitle = (L) => `💬 ${name || t(L, "Майстер")}`, chatBody = text.length > 100 ? text.slice(0, 100) + "…" : text;
+    await pushStudent(iid, uid, chatTitle, chatBody, {
       url: "https://aldemi.com.ua/junoclient/cabinet/chat",
     });
+    // «Події» клієнта: відповідь у чаті видно й без push (немає токена / вимкнено)
+    await saveNotification(iid, uid, chatTitle, chatBody, "admin_message").catch(() => {});
   }
 );
 

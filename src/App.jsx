@@ -1,6 +1,6 @@
 import React, { useState, useEffect, lazy, Suspense, createContext, useContext } from "react";
 import { ref, onValue, update, push, remove, get, set } from "firebase/database";
-import { iRef, db, slotRoot, setActiveMaster, setMasterTokenUid, setCurrentIid, registerAdminFCM, onAdminForegroundMessage } from "./firebase";
+import { iRef, db, watchBookings, watchChatMeta, slotRoot, setActiveMaster, setMasterTokenUid, setCurrentIid, registerAdminFCM, onAdminForegroundMessage } from "./firebase";
 import { useAdminAuth, LoginScreen, InstructorSetupScreen, isVendor, SuperAdminScreen } from "./AdminAuth";
 import { useAppUpdate } from "./hooks/useAppUpdate"
 import { useLicense, useLicenseState } from "./hooks/useLicense"
@@ -580,7 +580,7 @@ function dayIdxToDate(dayIdx) {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
 
-const MASTER_TABS = ["schedule", "students", "settings"];
+const MASTER_TABS = ["schedule", "students", "chats", "settings"];
 
 // ─── MAIN APP ────────────────────────────────────────────────────
 // Зовнішній шар: до входу в застосунок з'ясовуємо, чий це простір. Майстер салону (staff_index/{uid} → чужий iid + рядок у складі)
@@ -798,9 +798,7 @@ function AdminApp({ adminUser, ws, onWs }) {
   // Subscribe to unread chat count from chatMeta
   useEffect(() => {
     if (!adminUser || vendor) return;
-    const r = iRef( 'chatMeta');
-    const unsub = onValue(r, snap => {
-      const data = snap.val() || {};
+    const unsub = watchChatMeta(data => {
       const total = Object.values(data).reduce((s, m) => s + (m?.unreadForAdmin || 0), 0);
       setChatUnread(total);
       if (total > 0 && 'setAppBadge' in navigator) navigator.setAppBadge(total);
@@ -989,6 +987,24 @@ function AdminApp({ adminUser, ws, onWs }) {
     lastMastersRef.current = key;
     set(iRef("masters"), pub).catch(() => { lastMastersRef.current = ""; });
   }, [ws, adminUser, vendor, salonOn, staffAll]);
+  // Клієнти майстрів (masterClients/{майстер}/{клієнт}) — за ним правила БД пускають майстра в чат із його клієнтами.
+  // Основне джерело — Cloud Function при записі; тут власник дописує й старі записи (лише додає, нічого не видаляє).
+  const mirroredClientsRef = React.useRef(new Set());
+  useEffect(() => {
+    if (ws || !adminUser?.uid || vendor || !salonOn) return;
+    const upd = {};
+    bookings.forEach(b => {
+      const mid = b.masterId, uid = b.userId;
+      if (!mid || mid === ownerIid || !uid || uid === "personal" || uid === "admin" || b.status === "personal") return;
+      const k = `${mid}/${uid}`;
+      if (mirroredClientsRef.current.has(k)) return;
+      upd[`masterClients/${k}`] = true;
+    });
+    const keys = Object.keys(upd);
+    if (!keys.length) return;
+    keys.forEach(k => mirroredClientsRef.current.add(k.slice("masterClients/".length)));
+    update(iRef(""), upd).catch(() => keys.forEach(k => mirroredClientsRef.current.delete(k.slice("masterClients/".length))));
+  }, [ws, adminUser, vendor, salonOn, bookings, ownerIid]);
   const masterId = ws ? adminUser.uid : (salonOn && pickedMaster && staffList.some(m => m.id === pickedMaster) ? pickedMaster : ownerIid);
   const allMode = salonOn && !ws && staffList.length > 1 && pickedMaster === ALL_MASTERS; // огляд усіх майстрів (лише перегляд)
   setMasterTokenUid(ws ? adminUser?.uid : null);
@@ -1069,8 +1085,7 @@ function AdminApp({ adminUser, ws, onWs }) {
       moveSaveTimers.current = {};
       return;
     }
-    return onValue(iRef( "bookings"), snap => {
-      const data = snap.val();
+    return watchBookings(data => {
       processBookingsSnap(data);
       const readAt = parseInt(localStorage.getItem("journal_read_at") || "0", 10);
       if (readAt && data) {
@@ -1447,6 +1462,8 @@ const pendingDeletesRef = React.useRef(new Set());
         </div>
       )}
       {settingsLoaded && settings.autoSlots && adminUser && !vendor && !ws && !salonOn && <Suspense fallback={null}><AutoSlots settings={settings} bookings={bookings}/></Suspense>}
+      {/* Салон: автовідкриття слотів для активного майстра за його графіком (власник — на вкладці майстра, майстер — у своєму календарі) */}
+      {settingsLoaded && settings.autoSlots && adminUser && !vendor && salonOn && !allMode && (!msTarget || masterMs?.id === msTarget) && <Suspense fallback={null}><AutoSlots key={masterId} settings={scheduleSettings} bookings={scheduleBookings}/></Suspense>}
       <InstallBanner theme={theme}/>
     </>
     </LangContext.Provider>

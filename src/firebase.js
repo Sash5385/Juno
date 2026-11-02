@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { getDatabase, goOffline, ref, set } from "firebase/database";
+import { getDatabase, goOffline, ref, set, onValue, get, query, orderByChild, equalTo } from "firebase/database";
 import { getMessaging, getToken, onMessage } from "firebase/messaging";
 import { getStorage, ref as storageRef } from "firebase/storage";
 import { DEMO } from "./demo/demoMode.js";
@@ -23,6 +23,49 @@ export const newBookingMasterFields = () => (_master ? { masterId: _master } : {
 let _masterToken = null;
 export const setMasterTokenUid = (uid) => { _masterToken = uid || null; };
 export const iRef = (path) => ref(db, path ? `instructors/${_iid}/${path}` : `instructors/${_iid}`);
+export const isMasterSession = () => !!_masterToken;
+
+// Записи простору у вигляді { uid: { bookingId: запис } }. Власник читає вузол bookings цілком; майстер салону — ні (правила БД):
+// він запитує у кожного клієнта лише свої записи (masterId = його uid), клієнти беруться з users (+ "personal" — особисті події).
+const masterBookingsQuery = (uid) => query(iRef(`bookings/${uid}`), orderByChild("masterId"), equalTo(_masterToken));
+export function watchBookings(cb) {
+  if (!_masterToken) return onValue(iRef("bookings"), snap => cb(snap.val()));
+  const data = {}, subs = new Map();
+  let timer = null;
+  const flush = () => { clearTimeout(timer); timer = setTimeout(() => cb({ ...data }), 30); };
+  const watchUid = (uid) => {
+    if (subs.has(uid)) return;
+    subs.set(uid, onValue(masterBookingsQuery(uid), snap => {
+      const v = snap.val();
+      if (v) data[uid] = v; else delete data[uid];
+      flush();
+    }, () => {}));
+  };
+  const unUsers = onValue(iRef("users"), snap => {
+    ["personal", ...Object.keys(snap.val() || {})].forEach(watchUid);
+    flush();
+  }, () => {});
+  return () => { unUsers(); subs.forEach(u => u()); clearTimeout(timer); };
+}
+// Записи одного клієнта (власник — усі, майстер — лише свої)
+export async function getUserBookings(uid) {
+  return (await get(_masterToken ? masterBookingsQuery(uid) : iRef(`bookings/${uid}`))).val() || {};
+}
+
+// chatMeta: власник читає вузол цілком; майстер — лише гілки своїх клієнтів (masterClients/{його uid}, правила БД)
+export function watchChatMeta(cb, onErr) {
+  if (!_masterToken) return onValue(iRef("chatMeta"), snap => cb(snap.val() || {}), onErr);
+  const data = {}, subs = new Map();
+  const unList = onValue(iRef(`masterClients/${_masterToken}`), snap => {
+    const ids = Object.keys(snap.val() || {});
+    ids.forEach(uid => {
+      if (subs.has(uid)) return;
+      subs.set(uid, onValue(iRef(`chatMeta/${uid}`), s => { data[uid] = s.val() || {}; cb({ ...data }); }, onErr));
+    });
+    cb({ ...data });
+  }, onErr);
+  return () => { unList(); subs.forEach(u => u()); };
+}
 
 const firebaseConfig = {
   apiKey: "AIzaSyDu4tWzXFZWWlaJGuhlibDKz1U96Uk3Q74",

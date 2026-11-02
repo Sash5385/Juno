@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useLayoutEffect, useMemo, useContext } from "react";
 import { createPortal } from "react-dom";
 import { update, get, onValue, off, remove, push as fbPush } from "firebase/database";
-import { iRef, auth, slotRoot, slotBookingsRoot, newBookingMasterFields } from "../firebase";
+import { iRef, auth, slotRoot, slotBookingsRoot, newBookingMasterFields, getActiveMaster, watchBookings } from "../firebase";
 import { blockRangeUpdates, restoreRangeUpdates } from "../slotRules";
 import { normPackages, pickPackage } from "../packages";
 import { isGroupService, capacityOf, groupKeyOf } from "../groups";
@@ -24,6 +24,8 @@ const blockSlotRange = async (dateStr, startMin, durMin, opts) => {
 import { ThemeContext, GREEN, BLUE, PURPLE, GOLD, RED, ACCENT, ACC_HI, SURFACE, SURF_HI, TEXT } from "../theme.js";
 import { useFX, useBackClose } from "../ui";
 import FogScope from "../FogScope";
+import { useConfirm } from "../ConfirmModal";
+import { isSalon } from "../workspace.js";
 import { TAG_PRESETS, AUTO_TAG_IDS } from "../tags";
 import { MANUAL_DEFAULT_COLOR } from "../studentColors";
 // module-level aliases for vars used in ICONS (arrow fns, cannot use hooks)
@@ -1240,9 +1242,11 @@ export function AutoSlots({ settings, bookings }) {
       busyRef.current = true;
       try {
         const root = slotRoot();
+        // Салон: у кожного майстра свої мітки днів (autoSlotsDone_m/{майстер}); у власника/«Один майстер» — autoSlotsDone як і раніше
+        const doneRoot = root === "timeslots" ? "autoSlotsDone" : `autoSlotsDone_m/${getActiveMaster()}`;
         const limit = settings.slotGenDays || 30;
         const days = Array.from({ length: limit + 1 }, (_, d) => dateStrAhead(d));
-        const reads = await Promise.all(days.map(dateStr => Promise.all([get(iRef(`autoSlotsDone/${dateStr}`)), get(iRef(`${root}/${dateStr}`))])));
+        const reads = await Promise.all(days.map(dateStr => Promise.all([get(iRef(`${doneRoot}/${dateStr}`)), get(iRef(`${root}/${dateStr}`))])));
         const all = {}, marks = {}, removals = {};
         const freeAuto = (sl) => sl?.available === true && !sl.vipOnly && !sl.privateOnly && !sl.surcharge && !sl.fixedPrice;
         days.forEach((dateStr, i) => {
@@ -1251,7 +1255,7 @@ export function AutoSlots({ settings, bookings }) {
           const result = computeDayUpdatesFor(settings, bookingsRef.current, dateStr, existing);
           if (!result) {
             Object.entries(existing).forEach(([slotId, sl]) => { if (freeAuto(sl)) removals[`${root}/${dateStr}/${slotId}`] = null; });
-            if (done.exists()) removals[`autoSlotsDone/${dateStr}`] = null;
+            if (done.exists()) removals[`${doneRoot}/${dateStr}`] = null;
             return;
           }
           // Підпис сітки дня: змінився шаблон (обід, години) — день перебудовується
@@ -1264,7 +1268,7 @@ export function AutoSlots({ settings, bookings }) {
               if (!inGrid && freeAuto(sl)) removals[`${root}/${dateStr}/${slotId}`] = null;
             });
             Object.assign(all, result.updates);
-            marks[`autoSlotsDone/${dateStr}`] = sig;
+            marks[`${doneRoot}/${dateStr}`] = sig;
           }
         });
         // Пачками: RTDB відхиляє один update() з надто великою кількістю ключів під тригерами (TOO_MANY_TRIGGERS)
@@ -1292,6 +1296,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   const { BG, BG_DEEP, SURFACE, SURF_HI, SURF_LO, BORDER, TEXT, DIM, FAINT, ACCENT, ACC_HI, BLUE, GREEN, RED, SO, SI, STRIPE_A, STRIPE_B, GLOW, SHADE, INK } = useContext(ThemeContext);
   const isLight = BG !== "#1c1d21";
   const neonCal = true; // «Неонове сяйво» завжди увімкнено
+  const salonCard = isSalon(settings); // салон: на картці запису — назва послуги
   const { glow, shade, ink } = useFX();
   const GRID_H      = isLight ? "rgba(0,0,0,0.09)"        : "rgba(255,255,255,0.07)";
   const GRID_HH     = isLight ? "rgba(0,0,0,0.04)"        : "rgba(255,255,255,0.025)";
@@ -2853,8 +2858,16 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
     setBubbleData(bData);
   };
 
+  const [confirmDlg, confirmNode] = useConfirm();
   const handleAction = (action, b) => {
     if (action === "openMember") { setLocalSelectedBooking(b); return; }
+    // Скасування запису (кнопка в картці і свайп) — лише після підтвердження, щоб випадковий тап не скасовував запис
+    if (action === "cancel" && !b?._cancelOk) {
+      const when = [b.date ? b.date.split("-").reverse().join(".") : "", b.time || (b.startMin != null ? `${String(Math.floor(b.startMin/60)).padStart(2,"0")}:${String(b.startMin%60).padStart(2,"0")}` : "")].filter(Boolean).join(" ");
+      confirmDlg({ title: "Скасувати запис?", text: [b.name, when].filter(Boolean).join(" · "), okLabel: "Скасувати запис", danger: true })
+        .then(ok => { if (ok) handleActionRef.current?.("cancel", { ...b, _cancelOk: true }); });
+      return;
+    }
     if (action === "confirm") { setBookings(bs=>bs.map(x=>x.id===b.id?{...x,status:"confirmed"}:x)); return; }
     if (action === "cancel") {
       // Звільняємо timeslots одразу (миттєвий відгук і запис без акаунта, де
@@ -4025,7 +4038,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                         const si = a => `rgba(${neonCal && !isLight ? "255,255,255" : INK === "255,255,255" ? "0,0,0" : INK},${a})`;
                         const priceColor = b.surcharge ? GOLD : si(0.9);
                         const priceText = price > 0 ? `${price}₴` : null;
-                        const typeLabel = b.cardLabel || (b.type==="school" ? "Стандарт" : "Індивідуальний"); // cardLabel — лише демо-пресети (назва послуги)
+                        const typeLabel = b.cardLabel || (salonCard && b.serviceName) || (b.type==="school" ? "Стандарт" : "Індивідуальний"); // cardLabel — лише демо-пресети (назва послуги)
                         const allLines = [
                           { text: fName,     w: 800, c: si(0.95) },
                           ...(lName          ? [{ text: lName,     w: 700, c: si(0.80) }] : []),
@@ -4327,6 +4340,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
       />
     )}
 
+    {confirmNode}
     <BookingModalFog booking={localSelectedBooking ? (bookings.find(x=>x.id===localSelectedBooking.id) || localSelectedBooking) : null} onClose={()=>setLocalSelectedBooking(null)}
       onAction={handleAction} settings={settings} bookings={bookings} onViewStudent={onViewStudent}
       autoTag={localSelectedBooking ? getAutoTag(localSelectedBooking) : null}
@@ -5530,7 +5544,7 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
     const idx = studentLessons.findIndex(x => x.id === booking.id);
     return idx >= 0 ? idx + 1 : studentLessons.length + 1;
   })();
-  const typeLabel = booking.type === "school" ? "📋 Стандарт" : "👤 Індивідуальний";
+  const typeLabel = (isSalon(settings) && booking.serviceName) ? `💈 ${booking.serviceName}` : booking.type === "school" ? "📋 Стандарт" : "👤 Індивідуальний"; // салон: назва послуги замість типу
 
   const sameDayBookings = (bookings || []).filter(x =>
     x.id !== booking.id && x.status !== "cancelled" &&
@@ -7316,16 +7330,14 @@ function StudentsView() {
   }, []);
 
   useEffect(() => {
-    const r = iRef( "bookings");
-    const unsub = onValue(r, snap => {
-      const d = snap.val() || {};
+    return watchBookings(raw => {
+      const d = raw || {};
       const counts = {};
       for (const [uid, bks] of Object.entries(d)) {
         counts[uid] = Object.values(bks).filter(b => b.status !== "cancelled").length;
       }
       setBookingCounts(counts);
     });
-    return () => off(r, "value", unsub);
   }, []);
 
   const filtered = useMemo(() => {

@@ -4,7 +4,7 @@
 // masterId у записі, слоті чи послузі вказує, чий це майстер; без нього це майстер = власник (так працює «Один майстер»).
 // Файл однаковий в адмінці й клієнті (src/workspace.js / src/utils/workspace.js).
 
-import { ADMIN_URL, newInviteToken } from "./salon.js";
+import { adminBaseUrl, newInviteToken } from "./salon.js";
 
 export const ACCOUNT_SOLO = "solo";
 export const ACCOUNT_SALON = "salon";
@@ -70,7 +70,7 @@ export const visibleMasterIds = (staffList, uid) => {
 // instructors/{iid}/staff/{uid} (role master + inviteToken) і staff_index/{uid} = { iid } — за ним застосунок знає, куди його пускати.
 export const WS_INVITE_KEY = "juno_workspace_invite";
 export const WS_INVITE_DAYS = 7;
-export const workspaceInviteUrl = (token) => `${ADMIN_URL}/?workspace_invite=${token}`;
+export const workspaceInviteUrl = (token) => `${adminBaseUrl()}/?workspace_invite=${token}`;
 export const newWorkspaceToken = newInviteToken;
 
 // Токен із вставленого посилання або коду

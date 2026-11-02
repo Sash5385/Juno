@@ -125,6 +125,13 @@
           }
           }
         },
+        // Мітки «день вже заповнено автовідкриттям» для календаря майстра салону (autoSlotsDone — для власника)
+        "autoSlotsDone_m": {
+          "$mid": {
+            ".read": "auth != null && auth.uid === $mid && root.child('instructors/'+$iid+'/staff/'+auth.uid+'/role').val() === 'master'",
+            ".write": "auth != null && auth.uid === $mid && root.child('instructors/'+$iid+'/staff/'+auth.uid+'/role').val() === 'master'"
+          }
+        },
         "slotBookings_m": {
           "$mid": {
             ".read": "auth != null && auth.uid === $mid && root.child('instructors/'+$iid+'/staff/'+auth.uid+'/role').val() === 'master'",
@@ -158,10 +165,12 @@
           }
         },
         "bookings": {
-          // Майстер салону (staff, role master) читає записи простору (клієнти спільні); пише лише свої (masterId = його uid) — див. $bookingId
-          ".read": "auth != null && ((auth.token.email === 'sash5385@gmail.com' && auth.token.email_verified === true) || root.child('instructors/'+$iid+'/staff/'+auth.uid+'/role').val() === 'master')",
+          // Весь вузол читає лише власник (з $iid) і підтримка. Майстер салону (staff, role master) НЕ читає вузол цілком:
+          // у кожного клієнта ($uid) він запитує лише свої записи — orderByChild('masterId').equalTo(його uid); пише лише свої (masterId = його uid) — див. $bookingId
+          ".read": "auth != null && auth.token.email === 'sash5385@gmail.com' && auth.token.email_verified === true",
           "$uid": {
-            ".read": "auth != null && (auth.uid === $uid || auth.uid === $iid)",
+            ".indexOn": ["masterId"],
+            ".read": "auth != null && (auth.uid === $uid || auth.uid === $iid || (root.child('instructors/'+$iid+'/staff/'+auth.uid+'/role').val() === 'master' && query.orderByChild === 'masterId' && query.equalTo === auth.uid))",
             ".write": "auth != null && auth.uid === $iid",
             // Клієнт: створює запис (лише status "pending", без службових полів) і далі змінює тільки
             // studentConfirmed/rating/goals/studentNote або скасовує (status "cancelled"). Ціна, борг,
@@ -237,16 +246,21 @@
             "customPrice": { ".validate": "auth.uid === $iid || newData.val() === data.val()" }
           }
         },
+        // Клієнти майстра: masterClients/{masterId}/{uid} = true (пише сервер при записі до майстра і застосунок власника; майстер читає лише свій вузол).
+        // Майстер салону читає/пише чат лише зі СВОЇМИ клієнтами (чат — одна гілка chats/{uid} на клієнта); видалити чат цілком не може.
+        "masterClients": {
+          "$mid": { ".read": "auth != null && auth.uid === $mid" }
+        },
         "chats": {
           "$uid": {
-            ".read": "auth != null && (auth.uid === $uid || auth.uid === $iid)",
-            ".write": "auth != null && (auth.uid === $uid || auth.uid === $iid)"
+            ".read": "auth != null && (auth.uid === $uid || auth.uid === $iid || (root.child('instructors/'+$iid+'/staff/'+auth.uid+'/role').val() === 'master' && root.child('instructors/'+$iid+'/masterClients/'+auth.uid+'/'+$uid).exists()))",
+            ".write": "auth != null && (auth.uid === $uid || auth.uid === $iid || ((root.child('instructors/'+$iid+'/staff/'+auth.uid+'/role').val() === 'master' && root.child('instructors/'+$iid+'/masterClients/'+auth.uid+'/'+$uid).exists()) && newData.exists()))"
           }
         },
         "chatMeta": {
           "$uid": {
-            ".read": "auth != null && (auth.uid === $uid || auth.uid === $iid)",
-            ".write": "auth != null && (auth.uid === $uid || auth.uid === $iid)"
+            ".read": "auth != null && (auth.uid === $uid || auth.uid === $iid || (root.child('instructors/'+$iid+'/staff/'+auth.uid+'/role').val() === 'master' && root.child('instructors/'+$iid+'/masterClients/'+auth.uid+'/'+$uid).exists()))",
+            ".write": "auth != null && (auth.uid === $uid || auth.uid === $iid || ((root.child('instructors/'+$iid+'/staff/'+auth.uid+'/role').val() === 'master' && root.child('instructors/'+$iid+'/masterClients/'+auth.uid+'/'+$uid).exists()) && newData.exists()))"
           }
         },
         "notifications": {

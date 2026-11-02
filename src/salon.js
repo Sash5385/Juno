@@ -32,7 +32,16 @@ export function salonSlugFrom(name) {
 export const salonSlugValid = (slug) => /^[a-z0-9-]{3,40}$/.test(slug || "") && !RESERVED_SALON_SLUGS.includes(slug);
 
 export const salonPublicUrl = (slug) => `${CLIENT_URL}/s/${slug}`;
-export const inviteUrl = (token) => `${ADMIN_URL}/?salon_invite=${token}`;
+// База посилань-запрошень: на проді — ADMIN_URL, на іншому домені (тест/localhost) — поточний origin, щоб посилання відкривалось там само
+export const adminBaseUrl = () => {
+  try {
+    if (typeof window !== "undefined" && window.location?.origin && !/(^|\.)aldemi\.com\.ua$/.test(window.location.hostname)) {
+      return window.location.origin + String(import.meta.env?.BASE_URL || "/").replace(/\/$/, "");
+    }
+  } catch { /* SSR/тест — беремо прод */ }
+  return ADMIN_URL;
+};
+export const inviteUrl = (token) => `${adminBaseUrl()}/?salon_invite=${token}`;
 
 // Токен із вставленого посилання або коду
 export function parseInviteToken(input) {

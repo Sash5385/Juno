@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useContext } from "react";
-import { onValue, push, update, set, increment, remove } from "firebase/database";
-import { iRef } from "../firebase";
+import { onValue, push, update, set, increment, remove, get } from "firebase/database";
+import { iRef, auth, isMasterSession, watchChatMeta } from "../firebase";
 import { LangContext } from "../App";
 
 import { ThemeContext } from "../theme.js";
@@ -181,6 +181,21 @@ export default function ChatsView() {
   const [loading,     setLoading]     = useState(true);
   const [unreadMeta,  setUnreadMeta]  = useState({});
   const msgUnsubs = useRef({});
+  // Майстер салону: бачить лише чати зі своїми клієнтами (masterClients), без розсилки і видалення чатів
+  const isMaster = isMasterSession();
+  const myUid = auth.currentUser?.uid || "";
+  const [myName, setMyName] = useState("");
+  const [myClients, setMyClients] = useState(null);
+  const [err, setErr] = useState("");
+  const errTimer = useRef(null);
+  const showErr = (m) => { setErr(m); clearTimeout(errTimer.current); errTimer.current = setTimeout(() => setErr(""), 6000); };
+  useEffect(() => () => clearTimeout(errTimer.current), []);
+  useEffect(() => {
+    if (!isMaster || !myUid) return undefined;
+    get(iRef(`staff/${myUid}/name`)).then(sn => setMyName(String(sn.val() || ""))).catch(() => {});
+    return onValue(iRef(`masterClients/${myUid}`), sn => setMyClients(new Set(Object.keys(sn.val() || {}))),
+      () => { setMyClients(new Set()); showErr("Немає доступу до чатів. Спробуйте перезайти."); });
+  }, [isMaster, myUid]);
 
   // Лічильник непрочитаних — з chatMeta/{uid}/unreadForAdmin (той самий
   // authoritative-джерело, що й бейдж у BottomNav). Раніше рахували локально
@@ -189,20 +204,21 @@ export default function ChatsView() {
   // тому перевірка "чат зараз відкритий" майже завжди була хибною, і бейдж
   // міг знову з'явитись navіть під час читання чату.
   useEffect(() => {
-    const unsub = onValue(iRef( "chatMeta"), snap => {
-      const data = snap.val() || {};
+    const unsub = watchChatMeta(data => {
       const map = {};
       Object.entries(data).forEach(([uid, m]) => { map[uid] = m?.unreadForAdmin || 0; });
       setUnreadMeta(map);
-    });
+    }, () => {});
     return unsub;
   }, []);
 
   // ── Load students ─────────────────────────────────────────────
   useEffect(() => {
+    if (isMaster && myClients === null) return undefined; // чекаємо список клієнтів майстра
     const unsub = onValue(iRef( "users"), snap => {
       const data = snap.val() || {};
       const list = Object.entries(data)
+        .filter(([uid]) => !isMaster || myClients.has(uid))
         .map(([uid, u]) => {
           const p = u.profile || {};
           return { id:uid, name:p.name||"", phone:p.phone||"", hue:hueForUid(uid), online:false, lastMsg:"", lastTime:"", lastTs:0 };
@@ -210,9 +226,9 @@ export default function ChatsView() {
         .filter(c => c.name || c.phone);
       setContacts(list);
       setLoading(false);
-    });
+    }, () => { setLoading(false); showErr("Не вдалося завантажити клієнтів. Перевірте з'єднання."); });
     return unsub;
-  }, []);
+  }, [isMaster, myClients]);
 
   // ── Subscribe messages ────────────────────────────────────────
   useEffect(() => {
@@ -232,7 +248,7 @@ export default function ChatsView() {
             ? {...ct, lastMsg:last.text, lastTime:last.time, lastTs:last.ts||0}
             : ct));
         }
-      });
+      }, () => showErr("Немає доступу до чату з цим клієнтом."));
       msgUnsubs.current[c.id] = unsub;
     });
     return () => {};
@@ -243,12 +259,13 @@ export default function ChatsView() {
 
   // ── Broadcast history ─────────────────────────────────────────
   useEffect(() => {
+    if (isMaster) return undefined;
     const unsub = onValue(iRef( "chats/__broadcast__"), snap => {
       const msgs = Object.entries(snap.val()||{}).map(([id,m])=>({...m,id})).sort((a,b)=>(a.ts||0)-(b.ts||0)||(a.id>b.id?1:-1));
       setBroadcastMsgs(msgs);
-    });
+    }, () => {});
     return unsub;
-  }, []);
+  }, [isMaster]);
 
   // ── Broadcast free-slot ───────────────────────────────────────
   const applyFreeSlotBroadcast = useCallback((msg, time) => {
@@ -275,10 +292,12 @@ export default function ChatsView() {
       set(iRef( `chatMeta/${id}/unreadForAdmin`), 0).catch(()=>{});
     }
   };
+  const sendFailed = () => showErr("Не вдалося надіслати повідомлення. Перевірте з'єднання або доступ до чату.");
 
   const handleSend = (contactId, text) => {
     const time = nowTime(); const ts = Date.now();
     const msg = {from:"admin",text,time,ts};
+    if (isMaster) { msg.masterId = myUid; if (myName) msg.senderName = myName; } // клієнт бачить, хто з майстрів відповів
     if (contactId === BROADCAST_ID) {
       push(iRef("chats/__broadcast__"),{...msg,broadcast:true}).catch(()=>{});
       contacts.forEach(c => {
@@ -286,13 +305,14 @@ export default function ChatsView() {
         update(iRef(`chatMeta/${c.id}`),{unreadForStudent:increment(1),lastMsg:text,lastTs:ts}).catch(()=>{});
       });
     } else {
-      push(iRef(`chats/${contactId}`),msg).catch(()=>{});
+      push(iRef(`chats/${contactId}`),msg).catch(sendFailed);
       update(iRef(`chatMeta/${contactId}`),{unreadForStudent:increment(1),lastMsg:text,lastTs:ts}).catch(()=>{});
     }
   };
 
   const handleDelete = (e, id) => {
     e.stopPropagation();
+    if (isMaster) return;
     if (deletingId === id) {
       setContacts(cs => cs.filter(c=>c.id!==id));
       if (openId===id) setOpenId(null);
@@ -320,6 +340,10 @@ export default function ChatsView() {
       <style>{css}</style>
       <div style={{fontFamily:"ui-sans-serif,-apple-system,system-ui,sans-serif",color:TEXT}}>
 
+        {err && (
+          <div role="alert" style={{marginBottom:9,padding:"9px 12px",borderRadius:12,fontSize:12,fontWeight:600,color:"#fca5a5",background:"rgba(239,68,68,0.12)",border:"1px solid rgba(239,68,68,0.35)",overflowWrap:"anywhere"}}>{err}</div>
+        )}
+
         {/* ── SEARCH ── */}
         <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:9}}>
           <div style={{flex:1,background:SURFACE,border:`1px solid ${BORDER}`,backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",borderRadius:16,padding:"2px 14px",minHeight:48,display:"flex",alignItems:"center",gap:8}}>
@@ -338,7 +362,7 @@ export default function ChatsView() {
         </div>
 
         {/* ── BROADCAST ── */}
-        {!search && (
+        {!search && !isMaster && (
           <div style={{
             background:`color-mix(in srgb,#a855f7 26%,transparent)`,backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",
             borderRadius:14,overflow:"hidden",marginBottom:6,boxShadow:SO,
@@ -410,7 +434,7 @@ export default function ChatsView() {
                       : <span style={{width:8,height:8,borderRadius:4,background:"rgba(255,255,255,0.25)",display:"inline-block"}}/>
                     }
                   </div>
-                  <button onClick={e=>handleDelete(e,c.id)}
+                  {!isMaster && <button onClick={e=>handleDelete(e,c.id)}
                     className={isDeleting?"del-confirm":""}
                     style={{flexShrink:0,background:"none",border:"none",cursor:"pointer",
                       minWidth:32,minHeight:32,padding:"4px 6px",borderRadius:8,marginLeft:0,
@@ -423,7 +447,7 @@ export default function ChatsView() {
                         <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
                       </svg>
                     )}
-                  </button>
+                  </button>}
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.65)" strokeWidth="2.2" strokeLinecap="round"
                     style={{flexShrink:0,transform:isOpen?"rotate(180deg)":"none",transition:"transform .22s"}}>
                     <polyline points="6 9 12 15 18 9"/>

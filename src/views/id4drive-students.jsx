@@ -1,7 +1,7 @@
 import { useState, useEffect, useContext, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { onValue, update, push, remove, get } from "firebase/database";
-import { iRef, auth, getCurrentIid } from "../firebase";
+import { iRef, auth, getCurrentIid, getUserBookings } from "../firebase";
 import { deleteAccountRequest } from "../deleteAccountApi";
 
 import { ThemeContext } from "../theme.js";
@@ -187,8 +187,7 @@ function StudentDetailSheet({ settings, s, onClose, onUpdate, onDelete, onBlock,
     setHistoryOpen(true);
     if (history !== null) return;
     setHistoryLoading(true);
-    get(iRef( `bookings/${s.id}`)).then(snap => {
-      const data = snap.val() || {};
+    getUserBookings(s.id).then(data => {
       const today = new Date(new Date().toDateString());
       const list = Object.entries(data).map(([id, b]) => ({ id, ...b }))
         .filter(b => b.date && new Date(b.date) < today)

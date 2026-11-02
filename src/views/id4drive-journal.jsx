@@ -93,7 +93,7 @@ function buildStudentEvents(data) {
   return evs;
 }
 
-function buildEvents(data) {
+function buildEvents(data, staffNames = {}) {
   const evs = [];
   if (!data) return evs;
   Object.values(data).forEach(userBkgs => {
@@ -106,9 +106,17 @@ function buildEvents(data) {
       const dateStr = b.date ? b.date.split("-").reverse().join(".") : "";
       const durH = b.durationHours ?? (b.durMin ? b.durMin / 60 : null);
       const durStr = durH ? ` · ${durH} год` : "";
-      const slot = [dateStr, b.time].filter(Boolean).join(" ") + durStr;
-      if (b.createdAt)     evs.push({ id: `${key}_new`,        type: "new",        ts: b.createdAt,     name, slot, by: b.createdBy   || "" });
-      if (b.cancelledAt)   evs.push({ id: `${key}_cancel`,     type: "cancel",     ts: b.cancelledAt,   name, slot, by: b.cancelledBy  || "" });
+      // Послуга, ціна і майстер (салон) — щоб запис у журналі було видно повністю
+      const svc = b.serviceName ? ` · ${b.serviceName}` : "";
+      const price = Number(b.price) > 0 ? ` · ${b.price}₴` : "";
+      const master = b.masterId && staffNames[b.masterId] ? ` · ${staffNames[b.masterId]}` : "";
+      const slot = [dateStr, b.time].filter(Boolean).join(" ") + durStr + svc + price + master;
+      // Клієнт переніс запис: старий запис скасовано (cancelledBy "reschedule"), новий має rescheduledFrom — показуємо ОДНУ подію «Перенос»
+      const [fromDate, fromTime] = String(b.rescheduledFrom || "").split(" ");
+      const fromSlot = fromDate ? ` (було ${fromDate.split("-").reverse().join(".")}${fromTime ? " " + fromTime : ""})` : "";
+      if (b.createdAt && b.rescheduledFrom) evs.push({ id: `${key}_reschedule_new`, type: "reschedule", ts: b.createdAt, name, slot: slot + fromSlot, by: "client" });
+      else if (b.createdAt) evs.push({ id: `${key}_new`,        type: "new",        ts: b.createdAt,     name, slot, by: b.createdBy   || "" });
+      if (b.cancelledAt && b.cancelledBy !== "reschedule") evs.push({ id: `${key}_cancel`,     type: "cancel",     ts: b.cancelledAt,   name, slot, by: b.cancelledBy  || "" });
       if (b.rescheduledAt) evs.push({ id: `${key}_reschedule`, type: "reschedule", ts: b.rescheduledAt, name, slot, by: "" });
     });
   });
@@ -229,6 +237,7 @@ export default function JournalView() {
     () => [...bookingEvents, ...studentEvents].sort((a, b) => b.ts - a.ts),
     [bookingEvents, studentEvents]
   );
+  const rawBookingsRef = React.useRef(null), staffRef = React.useRef({});
   const [section,    setSection]   = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
   const [detail,     setDetail]    = useState(null);
@@ -247,10 +256,19 @@ export default function JournalView() {
   useEffect(() => {
     setJournalReadAt();
     const unsub = onValue(iRef( "bookings"), snap => {
-      setBookingEvents(buildEvents(snap.val()));
+      rawBookingsRef.current = snap.val();
+      setBookingEvents(buildEvents(snap.val(), staffRef.current));
     });
     return unsub;
   }, []);
+
+  // Імена майстрів салону для рядка події (у «Одному майстрі» вузол staff порожній)
+  useEffect(() => onValue(iRef("staff"), snap => {
+    const names = {};
+    Object.entries(snap.val() || {}).forEach(([id, m]) => { if (m?.name) names[id] = m.name; });
+    staffRef.current = names;
+    if (rawBookingsRef.current) setBookingEvents(buildEvents(rawBookingsRef.current, names));
+  }, () => {}), []);
 
   useEffect(() => {
     const unsub = onValue(iRef( "users"), snap => {
