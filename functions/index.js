@@ -930,6 +930,38 @@ exports.unlockVipSlots = onSchedule("every 1 hours", async () => {
   }
 });
 
+// «Автовідкриття слотів» на сервері: щодня заповнює дні в межах slotGenDays за тижневим шаблоном,
+// навіть якщо майстер не заходив в адмінку. Той самий алгоритм і позначки autoSlotsDone, що й у адмінці
+// (functions/autoSlots.js ↔ AutoSlots у id4drive-admin-v5.jsx), тож вони не конфліктують.
+const { planAutoSlots } = require("./autoSlots");
+exports.autoOpenSlots = onSchedule(
+  { schedule: "every day 04:30", timeZone: "Europe/Kyiv", region: "europe-west1", timeoutSeconds: 540, memory: "512MiB" },
+  async () => {
+    const instructors = (await db.ref("instructors").get()).val() || {};
+    const today = kyivDay(Date.now());
+    let touched = 0;
+    for (const [iid, inst] of Object.entries(instructors)) {
+      try {
+        const settings = inst?.admin_settings;
+        if (!settings || settings.autoSlots !== true) continue;
+        if (settings.accountType === "salon") continue; // салон: слоти по майстрах — лише з адмінки
+        if (isLicenseReadonly(inst?.license)) continue;
+        const read = async (path) => {
+          const parts = path.split("/");
+          let v = inst;
+          for (const k of parts) { v = v?.[k]; if (v == null) return null; }
+          return v;
+        };
+        const { removals, all, marks } = await planAutoSlots({ settings, bookingsData: inst.bookings, today, read });
+        const chunked = async (u) => { const e = Object.entries(u); for (let i = 0; i < e.length; i += 400) await iRef(iid).update(Object.fromEntries(e.slice(i, i + 400))); };
+        if (Object.keys(removals).length) await chunked(removals);
+        if (Object.keys(all).length) { await chunked(all); await iRef(iid).update(marks); touched++; }
+      } catch (e) { console.error("autoOpenSlots", iid, e); }
+    }
+    console.log(`autoOpenSlots: оновлено майстрів — ${touched}`);
+  }
+);
+
 // Слот у найближчі 10 днів звільнився → ставимо в чергу, пуш через 5 хв
 exports.onSlotFreed = onValueWritten(
   { ref: "instructors/{iid}/timeslots/{date}/{slotId}", region: "europe-west1" },
