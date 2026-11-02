@@ -219,7 +219,7 @@ function AutoSlotsRunButton() {
     let answered = false;
     const done = (r) => {
       answered = true;
-      setMsg(!r ? "Помилка — спробуйте ще раз" : r.days || r.removed ? `Готово: оновлено днів — ${r.days}, прибрано вільних слотів — ${r.removed}` : "Усе вже заповнено — нових днів немає");
+      setMsg(!r ? "Немає відповіді — оновіть сторінку й повторіть" : r.error ? `Помилка: ${r.error}` : r.busy ? "Вже виконується — зачекайте кілька секунд" : r.days || r.removed ? `Готово: оновлено днів — ${r.days}, прибрано вільних слотів — ${r.removed}` : "Усе вже заповнено — нових днів немає");
       setState("msg");
       setTimeout(() => setState("idle"), 6000);
     };
