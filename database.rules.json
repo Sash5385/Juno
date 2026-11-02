@@ -247,20 +247,41 @@
           }
         },
         // Клієнти майстра: masterClients/{masterId}/{uid} = true (пише сервер при записі до майстра і застосунок власника; майстер читає лише свій вузол).
-        // Майстер салону читає/пише чат лише зі СВОЇМИ клієнтами (чат — одна гілка chats/{uid} на клієнта); видалити чат цілком не може.
         "masterClients": {
           "$mid": { ".read": "auth != null && auth.uid === $mid" }
         },
+        // Чати салону. chats/{uid}, chatMeta/{uid} — тред «Салон» (клієнт ↔ власник); майстер сюди не має доступу.
+        // Окремі треди клієнта з майстром — chats_m/{mid}/{uid}, chatMeta_m/{mid}/{uid}:
+        //   клієнт — лише свій тред і лише з майстром, у якого є запис (masterClients/{mid}/{uid}); майстер — лише свій (mid = його uid,
+        //   роль master, клієнт є в його masterClients), видалити тред цілком не може; власник — усі треди простору.
         "chats": {
           "$uid": {
-            ".read": "auth != null && (auth.uid === $uid || auth.uid === $iid || (root.child('instructors/'+$iid+'/staff/'+auth.uid+'/role').val() === 'master' && root.child('instructors/'+$iid+'/masterClients/'+auth.uid+'/'+$uid).exists()))",
-            ".write": "auth != null && (auth.uid === $uid || auth.uid === $iid || ((root.child('instructors/'+$iid+'/staff/'+auth.uid+'/role').val() === 'master' && root.child('instructors/'+$iid+'/masterClients/'+auth.uid+'/'+$uid).exists()) && newData.exists()))"
+            ".read": "auth != null && (auth.uid === $uid || auth.uid === $iid)",
+            ".write": "auth != null && (auth.uid === $uid || auth.uid === $iid)"
           }
         },
         "chatMeta": {
           "$uid": {
-            ".read": "auth != null && (auth.uid === $uid || auth.uid === $iid || (root.child('instructors/'+$iid+'/staff/'+auth.uid+'/role').val() === 'master' && root.child('instructors/'+$iid+'/masterClients/'+auth.uid+'/'+$uid).exists()))",
-            ".write": "auth != null && (auth.uid === $uid || auth.uid === $iid || ((root.child('instructors/'+$iid+'/staff/'+auth.uid+'/role').val() === 'master' && root.child('instructors/'+$iid+'/masterClients/'+auth.uid+'/'+$uid).exists()) && newData.exists()))"
+            ".read": "auth != null && (auth.uid === $uid || auth.uid === $iid)",
+            ".write": "auth != null && (auth.uid === $uid || auth.uid === $iid)"
+          }
+        },
+        "chats_m": {
+          "$mid": {
+            "$uid": {
+              ".read": "auth != null && (auth.uid === $iid || (auth.uid === $uid && root.child('instructors/'+$iid+'/masterClients/'+$mid+'/'+$uid).exists()) || (auth.uid === $mid && root.child('instructors/'+$iid+'/staff/'+auth.uid+'/role').val() === 'master' && root.child('instructors/'+$iid+'/masterClients/'+$mid+'/'+$uid).exists()))",
+              ".write": "auth != null && (auth.uid === $iid || (auth.uid === $uid && root.child('instructors/'+$iid+'/masterClients/'+$mid+'/'+$uid).exists()) || (auth.uid === $mid && root.child('instructors/'+$iid+'/staff/'+auth.uid+'/role').val() === 'master' && root.child('instructors/'+$iid+'/masterClients/'+$mid+'/'+$uid).exists() && newData.exists()))"
+            }
+          }
+        },
+        "chatMeta_m": {
+          ".read": "auth != null && auth.uid === $iid",
+          "$mid": {
+            ".read": "auth != null && auth.uid === $mid && root.child('instructors/'+$iid+'/staff/'+auth.uid+'/role').val() === 'master'",
+            "$uid": {
+              ".read": "auth != null && (auth.uid === $iid || (auth.uid === $uid && root.child('instructors/'+$iid+'/masterClients/'+$mid+'/'+$uid).exists()) || (auth.uid === $mid && root.child('instructors/'+$iid+'/staff/'+auth.uid+'/role').val() === 'master' && root.child('instructors/'+$iid+'/masterClients/'+$mid+'/'+$uid).exists()))",
+              ".write": "auth != null && (auth.uid === $iid || (auth.uid === $uid && root.child('instructors/'+$iid+'/masterClients/'+$mid+'/'+$uid).exists()) || (auth.uid === $mid && root.child('instructors/'+$iid+'/staff/'+auth.uid+'/role').val() === 'master' && root.child('instructors/'+$iid+'/masterClients/'+$mid+'/'+$uid).exists() && newData.exists()))"
+            }
           }
         },
         "notifications": {

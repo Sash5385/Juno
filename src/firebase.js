@@ -52,19 +52,25 @@ export async function getUserBookings(uid) {
   return (await get(_masterToken ? masterBookingsQuery(uid) : iRef(`bookings/${uid}`))).val() || {};
 }
 
-// chatMeta: власник читає вузол цілком; майстер — лише гілки своїх клієнтів (masterClients/{його uid}, правила БД)
+// chatMeta: тред «Салон» (chats/{uid}) — лише власник; майстер сюди доступу не має (його треди — chatMeta_m)
 export function watchChatMeta(cb, onErr) {
-  if (!_masterToken) return onValue(iRef("chatMeta"), snap => cb(snap.val() || {}), onErr);
-  const data = {}, subs = new Map();
-  const unList = onValue(iRef(`masterClients/${_masterToken}`), snap => {
-    const ids = Object.keys(snap.val() || {});
-    ids.forEach(uid => {
-      if (subs.has(uid)) return;
-      subs.set(uid, onValue(iRef(`chatMeta/${uid}`), s => { data[uid] = s.val() || {}; cb({ ...data }); }, onErr));
+  if (_masterToken) { cb({}); return () => {}; }
+  return onValue(iRef("chatMeta"), snap => cb(snap.val() || {}), onErr);
+}
+
+// chatMeta_m: треди клієнтів із майстрами. Віддає пласку мапу { "{mid}/{uid}": meta }.
+// Власник читає вузол цілком; майстер — лише chatMeta_m/{його uid} (правила БД).
+export function watchChatMetaM(cb, onErr) {
+  const flat = (v, only) => {
+    const out = {};
+    Object.entries(v || {}).forEach(([mid, byUid]) => {
+      if (only && mid !== only) return;
+      Object.entries(byUid || {}).forEach(([uid, m]) => { out[`${mid}/${uid}`] = m || {}; });
     });
-    cb({ ...data });
-  }, onErr);
-  return () => { unList(); subs.forEach(u => u()); };
+    return out;
+  };
+  if (_masterToken) return onValue(iRef(`chatMeta_m/${_masterToken}`), snap => cb(flat({ [_masterToken]: snap.val() })), onErr);
+  return onValue(iRef("chatMeta_m"), snap => cb(flat(snap.val())), onErr);
 }
 
 const firebaseConfig = {

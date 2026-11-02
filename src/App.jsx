@@ -1,6 +1,6 @@
 import React, { useState, useEffect, lazy, Suspense, createContext, useContext } from "react";
 import { ref, onValue, update, push, remove, get, set } from "firebase/database";
-import { iRef, db, watchBookings, watchChatMeta, slotRoot, setActiveMaster, setMasterTokenUid, setCurrentIid, registerAdminFCM, onAdminForegroundMessage } from "./firebase";
+import { iRef, db, watchBookings, watchChatMeta, watchChatMetaM, slotRoot, setActiveMaster, setMasterTokenUid, setCurrentIid, registerAdminFCM, onAdminForegroundMessage } from "./firebase";
 import { useAdminAuth, LoginScreen, InstructorSetupScreen, isVendor, SuperAdminScreen } from "./AdminAuth";
 import { useAppUpdate } from "./hooks/useAppUpdate"
 import { useLicense, useLicenseState } from "./hooks/useLicense"
@@ -795,16 +795,25 @@ function AdminApp({ adminUser, ws, onWs }) {
     return () => { clearTimeout(t0); clearInterval(id); };
   }, []);
 
-  // Subscribe to unread chat count from chatMeta
+  // Subscribe to unread chat count from chatMeta (тред «Салон») + chatMeta_m (треди з майстрами)
   useEffect(() => {
     if (!adminUser || vendor) return;
-    const unsub = watchChatMeta(data => {
-      const total = Object.values(data).reduce((s, m) => s + (m?.unreadForAdmin || 0), 0);
+    let salon = 0, masters = 0;
+    const apply = () => {
+      const total = salon + masters;
       setChatUnread(total);
       if (total > 0 && 'setAppBadge' in navigator) navigator.setAppBadge(total);
       else if ('clearAppBadge' in navigator) navigator.clearAppBadge();
+    };
+    const unsub = watchChatMeta(data => {
+      salon = Object.values(data).reduce((s, m) => s + (m?.unreadForAdmin || 0), 0);
+      apply();
     });
-    return unsub;
+    const unsubM = watchChatMetaM(data => {
+      masters = Object.values(data).reduce((s, m) => s + (m?.unreadForAdmin || 0), 0);
+      apply();
+    }, () => {});
+    return () => { unsub(); unsubM(); };
   }, [adminUser]);
 
   // Clear badge when app comes into focus

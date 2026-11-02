@@ -1202,6 +1202,40 @@ exports.onInstructorMessage = onValueCreated(
   }
 );
 
+// Салон: окремі треди клієнта з майстром — chats_m/{mid}/{uid}. Непрочитані й push — по треду (chatMeta_m/{mid}/{uid}).
+// Клієнт написав майстру → push саме цьому майстру (власник бачить тред в адмінці й без push)
+exports.onStudentMasterMessage = onValueCreated(
+  { ref: "instructors/{iid}/chats_m/{mid}/{uid}/{msgId}", region: "europe-west1" },
+  async (event) => {
+    const msg = event.data.val();
+    if (!msg || msg.from !== "student") return;
+    const { iid, mid, uid } = event.params;
+    let name = msg.name;
+    if (!name) name = (await iRef(iid, `users/${uid}/profile`).get()).val()?.name;
+    const text = msg.text || "";
+    await pushMaster(iid, mid, (L) => `💬 ${name || t(L, "Студент")}`, text.length > 100 ? text.slice(0, 100) + "…" : text);
+  }
+);
+
+// Майстер (або власник) написав у тред з майстром → push клієнту з посиланням на цей тред
+exports.onMasterThreadMessage = onValueCreated(
+  { ref: "instructors/{iid}/chats_m/{mid}/{uid}/{msgId}", region: "europe-west1" },
+  async (event) => {
+    const msg = event.data.val();
+    if (!msg || msg.from !== "admin" || msg.auto) return;
+    const { iid, mid, uid } = event.params;
+    const text = msg.text || "";
+    if (!text) return;
+    let name = typeof msg.senderName === "string" && msg.senderName.trim();
+    if (!name) name = (await iRef(iid, `staff/${mid}/name`).get()).val() || (await getInstructorName(iid));
+    const chatTitle = (L) => `💬 ${name || t(L, "Майстер")}`, chatBody = text.length > 100 ? text.slice(0, 100) + "…" : text;
+    await pushStudent(iid, uid, chatTitle, chatBody, {
+      url: `https://aldemi.com.ua/junoclient/cabinet/chat?m=${encodeURIComponent(mid)}`,
+    });
+    await saveNotification(iid, uid, chatTitle, chatBody, "admin_message").catch(() => {});
+  }
+);
+
 // Ручна відправка шаблону з каналом "push" (вкладка "Шаблони") — клієнт
 // отримує лише push-сповіщення, без запису повідомлення в чат. Клієнт
 // пише в цей тимчасовий вузол, функція шле push і одразу прибирає запис.
@@ -1662,6 +1696,14 @@ async function deleteStudentData(iid, uid) {
   updates[`rescheduleQueue/${uid}`] = null;
   updates[`sentReminders/${uid}`] = null;
   updates[`chats/general/members/${uid}`] = null;
+  // треди з майстрами салону (chats_m/{mid}/{uid}) — за індексом masterClients
+  const mcAll = (await iRef(iid, "masterClients").get()).val() || {};
+  Object.keys(mcAll).forEach((mid) => {
+    if (!mcAll[mid]?.[uid]) return;
+    updates[`chats_m/${mid}/${uid}`] = null;
+    updates[`chatMeta_m/${mid}/${uid}`] = null;
+    updates[`masterClients/${mid}/${uid}`] = null;
+  });
   await iRef(iid).update(updates);
   // 3) прибираємо з черг очікування
   const queue = (await iRef(iid, "queue").get()).val() || {};

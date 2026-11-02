@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useContext } from "react";
 import { onValue, push, update, set, increment, remove, get } from "firebase/database";
-import { iRef, auth, isMasterSession, watchChatMeta } from "../firebase";
+import { iRef, auth, isMasterSession, watchChatMeta, watchChatMetaM } from "../firebase";
 import { LangContext } from "../App";
 
 import { ThemeContext } from "../theme.js";
@@ -9,6 +9,10 @@ import { UICss, useFX } from "../ui";
 const QUICK = ["Підтверджую запис ✅","Запис скасовано ❌","Нагадую: завтра","Будь ласка, підтвердіть","До зустрічі 👋"];
 const HUES = [160, 220, 30, 280, 340, 200, 40, 300, 100, 180];
 const hueForUid = (uid) => HUES[(uid || "").charCodeAt(0) % HUES.length];
+// Тред чату: "" = «Салон» (chats/{uid}, власник), інакше id майстра (chats_m/{mid}/{uid}). Ключ повідомлень/непрочитаних: uid або "mid/uid".
+const tKey = (uid, tk) => tk ? `${tk}/${uid}` : uid;
+const chatPath = (uid, tk) => tk ? `chats_m/${tk}/${uid}` : `chats/${uid}`;
+const metaPath = (uid, tk) => tk ? `chatMeta_m/${tk}/${uid}` : `chatMeta/${uid}`;
 const nowTime = () => new Date().toLocaleTimeString("uk", {hour:"2-digit", minute:"2-digit"});
 
 // ─── AVATAR ──────────────────────────────────────────────────────
@@ -87,6 +91,7 @@ function Conversation({ contact, messages, onSend, isBroadcast }) {
           return (
             <div key={m.id} className="msg-in" style={{display:"flex",justifyContent:isMe?"flex-end":"flex-start",padding:"1px 10px"}}>
               <div className={isMe?(m.broadcast?"bubble-broadcast":"bubble-out"):"bubble-in"} style={{maxWidth:"72%",padding:"8px 12px"}}>
+                {isMe && m.senderName && !m.broadcast && <div style={{fontSize:10,fontWeight:700,color:"rgba(255,255,255,0.75)",marginBottom:2}}>{m.senderName}</div>}
                 <div style={{fontSize:13,color:isMe?"#fff":TEXT,lineHeight:1.4,wordBreak:"break-word"}}>{m.text}</div>
                 <div style={{fontSize:11,color:isMe?"rgba(255,255,255,0.75)":FAINT,marginTop:3,textAlign:"right"}}>{m.time}</div>
               </div>
@@ -180,6 +185,15 @@ export default function ChatsView() {
   const [deletingId,  setDeletingId]  = useState(null);
   const [loading,     setLoading]     = useState(true);
   const [unreadMeta,  setUnreadMeta]  = useState({});
+  // Салон із кількома майстрами: треди клієнта з майстрами (chats_m). threadMsgs/unreadM — за ключем "mid/uid".
+  const [threadMsgs,  setThreadMsgs]  = useState({});
+  const [unreadM,     setUnreadM]     = useState({});
+  const [mcMap,       setMcMap]       = useState({});      // власник: masterClients { mid: { uid: true } }
+  const [staffNames,  setStaffNames]  = useState({});      // { mid: ім'я }
+  const [ownerName,   setOwnerName]   = useState("");
+  const [filterTk,    setFilterTk]    = useState("");      // власник: "" = усі, інакше id майстра
+  const [pickedTk,    setPickedTk]    = useState({});      // { uid: обраний тред }
+  const threadUnsubs = useRef({});
   const msgUnsubs = useRef({});
   // Майстер салону: бачить лише чати зі своїми клієнтами (masterClients), без розсилки і видалення чатів
   const isMaster = isMasterSession();
@@ -197,6 +211,31 @@ export default function ChatsView() {
       () => { setMyClients(new Set()); showErr("Немає доступу до чатів. Спробуйте перезайти."); });
   }, [isMaster, myUid]);
 
+  // Власник: індекс masterClients (хто з майстрами має запис) + імена майстрів. Майстер: його тред — завжди chats_m/{його uid}/{клієнт}.
+  useEffect(() => {
+    if (isMaster || !myUid) return undefined;
+    get(iRef("admin_settings/profile/name")).then(sn => setOwnerName(String(sn.val() || ""))).catch(() => {});
+    const u1 = onValue(iRef("masterClients"), sn => setMcMap(sn.val() || {}), () => {});
+    const u2 = onValue(iRef("staff"), sn => {
+      const n = {}; Object.entries(sn.val() || {}).forEach(([id, v]) => { if (v && v.name) n[id] = String(v.name); });
+      setStaffNames(n);
+    }, () => {});
+    return () => { u1(); u2(); };
+  }, [isMaster, myUid]);
+  const mcPairs = isMaster
+    ? [...(myClients || [])].map(uid => [myUid, uid])
+    : Object.entries(mcMap).flatMap(([mid, byUid]) => Object.keys(byUid || {}).map(uid => [mid, uid]));
+  const mcKey = mcPairs.map(p => p.join("/")).join(",");
+  const masterIds = isMaster ? [] : Object.keys(mcMap).filter(mid => Object.keys(mcMap[mid] || {}).length);
+  // Треди клієнта: власник — «Салон» + кожен майстер, у якого є запис; майстер — лише свій
+  const threadsOf = (uid) => isMaster ? [myUid] : ["", ...masterIds.filter(mid => mcMap[mid]?.[uid])];
+  const threadName = (tk) => tk ? (staffNames[tk] || "Майстер") : "Салон";
+  const defaultTk = (uid) => isMaster ? myUid : (pickedTk[uid] ?? (filterTk && mcMap[filterTk]?.[uid] ? filterTk : ""));
+  const unreadOf = (uid, tk) => tk ? (unreadM[tKey(uid, tk)] || 0) : (unreadMeta[uid] || 0);
+  // Непрочитані клієнта: за фільтром — лише тред цього майстра, інакше сума всіх тредів
+  const unreadRow = (uid) => filterTk ? unreadOf(uid, filterTk)
+    : threadsOf(uid).reduce((s, tk) => s + unreadOf(uid, tk), 0);
+
   // Лічильник непрочитаних — з chatMeta/{uid}/unreadForAdmin (той самий
   // authoritative-джерело, що й бейдж у BottomNav). Раніше рахували локально
   // в підписці на повідомлення, звіряючись зі значенням openId, захопленим
@@ -209,7 +248,12 @@ export default function ChatsView() {
       Object.entries(data).forEach(([uid, m]) => { map[uid] = m?.unreadForAdmin || 0; });
       setUnreadMeta(map);
     }, () => {});
-    return unsub;
+    const unsubM = watchChatMetaM(data => {
+      const map = {};
+      Object.entries(data).forEach(([k, m]) => { map[k] = m?.unreadForAdmin || 0; });
+      setUnreadM(map);
+    }, () => {});
+    return () => { unsub(); unsubM(); };
   }, []);
 
   // ── Load students ─────────────────────────────────────────────
@@ -236,7 +280,7 @@ export default function ChatsView() {
     Object.keys(msgUnsubs.current).forEach(uid => {
       if (!currentIds.has(uid)) { msgUnsubs.current[uid]?.(); delete msgUnsubs.current[uid]; }
     });
-    contacts.forEach(c => {
+    if (!isMaster) contacts.forEach(c => {
       if (msgUnsubs.current[c.id]) return;
       const r = iRef( `chats/${c.id}`);
       const unsub = onValue(r, snap => {
@@ -255,7 +299,29 @@ export default function ChatsView() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [contacts.length]);
 
-  useEffect(() => () => Object.values(msgUnsubs.current).forEach(u=>u?.()), []);
+  useEffect(() => () => { Object.values(msgUnsubs.current).forEach(u=>u?.()); Object.values(threadUnsubs.current).forEach(u=>u?.()); }, []);
+
+  // ── Треди з майстрами: chats_m/{mid}/{uid} ────────────────────
+  useEffect(() => {
+    const want = new Set(mcPairs.map(p => p.join("/")));
+    Object.keys(threadUnsubs.current).forEach(k => {
+      if (!want.has(k)) { threadUnsubs.current[k]?.(); delete threadUnsubs.current[k]; }
+    });
+    mcPairs.forEach(([mid, uid]) => {
+      const k = `${mid}/${uid}`;
+      if (threadUnsubs.current[k]) return;
+      threadUnsubs.current[k] = onValue(iRef(`chats_m/${k}`), snap => {
+        const msgs = Object.entries(snap.val()||{}).map(([id,m])=>({...m,id})).sort((a,b)=>(a.ts||0)-(b.ts||0)||(a.id>b.id?1:-1));
+        setThreadMsgs(prev => ({...prev, [k]: msgs}));
+        if (msgs.length > 0) {
+          const last = msgs[msgs.length-1];
+          setContacts(cs => cs.map(ct => ct.id===uid && (last.ts||0) >= (ct.lastTs||0)
+            ? {...ct, lastMsg:last.text, lastTime:last.time, lastTs:last.ts||0} : ct));
+        }
+      }, () => showErr("Немає доступу до чату з цим клієнтом."));
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mcKey]);
 
   // ── Broadcast history ─────────────────────────────────────────
   useEffect(() => {
@@ -287,17 +353,22 @@ export default function ChatsView() {
   const toggle = id => {
     if (deletingId) { setDeletingId(null); return; }
     setOpenId(prev => prev===id ? null : id);
-    if (id !== BROADCAST_ID) {
-      setUnreadMeta(m => ({...m, [id]:0}));
-      set(iRef( `chatMeta/${id}/unreadForAdmin`), 0).catch(()=>{});
-    }
+    if (id !== BROADCAST_ID) markRead(id, defaultTk(id));
   };
+  // Позначити тред прочитаним (лише його, інші треди клієнта лишаються з лічильниками)
+  const markRead = (uid, tk) => {
+    if (tk) setUnreadM(m => ({...m, [tKey(uid, tk)]:0}));
+    else setUnreadMeta(m => ({...m, [uid]:0}));
+    set(iRef(`${metaPath(uid, tk)}/unreadForAdmin`), 0).catch(()=>{});
+  };
+  const pickThread = (uid, tk) => { setPickedTk(p => ({...p, [uid]: tk})); markRead(uid, tk); };
   const sendFailed = () => showErr("Не вдалося надіслати повідомлення. Перевірте з'єднання або доступ до чату.");
 
-  const handleSend = (contactId, text) => {
+  const handleSend = (contactId, text, tk = "") => {
     const time = nowTime(); const ts = Date.now();
     const msg = {from:"admin",text,time,ts};
     if (isMaster) { msg.masterId = myUid; if (myName) msg.senderName = myName; } // клієнт бачить, хто з майстрів відповів
+    else if (tk) { msg.masterId = tk; if (ownerName) msg.senderName = ownerName; } // власник пише в тред майстра — підписуємось власним іменем
     if (contactId === BROADCAST_ID) {
       push(iRef("chats/__broadcast__"),{...msg,broadcast:true}).catch(()=>{});
       contacts.forEach(c => {
@@ -305,8 +376,8 @@ export default function ChatsView() {
         update(iRef(`chatMeta/${c.id}`),{unreadForStudent:increment(1),lastMsg:text,lastTs:ts}).catch(()=>{});
       });
     } else {
-      push(iRef(`chats/${contactId}`),msg).catch(sendFailed);
-      update(iRef(`chatMeta/${contactId}`),{unreadForStudent:increment(1),lastMsg:text,lastTs:ts}).catch(()=>{});
+      push(iRef(chatPath(contactId, tk)),msg).catch(sendFailed);
+      update(iRef(metaPath(contactId, tk)),{unreadForStudent:increment(1),lastMsg:text,lastTs:ts}).catch(()=>{});
     }
   };
 
@@ -329,9 +400,10 @@ export default function ChatsView() {
 
   // Активні чати — з непрочитаними та/або нещодавнім листуванням — зверху списку.
   const filtered      = contacts
+    .filter(c => !filterTk || mcMap[filterTk]?.[c.id])
     .filter(c => (c.name||"").toLowerCase().includes(search.toLowerCase()) || (c.phone||"").includes(search))
-    .sort((a,b) => ((unreadMeta[b.id]||0)>0)-((unreadMeta[a.id]||0)>0) || (b.lastTs||0)-(a.lastTs||0));
-  const totalUnread   = contacts.reduce((s,c)=>s+(unreadMeta[c.id]||0), 0);
+    .sort((a,b) => (unreadRow(b.id)>0)-(unreadRow(a.id)>0) || (b.lastTs||0)-(a.lastTs||0));
+  const totalUnread   = filtered.reduce((s,c)=>s+unreadRow(c.id), 0);
   const broadcastOpen = openId === BROADCAST_ID;
 
   return (
@@ -360,6 +432,23 @@ export default function ChatsView() {
             </div>
           )}
         </div>
+
+        {/* ── ФІЛЬТР ПО МАЙСТРУ (власник салону) ── */}
+        {!isMaster && masterIds.length > 0 && (
+          <div style={{display:"flex",gap:6,overflowX:"auto",marginBottom:9,paddingBottom:2}}>
+            {["", ...masterIds].map(tk => {
+              const on = filterTk === tk;
+              const n = tk ? contacts.reduce((s,c)=>s+unreadOf(c.id,tk),0) : 0;
+              return (
+                <button key={tk||"all"} onClick={()=>setFilterTk(tk)} style={{
+                  flexShrink:0,minHeight:32,padding:"4px 12px",borderRadius:16,cursor:"pointer",fontFamily:"inherit",fontSize:12,fontWeight:700,whiteSpace:"nowrap",
+                  background:on?ACCENT:SURFACE,color:on?(BTN_TX||"#fff"):TEXT,border:`1px solid ${on?ACCENT:BORDER}`}}>
+                  {tk ? threadName(tk) : "Усі"}{n > 0 ? ` · ${n}` : ""}
+                </button>
+              );
+            })}
+          </div>
+        )}
 
         {/* ── BROADCAST ── */}
         {!search && !isMaster && (
@@ -407,7 +496,10 @@ export default function ChatsView() {
           {filtered.map(c => {
             const isOpen     = openId === c.id;
             const isDeleting = deletingId === c.id;
-            const cMsgs      = messages[c.id] || [];
+            const tk         = defaultTk(c.id);
+            const cMsgs      = (tk ? threadMsgs[tKey(c.id, tk)] : messages[c.id]) || [];
+            const cThreads   = threadsOf(c.id);
+            const cUnread    = unreadRow(c.id);
             const hueColor   = `hsl(${c.hue},60%,50%)`;
             return (
               <div key={c.id} style={{
@@ -429,8 +521,8 @@ export default function ChatsView() {
                   </div>
                   <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4,flexShrink:0}}>
                     <span style={{fontSize:11,color:"rgba(255,255,255,0.8)"}}>{c.lastTime}</span>
-                    {(unreadMeta[c.id]||0) > 0
-                      ? <span style={{background:ACCENT,color:BTN_TX||"#fff",borderRadius:9,padding:"1px 6px",fontSize:11,fontWeight:800}}>{unreadMeta[c.id]}</span>
+                    {cUnread > 0
+                      ? <span style={{background:ACCENT,color:BTN_TX||"#fff",borderRadius:9,padding:"1px 6px",fontSize:11,fontWeight:800}}>{cUnread}</span>
                       : <span style={{width:8,height:8,borderRadius:4,background:"rgba(255,255,255,0.25)",display:"inline-block"}}/>
                     }
                   </div>
@@ -454,8 +546,22 @@ export default function ChatsView() {
                   </svg>
                 </div>
 
+                {isOpen && cThreads.length > 1 && (
+                  <div style={{display:"flex",gap:6,overflowX:"auto",padding:"6px 10px",borderTop:"1px solid rgba(255,255,255,0.15)"}}>
+                    {cThreads.map(t => {
+                      const on = t === tk, n = unreadOf(c.id, t);
+                      return (
+                        <button key={t||"salon"} onClick={()=>pickThread(c.id, t)} style={{
+                          flexShrink:0,minHeight:30,padding:"3px 11px",borderRadius:15,cursor:"pointer",fontFamily:"inherit",fontSize:12,fontWeight:700,whiteSpace:"nowrap",
+                          background:on?ACCENT:"rgba(255,255,255,0.12)",color:on?(BTN_TX||"#fff"):"#fff",border:"1px solid rgba(255,255,255,0.25)"}}>
+                          {threadName(t)}{n > 0 ? ` · ${n}` : ""}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
                 {isOpen && (
-                  <Conversation key={c.id} contact={c} messages={cMsgs} onSend={handleSend}/>
+                  <Conversation key={`${c.id}|${tk}`} contact={c} messages={cMsgs} onSend={(id, text) => handleSend(id, text, tk)}/>
                 )}
               </div>
             );

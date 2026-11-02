@@ -719,7 +719,7 @@ function PhotoViewer({ photos, index, onClose }) {
 
 // ─── MAIN ────────────────────────────────────────────────────────
 // Вузли instructors/{iid}, що стираються при повному скиданні. НЕ чіпаємо: license, users (зв'язок з клієнтами), fcmTokens, invites.
-const RESET_PATHS = ["bookings","bookings_by_phone","timeslots","slotBookings","queue","admin_settings","admin_data","chats","chatMeta","dayNotes","studentColors","reviews","pushTemplates","adminPush","templatePush","push_tasks","pushLog"];
+const RESET_PATHS = ["bookings","bookings_by_phone","timeslots","slotBookings","queue","admin_settings","admin_data","chats","chatMeta","chats_m","chatMeta_m","dayNotes","studentColors","reviews","pushTemplates","adminPush","templatePush","push_tasks","pushLog"];
 
 export default function SettingsView({ settings, setSettings }) {
   const [confirm, confirmNode] = useConfirm();
