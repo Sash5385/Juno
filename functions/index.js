@@ -190,7 +190,7 @@ function buildNewBookingBody(after, name, date, time, L = "uk") {
   const durH = after.durationHours || (after.durMin ? after.durMin / 60 : 1);
   const phone = after.phone || after.studentPhone || "";
   const line1 = svc ? `${name} · ${svc} ${fmtDurH(durH, L)}` : `${name} · ${fmtDurH(durH, L)}`;
-  const line2 = phone ? t(L, "{date} о {time} · {phone}", { date: fmtDate(L, date), time, phone }) : t(L, "{date} о {time}", { date: fmtDate(L, date), time });
+  const line2 = phone ? t(L, "{date} о {time} · {phone}", { date: fmtDateLong(L, date), time, phone }) : t(L, "{date} о {time}", { date: fmtDateLong(L, date), time });
   const note = String(after.studentNote || "").trim();
   const adds = addonsText(after);
   const lines = [line1, ...(adds ? [`➕ ${adds}`] : []), line2, ...(note ? [`💬 ${note}`] : [])];
@@ -281,6 +281,8 @@ function matchesReminderBucket(tpl, targetHours) {
 // повернути true при провалі обох каналів, прапорець "відправлено"
 // назавжди заблокував би повторні спроби (той самий клас багу, що вже
 // фіксився для 24г/2г нагадувань).
+const WELCOME_DEFAULT_UK = "👋 Привіт, {ім'я}! Раді бачити тебе в Juno!\nЯ — {майстер}, твій майстер.\nЗаписуйся на перший запис — будемо раді тебе бачити! 🙂";
+const WELCOME_SALON_UK = "👋 Привіт, {ім'я}! Раді бачити тебе в {майстер}!\nОбирай послугу й зручний час та записуйся онлайн — будемо раді тебе бачити! 🙂";
 async function sendActiveTemplates(iid, uid, triggerId, vars = {}, filterFn = null) {
   const snap = await iRef(iid, "admin_data/templates").get();
   const list = snap.val();
@@ -294,8 +296,11 @@ async function sendActiveTemplates(iid, uid, triggerId, vars = {}, filterFn = nu
   const L = await studentLang(iid, uid);
   const fullVars = { ...(typeof vars === "function" ? vars(L) : vars), "майстер": masterName, "інструктор": masterName };
   let delivered = false;
+  // Салон: типове вітання («твій майстер», «перший запис») — нейтральний текст; змінений майстром шаблон лишається як є
+  const salonWelcome = triggerId === "auto_welcome" && (await iRef(iid, "admin_settings/accountType").get().then((x) => x.val()).catch(() => null)) === "salon";
   for (const tpl of matches) {
-    const text = await tr(iid, renderTemplateBody(t(L, tpl.body), fullVars), L);
+    const body = salonWelcome && tpl.body === WELCOME_DEFAULT_UK ? WELCOME_SALON_UK : tpl.body;
+    const text = await tr(iid, renderTemplateBody(t(L, body), fullVars), L);
     const tplTitle = t(L, tpl.title || "Повідомлення");
     const time = new Date().toLocaleTimeString(LOCALE[L], { hour: "2-digit", minute: "2-digit" });
     const ts = Date.now();
@@ -443,7 +448,7 @@ async function ensureGroupSeat(iid, uid, bookingId, b) {
     if (Object.keys(upd).length) await iRef(iid).update(upd).catch(() => {});
   }
   await pushStudent(iid, uid, (L) => t(L, "⚠️ Запис недоступний"), (L) => t(L, "Не вдалося записати в групу: {reason}.", { reason: t(L, reason) }), { url: "https://aldemi.com.ua/junoclient/cabinet/bookings" }).catch(() => {});
-  await pushAdmin(iid, (L) => t(L, "⚠️ Запис у групу відхилено"), (L) => t(L, "{name} · {date} о {time}: {reason}", { name: b.studentName || t(L, "Клієнт"), date: fmtDate(L, b.date), time: b.time, reason: t(L, reason) })).catch(() => {});
+  await pushAdmin(iid, (L) => t(L, "⚠️ Запис у групу відхилено"), (L) => t(L, "{name} · {date} о {time}: {reason}", { name: b.studentName || t(L, "Клієнт"), date: fmtDateLong(L, b.date), time: b.time, reason: t(L, reason) })).catch(() => {});
   return false;
 }
 
@@ -562,7 +567,7 @@ exports.onBookingChanged = onValueWritten(
       if (after.createdBy === "admin" && uid !== "admin") {
         // Адмін вручну записав клієнта — сповіщаємо клієнта
         console.log(`onBookingChanged: admin manual booking iid=${iid} uid=${uid}`);
-        const tTitle = (L) => t(L, "📋 Запис заплановано"), tBody = (L) => t(L, "{date} о {time}", { date: fmtDate(L, date), time });
+        const tTitle = (L) => t(L, "📋 Запис заплановано"), tBody = (L) => t(L, "{date} о {time}", { date: fmtDateLong(L, date), time });
         await pushStudent(iid, uid, tTitle, tBody, {
           url: "https://aldemi.com.ua/junoclient/cabinet/bookings",
         });
@@ -590,7 +595,7 @@ exports.onBookingChanged = onValueWritten(
       console.log(`onBookingChanged: student cancel iid=${iid} uid=${uid}`);
       const freed = await freeBookingSlots(iid, uid, bookingId, before);
       await releasePackage(iid, uid, bookingId, before);
-      await pushBookingStaff(iid, before, (L) => t(L, "❌ Запис скасовано"), (L) => t(L, "{name} · {date} о {time}", { name: nameFor(L), date: fmtDate(L, date), time }), { url: adminLink() });
+      await pushBookingStaff(iid, before, (L) => t(L, "❌ Запис скасовано"), (L) => t(L, "{name} · {date} о {time}", { name: nameFor(L), date: fmtDateLong(L, date), time }), { url: adminLink() });
       if (freed && date !== "—" && time !== "—") {
         const freedDurationHours = before.durationHours || (before.durMin ? before.durMin / 60 : 1);
         await inviteNextInQueue(iid, queueKeyOf(iid, before.masterId, date, time), [], freedDurationHours).catch(() => {});
@@ -601,10 +606,10 @@ exports.onBookingChanged = onValueWritten(
     // Адмін підтвердив
     if (after.status === "confirmed" && before.status !== "confirmed") {
       console.log(`onBookingChanged: admin confirmed iid=${iid} uid=${uid}`);
-      const vars = (L) => ({ "ім'я": nameFor(L), "дата": fmtDate(L, date), "час": time, "послуга": after.serviceName || after.service || "", "ціна": after.price != null ? String(after.price) : "" });
+      const vars = (L) => ({ "ім'я": nameFor(L), "дата": fmtDateLong(L, date), "час": time, "послуга": after.serviceName || after.service || "", "ціна": after.price != null ? String(after.price) : "" });
       const usedTpl = await sendActiveTemplates(iid, uid, "auto_confirm", vars).catch(() => false);
       if (!usedTpl) {
-        const tTitle = (L) => t(L, "✅ Запис підтверджено"), tBody = (L) => t(L, "{date} о {time}", { date: fmtDate(L, date), time });
+        const tTitle = (L) => t(L, "✅ Запис підтверджено"), tBody = (L) => t(L, "{date} о {time}", { date: fmtDateLong(L, date), time });
         await pushStudent(iid, uid, tTitle, tBody, {
           url: "https://aldemi.com.ua/junoclient/cabinet/bookings",
         });
@@ -626,10 +631,10 @@ exports.onBookingChanged = onValueWritten(
       console.log(`onBookingChanged: admin cancelled iid=${iid} uid=${uid}`);
       const freed = await freeBookingSlots(iid, uid, bookingId, before);
       await releasePackage(iid, uid, bookingId, before);
-      const cancelVars = (L) => ({ "ім'я": nameFor(L), "дата": fmtDate(L, date), "час": time });
+      const cancelVars = (L) => ({ "ім'я": nameFor(L), "дата": fmtDateLong(L, date), "час": time });
       const usedCancelTpl = await sendActiveTemplates(iid, uid, "auto_cancel", cancelVars).catch(() => false);
       if (!usedCancelTpl) {
-        const tTitle = (L) => t(L, "❌ Запис скасовано"), tBody = (L) => t(L, "{date} о {time}", { date: fmtDate(L, date), time });
+        const tTitle = (L) => t(L, "❌ Запис скасовано"), tBody = (L) => t(L, "{date} о {time}", { date: fmtDateLong(L, date), time });
         await pushStudent(iid, uid, tTitle, tBody, {
           url: "https://aldemi.com.ua/junoclient/cabinet/bookings",
         });
@@ -653,7 +658,7 @@ exports.onBookingChanged = onValueWritten(
     // Студент підтвердив присутність
     if (after.studentConfirmed && !before.studentConfirmed) {
       console.log(`onBookingChanged: student confirmed iid=${iid} uid=${uid}`);
-      await pushBookingStaff(iid, after, (L) => t(L, "✅ Підтвердив присутність"), (L) => t(L, "{name} · {date} о {time}", { name: nameFor(L), date: fmtDate(L, date), time }), { url: adminLink() });
+      await pushBookingStaff(iid, after, (L) => t(L, "✅ Підтвердив присутність"), (L) => t(L, "{name} · {date} о {time}", { name: nameFor(L), date: fmtDateLong(L, date), time }), { url: adminLink() });
       return;
     }
 
@@ -680,7 +685,7 @@ exports.onBookingChanged = onValueWritten(
     const noteAfter = String(after.studentNote || "").trim();
     if (noteAfter && noteAfter !== noteBefore && after.status !== "cancelled" && after.createdBy !== "admin") {
       console.log(`onBookingChanged: student note changed iid=${iid} uid=${uid}`);
-      await pushBookingStaff(iid, after, (L) => t(L, "💬 Коментар до запису"), (L) => `${t(L, "{name} · {date} о {time}", { name: nameFor(L), date: fmtDate(L, date), time })}\n${noteAfter}`, { url: adminLink() });
+      await pushBookingStaff(iid, after, (L) => t(L, "💬 Коментар до запису"), (L) => `${t(L, "{name} · {date} о {time}", { name: nameFor(L), date: fmtDateLong(L, date), time })}\n${noteAfter}`, { url: adminLink() });
     }
   }
 );
@@ -1143,7 +1148,7 @@ exports.flushRescheduleQueue = onSchedule(
         const tTitle = (L) => t(L, "🔄 Запис перенесено");
         // Є дані перенесення — збираємо текст мовою клієнта; старі записи черги (лише body) йдуть українською
         const tBody = entry.date ? (L) => t(L, "Новий час: {date} о {time} (було {oldDate} о {oldTime})", {
-          date: fmtDate(L, entry.date), time: entry.time, oldDate: fmtDate(L, entry.oldDate), oldTime: entry.oldTime,
+          date: fmtDateLong(L, entry.date), time: entry.time, oldDate: fmtDateLong(L, entry.oldDate), oldTime: entry.oldTime,
         }) : body;
         await pushStudent(iid, uid, tTitle, tBody, { url: "https://aldemi.com.ua/junoclient/cabinet/bookings" });
         await saveNotification(iid, uid, tTitle, tBody, "booking_rescheduled");

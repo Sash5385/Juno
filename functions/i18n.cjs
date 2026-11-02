@@ -76,6 +76,12 @@ const DICT = Object.fromEntries([
     "❌ {ім'я}, dein Termin am {дата} um {час} wurde leider abgesagt. Wenn du einen anderen Termin buchen möchtest, schreib uns oder öffne die App.",
     "❌ {ім'я}, lamentablemente tu cita del {дата} a las {час} ha sido cancelada. Si quieres reservar otro horario, escríbenos o abre la app.",
     "❌ {ім'я}, votre rendez-vous du {дата} à {час} a malheureusement été annulé. Pour en réserver un autre, écrivez-nous ou ouvrez l'application."),
+  E("👋 Привіт, {ім'я}! Раді бачити тебе в {майстер}!\nОбирай послугу й зручний час та записуйся онлайн — будемо раді тебе бачити! 🙂",
+    "👋 Hi, {ім'я}! Welcome to {майстер}!\nPick a service and a time that suits you and book online — we'd love to see you! 🙂",
+    "👋 Cześć, {ім'я}! Witamy w {майстер}!\nWybierz usługę i dogodny termin i umów się online — chętnie Cię zobaczymy! 🙂",
+    "👋 Hallo, {ім'я}! Willkommen bei {майстер}!\nWähle eine Leistung und eine passende Zeit und buche online — wir freuen uns auf dich! 🙂",
+    "👋 ¡Hola, {ім'я}! ¡Bienvenido a {майстер}!\nElige un servicio y la hora que te venga bien y reserva en línea — ¡te esperamos! 🙂",
+    "👋 Bonjour, {ім'я} ! Bienvenue chez {майстер} !\nChoisis une prestation et un horaire qui te convient et réserve en ligne — à bientôt ! 🙂"),
   E("👋 Привіт, {ім'я}! Раді бачити тебе в Juno!\nЯ — {майстер}, твій майстер.\nЗаписуйся на перший запис — будемо раді тебе бачити! 🙂",
     "👋 Hi, {ім'я}! Welcome to Juno!\nI'm {майстер}, your specialist.\nBook your first appointment — we'd love to see you! 🙂",
     "👋 Cześć, {ім'я}! Witamy w Juno!\nJestem {майстер}, Twój specjalista.\nUmów pierwszą wizytę — chętnie Cię zobaczymy! 🙂",
@@ -175,6 +181,7 @@ function fmtDate(lang, iso) {
 
 // "YYYY-MM-DD" → «ср, 10 червня» мовою отримувача (для uk — як раніше: toLocaleDateString("uk", …))
 function fmtDateLong(lang, iso) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso || "")) return iso; // не-дата («—», undefined) — як є
   return new Date(iso + "T00:00:00").toLocaleDateString(LOCALE[normLang(lang)], { day: "numeric", month: "long", weekday: "short" });
 }
 

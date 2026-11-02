@@ -550,6 +550,20 @@ const DEFAULT_SETTINGS = {
 };
 
 // ─── VIEW RENDERER ───────────────────────────────────────────────
+// Автовідкриття слотів одного майстра салону без вибору його вкладки (режим «Усі»): власний графік з master_settings/{id}
+function AllModeAutoSlots({ master, ownerIid, settings, bookings }) {
+  const isOwner = master.id === ownerIid;
+  const [ms, setMs] = useState(isOwner ? {} : undefined);
+  useEffect(() => {
+    if (isOwner) return undefined;
+    return onValue(iRef(`master_settings/${master.id}`), snap => setMs(snap.val() || {}), () => setMs({}));
+  }, [master.id, isOwner]);
+  const mSettings = React.useMemo(() => (isOwner || !ms || !Object.keys(ms).length ? settings : applyMasterSettings(settings, ms)), [settings, ms, isOwner]);
+  const mBookings = React.useMemo(() => bookings.filter(b => masterOf(b, ownerIid) === master.id), [bookings, master.id, ownerIid]);
+  if (ms === undefined) return null; // графік майстра ще не прочитано
+  return <Suspense fallback={null}><AutoSlots masterId={master.id} settings={mSettings} bookings={mBookings}/></Suspense>;
+}
+
 function ViewRenderer({ allMode, staffList, onPickMaster, ws, onWs, masterKey, scheduleSettings, scheduleBookings, scheduleSetBookings, tab, settings, setSettings, bookings, setBookings, onSlotClick, onEmptySlotClick, openInfos, toggleInfo, activeDragIds, navTo, slotExistsRef, openSlotsRef, jumpTarget, setJumpTarget, onViewStudent, studentJump, onStudentJumpHandled }) {
   if (tab === "schedule" && allMode) return <AllMastersView bookings={bookings} staff={staffList} settings={settings} onPick={onPickMaster}/>;
   if (tab === "schedule")  return <ScheduleView key={masterKey} settings={scheduleSettings || settings} setSettings={setSettings} bookings={scheduleBookings || bookings} setBookings={scheduleSetBookings || setBookings} onSlotClick={onSlotClick} onEmptySlotClick={onEmptySlotClick} activeDragIds={activeDragIds} navTo={navTo} slotExistsRef={slotExistsRef} openSlotsRef={openSlotsRef} jumpTarget={jumpTarget} setJumpTarget={setJumpTarget} onViewStudent={onViewStudent}/>;
@@ -1472,6 +1486,8 @@ const pendingDeletesRef = React.useRef(new Set());
       )}
       {settingsLoaded && settings.autoSlots && adminUser && !vendor && !ws && !salonOn && <Suspense fallback={null}><AutoSlots settings={settings} bookings={bookings}/></Suspense>}
       {/* Салон: автовідкриття слотів для активного майстра за його графіком (власник — на вкладці майстра, майстер — у своєму календарі) */}
+      {/* Салон, режим «Усі»: автовідкриття для кожного майстра за його графіком (без дублів — одна пара autoSlotsDone_m на майстра) */}
+      {settingsLoaded && settings.autoSlots && adminUser && !vendor && !ws && salonOn && allMode && staffList.map(m => <AllModeAutoSlots key={m.id} master={m} ownerIid={ownerIid} settings={settings} bookings={bookings}/>)}
       {settingsLoaded && settings.autoSlots && adminUser && !vendor && salonOn && !allMode && (!msTarget || masterMs?.id === msTarget) && <Suspense fallback={null}><AutoSlots key={masterId} settings={scheduleSettings} bookings={scheduleBookings}/></Suspense>}
       <InstallBanner theme={theme}/>
     </>

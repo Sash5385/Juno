@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useLayoutEffect, useMemo, useContext } from "react";
 import { createPortal } from "react-dom";
 import { update, get, onValue, off, remove, push as fbPush } from "firebase/database";
-import { iRef, auth, slotRoot, slotBookingsRoot, newBookingMasterFields, getActiveMaster, watchBookings } from "../firebase";
+import { iRef, auth, slotRoot, slotBookingsRoot, newBookingMasterFields, getActiveMaster, setActiveMaster, getCurrentIid, watchBookings } from "../firebase";
 import { blockRangeUpdates, restoreRangeUpdates } from "../slotRules";
 import { normPackages, pickPackage } from "../packages";
 import { isGroupService, capacityOf, groupKeyOf } from "../groups";
@@ -1232,7 +1232,7 @@ const dateStrAhead = (absDay) => {
 // «Автовідкриття слотів». Працює з моменту входу в застосунок, на будь-якій вкладці.
 // Дні в межах slotGenDays, де слотів ще немає, заповнюються за тижневим шаблоном; закриті дні очищаються від вільних слотів.
 // Кожен день заповнюється один раз (мітка autoSlotsDone/{дата}), тож вручну видалені слоти не повертаються.
-export function AutoSlots({ settings, bookings }) {
+export function AutoSlots({ settings, bookings, masterId }) { // masterId — явний майстер салону (режим «Усі»); інакше активний календар
   const busyRef = useRef(false), againRef = useRef(false), runRef = useRef(null), bookingsRef = useRef(bookings);
   useEffect(() => { bookingsRef.current = bookings; }, [bookings]);
   useEffect(() => {
@@ -1241,9 +1241,10 @@ export function AutoSlots({ settings, bookings }) {
       if (busyRef.current) { againRef.current = true; return { busy: true }; }
       busyRef.current = true;
       try {
-        const root = slotRoot();
+        const target = masterId || getActiveMaster();
+        const root = target && target !== getCurrentIid() ? `timeslots_m/${target}` : "timeslots";
         // Салон: у кожного майстра свої мітки днів (autoSlotsDone_m/{майстер}); у власника/«Один майстер» — autoSlotsDone як і раніше
-        const doneRoot = root === "timeslots" ? "autoSlotsDone" : `autoSlotsDone_m/${getActiveMaster()}`;
+        const doneRoot = root === "timeslots" ? "autoSlotsDone" : `autoSlotsDone_m/${target}`;
         const limit = settings.slotGenDays || 30;
         const days = Array.from({ length: limit + 1 }, (_, d) => dateStrAhead(d));
         const reads = await Promise.all(days.map(dateStr => Promise.all([get(iRef(`${doneRoot}/${dateStr}`)), get(iRef(`${root}/${dateStr}`))])));
@@ -1252,7 +1253,11 @@ export function AutoSlots({ settings, bookings }) {
         days.forEach((dateStr, i) => {
           const [done, snap] = reads[i];
           const existing = snap.val() || {};
-          const result = computeDayUpdatesFor(settings, bookingsRef.current, dateStr, existing);
+          // computeDayUpdatesFor синхронний і читає slotRoot() — на час виклику вмикаємо потрібного майстра
+          const prevMaster = getActiveMaster();
+          if (masterId) setActiveMaster(masterId);
+          let result;
+          try { result = computeDayUpdatesFor(settings, bookingsRef.current, dateStr, existing); } finally { if (masterId) setActiveMaster(prevMaster); }
           if (!result) {
             Object.entries(existing).forEach(([slotId, sl]) => { if (freeAuto(sl)) removals[`${root}/${dateStr}/${slotId}`] = null; });
             if (done.exists()) removals[`${doneRoot}/${dateStr}`] = null;
@@ -5649,7 +5654,7 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
                     <span style={{
                       fontSize:11,fontWeight:800,padding:"2px 7px",borderRadius:99,flexShrink:0,
                       background:`${BLUE}1f`,color:BLUE,
-                    }}>{`🚗 ${lessonNumber}-й запис`}</span>
+                    }}>{`${isSalon(settings) ? "" : "🚗 "}${lessonNumber}-й запис`}</span>
                   )}
                 </div>
                 <div style={{fontSize:11,color:c,fontWeight:700,marginTop:1}}>{typeLabel}</div>

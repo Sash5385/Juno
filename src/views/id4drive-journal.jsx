@@ -123,7 +123,7 @@ function buildEvents(data, staffNames = {}) {
   return evs.sort((a, b) => b.ts - a.ts);
 }
 
-const BY_LABEL = { admin: "майстер", client: "клієнт" };
+const BY_LABEL = { admin: "майстер", client: "клієнт", student: "клієнт" }; // student — старі скасування клієнтом
 
 function EventDetailSheet({ ev, meta, onClose, theme }) {
   const [closing, setClosing] = useState(false);
