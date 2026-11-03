@@ -213,55 +213,50 @@ function BottomNav({ active, onChange, settings, chatUnread, journalUnread }) {
   const tabIcons = isKava ? makeTabIcons(INACTIVE_KAVA) : TabIcons;
   const visible = TAB_IDS.filter(t => settings?.navTabs?.includes(t.id) ?? true);
 
-  // "Щільний ряд скляних чипів" (обраний варіант дизайну) — компактні чипи в
-  // напівпрозорій рамці; активна вкладка підсвічується зеленим (theme.GREEN),
-  // іконки лишають власний фірмовий колір із tabIcons (не чіпаємо).
-  const navBg = isKava ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.04)";
-  const navShadow = isKava
-    ? "0 8px 24px rgba(92,42,26,0.14)"
-    : "0 8px 24px rgba(0,0,0,0.45)";
-  const labelInactive = isKava ? theme.DIM : FAINT;
-  const activeBg = `color-mix(in srgb, ${theme.GREEN} 18%, transparent)`;
+  // «Плитки» (стиль Туман): окрема скляна плитка на кожну вкладку, активна — градієнтна плитка. Підписи сховані (title/aria-label лишаються).
+  const tileBg = isKava ? "rgba(255,255,255,0.55)" : "rgba(255,255,255,0.07)";
+  const tileBorder = isKava ? theme.BORDER : "rgba(255,255,255,0.14)";
+  const activeGrad = isKava
+    ? `linear-gradient(145deg,${theme.ACC_HI},${theme.ACCENT})`
+    : "linear-gradient(145deg,#93c5fd,#60a5fa)";
 
   return (
     <div id="app-bottomnav" style={{
       flexShrink:0,
-      padding:`0 3px calc(10px + env(safe-area-inset-bottom, 0px))`,
+      padding:`6px 12px calc(5px + env(safe-area-inset-bottom, 0px))`,
       background: isKava ? "#d4ba96" : "transparent",
+      borderTop:`1px solid ${isKava ? theme.BORDER : "rgba(255,255,255,0.14)"}`,
+      borderRadius:"16px 16px 0 0",
+      boxShadow: isKava ? "none" : "inset 0 1px 0 rgba(255,255,255,0.06)",
       zIndex:50,
       pointerEvents:"none",
     }}>
-      <div style={{
-        background:navBg,
-        borderRadius:16,
-        border:`1px solid ${theme.BORDER}`,
-        boxShadow:navShadow,
-        display:"flex", gap:2, padding:3,
-        pointerEvents:"auto",
-      }}>
+      <div style={{display:"flex", gap:5, pointerEvents:"auto"}}>
         {visible.map(t=>{
           const isActive = active===t.id;
           const badgeCount = t.id === 'chats' ? chatUnread : t.id === 'journal' ? journalUnread : t.badge;
           return (
-          <button key={t.id} onClick={()=>onChange(t.id)} style={{
-            flex:"1 1 0",minWidth:0,padding:"8px 2px 7px",
-            background: isActive ? activeBg : "transparent",
-            border:"none",cursor:"pointer",borderRadius:11,
-            display:"flex",flexDirection:"column",alignItems:"center",gap:4,
-            position:"relative"
+          <button key={t.id} onClick={()=>onChange(t.id)} title={tl(t.lk)} aria-label={tl(t.lk)} aria-current={isActive ? "page" : undefined} style={{
+            flex:"1 1 0",minWidth:0,height:46,padding:0,
+            background: isActive ? activeGrad : tileBg,
+            border:`1px solid ${isActive ? "transparent" : tileBorder}`,
+            backdropFilter:"blur(16px)", WebkitBackdropFilter:"blur(16px)",
+            boxShadow: isActive ? "0 6px 14px rgba(96,165,250,0.4)" : "none",
+            cursor:"pointer",borderRadius:14,
+            display:"flex",alignItems:"center",justifyContent:"center",
+            position:"relative",
           }}>
-            <div style={{position:"relative"}}>
-              {tabIcons[t.id]?.(34,isActive)}
+            <div style={{position:"relative",display:"flex"}}>
+              {tabIcons[t.id]?.(28,isActive)}
               {badgeCount > 0 && (
-                <div style={{
-                  position:"absolute",top:-4,right:-4,
-                  background:theme.ACCENT,color:"#fff",borderRadius:10,
+                <div data-help="navbadge" style={{
+                  position:"absolute",top:-6,right:-8,
+                  background:theme.ACCENT,color:theme.BTN_TX||"#fff",borderRadius:10,
                   padding:"1px 5px",fontSize:9,fontWeight:800,
                   boxShadow:`0 0 8px ${theme.ACCENT}88`,lineHeight:1.4
                 }}>{badgeCount}</div>
               )}
             </div>
-            <span style={{fontSize:9,fontWeight:700,color:isActive?theme.GREEN:labelInactive,whiteSpace:"nowrap"}}>{tl(t.lk)}</span>
           </button>
           );
         })}
