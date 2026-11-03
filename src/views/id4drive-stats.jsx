@@ -8,6 +8,8 @@ import { createT } from "../lang";
 import { ThemeContext } from "../theme.js";
 import { UICss, Card, useFX, ScrollChips } from "../ui";
 import { bookingAddonTotals } from "../addons";
+import { hasOwnSchedule } from "../masterSettings";
+import { periodDates, utilization, cancelStats, sources, clientStats, serviceStats, heatmap, quietestSlot } from "./stats-extra";
 
 const UK_MONTHS     = ["Січ","Лют","Бер","Кві","Тра","Чер","Лип","Сер","Вер","Жов","Лис","Гру"];
 const UK_WEEK_LABELS= ["Пн","Вт","Ср","Чт","Пт","Сб"];
@@ -225,7 +227,7 @@ const Chip = ({label, active, onClick, color}) => {
 };
 
 // ─── MAIN ────────────────────────────────────────────────────────
-export default function StatsView() {
+export default function StatsView({ onViewStudent } = {}) {
   const { BG_DEEP, SURFACE, SURF_HI, BORDER, TEXT, DIM, FAINT, ACCENT, ACC_HI, GREEN, BLUE, PURPLE, GOLD, RED, SO, SI } = useContext(ThemeContext);
   const lang = useContext(LangContext);
   const t = createT(lang);
@@ -246,6 +248,11 @@ export default function StatsView() {
   const [incomeGoal,  setIncomeGoal]  = useState(0);
   const [editingGoal, setEditingGoal] = useState(false);
   const [goalInput,   setGoalInput]   = useState("");
+  const [sec,         setSec]         = useState("overview"); // вкладка: overview | masters | clients | load
+  const [weekSchedule, setWeekSchedule] = useState(null);     // тижневий графік салону (для завантаження %)
+  const [masterSet,   setMasterSet]   = useState({});         // master_settings: власні графіки майстрів
+  const [svcBy,       setSvcBy]       = useState("sum");
+  const [sleepAll,    setSleepAll]    = useState(false);
 
   const css = `
 @keyframes bar-grow{from{height:0%}to{height:var(--h)}}
@@ -284,6 +291,9 @@ export default function StatsView() {
       setServices(Array.isArray(d) ? d : []);
     }, () => {});
   }, []);
+
+  useEffect(() => onValue(iRef("admin_settings/weekSchedule"), snap => setWeekSchedule(Array.isArray(snap.val()) ? snap.val() : null), () => {}), []);
+  useEffect(() => onValue(iRef("master_settings"), snap => setMasterSet(snap.val() || {}), () => {}), []);
 
   useEffect(() => {
     get(iRef( "admin_settings/incomeGoal")).then(s => { if (s.exists()) setIncomeGoal(s.val() || 0); }).catch(() => {});
@@ -333,6 +343,49 @@ export default function StatsView() {
   const topStudents  = computeTopStudents(periodBookings, topBy, services);
   const popularSlots = computePopularSlots(periodBookings, services);
   const byPeriodLabel= period === "day" ? "По годинах" : period === "year" ? "По місяцях" : "По днях";
+
+  // ── Вкладки статистики (етап 1): додаткові показники ──
+  const secEff   = sec === "masters" && staff.length <= 1 ? "overview" : sec;
+  const incomeOf = b => bkIncome(b, services);
+  const pDates   = periodDates(data, period);
+  const cancels  = cancelStats(periodBookings, incomeOf);
+  const prevCancels = period === "custom" ? null : cancelStats(filterByPeriod(bookings, prevData, period), incomeOf);
+  const src      = sources(periodBookings);
+  const clients  = clientStats(bookings, periodBookings, todayStr);
+  const svcRows  = serviceStats(periodBookings, services, incomeOf).sort((a, b) => svcBy === "n" ? b.n - a.n : b.sum - a.sum).slice(0, 6);
+  const avgCheck = totalLessons ? Math.round(totalIncome / totalLessons) : 0;
+  const prevAvg  = prev.lessons ? Math.round(prev.income / prev.lessons) : 0;
+  const weekOf   = (mid) => hasOwnSchedule(masterSet[mid]) ? masterSet[mid].weekSchedule : weekSchedule;
+  const prevPeriodData = (list) => period === "custom" ? null
+                 : period === "week"   ? computeWeekData(list, -1, services)
+                 : period === "year"   ? computeYearData(list, -1, services)
+                 : period === "day"    ? computeDayData(list, -1, services)
+                 :                       computeMonthData(list, -1, services);
+  const masterRows = perMaster.map(r => {
+    const list = bookingsRaw.filter(b => masterOf(b, ownerUid) === r.m.id);
+    const c = cancelStats(filterByPeriod(list, data, period), incomeOf);
+    const pv = prevPeriodData(list);
+    return { ...r, avg: r.lessons ? Math.round(r.income / r.lessons) : 0, load: utilization(list, pDates, weekOf(r.m.id)),
+      lost: c.cancelled + c.noshow, trend: pv ? trendPct(r.income, periodSum(pv).income) : null };
+  }).sort((a, b) => b.income - a.income);
+  const maxMasterIncome = Math.max(1, ...masterRows.map(r => r.income));
+  const loadOne  = staff.length > 1 && !masterFilter ? null : utilization(bookings, pDates, masterFilter ? weekOf(masterFilter) : weekSchedule);
+  const onDays   = (weekSchedule || []).filter(d => d && d.enabled && d.start != null && d.end != null);
+  const hmFrom   = onDays.length ? Math.floor(Math.min(...onDays.map(d => d.start))) : 8;
+  const hmTo     = onDays.length ? Math.ceil(Math.max(...onDays.map(d => d.end))) : 20;
+  const hm       = heatmap(periodBookings, hmFrom, Math.min(hmTo, hmFrom + 14));
+  const hmHasData = hm.grid.some(row => row.some(v => v > 0));
+  const quiet    = period !== "day" && hmHasData ? quietestSlot(hm, masterFilter ? weekOf(masterFilter) : weekSchedule) : null;
+  const DOW      = ["Пн","Вт","Ср","Чт","Пт","Сб","Нд"];
+  const DOW_LONG = ["понеділок","вівторок","середу","четвер","пʼятницю","суботу","неділю"];
+  const secTitle = { fontSize:11, color:DIM, letterSpacing:1, textTransform:"uppercase", fontWeight:700 };
+  const fmtDate  = (ds) => { const d = new Date(ds + "T00:00:00"); return `${d.getDate()}.${String(d.getMonth()+1).padStart(2,"0")}.${String(d.getFullYear()).slice(2)}`; };
+  const miniTile = (value, label, color) => (
+    <div style={{background:BG_DEEP,borderRadius:10,boxShadow:SI,padding:"7px 4px",textAlign:"center",minWidth:0}}>
+      <div style={{fontSize:14,fontWeight:900,color:color||TEXT,whiteSpace:"nowrap"}}>{value}</div>
+      <div style={{fontSize:11,color:DIM,marginTop:1}}>{label}</div>
+    </div>
+  );
 
   // Календар завжди на екрані (замість модалки/полів дат) — швидкий вибір
   // місяця (тап на назву місяця), тижня чи конкретного дня (тап на день).
@@ -484,8 +537,15 @@ export default function StatsView() {
           </ScrollChips>
         )}
 
+        {/* ── ВКЛАДКИ СТАТИСТИКИ ── */}
+        <div style={{display:"flex",gap:0,background:SURFACE,padding:3,borderRadius:14,border:`1px solid ${BORDER}`,backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)"}}>
+          {[["overview","Огляд"], ...(staff.length > 1 ? [["masters","Майстри"]] : []), ["clients","Клієнти"], ["load","Зайнятість"]].map(([k,l])=>(
+            <Chip key={k} label={l} active={secEff===k} onClick={()=>setSec(k)}/>
+          ))}
+        </div>
+
         {/* ── CALENDAR (завжди відкритий — швидкий вибір місяця/тижня/дня) ── */}
-        <Card className="fu" style={{padding:"12px"}}>
+        {secEff === "overview" && <Card className="fu" style={{padding:"12px"}}>
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:11}}>
             <button onClick={()=>calGoMonth(-1)} style={{
               width:36,height:36,borderRadius:99,border:`1px solid ${BORDER}`,cursor:"pointer",fontFamily:"inherit",
@@ -555,10 +615,10 @@ export default function StatsView() {
               }}>✕</button>
             </div>
           )}
-        </Card>
+        </Card>}
 
         {/* ── KPI 3 ── */}
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:7}}>
+        {secEff === "overview" && <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:7}}>
           {[
             {label:"Дохід",        value:fmtK(totalIncome),               color:GOLD,  trend:trendPct(cur.income,  prev.income)},
             {label:"Записів",       value:totalLessons,                    color:BLUE,  trend:trendPct(cur.lessons, prev.lessons)},
@@ -586,25 +646,55 @@ export default function StatsView() {
               )}
             </Card>
           ))}
-        </div>
+        </div>}
 
-        {/* ── ПО МАЙСТРАХ (салон, усі майстри) ── */}
-        {perMaster.length > 0 && !masterFilter && (
-          <Card className="fu" style={{padding:"12px 13px"}}>
-            <div style={{fontSize:11,color:DIM,letterSpacing:1,textTransform:"uppercase",fontWeight:700,marginBottom:8}}>По майстрах</div>
-            {perMaster.map(({ m, income, lessons }) => (
-              <div key={m.id} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 0",borderTop:`1px solid ${BORDER}`}}>
-                <span style={{width:11,height:11,borderRadius:"50%",background:m.color,flexShrink:0}}/>
-                <span style={{flex:1,minWidth:0,fontSize:14,fontWeight:600,color:TEXT,overflowWrap:"anywhere"}}>{m.name}</span>
-                <span style={{fontSize:12,color:DIM}}>{lessons} зап.</span>
-                <span style={{fontSize:14,fontWeight:700,color:TEXT,minWidth:70,textAlign:"right"}}>{fmtK(income)}</span>
-              </div>
+        {/* ── KPI: середній чек, нові клієнти, скасування ── */}
+        {secEff === "overview" && (
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:7}}>
+            {[
+              {label:"Сер. чек", value:fmtK(avgCheck),     trend:trendPct(avgCheck, prevAvg), good:true},
+              {label:"Нові", value:clients.fresh,     sub:`з ${clients.total} клієнтів`},
+              {label:"Скасовано",   value:`${cancels.pct}%`, trend:prevCancels ? cancels.pct - prevCancels.pct : null, good:false, pp:true},
+            ].map((k, i) => (
+              <Card key={i} className="fu" style={{padding:"10px 9px",textAlign:"center"}}>
+                <div style={{fontSize:10.5,color:DIM,letterSpacing:0.3,textTransform:"uppercase",fontWeight:600,marginBottom:6,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{k.label}</div>
+                <div style={{fontSize:"min(19px,4.3vw)",fontWeight:800,color:TEXT,lineHeight:1.05,whiteSpace:"nowrap"}}>{k.value}</div>
+                {k.sub && <div style={{fontSize:11,color:DIM,marginTop:5}}>{k.sub}</div>}
+                {k.trend != null && k.trend !== 0 && (() => {
+                  const ok = k.good ? k.trend > 0 : k.trend < 0;
+                  return <div style={{marginTop:5}}><span style={{fontSize:11,fontWeight:700,padding:"2px 7px",borderRadius:99,color:`color-mix(in srgb,${ok?GREEN:RED} 55%,#fff)`,background:ok?`${GREEN}1f`:`${RED}1f`}}>{k.trend>0?"+":""}{k.trend}{k.pp?" п.п.":"%"}</span></div>;
+                })()}
+              </Card>
             ))}
-          </Card>
+          </div>
         )}
 
+        {/* ── МАЙСТРИ (салон) ── */}
+        {secEff === "masters" && (masterFilter ? masterRows.filter(r => r.m.id === masterFilter) : masterRows).map(r => (
+          <Card key={r.m.id} className="fu" style={{padding:"12px 13px"}}>
+            <div style={{display:"flex",alignItems:"center",gap:10}}>
+              <span style={{width:12,height:12,borderRadius:"50%",background:r.m.color,flexShrink:0}}/>
+              <span style={{flex:1,minWidth:0,fontSize:14,fontWeight:700,color:TEXT,overflowWrap:"anywhere"}}>{r.m.name}</span>
+              <div style={{textAlign:"right",flexShrink:0}}>
+                <div style={{fontSize:15,fontWeight:800,color:TEXT}}>{fmtK(r.income)}</div>
+                {r.trend != null && r.trend !== 0 && <div style={{fontSize:11,fontWeight:700,color:`color-mix(in srgb,${r.trend>0?GREEN:RED} 55%,#fff)`}}>{r.trend>0?"+":""}{r.trend}%</div>}
+              </div>
+            </div>
+            <div style={{height:6,borderRadius:3,background:BG_DEEP,boxShadow:SI,margin:"8px 0 9px",overflow:"hidden"}}>
+              <div style={{height:"100%",width:`${(r.income/maxMasterIncome)*100}%`,borderRadius:3,background:r.m.color}}/>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(4,minmax(0,1fr))",gap:6}}>
+              {miniTile(r.lessons, "записів")}
+              {miniTile(fmtK(r.avg), "сер. чек")}
+              {miniTile(r.load == null ? "—" : `${r.load}%`, "зайнятість", r.load == null ? DIM : r.load >= 75 ? GREEN : r.load >= 40 ? GOLD : RED)}
+              {miniTile(r.lost, "скас./неявки", r.lost ? GOLD : TEXT)}
+            </div>
+          </Card>
+        ))}
+        {secEff === "masters" && <div style={{fontSize:11,color:DIM,textAlign:"center",padding:"0 8px"}}>Зайнятість — заброньовані години від робочих за графіком майстра (або салону).</div>}
+
         {/* ── INCOME GOAL ── */}
-        <Card className="fu" style={{padding:"12px 13px"}}>
+        {secEff === "overview" && <Card className="fu" style={{padding:"12px 13px"}}>
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:editingGoal?10:incomeGoal?9:4}}>
             <div style={{fontSize:11,color:DIM,letterSpacing:1,textTransform:"uppercase",fontWeight:700}}>🎯 Ціль місяця</div>
             {!editingGoal && (
@@ -678,10 +768,10 @@ export default function StatsView() {
           ) : (
             <div style={{fontSize:11,color:DIM}}>Встановіть ціль доходу на місяць</div>
           )}
-        </Card>
+        </Card>}
 
         {/* ── РОЗПОДІЛ + ПО ДНЯХ ── */}
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7}}>
+        {secEff === "overview" && <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7}}>
           <Card className="fu" style={{
             padding:"12px",
             background:`color-mix(in srgb,${GREEN} 18%,transparent)`,backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",
@@ -732,10 +822,57 @@ export default function StatsView() {
               })}
             </div>
           </Card>
-        </div>
+        </div>}
+
+        {/* ── ЗВІДКИ ЗАПИСИ ── */}
+        {secEff === "overview" && src.total > 0 && (() => {
+          const on = Math.round((src.online / src.total) * 100);
+          return (
+            <Card className="fu" style={{padding:"12px 13px"}}>
+              <div style={{...secTitle,marginBottom:9}}>Звідки записи</div>
+              <div style={{display:"flex",height:10,borderRadius:99,overflow:"hidden",gap:2}}>
+                {src.online > 0 && <div style={{width:`${on}%`,background:BLUE}}/>}
+                {src.manual > 0 && <div style={{width:`${100-on}%`,background:GOLD}}/>}
+              </div>
+              <div style={{display:"flex",justifyContent:"space-between",gap:8,marginTop:8,fontSize:12,color:DIM,flexWrap:"wrap"}}>
+                <span><i style={{display:"inline-block",width:8,height:8,borderRadius:3,background:BLUE,marginRight:5}}/>Онлайн {src.online} · {on}%</span>
+                <span><i style={{display:"inline-block",width:8,height:8,borderRadius:3,background:GOLD,marginRight:5}}/>Вручну {src.manual} · {100-on}%</span>
+              </div>
+            </Card>
+          );
+        })()}
+
+        {/* ── ЗАЙНЯТІСТЬ: теплокарта день × година ── */}
+        {secEff === "load" && (
+          <Card className="fu" style={{padding:"12px 13px"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:9}}>
+              <div style={secTitle}>Зайнятість по годинах</div>
+              {loadOne != null && <div style={{fontSize:12,fontWeight:800,color:loadOne >= 75 ? GREEN : loadOne >= 40 ? GOLD : RED}}>{loadOne}% годин зайнято</div>}
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:`22px repeat(${hm.hours.length},minmax(0,1fr))`,gap:2,fontSize:10,color:DIM,marginBottom:2}}>
+              <span/>
+              {hm.hours.map((h, i) => <span key={h} style={{textAlign:"center"}}>{i % 2 === 0 ? h : ""}</span>)}
+            </div>
+            {hm.grid.map((row, d) => (
+              <div key={d} style={{display:"grid",gridTemplateColumns:`22px repeat(${hm.hours.length},minmax(0,1fr))`,gap:2,marginTop:2,alignItems:"center"}}>
+                <span style={{fontSize:11,color:DIM,fontWeight:700}}>{DOW[d]}</span>
+                {row.map((v, i) => (
+                  <div key={i} title={`${DOW[d]} ${hm.hours[i]}:00 — ${v}`} style={{height:16,borderRadius:3,
+                    background: v ? `color-mix(in srgb,${ACCENT} ${Math.round(15 + (v / hm.max) * 80)}%,transparent)` : BG_DEEP}}/>
+                ))}
+              </div>
+            ))}
+            {!hmHasData && <div style={{fontSize:12,color:DIM,marginTop:9,textAlign:"center"}}>За цей період записів немає</div>}
+            {quiet && (
+              <div style={{marginTop:10,padding:"8px 10px",borderRadius:10,background:`${GOLD}1a`,fontSize:12,color:`color-mix(in srgb,${GOLD} 60%,#fff)`,lineHeight:1.4}}>
+                {`Найбільше вільного часу в ${DOW_LONG[quiet.d]} з ${quiet.h}:00 до ${quiet.h + 2}:00 — можна дати знижку на ці години.`}
+              </div>
+            )}
+          </Card>
+        )}
 
         {/* ── ПОПУЛЯРНІ СЛОТИ ── */}
-        {popularSlots.length > 0 && (
+        {secEff === "load" && popularSlots.length > 0 && (
           <Card className="fu" style={{
             padding:"12px 13px",
             background:`color-mix(in srgb,${GOLD} 18%,transparent)`,backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",
@@ -762,8 +899,80 @@ export default function StatsView() {
           </Card>
         )}
 
+        {/* ── СКАСУВАННЯ І НЕЯВКИ ── */}
+        {secEff === "load" && (
+          <Card className="fu" style={{padding:"12px 13px"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",gap:8,marginBottom:9}}>
+              <div style={secTitle}>Скасування і неявки · {cancels.cancelled + cancels.noshow}</div>
+              {cancels.lost > 0 && <div style={{fontSize:12,fontWeight:800,color:RED,whiteSpace:"nowrap"}}>−{fmtK(cancels.lost)}</div>}
+            </div>
+            {cancels.cancelled + cancels.noshow === 0
+              ? <div style={{fontSize:12,color:DIM}}>Скасувань за цей період немає</div>
+              : (() => {
+                  const rows = [["Скасував клієнт", cancels.client], ["Скасував салон", cancels.salon], ["Не прийшов", cancels.noshow], ["Система (оплата, ліцензія)", cancels.system]].filter(([, n]) => n > 0);
+                  const mx = Math.max(...rows.map(([, n]) => n));
+                  return rows.map(([l, n]) => (
+                    <div key={l} style={{display:"flex",alignItems:"center",gap:8,padding:"4px 0"}}>
+                      <span style={{flex:1,minWidth:0,fontSize:12.5,color:TEXT}}>{l}</span>
+                      <div style={{width:"34%",height:6,borderRadius:3,background:BG_DEEP,boxShadow:SI,overflow:"hidden"}}><div style={{height:"100%",width:`${(n/mx)*100}%`,background:GOLD,borderRadius:3}}/></div>
+                      <span style={{width:22,textAlign:"right",fontSize:12.5,fontWeight:800,color:TEXT}}>{n}</span>
+                    </div>
+                  ));
+                })()}
+          </Card>
+        )}
+
+        {/* ── КЛІЄНТИ: нові / постійні / інтервал ── */}
+        {secEff === "clients" && (
+          <Card className="fu" style={{padding:"12px 13px"}}>
+            <div style={{...secTitle,marginBottom:9}}>Клієнти за період · {clients.total}</div>
+            {clients.total > 0 && (
+              <>
+                <div style={{display:"flex",height:10,borderRadius:99,overflow:"hidden",gap:2}}>
+                  {clients.fresh > 0 && <div style={{width:`${(clients.fresh/clients.total)*100}%`,background:GREEN}}/>}
+                  {clients.regular > 0 && <div style={{width:`${(clients.regular/clients.total)*100}%`,background:BLUE}}/>}
+                </div>
+                <div style={{display:"flex",justifyContent:"space-between",marginTop:8,fontSize:12,color:DIM}}>
+                  <span><i style={{display:"inline-block",width:8,height:8,borderRadius:3,background:GREEN,marginRight:5}}/>Нові {clients.fresh}</span>
+                  <span><i style={{display:"inline-block",width:8,height:8,borderRadius:3,background:BLUE,marginRight:5}}/>Постійні {clients.regular}</span>
+                </div>
+              </>
+            )}
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7,marginTop:10}}>
+              {miniTile(clients.avgGap == null ? "—" : `${clients.avgGap} дн.`, "між записами")}
+              {miniTile(clients.sleeping.length, "давно не були", clients.sleeping.length ? GOLD : TEXT)}
+            </div>
+          </Card>
+        )}
+
+        {/* ── «СПЛЯЧІ» КЛІЄНТИ ── */}
+        {secEff === "clients" && clients.sleeping.length > 0 && (
+          <Card className="fu" style={{padding:"12px 13px 6px"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",gap:8}}>
+              <div style={secTitle}>Давно не були</div>
+              {clients.sleeping.length > 5 && (
+                <button onClick={()=>setSleepAll(v=>!v)} style={{border:"none",background:"transparent",color:BLUE,fontFamily:"inherit",fontSize:12,fontWeight:700,cursor:"pointer",minHeight:32}}>
+                  {sleepAll ? "Згорнути" : `Усі ${clients.sleeping.length}`}
+                </button>
+              )}
+            </div>
+            <div style={{fontSize:11,color:DIM,margin:"2px 0 6px"}}>Останній запис понад 60 днів тому, нових немає</div>
+            {(sleepAll ? clients.sleeping : clients.sleeping.slice(0, 5)).map(c => (
+              <div key={c.uid} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderTop:`1px solid ${BORDER}`}}>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:13,fontWeight:700,color:TEXT,overflowWrap:"anywhere"}}>{c.name}</div>
+                  <div style={{fontSize:11,color:DIM}}>{`${c.days} дн. тому · записів ${c.visits} · ${fmtDate(c.last)}`}</div>
+                </div>
+                {onViewStudent && (
+                  <button onClick={()=>onViewStudent(c.uid)} style={{flexShrink:0,minHeight:36,padding:"0 12px",borderRadius:10,border:`1px solid ${BLUE}66`,background:`${BLUE}1f`,color:`color-mix(in srgb,${BLUE} 60%,#fff)`,fontFamily:"inherit",fontSize:12,fontWeight:800,cursor:"pointer"}}>Відкрити</button>
+                )}
+              </div>
+            ))}
+          </Card>
+        )}
+
         {/* ── ТОП-5 ── */}
-        {topStudents.length > 0 && (
+        {secEff === "clients" && topStudents.length > 0 && (
           <Card className="fu" style={{padding:"12px 13px 8px"}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
               <div style={{fontSize:11,color:FAINT,letterSpacing:1,textTransform:"uppercase",fontWeight:700}}>Топ-5 клієнтів</div>
@@ -817,6 +1026,37 @@ export default function StatsView() {
                       : <><div style={{fontSize:12,fontWeight:800,color:GOLD}}>{fmtK(s.paid)}</div><div style={{fontSize:11,color:FAINT}}>{s.hours} год</div></>
                     }
                   </div>
+                </div>
+              );
+            })}
+          </Card>
+        )}
+
+        {/* ── ПОСЛУГИ ── */}
+        {secEff === "clients" && svcRows.length > 0 && (
+          <Card className="fu" style={{padding:"12px 13px"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+              <div style={secTitle}>Послуги</div>
+              <div style={{display:"flex",gap:5}}>
+                {[["sum","₴"],["n","к-сть"]].map(([k,l])=>(
+                  <button key={k} onClick={()=>setSvcBy(k)} style={{
+                    minWidth:36, padding:"7px 11px", borderRadius:8, border:"none", cursor:"pointer", fontSize:11, fontWeight:700, fontFamily:"inherit",
+                    background:svcBy===k?GOLD:`linear-gradient(145deg,${SURF_HI},${SURFACE})`, color:svcBy===k?"#1a1a1a":TEXT, boxShadow:SO,
+                  }}>{l}</button>
+                ))}
+              </div>
+            </div>
+            {svcRows.map(v => {
+              const mx = svcBy === "n" ? svcRows[0].n : svcRows[0].sum;
+              const val = svcBy === "n" ? v.n : v.sum;
+              return (
+                <div key={v.name} style={{padding:"5px 0"}}>
+                  <div style={{display:"flex",gap:8,fontSize:12.5}}>
+                    <span style={{flex:1,minWidth:0,color:TEXT,overflowWrap:"anywhere"}}>{v.name}</span>
+                    <span style={{color:DIM}}>{v.n}×</span>
+                    <span style={{fontWeight:800,color:TEXT,minWidth:58,textAlign:"right"}}>{fmtK(v.sum)}</span>
+                  </div>
+                  <div style={{height:4,borderRadius:2,background:BG_DEEP,marginTop:4,overflow:"hidden"}}><div style={{height:"100%",width:`${mx ? (val/mx)*100 : 0}%`,background:ACCENT,borderRadius:2}}/></div>
                 </div>
               );
             })}
