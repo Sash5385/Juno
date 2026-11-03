@@ -265,7 +265,7 @@ function BottomNav({ active, onChange, settings, chatUnread, journalUnread }) {
   return (
     <div id="app-bottomnav" style={{
       flexShrink:0,
-      padding:`0 12px calc(5px + env(safe-area-inset-bottom, 0px))`,
+      padding:`6px 12px calc(5px + env(safe-area-inset-bottom, 0px))`,
       background: isKava ? "#d4ba96" : "transparent",
       borderTop:`1px solid ${isKava ? theme.BORDER : "rgba(255,255,255,0.14)"}`,
       borderRadius:"16px 16px 0 0",

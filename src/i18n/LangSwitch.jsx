@@ -1,5 +1,8 @@
 import { useContext, useEffect, useRef, useState } from 'react'
 import { LANGS, LANG_NAMES, getLang, setLang } from './index.js'
+
+// Код мови для показу: uk → UA (як у DrivePad), решта — великими літерами
+const langCode = (l) => (l === 'uk' ? 'UA' : l.toUpperCase())
 import { ThemeContext } from '../theme.js'
 
 // Перемикач мови інтерфейсу у стилі «Туман»: компактна кнопка + випадаючий список.
@@ -56,7 +59,7 @@ export default function LangSwitch({ style }) {
         }}
       >
         <span aria-hidden="true">🌐</span>
-        <span>{cur.toUpperCase()}</span>
+        <span>{langCode(cur)}</span>
         <span aria-hidden="true" style={{ fontSize: 8, opacity: 0.7, transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }}>▼</span>
       </button>
       {open && (
@@ -89,7 +92,7 @@ export default function LangSwitch({ style }) {
                     background: on ? `${accent}26` : 'transparent',
                   }}
                 >
-                  <span style={{ width: 22, fontSize: 11, fontWeight: 800, opacity: 0.6 }}>{l.toUpperCase()}</span>
+                  <span style={{ width: 22, fontSize: 11, fontWeight: 800, opacity: 0.6 }}>{langCode(l)}</span>
                   <span style={{ flex: 1 }}>{LANG_NAMES[l]}</span>
                   <span aria-hidden="true" style={{ width: 16, textAlign: 'center', fontWeight: 800 }}>{on ? '✓' : ''}</span>
                 </button>
