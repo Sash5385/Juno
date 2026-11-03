@@ -577,7 +577,7 @@ function ViewRenderer({ allMode, staffList, onPickMaster, ws, onWs, masterKey, s
   if (tab === "services")  return <ServicesView/>;
   if (tab === "chats")     return <ChatsView/>;
   if (tab === "templates") return <TemplatesView/>;
-  if (tab === "stats")     return <StatsView onViewStudent={onViewStudent}/>;
+  if (tab === "stats")     return <StatsView onViewStudent={onViewStudent} direction={settings.direction}/>;
   if (tab === "journal")   return <JournalView/>;
   return null;
 }

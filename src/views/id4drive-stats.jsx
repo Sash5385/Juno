@@ -9,7 +9,8 @@ import { ThemeContext } from "../theme.js";
 import { UICss, Card, useFX, ScrollChips } from "../ui";
 import { bookingAddonTotals } from "../addons";
 import { hasOwnSchedule } from "../masterSettings";
-import { periodDates, utilization, cancelStats, sources, clientStats, serviceStats, heatmap, quietestSlot } from "./stats-extra";
+import { periodDates, utilization, cancelStats, sources, clientStats, serviceStats, heatmap, quietestSlot, attendance, cohorts, courseStats, packageStats } from "./stats-extra";
+import { normDirection } from "../terms";
 
 const UK_MONTHS     = ["Січ","Лют","Бер","Кві","Тра","Чер","Лип","Сер","Вер","Жов","Лис","Гру"];
 const UK_WEEK_LABELS= ["Пн","Вт","Ср","Чт","Пт","Сб"];
@@ -227,8 +228,9 @@ const Chip = ({label, active, onClick, color}) => {
 };
 
 // ─── MAIN ────────────────────────────────────────────────────────
-export default function StatsView({ onViewStudent } = {}) {
-  const { BG_DEEP, SURFACE, SURF_HI, BORDER, TEXT, DIM, FAINT, ACCENT, ACC_HI, GREEN, BLUE, PURPLE, GOLD, RED, SO, SI } = useContext(ThemeContext);
+export default function StatsView({ onViewStudent, direction } = {}) {
+  const { BG_DEEP, SURFACE, SURF_HI, BORDER, TEXT, DIM, FAINT, ACCENT, ACC_HI, GREEN, BLUE, PURPLE, GOLD, RED, TEAL, SO, SI } = useContext(ThemeContext);
+  const TEAL_C = TEAL || GREEN;
   const lang = useContext(LangContext);
   const t = createT(lang);
   const [period,     setPeriod]    = useState("month");
@@ -253,6 +255,7 @@ export default function StatsView({ onViewStudent } = {}) {
   const [masterSet,   setMasterSet]   = useState({});         // master_settings: власні графіки майстрів
   const [svcBy,       setSvcBy]       = useState("sum");
   const [sleepAll,    setSleepAll]    = useState(false);
+  const [users,       setUsers]       = useState({});         // users/{uid}: пакети клієнтів
 
   const css = `
 @keyframes bar-grow{from{height:0%}to{height:var(--h)}}
@@ -294,6 +297,7 @@ export default function StatsView({ onViewStudent } = {}) {
 
   useEffect(() => onValue(iRef("admin_settings/weekSchedule"), snap => setWeekSchedule(Array.isArray(snap.val()) ? snap.val() : null), () => {}), []);
   useEffect(() => onValue(iRef("master_settings"), snap => setMasterSet(snap.val() || {}), () => {}), []);
+  useEffect(() => onValue(iRef("users"), snap => setUsers(snap.val() || {}), () => {}), []);
 
   useEffect(() => {
     get(iRef( "admin_settings/incomeGoal")).then(s => { if (s.exists()) setIncomeGoal(s.val() || 0); }).catch(() => {});
@@ -351,7 +355,16 @@ export default function StatsView({ onViewStudent } = {}) {
   const cancels  = cancelStats(periodBookings, incomeOf);
   const prevCancels = period === "custom" ? null : cancelStats(filterByPeriod(bookings, prevData, period), incomeOf);
   const src      = sources(periodBookings);
-  const clients  = clientStats(bookings, periodBookings, todayStr);
+  // Напрямок послуг: набір показників (слова підміняє terms.js)
+  const dir      = normDirection(direction);
+  const sleepDays = dir === "education" ? 14 : dir === "consult" ? 30 : 60;
+  const clients  = clientStats(bookings, periodBookings, todayStr, sleepDays);
+  const sleepList = dir === "consult" ? clients.sleeping.filter(c => c.visits >= 2) : clients.sleeping;
+  const showName = (n) => dir === "consult" ? String(n || "").split(/\s+/).filter(Boolean).map(w => w[0].toUpperCase() + ".").join("") || "—" : n;
+  const att      = attendance(periodBookings, todayStr);
+  const coh      = dir === "education" ? cohorts(bookings, todayStr) : null;
+  const course   = dir === "consult" ? courseStats(bookings, todayStr) : null;
+  const pk       = packageStats(users, pDates);
   const svcRows  = serviceStats(periodBookings, services, incomeOf).sort((a, b) => svcBy === "n" ? b.n - a.n : b.sum - a.sum).slice(0, 6);
   const avgCheck = totalLessons ? Math.round(totalIncome / totalLessons) : 0;
   const prevAvg  = prev.lessons ? Math.round(prev.income / prev.lessons) : 0;
@@ -651,11 +664,24 @@ export default function StatsView({ onViewStudent } = {}) {
         {/* ── KPI: середній чек, нові клієнти, скасування ── */}
         {secEff === "overview" && (
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:7}}>
-            {[
-              {label:"Сер. чек", value:fmtK(avgCheck),     trend:trendPct(avgCheck, prevAvg), good:true},
-              {label:"Нові", value:clients.fresh,     sub:`з ${clients.total} клієнтів`},
-              {label:"Скасовано",   value:`${cancels.pct}%`, trend:prevCancels ? cancels.pct - prevCancels.pct : null, good:false, pp:true},
-            ].map((k, i) => (
+            {(() => {
+              const kAvg   = {label:"Сер. чек", value:fmtK(avgCheck), trend:trendPct(avgCheck, prevAvg), good:true};
+              const kNew   = {label:"Нові", value:clients.fresh, sub:`з ${clients.total} клієнтів`};
+              const kCanc  = {label:"Скасовано", value:`${cancels.pct}%`, trend:prevCancels ? cancels.pct - prevCancels.pct : null, good:false, pp:true};
+              const noshowPct = cancels.total ? Math.round((cancels.noshow / cancels.total) * 100) : 0;
+              const prevNoshowPct = prevCancels && prevCancels.total ? Math.round((prevCancels.noshow / prevCancels.total) * 100) : null;
+              if (dir === "education") return [
+                {label:"Явка", value:att.pct == null ? "—" : `${att.pct}%`, sub:att.missed ? `пропусків ${att.missed}` : null},
+                kNew,
+                kAvg,
+              ];
+              if (dir === "consult") return [
+                {label:"Неявки", value:`${noshowPct}%`, trend:prevNoshowPct == null ? null : noshowPct - prevNoshowPct, good:false, pp:true},
+                kNew,
+                kAvg,
+              ];
+              return [kAvg, kNew, kCanc];
+            })().map((k, i) => (
               <Card key={i} className="fu" style={{padding:"10px 9px",textAlign:"center"}}>
                 <div style={{fontSize:10.5,color:DIM,letterSpacing:0.3,textTransform:"uppercase",fontWeight:600,marginBottom:6,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{k.label}</div>
                 <div style={{fontSize:"min(19px,4.3vw)",fontWeight:800,color:TEXT,lineHeight:1.05,whiteSpace:"nowrap"}}>{k.value}</div>
@@ -899,8 +925,8 @@ export default function StatsView({ onViewStudent } = {}) {
           </Card>
         )}
 
-        {/* ── СКАСУВАННЯ І НЕЯВКИ ── */}
-        {secEff === "load" && (
+        {/* ── СКАСУВАННЯ І НЕЯВКИ (консультації — ще й в огляді: неявки там головний показник) ── */}
+        {(secEff === "load" || (secEff === "overview" && dir === "consult")) && (
           <Card className="fu" style={{padding:"12px 13px"}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",gap:8,marginBottom:9}}>
               <div style={secTitle}>Скасування і неявки · {cancels.cancelled + cancels.noshow}</div>
@@ -940,31 +966,89 @@ export default function StatsView({ onViewStudent } = {}) {
             )}
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7,marginTop:10}}>
               {miniTile(clients.avgGap == null ? "—" : `${clients.avgGap} дн.`, "між записами")}
-              {miniTile(clients.sleeping.length, "давно не були", clients.sleeping.length ? GOLD : TEXT)}
+              {miniTile(sleepList.length, dir === "consult" ? "перервали курс" : "давно не були", sleepList.length ? GOLD : TEXT)}
             </div>
           </Card>
         )}
 
         {/* ── «СПЛЯЧІ» КЛІЄНТИ ── */}
-        {secEff === "clients" && clients.sleeping.length > 0 && (
+        {secEff === "clients" && sleepList.length > 0 && (
           <Card className="fu" style={{padding:"12px 13px 6px"}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",gap:8}}>
-              <div style={secTitle}>Давно не були</div>
-              {clients.sleeping.length > 5 && (
+              <div style={secTitle}>{dir === "consult" ? "Перервали курс" : "Давно не були"}</div>
+              {sleepList.length > 5 && (
                 <button onClick={()=>setSleepAll(v=>!v)} style={{border:"none",background:"transparent",color:BLUE,fontFamily:"inherit",fontSize:12,fontWeight:700,cursor:"pointer",minHeight:32}}>
-                  {sleepAll ? "Згорнути" : `Усі ${clients.sleeping.length}`}
+                  {sleepAll ? "Згорнути" : `Усі ${sleepList.length}`}
                 </button>
               )}
             </div>
-            <div style={{fontSize:11,color:DIM,margin:"2px 0 6px"}}>Останній запис понад 60 днів тому, нових немає</div>
-            {(sleepAll ? clients.sleeping : clients.sleeping.slice(0, 5)).map(c => (
+            <div style={{fontSize:11,color:DIM,margin:"2px 0 6px"}}>{dir === "consult" ? `Мали 2+ записи, нових немає понад ${sleepDays} днів` : `Останній запис понад ${sleepDays} днів тому, нових немає`}</div>
+            {(sleepAll ? sleepList : sleepList.slice(0, 5)).map(c => (
               <div key={c.uid} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderTop:`1px solid ${BORDER}`}}>
                 <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontSize:13,fontWeight:700,color:TEXT,overflowWrap:"anywhere"}}>{c.name}</div>
+                  <div data-notrans={dir === "consult" ? "1" : undefined} style={{fontSize:13,fontWeight:700,color:TEXT,overflowWrap:"anywhere"}}>{showName(c.name)}</div>
                   <div style={{fontSize:11,color:DIM}}>{`${c.days} дн. тому · записів ${c.visits} · ${fmtDate(c.last)}`}</div>
                 </div>
                 {onViewStudent && (
                   <button onClick={()=>onViewStudent(c.uid)} style={{flexShrink:0,minHeight:36,padding:"0 12px",borderRadius:10,border:`1px solid ${BLUE}66`,background:`${BLUE}1f`,color:`color-mix(in srgb,${BLUE} 60%,#fff)`,fontFamily:"inherit",fontSize:12,fontWeight:800,cursor:"pointer"}}>Відкрити</button>
+                )}
+              </div>
+            ))}
+          </Card>
+        )}
+
+        {/* ── НАВЧАННЯ: утримання по місяцях ── */}
+        {secEff === "clients" && coh && coh.some(c => c.total > 0) && (
+          <Card className="fu" style={{padding:"12px 13px"}}>
+            <div style={secTitle}>Утримання</div>
+            <div style={{fontSize:11,color:DIM,margin:"2px 0 8px"}}>Скільки клієнтів, що прийшли вперше в цьому місяці, ходять досі</div>
+            {coh.map(c => (
+              <div key={c.month} style={{display:"flex",alignItems:"center",gap:8,padding:"4px 0"}}>
+                <span style={{width:34,fontSize:12,color:DIM,fontWeight:700}}>{UK_MONTHS[c.month]}</span>
+                <div style={{flex:1,height:8,borderRadius:4,background:BG_DEEP,boxShadow:SI,overflow:"hidden"}}><div style={{height:"100%",width:`${c.pct || 0}%`,background:TEAL_C,borderRadius:4}}/></div>
+                <span style={{width:40,textAlign:"right",fontSize:12,fontWeight:800,color:TEXT}}>{c.pct == null ? "—" : `${c.pct}%`}</span>
+                <span style={{width:38,textAlign:"right",fontSize:11,color:DIM}}>{c.total ? `${c.kept}/${c.total}` : ""}</span>
+              </div>
+            ))}
+          </Card>
+        )}
+
+        {/* ── КОНСУЛЬТАЦІЇ: тривалість курсу ── */}
+        {secEff === "clients" && course && course.total > 0 && (
+          <Card className="fu" style={{padding:"12px 13px"}}>
+            <div style={{...secTitle,marginBottom:9}}>Тривалість курсу</div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7,marginBottom:10}}>
+              {miniTile(course.avg, "записів на клієнта", PURPLE)}
+              {miniTile(`${course.returned}%`, "повернулись після першого", course.returned >= 60 ? GREEN : GOLD)}
+            </div>
+            {(() => { const mx = Math.max(1, ...course.buckets.map(b => b.n)); return course.buckets.map(b => (
+              <div key={b.label} style={{display:"flex",alignItems:"center",gap:8,padding:"4px 0"}}>
+                <span style={{width:40,fontSize:12,color:DIM,fontWeight:700}}>{b.label}</span>
+                <div style={{flex:1,height:8,borderRadius:4,background:BG_DEEP,boxShadow:SI,overflow:"hidden"}}><div style={{height:"100%",width:`${(b.n/mx)*100}%`,background:PURPLE,borderRadius:4}}/></div>
+                <span style={{width:26,textAlign:"right",fontSize:12,fontWeight:800,color:TEXT}}>{b.n}</span>
+              </div>
+            )); })()}
+          </Card>
+        )}
+
+        {/* ── ПАКЕТИ (абонементи) ── */}
+        {secEff === "clients" && (pk.active > 0 || pk.sold > 0) && (
+          <Card className="fu" style={{padding:"12px 13px"}}>
+            <div style={{...secTitle,marginBottom:9}}>Пакети</div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:6}}>
+              {miniTile(pk.active, "активних")}
+              {miniTile(pk.sold, "продано", pk.sold ? GREEN : TEXT)}
+              {miniTile(pk.ending.length, "закінчуються", pk.ending.length ? GOLD : TEXT)}
+            </div>
+            {pk.soldSum > 0 && <div style={{fontSize:12,color:DIM,marginTop:8}}>{`Продано пакетів на ${fmtK(pk.soldSum)}`}</div>}
+            {pk.ending.slice(0, 5).map(e => (
+              <div key={e.uid + e.pkName} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderTop:`1px solid ${BORDER}`,marginTop:6}}>
+                <div style={{flex:1,minWidth:0}}>
+                  <div data-notrans={dir === "consult" ? "1" : undefined} style={{fontSize:13,fontWeight:700,color:TEXT,overflowWrap:"anywhere"}}>{showName(e.name)}</div>
+                  <div style={{fontSize:11,color:DIM}}>{`${e.pkName}: лишилось ${e.left} з ${e.total}`}</div>
+                </div>
+                {onViewStudent && (
+                  <button onClick={()=>onViewStudent(e.uid)} style={{flexShrink:0,minHeight:36,padding:"0 12px",borderRadius:10,border:`1px solid ${GOLD}66`,background:`${GOLD}1f`,color:`color-mix(in srgb,${GOLD} 60%,#fff)`,fontFamily:"inherit",fontSize:12,fontWeight:800,cursor:"pointer"}}>Відкрити</button>
                 )}
               </div>
             ))}

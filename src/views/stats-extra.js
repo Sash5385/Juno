@@ -159,3 +159,75 @@ export function quietestSlot(hm, week) {
   });
   return best;
 }
+
+// ── Етап 3: показники під напрямок ─────────────────────────────
+
+// Відвідуваність: минулі записи, що відбулись / (відбулись + не прийшов)
+export function attendance(periodBookings, todayStr) {
+  let came = 0, missed = 0;
+  periodBookings.forEach((b) => {
+    if (!b.date || b.date > todayStr) return;
+    if (isActive(b)) came++; else if ((b.status || "") === "noshow") missed++;
+  });
+  return { came, missed, pct: came + missed ? Math.round((came / (came + missed)) * 100) : null };
+}
+
+// Утримання: клієнти, що вперше прийшли в місяці, і скільки з них досі ходять (запис за останні 30 днів або наперед)
+export function cohorts(allBookings, todayStr, months = 4) {
+  const first = {}, last = {};
+  allBookings.forEach((b) => {
+    if (!isActive(b) || !b.date || !b._uid) return;
+    if (!first[b._uid] || b.date < first[b._uid]) first[b._uid] = b.date;
+    if (!last[b._uid] || b.date > last[b._uid]) last[b._uid] = b.date;
+  });
+  const t = new Date(todayStr + "T00:00:00");
+  const since = new Date(t); since.setDate(since.getDate() - 30);
+  const sinceStr = ymd(since);
+  const out = [];
+  for (let i = months - 1; i >= 0; i--) {
+    const d = new Date(t.getFullYear(), t.getMonth() - i, 1);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    const uids = Object.keys(first).filter((u) => first[u].slice(0, 7) === key);
+    const kept = uids.filter((u) => last[u] >= sinceStr).length;
+    out.push({ month: d.getMonth(), total: uids.length, kept, pct: uids.length ? Math.round((kept / uids.length) * 100) : null });
+  }
+  return out;
+}
+
+// Тривалість курсу: скільки минулих записів на клієнта, розподіл і частка тих, хто повернувся після першого
+export function courseStats(allBookings, todayStr) {
+  const dates = {};
+  allBookings.forEach((b) => { if (isActive(b) && b.date && b._uid && b.date <= todayStr) (dates[b._uid] ||= new Set()).add(b.date); });
+  const counts = Object.values(dates).map((s) => s.size).filter((n) => n > 0);
+  const total = counts.length;
+  const buckets = [["1", (n) => n === 1], ["2–4", (n) => n >= 2 && n <= 4], ["5–10", (n) => n >= 5 && n <= 10], ["10+", (n) => n > 10]]
+    .map(([label, f]) => ({ label, n: counts.filter(f).length }));
+  return {
+    total,
+    avg: total ? Math.round((counts.reduce((s, n) => s + n, 0) / total) * 10) / 10 : null,
+    returned: total ? Math.round((counts.filter((n) => n >= 2).length / total) * 100) : null,
+    buckets,
+  };
+}
+
+// Пакети (абонементи) клієнтів: users/{uid}/packages. Активні, продані за період, ті, що закінчуються (≤ 2 записи)
+export function packageStats(users, dates, nowMs = Date.now()) {
+  const set = new Set(dates);
+  const r = { active: 0, sold: 0, soldSum: 0, ending: [] };
+  Object.entries(users || {}).forEach(([uid, u]) => {
+    const raw = u && u.packages;
+    const list = Array.isArray(raw) ? raw : raw && typeof raw === "object" ? Object.values(raw) : [];
+    list.forEach((p) => {
+      if (!p || typeof p !== "object" || !p.id) return;
+      const total = Math.max(0, Math.round(Number(p.total) || 0));
+      const left = Math.max(0, total - Object.keys(p.uses || {}).length);
+      const expired = p.expiresAt && Number(p.expiresAt) < nowMs;
+      if (p.createdAt && set.has(ymd(new Date(Number(p.createdAt))))) { r.sold++; r.soldSum += Math.max(0, Number(p.price) || 0); }
+      if (left <= 0 || expired) return;
+      r.active++;
+      if (left <= 2) r.ending.push({ uid, name: (u.profile && u.profile.name) || u.name || "Клієнт", left, total, pkName: String(p.name || "Пакет") });
+    });
+  });
+  r.ending.sort((a, b) => a.left - b.left);
+  return r;
+}
