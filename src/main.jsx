@@ -1,17 +1,17 @@
-import { StrictMode, lazy, Suspense } from 'react'
+import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
-import { SALON_MODE } from './salon/env.js'
 import { initErrorReporter } from './errorReporter.js'
+import { initI18n } from './i18n/index.js'
+import { startLangSync } from './i18n/syncLang.js'
 
 initErrorReporter()
-
-// Режим салону (src/salon, VITE_APP_MODE=salon або ?app=salon) — окремий чанк; без нього нічого не змінюється
-const SalonApp = SALON_MODE ? lazy(() => import('./salon/index.jsx')) : null
+initI18n()
+startLangSync()
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    {SalonApp ? <Suspense fallback={null}><SalonApp /></Suspense> : <App />}
+    <App />
   </StrictMode>,
 )

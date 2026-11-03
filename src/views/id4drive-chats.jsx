@@ -1,14 +1,18 @@
 import { useState, useRef, useEffect, useCallback, useContext } from "react";
-import { onValue, push, update, set, increment, remove } from "firebase/database";
-import { iRef } from "../firebase";
+import { onValue, push, update, set, increment, remove, get } from "firebase/database";
+import { iRef, auth, isMasterSession, watchChatMeta, watchChatMetaM } from "../firebase";
 import { LangContext } from "../App";
 
 import { ThemeContext } from "../theme.js";
 import { UICss, useFX } from "../ui";
 
-const QUICK = ["Підтверджую урок ✅","Урок скасовано ❌","Нагадую: завтра","Будь ласка, підтвердіть","До зустрічі 👋"];
+const QUICK = ["Підтверджую запис ✅","Запис скасовано ❌","Нагадую: завтра","Будь ласка, підтвердіть","До зустрічі 👋"];
 const HUES = [160, 220, 30, 280, 340, 200, 40, 300, 100, 180];
 const hueForUid = (uid) => HUES[(uid || "").charCodeAt(0) % HUES.length];
+// Тред чату: "" = «Салон» (chats/{uid}, власник), інакше id майстра (chats_m/{mid}/{uid}). Ключ повідомлень/непрочитаних: uid або "mid/uid".
+const tKey = (uid, tk) => tk ? `${tk}/${uid}` : uid;
+const chatPath = (uid, tk) => tk ? `chats_m/${tk}/${uid}` : `chats/${uid}`;
+const metaPath = (uid, tk) => tk ? `chatMeta_m/${tk}/${uid}` : `chatMeta/${uid}`;
 const nowTime = () => new Date().toLocaleTimeString("uk", {hour:"2-digit", minute:"2-digit"});
 
 // ─── AVATAR ──────────────────────────────────────────────────────
@@ -24,9 +28,9 @@ const Ava = ({ name, hue, size=36, online, isBroadcast }) => {
   return (
     <div style={{position:"relative",flexShrink:0}}>
       <div style={{width:size,height:size,borderRadius:size/2,
-        background:`linear-gradient(145deg,hsl(${hue},60%,44%),hsl(${(hue+35)%360},70%,28%))`,
+        background:`linear-gradient(145deg,hsl(${hue},60%,27%),hsl(${(hue+35)%360},70%,18%))`,
         display:"flex",alignItems:"center",justifyContent:"center",
-        fontSize:size*.3,fontWeight:800,color:"#fff",
+        fontSize:Math.max(11,size*.3),fontWeight:800,color:"#fff",
         boxShadow:`0 2px 8px hsla(${hue},50%,30%,.5)`}}>{ini}</div>
       {online && <div style={{position:"absolute",bottom:1,right:1,width:9,height:9,borderRadius:5,background:GREEN,border:`2px solid ${BG}`}}/>}
     </div>
@@ -69,7 +73,7 @@ function Conversation({ contact, messages, onSend, isBroadcast }) {
       {isBroadcast && (
         <div style={{padding:"8px 12px",background:"rgba(168,85,247,0.06)",borderBottom:`1px solid ${borderCol}`}}>
           <div style={{fontSize:11,color:"rgba(168,85,247,0.9)",fontWeight:700,letterSpacing:0.3}}>
-            📢 Повідомлення отримають усі учні
+            📢 Повідомлення отримають усі клієнти
           </div>
         </div>
       )}
@@ -80,15 +84,16 @@ function Conversation({ contact, messages, onSend, isBroadcast }) {
         {(messages||[]).map(m => {
           if (m.type==="sys") return (
             <div key={m.id} style={{display:"flex",justifyContent:"center",padding:"2px 0"}}>
-              <span className="bubble-sys msg-in" style={{padding:"4px 12px",fontSize:10,color:DIM}}>{m.text}</span>
+              <span className="bubble-sys msg-in" style={{padding:"4px 12px",fontSize:11,color:DIM}}>{m.text}</span>
             </div>
           );
           const isMe = m.from==="admin";
           return (
             <div key={m.id} className="msg-in" style={{display:"flex",justifyContent:isMe?"flex-end":"flex-start",padding:"1px 10px"}}>
               <div className={isMe?(m.broadcast?"bubble-broadcast":"bubble-out"):"bubble-in"} style={{maxWidth:"72%",padding:"8px 12px"}}>
+                {isMe && m.senderName && !m.broadcast && <div style={{fontSize:10,fontWeight:700,color:"rgba(255,255,255,0.75)",marginBottom:2}}>{m.senderName}</div>}
                 <div style={{fontSize:13,color:isMe?"#fff":TEXT,lineHeight:1.4,wordBreak:"break-word"}}>{m.text}</div>
-                <div style={{fontSize:9,color:isMe?"rgba(255,255,255,0.5)":FAINT,marginTop:3,textAlign:"right"}}>{m.time}</div>
+                <div style={{fontSize:11,color:isMe?"rgba(255,255,255,0.75)":FAINT,marginTop:3,textAlign:"right"}}>{m.time}</div>
               </div>
             </div>
           );
@@ -109,11 +114,11 @@ function Conversation({ contact, messages, onSend, isBroadcast }) {
       )}
 
       <div style={{padding:"8px 10px",borderTop:`1px solid ${borderCol}`,background:SURF_LO,display:"flex",alignItems:"flex-end",gap:7}}>
-        <button onClick={()=>setQuick(v=>!v)} style={{background:"none",border:"none",cursor:"pointer",color:quick?GOLD:FAINT,fontSize:16,padding:"4px",flexShrink:0}}>⚡</button>
+        <button onClick={()=>setQuick(v=>!v)} aria-label="Швидкі відповіді" style={{background:"none",border:"none",cursor:"pointer",color:quick?GOLD:FAINT,fontSize:16,width:32,height:32,padding:0,flexShrink:0}}>⚡</button>
         <div style={{flex:1,background:BG_DEEP,borderRadius:11,boxShadow:SI,padding:"8px 12px",display:"flex",alignItems:"flex-end",gap:8}}>
           <textarea ref={taRef} className="msg-input" value={text} onChange={e=>setText(e.target.value)}
             onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send();}}}
-            placeholder={isBroadcast?"Повідомлення всім учням…":"Повідомлення…"} rows={1}/>
+            placeholder={isBroadcast?"Повідомлення всім клієнтам…":"Повідомлення…"} rows={1}/>
           <button onClick={send} disabled={!text.trim()} style={{
             width:32,height:32,borderRadius:8,border:"none",flexShrink:0,
             cursor:text.trim()?"pointer":"default",
@@ -133,11 +138,10 @@ function Conversation({ contact, messages, onSend, isBroadcast }) {
 
 // ─── MAIN ────────────────────────────────────────────────────────
 const BROADCAST_ID = "__broadcast__";
-const GENERAL_ID   = "__general__";
 
 export default function ChatsView() {
-  const { BG, BG_DEEP, SURFACE, SURF_HI, SURF_LO, BORDER, TEXT, DIM, FAINT, ACCENT, SO, SI } = useContext(ThemeContext);
-  const { shade, glow, ink } = useFX();
+  const { SURFACE, SURF_HI, BORDER, TEXT, DIM, FAINT, ACCENT, SO, BTN_TX } = useContext(ThemeContext);
+  const { shade, ink } = useFX();
 
   const css = `
 .bubble-out{
@@ -175,14 +179,62 @@ export default function ChatsView() {
 
   const [contacts,      setContacts]      = useState([]);
   const [messages,      setMessages]      = useState({});
-  const [generalMsgs,   setGeneralMsgs]   = useState([]);
   const [broadcastMsgs, setBroadcastMsgs] = useState([]);
   const [openId,        setOpenId]        = useState(null);
   const [search,      setSearch]      = useState("");
   const [deletingId,  setDeletingId]  = useState(null);
   const [loading,     setLoading]     = useState(true);
   const [unreadMeta,  setUnreadMeta]  = useState({});
+  // Салон із кількома майстрами: треди клієнта з майстрами (chats_m). threadMsgs/unreadM — за ключем "mid/uid".
+  const [threadMsgs,  setThreadMsgs]  = useState({});
+  const [unreadM,     setUnreadM]     = useState({});
+  const [mcMap,       setMcMap]       = useState({});      // власник: masterClients { mid: { uid: true } }
+  const [staffNames,  setStaffNames]  = useState({});      // { mid: ім'я }
+  const [ownerName,   setOwnerName]   = useState("");
+  const [filterTk,    setFilterTk]    = useState("");      // власник: "" = усі, інакше id майстра
+  const [pickedTk,    setPickedTk]    = useState({});      // { uid: обраний тред }
+  const threadUnsubs = useRef({});
   const msgUnsubs = useRef({});
+  // Майстер салону: бачить лише чати зі своїми клієнтами (masterClients), без розсилки і видалення чатів
+  const isMaster = isMasterSession();
+  const myUid = auth.currentUser?.uid || "";
+  const [myName, setMyName] = useState("");
+  const [myClients, setMyClients] = useState(null);
+  const [err, setErr] = useState("");
+  const errTimer = useRef(null);
+  const showErr = (m) => { setErr(m); clearTimeout(errTimer.current); errTimer.current = setTimeout(() => setErr(""), 6000); };
+  useEffect(() => () => clearTimeout(errTimer.current), []);
+  useEffect(() => {
+    if (!isMaster || !myUid) return undefined;
+    get(iRef(`staff/${myUid}/name`)).then(sn => setMyName(String(sn.val() || ""))).catch(() => {});
+    return onValue(iRef(`masterClients/${myUid}`), sn => setMyClients(new Set(Object.keys(sn.val() || {}))),
+      () => { setMyClients(new Set()); showErr("Немає доступу до чатів. Спробуйте перезайти."); });
+  }, [isMaster, myUid]);
+
+  // Власник: індекс masterClients (хто з майстрами має запис) + імена майстрів. Майстер: його тред — завжди chats_m/{його uid}/{клієнт}.
+  useEffect(() => {
+    if (isMaster || !myUid) return undefined;
+    get(iRef("admin_settings/profile/name")).then(sn => setOwnerName(String(sn.val() || ""))).catch(() => {});
+    const u1 = onValue(iRef("masterClients"), sn => setMcMap(sn.val() || {}), () => {});
+    const u2 = onValue(iRef("staff"), sn => {
+      const n = {}; Object.entries(sn.val() || {}).forEach(([id, v]) => { if (v && v.name) n[id] = String(v.name); });
+      setStaffNames(n);
+    }, () => {});
+    return () => { u1(); u2(); };
+  }, [isMaster, myUid]);
+  const mcPairs = isMaster
+    ? [...(myClients || [])].map(uid => [myUid, uid])
+    : Object.entries(mcMap).flatMap(([mid, byUid]) => Object.keys(byUid || {}).map(uid => [mid, uid]));
+  const mcKey = mcPairs.map(p => p.join("/")).join(",");
+  const masterIds = isMaster ? [] : Object.keys(mcMap).filter(mid => Object.keys(mcMap[mid] || {}).length);
+  // Треди клієнта: власник — «Салон» + кожен майстер, у якого є запис; майстер — лише свій
+  const threadsOf = (uid) => isMaster ? [myUid] : ["", ...masterIds.filter(mid => mcMap[mid]?.[uid])];
+  const threadName = (tk) => tk ? (staffNames[tk] || "Майстер") : "Салон";
+  const defaultTk = (uid) => isMaster ? myUid : (pickedTk[uid] ?? (filterTk && mcMap[filterTk]?.[uid] ? filterTk : ""));
+  const unreadOf = (uid, tk) => tk ? (unreadM[tKey(uid, tk)] || 0) : (unreadMeta[uid] || 0);
+  // Непрочитані клієнта: за фільтром — лише тред цього майстра, інакше сума всіх тредів
+  const unreadRow = (uid) => filterTk ? unreadOf(uid, filterTk)
+    : threadsOf(uid).reduce((s, tk) => s + unreadOf(uid, tk), 0);
 
   // Лічильник непрочитаних — з chatMeta/{uid}/unreadForAdmin (той самий
   // authoritative-джерело, що й бейдж у BottomNav). Раніше рахували локально
@@ -191,20 +243,26 @@ export default function ChatsView() {
   // тому перевірка "чат зараз відкритий" майже завжди була хибною, і бейдж
   // міг знову з'явитись navіть під час читання чату.
   useEffect(() => {
-    const unsub = onValue(iRef( "chatMeta"), snap => {
-      const data = snap.val() || {};
+    const unsub = watchChatMeta(data => {
       const map = {};
       Object.entries(data).forEach(([uid, m]) => { map[uid] = m?.unreadForAdmin || 0; });
       setUnreadMeta(map);
-    });
-    return unsub;
+    }, () => {});
+    const unsubM = watchChatMetaM(data => {
+      const map = {};
+      Object.entries(data).forEach(([k, m]) => { map[k] = m?.unreadForAdmin || 0; });
+      setUnreadM(map);
+    }, () => {});
+    return () => { unsub(); unsubM(); };
   }, []);
 
   // ── Load students ─────────────────────────────────────────────
   useEffect(() => {
+    if (isMaster && myClients === null) return undefined; // чекаємо список клієнтів майстра
     const unsub = onValue(iRef( "users"), snap => {
       const data = snap.val() || {};
       const list = Object.entries(data)
+        .filter(([uid]) => !isMaster || myClients.has(uid))
         .map(([uid, u]) => {
           const p = u.profile || {};
           return { id:uid, name:p.name||"", phone:p.phone||"", hue:hueForUid(uid), online:false, lastMsg:"", lastTime:"", lastTs:0 };
@@ -212,9 +270,9 @@ export default function ChatsView() {
         .filter(c => c.name || c.phone);
       setContacts(list);
       setLoading(false);
-    });
+    }, () => { setLoading(false); showErr("Не вдалося завантажити клієнтів. Перевірте з'єднання."); });
     return unsub;
-  }, []);
+  }, [isMaster, myClients]);
 
   // ── Subscribe messages ────────────────────────────────────────
   useEffect(() => {
@@ -222,7 +280,7 @@ export default function ChatsView() {
     Object.keys(msgUnsubs.current).forEach(uid => {
       if (!currentIds.has(uid)) { msgUnsubs.current[uid]?.(); delete msgUnsubs.current[uid]; }
     });
-    contacts.forEach(c => {
+    if (!isMaster) contacts.forEach(c => {
       if (msgUnsubs.current[c.id]) return;
       const r = iRef( `chats/${c.id}`);
       const unsub = onValue(r, snap => {
@@ -234,32 +292,46 @@ export default function ChatsView() {
             ? {...ct, lastMsg:last.text, lastTime:last.time, lastTs:last.ts||0}
             : ct));
         }
-      });
+      }, () => showErr("Немає доступу до чату з цим клієнтом."));
       msgUnsubs.current[c.id] = unsub;
     });
     return () => {};
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [contacts.length]);
 
-  useEffect(() => () => Object.values(msgUnsubs.current).forEach(u=>u?.()), []);
+  useEffect(() => () => { Object.values(msgUnsubs.current).forEach(u=>u?.()); Object.values(threadUnsubs.current).forEach(u=>u?.()); }, []);
 
-  // ── General chat ──────────────────────────────────────────────
+  // ── Треди з майстрами: chats_m/{mid}/{uid} ────────────────────
   useEffect(() => {
-    const unsub = onValue(iRef( "chats/general"), snap => {
-      const msgs = Object.entries(snap.val()||{}).map(([id,m])=>({...m,id})).sort((a,b)=>(a.ts||0)-(b.ts||0)||(a.id>b.id?1:-1));
-      setGeneralMsgs(msgs);
+    const want = new Set(mcPairs.map(p => p.join("/")));
+    Object.keys(threadUnsubs.current).forEach(k => {
+      if (!want.has(k)) { threadUnsubs.current[k]?.(); delete threadUnsubs.current[k]; }
     });
-    return unsub;
-  }, []);
+    mcPairs.forEach(([mid, uid]) => {
+      const k = `${mid}/${uid}`;
+      if (threadUnsubs.current[k]) return;
+      threadUnsubs.current[k] = onValue(iRef(`chats_m/${k}`), snap => {
+        const msgs = Object.entries(snap.val()||{}).map(([id,m])=>({...m,id})).sort((a,b)=>(a.ts||0)-(b.ts||0)||(a.id>b.id?1:-1));
+        setThreadMsgs(prev => ({...prev, [k]: msgs}));
+        if (msgs.length > 0) {
+          const last = msgs[msgs.length-1];
+          setContacts(cs => cs.map(ct => ct.id===uid && (last.ts||0) >= (ct.lastTs||0)
+            ? {...ct, lastMsg:last.text, lastTime:last.time, lastTs:last.ts||0} : ct));
+        }
+      }, () => showErr("Немає доступу до чату з цим клієнтом."));
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mcKey]);
 
   // ── Broadcast history ─────────────────────────────────────────
   useEffect(() => {
+    if (isMaster) return undefined;
     const unsub = onValue(iRef( "chats/__broadcast__"), snap => {
       const msgs = Object.entries(snap.val()||{}).map(([id,m])=>({...m,id})).sort((a,b)=>(a.ts||0)-(b.ts||0)||(a.id>b.id?1:-1));
       setBroadcastMsgs(msgs);
-    });
+    }, () => {});
     return unsub;
-  }, []);
+  }, [isMaster]);
 
   // ── Broadcast free-slot ───────────────────────────────────────
   const applyFreeSlotBroadcast = useCallback((msg, time) => {
@@ -281,31 +353,37 @@ export default function ChatsView() {
   const toggle = id => {
     if (deletingId) { setDeletingId(null); return; }
     setOpenId(prev => prev===id ? null : id);
-    if (id !== BROADCAST_ID && id !== GENERAL_ID) {
-      setUnreadMeta(m => ({...m, [id]:0}));
-      set(iRef( `chatMeta/${id}/unreadForAdmin`), 0).catch(()=>{});
-    }
+    if (id !== BROADCAST_ID) markRead(id, defaultTk(id));
   };
+  // Позначити тред прочитаним (лише його, інші треди клієнта лишаються з лічильниками)
+  const markRead = (uid, tk) => {
+    if (tk) setUnreadM(m => ({...m, [tKey(uid, tk)]:0}));
+    else setUnreadMeta(m => ({...m, [uid]:0}));
+    set(iRef(`${metaPath(uid, tk)}/unreadForAdmin`), 0).catch(()=>{});
+  };
+  const pickThread = (uid, tk) => { setPickedTk(p => ({...p, [uid]: tk})); markRead(uid, tk); };
+  const sendFailed = () => showErr("Не вдалося надіслати повідомлення. Перевірте з'єднання або доступ до чату.");
 
-  const handleSend = (contactId, text) => {
+  const handleSend = (contactId, text, tk = "") => {
     const time = nowTime(); const ts = Date.now();
     const msg = {from:"admin",text,time,ts};
+    if (isMaster) { msg.masterId = myUid; if (myName) msg.senderName = myName; } // клієнт бачить, хто з майстрів відповів
+    else if (tk) { msg.masterId = tk; if (ownerName) msg.senderName = ownerName; } // власник пише в тред майстра — підписуємось власним іменем
     if (contactId === BROADCAST_ID) {
       push(iRef("chats/__broadcast__"),{...msg,broadcast:true}).catch(()=>{});
       contacts.forEach(c => {
         push(iRef(`chats/${c.id}`),{...msg,broadcast:true}).catch(()=>{});
         update(iRef(`chatMeta/${c.id}`),{unreadForStudent:increment(1),lastMsg:text,lastTs:ts}).catch(()=>{});
       });
-    } else if (contactId === GENERAL_ID) {
-      push(iRef("chats/general"),{from:"admin",uid:"__admin__",name:"Інструктор",text,time,ts}).catch(()=>{});
     } else {
-      push(iRef(`chats/${contactId}`),msg).catch(()=>{});
-      update(iRef(`chatMeta/${contactId}`),{unreadForStudent:increment(1),lastMsg:text,lastTs:ts}).catch(()=>{});
+      push(iRef(chatPath(contactId, tk)),msg).catch(sendFailed);
+      update(iRef(metaPath(contactId, tk)),{unreadForStudent:increment(1),lastMsg:text,lastTs:ts}).catch(()=>{});
     }
   };
 
   const handleDelete = (e, id) => {
     e.stopPropagation();
+    if (isMaster) return;
     if (deletingId === id) {
       setContacts(cs => cs.filter(c=>c.id!==id));
       if (openId===id) setOpenId(null);
@@ -322,11 +400,11 @@ export default function ChatsView() {
 
   // Активні чати — з непрочитаними та/або нещодавнім листуванням — зверху списку.
   const filtered      = contacts
+    .filter(c => !filterTk || mcMap[filterTk]?.[c.id])
     .filter(c => (c.name||"").toLowerCase().includes(search.toLowerCase()) || (c.phone||"").includes(search))
-    .sort((a,b) => ((unreadMeta[b.id]||0)>0)-((unreadMeta[a.id]||0)>0) || (b.lastTs||0)-(a.lastTs||0));
-  const totalUnread   = contacts.reduce((s,c)=>s+(unreadMeta[c.id]||0), 0);
+    .sort((a,b) => (unreadRow(b.id)>0)-(unreadRow(a.id)>0) || (b.lastTs||0)-(a.lastTs||0));
+  const totalUnread   = filtered.reduce((s,c)=>s+unreadRow(c.id), 0);
   const broadcastOpen = openId === BROADCAST_ID;
-  const generalOpen   = openId === GENERAL_ID;
 
   return (
     <>
@@ -334,41 +412,62 @@ export default function ChatsView() {
       <style>{css}</style>
       <div style={{fontFamily:"ui-sans-serif,-apple-system,system-ui,sans-serif",color:TEXT}}>
 
+        {err && (
+          <div role="alert" style={{marginBottom:9,padding:"9px 12px",borderRadius:12,fontSize:12,fontWeight:600,color:"#fca5a5",background:"rgba(239,68,68,0.12)",border:"1px solid rgba(239,68,68,0.35)",overflowWrap:"anywhere"}}>{err}</div>
+        )}
+
         {/* ── SEARCH ── */}
         <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:9}}>
-          <div style={{flex:1,background:BG_DEEP,borderRadius:11,boxShadow:SI,padding:"4px 11px",display:"flex",alignItems:"center",gap:7}}>
+          <div style={{flex:1,background:SURFACE,border:`1px solid ${BORDER}`,backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",borderRadius:16,padding:"2px 14px",minHeight:48,display:"flex",alignItems:"center",gap:8}}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={FAINT} strokeWidth="2.2" strokeLinecap="round">
               <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
             </svg>
-            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Пошук учня…"
-              style={{flex:1,background:"transparent",border:"none",outline:"none",color:TEXT,padding:"8px 0",fontSize:13,fontFamily:"inherit"}}/>
+            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Пошук клієнта…"
+              style={{flex:1,background:"transparent",border:"none",outline:"none",color:TEXT,padding:"11px 0",fontSize:14,fontFamily:"inherit"}}/>
             {search && <button onClick={()=>setSearch("")} style={{background:"none",border:"none",cursor:"pointer",color:FAINT,fontSize:16,padding:0,lineHeight:1}}>×</button>}
           </div>
           {totalUnread > 0 && (
-            <div style={{background:ACCENT,color:"#fff",borderRadius:10,padding:"3px 9px",fontSize:11,fontWeight:800,flexShrink:0,boxShadow:`0 0 8px ${ACCENT}66`}}>
+            <div style={{background:ACCENT,color:BTN_TX||"#fff",borderRadius:10,padding:"3px 9px",fontSize:11,fontWeight:800,flexShrink:0,boxShadow:`0 0 8px ${ACCENT}66`}}>
               {totalUnread}
             </div>
           )}
         </div>
 
+        {/* ── ФІЛЬТР ПО МАЙСТРУ (власник салону) ── */}
+        {!isMaster && masterIds.length > 0 && (
+          <div style={{display:"flex",gap:6,overflowX:"auto",marginBottom:9,paddingBottom:2}}>
+            {["", ...masterIds].map(tk => {
+              const on = filterTk === tk;
+              const n = tk ? contacts.reduce((s,c)=>s+unreadOf(c.id,tk),0) : 0;
+              return (
+                <button key={tk||"all"} onClick={()=>setFilterTk(tk)} style={{
+                  flexShrink:0,minHeight:32,padding:"4px 12px",borderRadius:16,cursor:"pointer",fontFamily:"inherit",fontSize:12,fontWeight:700,whiteSpace:"nowrap",
+                  background:on?ACCENT:SURFACE,color:on?(BTN_TX||"#fff"):TEXT,border:`1px solid ${on?ACCENT:BORDER}`}}>
+                  {tk ? threadName(tk) : "Усі"}{n > 0 ? ` · ${n}` : ""}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         {/* ── BROADCAST ── */}
-        {!search && (
+        {!search && !isMaster && (
           <div style={{
-            background:`linear-gradient(155deg,color-mix(in srgb,#a855f7 50%,${BG_DEEP}) 0%,color-mix(in srgb,#a855f7 18%,${BG_DEEP}) 100%)`,
+            background:`color-mix(in srgb,#a855f7 26%,transparent)`,backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",
             borderRadius:14,overflow:"hidden",marginBottom:6,boxShadow:SO,
             border:`1px solid color-mix(in srgb,#a855f7 ${broadcastOpen?55:38}%,transparent)`}}>
             <div className={`chat-row${broadcastOpen?" broadcast-open":""}`} onClick={()=>toggle(BROADCAST_ID)}
               style={{display:"flex",alignItems:"center",gap:9,padding:"9px 12px"}}>
-              <Ava name="Загальний" hue={270} size={36} isBroadcast/>
+              <Ava name="Розсилка" hue={270} size={36} isBroadcast/>
               <div style={{flex:1,minWidth:0}}>
-                <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:2}}>
-                  <span style={{fontSize:13,fontWeight:800,color:"#fff"}}>📢 Загальний</span>
-                  <span style={{fontSize:9,color:"rgba(255,255,255,0.75)",fontWeight:700,letterSpacing:0.3}}>BROADCAST</span>
+                <div style={{display:"flex",alignItems:"center",gap:"2px 6px",flexWrap:"wrap",marginBottom:2}}>
+                  <span style={{fontSize:13,fontWeight:800,color:"#fff",whiteSpace:"nowrap"}}>📢 Розсилка</span>
+                  <span style={{fontSize:11,color:"rgba(255,255,255,0.75)",fontWeight:700,letterSpacing:0.3}}>BROADCAST</span>
                 </div>
-                <div style={{fontSize:11,color:"rgba(255,255,255,0.8)"}}>Надіслати повідомлення всім учням</div>
+                <div style={{fontSize:11,color:"rgba(255,255,255,0.8)"}}>Надіслати повідомлення всім клієнтам</div>
               </div>
               <div style={{flexShrink:0,textAlign:"right"}}>
-                <div style={{fontSize:9,color:"rgba(255,255,255,0.7)",fontWeight:700}}>{contacts.length} учнів</div>
+                <div style={{fontSize:11,color:"rgba(255,255,255,0.7)",fontWeight:700}}>{contacts.length} клієнтів</div>
               </div>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.65)" strokeWidth="2.2" strokeLinecap="round"
                 style={{flexShrink:0,transform:broadcastOpen?"rotate(180deg)":"none",transition:"transform .22s"}}>
@@ -377,44 +476,8 @@ export default function ChatsView() {
             </div>
             {broadcastOpen && (
               <Conversation key={BROADCAST_ID}
-                contact={{id:BROADCAST_ID,name:"Загальний",messages:broadcastMsgs}}
+                contact={{id:BROADCAST_ID,name:"Розсилка",messages:broadcastMsgs}}
                 messages={broadcastMsgs} onSend={handleSend} isBroadcast/>
-            )}
-          </div>
-        )}
-
-        {/* ── GENERAL CHAT ── */}
-        {!search && (
-          <div style={{
-            background:`linear-gradient(155deg,color-mix(in srgb,#5b9bff 50%,${BG_DEEP}) 0%,color-mix(in srgb,#5b9bff 18%,${BG_DEEP}) 100%)`,
-            borderRadius:14,overflow:"hidden",marginBottom:6,boxShadow:SO,
-            border:`1px solid color-mix(in srgb,#5b9bff ${generalOpen?55:38}%,transparent)`}}>
-            <div className={`chat-row${generalOpen?" open":""}`} onClick={()=>toggle(GENERAL_ID)}
-              style={{display:"flex",alignItems:"center",gap:9,padding:"9px 12px"}}>
-              <div style={{width:36,height:36,borderRadius:18,background:"rgba(0,0,0,0.2)",
-                display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>👥</div>
-              <div style={{flex:1,minWidth:0}}>
-                <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:2}}>
-                  <span style={{fontSize:13,fontWeight:800,color:"#fff"}}>👥 Загальний чат</span>
-                  <span style={{fontSize:9,color:"rgba(255,255,255,0.75)",fontWeight:700,letterSpacing:0.3}}>ГРУПП. ЧАТ</span>
-                </div>
-                <div style={{fontSize:11,color:"rgba(255,255,255,0.8)"}}>
-                  {generalMsgs.length > 0 ? generalMsgs[generalMsgs.length-1].text : "Чат учнів між собою"}
-                </div>
-              </div>
-              <div style={{flexShrink:0,textAlign:"right"}}>
-                <div style={{fontSize:9,color:"rgba(255,255,255,0.7)",fontWeight:700}}>{generalMsgs.length} повід.</div>
-              </div>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.65)" strokeWidth="2.2" strokeLinecap="round"
-                style={{flexShrink:0,transform:generalOpen?"rotate(180deg)":"none",transition:"transform .22s"}}>
-                <polyline points="6 9 12 15 18 9"/>
-              </svg>
-            </div>
-            {generalOpen && (
-              <Conversation key={GENERAL_ID}
-                contact={{id:GENERAL_ID,name:"Загальний чат"}}
-                messages={generalMsgs.map(m=>({...m,from:m.uid==="__admin__"?"admin":"student",text:m.uid==="__admin__"?m.text:`${m.name}: ${m.text}`}))}
-                onSend={handleSend}/>
             )}
           </div>
         )}
@@ -424,7 +487,7 @@ export default function ChatsView() {
           <div style={{textAlign:"center",padding:"40px",color:FAINT,fontSize:13}}>
             <div style={{width:24,height:24,border:`2px solid ${BORDER}`,borderTopColor:ACCENT,borderRadius:"50%",
               animation:"spin .8s linear infinite",margin:"0 auto 10px"}}/>
-            Завантаження учнів…
+            Завантаження клієнтів…
           </div>
         )}
 
@@ -433,11 +496,14 @@ export default function ChatsView() {
           {filtered.map(c => {
             const isOpen     = openId === c.id;
             const isDeleting = deletingId === c.id;
-            const cMsgs      = messages[c.id] || [];
+            const tk         = defaultTk(c.id);
+            const cMsgs      = (tk ? threadMsgs[tKey(c.id, tk)] : messages[c.id]) || [];
+            const cThreads   = threadsOf(c.id);
+            const cUnread    = unreadRow(c.id);
             const hueColor   = `hsl(${c.hue},60%,50%)`;
             return (
               <div key={c.id} style={{
-                background:`linear-gradient(155deg,color-mix(in srgb,${hueColor} 50%,${BG_DEEP}) 0%,color-mix(in srgb,${hueColor} 18%,${BG_DEEP}) 100%)`,
+                background:`color-mix(in srgb,${hueColor} 26%,transparent)`,backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",
                 borderRadius:14,overflow:"hidden",boxShadow:SO,
                 border:`1px solid ${isDeleting?"rgba(239,68,68,0.5)":isOpen?"rgba(255,255,255,0.35)":`color-mix(in srgb,${hueColor} 38%,transparent)`}`,
                 transition:"border-color .2s",
@@ -447,23 +513,23 @@ export default function ChatsView() {
                   <Ava name={c.name} hue={c.hue} size={36} online={c.online}/>
                   <div style={{flex:1,minWidth:0}}>
                     <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:2}}>
-                      <span style={{fontSize:13,fontWeight:800,color:"#fff",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{c.name || c.phone}</span>
+                      <span style={{fontSize:13,fontWeight:800,color:"#fff",overflowWrap:"anywhere"}}>{c.name || c.phone}</span>
                     </div>
-                    <div style={{fontSize:11,color:"rgba(255,255,255,0.78)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                    <div style={{fontSize:11,color:"rgba(255,255,255,0.85)",overflow:"hidden",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflowWrap:"anywhere"}}>
                       {c.lastMsg || c.phone || "Немає повідомлень"}
                     </div>
                   </div>
                   <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4,flexShrink:0}}>
-                    <span style={{fontSize:10,color:"rgba(255,255,255,0.65)"}}>{c.lastTime}</span>
-                    {(unreadMeta[c.id]||0) > 0
-                      ? <span style={{background:ACCENT,color:"#fff",borderRadius:9,padding:"1px 6px",fontSize:10,fontWeight:800}}>{unreadMeta[c.id]}</span>
+                    <span style={{fontSize:11,color:"rgba(255,255,255,0.8)"}}>{c.lastTime}</span>
+                    {cUnread > 0
+                      ? <span style={{background:ACCENT,color:BTN_TX||"#fff",borderRadius:9,padding:"1px 6px",fontSize:11,fontWeight:800}}>{cUnread}</span>
                       : <span style={{width:8,height:8,borderRadius:4,background:"rgba(255,255,255,0.25)",display:"inline-block"}}/>
                     }
                   </div>
-                  <button onClick={e=>handleDelete(e,c.id)}
+                  {!isMaster && <button onClick={e=>handleDelete(e,c.id)}
                     className={isDeleting?"del-confirm":""}
                     style={{flexShrink:0,background:"none",border:"none",cursor:"pointer",
-                      padding:"4px 6px",borderRadius:8,marginLeft:2,
+                      minWidth:32,minHeight:32,padding:"4px 6px",borderRadius:8,marginLeft:0,
                       color:isDeleting?"#f87171":"rgba(255,255,255,0.65)",fontSize:isDeleting?11:14,fontWeight:isDeleting?700:400,transition:"color .2s"}}>
                     {isDeleting?"Видалити?":(
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -473,15 +539,29 @@ export default function ChatsView() {
                         <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
                       </svg>
                     )}
-                  </button>
+                  </button>}
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.65)" strokeWidth="2.2" strokeLinecap="round"
                     style={{flexShrink:0,transform:isOpen?"rotate(180deg)":"none",transition:"transform .22s"}}>
                     <polyline points="6 9 12 15 18 9"/>
                   </svg>
                 </div>
 
+                {isOpen && cThreads.length > 1 && (
+                  <div style={{display:"flex",gap:6,overflowX:"auto",padding:"6px 10px",borderTop:"1px solid rgba(255,255,255,0.15)"}}>
+                    {cThreads.map(t => {
+                      const on = t === tk, n = unreadOf(c.id, t);
+                      return (
+                        <button key={t||"salon"} onClick={()=>pickThread(c.id, t)} style={{
+                          flexShrink:0,minHeight:30,padding:"3px 11px",borderRadius:15,cursor:"pointer",fontFamily:"inherit",fontSize:12,fontWeight:700,whiteSpace:"nowrap",
+                          background:on?ACCENT:"rgba(255,255,255,0.12)",color:on?(BTN_TX||"#fff"):"#fff",border:"1px solid rgba(255,255,255,0.25)"}}>
+                          {threadName(t)}{n > 0 ? ` · ${n}` : ""}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
                 {isOpen && (
-                  <Conversation key={c.id} contact={c} messages={cMsgs} onSend={handleSend}/>
+                  <Conversation key={`${c.id}|${tk}`} contact={c} messages={cMsgs} onSend={(id, text) => handleSend(id, text, tk)}/>
                 )}
               </div>
             );
@@ -491,9 +571,9 @@ export default function ChatsView() {
             <div style={{textAlign:"center",padding:"40px 20px"}}>
               <div style={{fontSize:36,opacity:.3,marginBottom:8}}>💬</div>
               <div style={{fontSize:14,fontWeight:700,color:DIM}}>
-                {search ? "Нікого не знайдено" : "Немає учнів в системі"}
+                {search ? "Нікого не знайдено" : "Немає клієнтів в системі"}
               </div>
-              <div style={{fontSize:12,color:FAINT,marginTop:6}}>Учні з'являться після реєстрації в застосунку</div>
+              <div style={{fontSize:12,color:FAINT,marginTop:6}}>Клієнти з'являться після реєстрації в застосунку</div>
             </div>
           )}
         </div>

@@ -14,6 +14,8 @@ function detect() {
     const d = q.get("demo");
     if (d === "0") { sessionStorage.removeItem(KEY); sessionStorage.removeItem(TKEY); return false; }
     if (d === "1") sessionStorage.setItem(KEY, "1");
+    const pr = q.get("preset");
+    if (pr) sessionStorage.setItem("dp_demo_preset", pr);
     const th = q.get("theme");
     if (th === "light" || th === "dark") sessionStorage.setItem(TKEY, th);
     return sessionStorage.getItem(KEY) === "1";
@@ -22,3 +24,5 @@ function detect() {
 
 export const DEMO = detect();
 export const demoTheme = () => { try { return sessionStorage.getItem(TKEY) || "dark"; } catch { return "dark"; } };
+// Готові демо-розклади для різних сфер: ?demo=1&preset=barber|nails|cosmo|tutor|psy (див. demoData.js PRESETS)
+export const demoPreset = () => { try { return sessionStorage.getItem("dp_demo_preset") || ""; } catch { return ""; } };

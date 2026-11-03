@@ -1,4 +1,4 @@
-// Оформлення екрана входу інструктора (тема «Скло»).
+// Оформлення екрана входу майстра (тема «Скло»).
 export const LOGIN_CSS = `
 .lg-wrap{min-height:100vh;min-height:100dvh;display:flex;align-items:center;justify-content:center;padding:calc(20px + env(safe-area-inset-top,0px)) 20px calc(20px + env(safe-area-inset-bottom,0px));position:relative;overflow:hidden;background:#161719;color:#e8e8ea;font-family:ui-sans-serif,-apple-system,BlinkMacSystemFont,system-ui,sans-serif}
 .lg-bg{position:absolute;inset:0;pointer-events:none}.lg-bg i,.lg-bg b{position:absolute;display:block}

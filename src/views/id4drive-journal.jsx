@@ -86,133 +86,44 @@ function buildStudentEvents(data) {
     if (!u) return;
     const ts = u.profile?.createdAt || u.createdAt;
     if (!ts) return;
-    const name = u.profile?.name || u.name || "Новий учень";
+    const name = u.profile?.name || u.name || "Новий клієнт";
     const phone = u.profile?.phone || u.phone || "";
     evs.push({ id: `${uid}_reg`, type: "new_student", ts, name, slot: phone, by: "" });
   });
   return evs;
 }
 
-// Перші входи в клієнтський застосунок (users/{uid}/firstLoginAt) — окремо
-// від реєстрації: людина могла зайти й нічого не заповнити, але адмін хоче
-// бачити сам факт заходу, а не лише завершену реєстрацію.
-function buildLoginEvents(data) {
-  const evs = [];
-  if (!data) return evs;
-  Object.entries(data).forEach(([uid, u]) => {
-    if (!u || !u.firstLoginAt) return;
-    const name  = u.profile?.name  || u.name  || "";
-    const phone = u.profile?.phone || u.phone || "";
-    evs.push({ id: uid, ts: u.firstLoginAt, name, phone });
-  });
-  return evs.sort((a, b) => b.ts - a.ts);
-}
-
-const LOGIN_READ_KEY = "journal_logins_read_at";
-function getLoginReadAt() { return parseInt(localStorage.getItem(LOGIN_READ_KEY) || "0", 10); }
-function setLoginReadAtStorage() { localStorage.setItem(LOGIN_READ_KEY, Date.now().toString()); }
-
-function LoginsSheet({ events, prevReadAt, onClose, theme }) {
-  const [closing, setClosing] = useState(false);
-  const shade = a => `rgba(${theme.SHADE},${a})`;
-  const glow  = a => `rgba(${theme.GLOW},${a})`;
-  const _close = () => setClosing(true);
-  useBackClose(true, _close);
-
-  return (
-    <>
-      <style>{`
-        @keyframes _ld-up{from{transform:translateY(100%)}to{transform:translateY(0)}}
-        @keyframes _ld-down{from{transform:translateY(0);opacity:1}to{transform:translateY(100%);opacity:0}}
-        @keyframes _ld-bg-in{from{opacity:0}to{opacity:1}}
-        @keyframes _ld-bg-out{from{opacity:1}to{opacity:0}}
-      `}</style>
-      <div
-        onClick={closing ? undefined : _close}
-        style={{
-          position:"fixed",inset:0,zIndex:200,
-          background:shade(0.55),
-          backdropFilter:"blur(8px)",
-          display:"flex",alignItems:"flex-end",justifyContent:"center",
-          animation: closing ? `_ld-bg-out 0.26s ease-in forwards` : `_ld-bg-in 0.2s ease-out`,
-        }}
-      >
-        <div
-          onClick={e => e.stopPropagation()}
-          onAnimationEnd={closing ? () => { setClosing(false); onClose(); } : undefined}
-          style={{
-            width:"100%",maxWidth:480,maxHeight:"70vh",overflowY:"auto",
-            background:theme.BG_DEEP,
-            borderRadius:"24px 24px 0 0",
-            boxShadow:`0 -2px 0 ${glow(0.08)},0 -16px 60px ${shade(0.8)}`,
-            pointerEvents: closing ? "none" : undefined,
-            animation: closing ? `_ld-down 0.26s ease-in forwards` : `_ld-up 0.38s cubic-bezier(0.34,1.56,0.64,1)`,
-          }}
-        >
-          <div style={{width:36,height:4,borderRadius:2,background:glow(0.15),margin:"10px auto 0"}} />
-          <div style={{padding:"16px 20px 14px",borderBottom:`1px solid ${theme.BORDER}`}}>
-            <div style={{fontSize:15,fontWeight:800,color:theme.PURPLE}}>Нові входи в застосунок</div>
-          </div>
-          <div style={{padding:"10px 14px 24px"}}>
-            {events.length === 0 && (
-              <div style={{textAlign:"center",color:theme.DIM,fontSize:13,padding:"20px 0"}}>Ще ніхто не заходив</div>
-            )}
-            {events.map(ev => {
-              const isNew = ev.ts > prevReadAt;
-              return (
-                <div key={ev.id} style={{
-                  display:"flex",alignItems:"center",gap:10,padding:"10px 12px",
-                  borderRadius:12,marginBottom:6,
-                  background:glow(0.04),
-                  border:`1px solid ${theme.BORDER}`,
-                }}>
-                  <div style={{fontSize:13,fontWeight:800,color:"#fff",width:52,textAlign:"center",flexShrink:0,fontVariantNumeric:"tabular-nums"}}>
-                    {formatTime(ev.ts)}
-                  </div>
-                  <div style={{flex:1,minWidth:0}}>
-                    <div style={{display:"flex",alignItems:"center",gap:5}}>
-                      <span style={{fontSize:12.5,fontWeight:700,color:"#fff",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-                        {ev.name || ev.phone || "Новий відвідувач"}
-                      </span>
-                      {isNew && <div style={{width:5,height:5,borderRadius:"50%",flexShrink:0,background:"#fff",boxShadow:"0 0 4px #fff"}}/>}
-                    </div>
-                    {ev.name && ev.phone && (
-                      <div style={{fontSize:10.5,marginTop:2,color:"rgba(255,255,255,0.7)"}}>{ev.phone}</div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-    </>
-  );
-}
-
-function buildEvents(data) {
+function buildEvents(data, staffNames = {}) {
   const evs = [];
   if (!data) return evs;
   Object.values(data).forEach(userBkgs => {
     if (!userBkgs) return;
     Object.entries(userBkgs).forEach(([key, b]) => {
       if (!b) return;
-      // Особиста подія адміна — не урок, у журналі відвідувань учнів їй не місце.
+      // Особиста подія адміна — не запис, у журналі відвідувань клієнтів їй не місце.
       if (b.type === "personal") return;
       const name = b.studentName || b.name || "Без імені";
       const dateStr = b.date ? b.date.split("-").reverse().join(".") : "";
       const durH = b.durationHours ?? (b.durMin ? b.durMin / 60 : null);
       const durStr = durH ? ` · ${durH} год` : "";
-      const slot = [dateStr, b.time].filter(Boolean).join(" ") + durStr;
-      if (b.createdAt)     evs.push({ id: `${key}_new`,        type: "new",        ts: b.createdAt,     name, slot, by: b.createdBy   || "" });
-      if (b.cancelledAt)   evs.push({ id: `${key}_cancel`,     type: "cancel",     ts: b.cancelledAt,   name, slot, by: b.cancelledBy  || "" });
+      // Послуга, ціна і майстер (салон) — щоб запис у журналі було видно повністю
+      const svc = b.serviceName ? ` · ${b.serviceName}` : "";
+      const price = Number(b.price) > 0 ? ` · ${b.price}₴` : "";
+      const master = b.masterId && staffNames[b.masterId] ? ` · ${staffNames[b.masterId]}` : "";
+      const slot = [dateStr, b.time].filter(Boolean).join(" ") + durStr + svc + price + master;
+      // Клієнт переніс запис: старий запис скасовано (cancelledBy "reschedule"), новий має rescheduledFrom — показуємо ОДНУ подію «Перенос»
+      const [fromDate, fromTime] = String(b.rescheduledFrom || "").split(" ");
+      const fromSlot = fromDate ? ` (було ${fromDate.split("-").reverse().join(".")}${fromTime ? " " + fromTime : ""})` : "";
+      if (b.createdAt && b.rescheduledFrom) evs.push({ id: `${key}_reschedule_new`, type: "reschedule", ts: b.createdAt, name, slot: slot + fromSlot, by: "client" });
+      else if (b.createdAt) evs.push({ id: `${key}_new`,        type: "new",        ts: b.createdAt,     name, slot, by: b.createdBy   || "" });
+      if (b.cancelledAt && b.cancelledBy !== "reschedule") evs.push({ id: `${key}_cancel`,     type: "cancel",     ts: b.cancelledAt,   name, slot, by: b.cancelledBy  || "" });
       if (b.rescheduledAt) evs.push({ id: `${key}_reschedule`, type: "reschedule", ts: b.rescheduledAt, name, slot, by: "" });
     });
   });
   return evs.sort((a, b) => b.ts - a.ts);
 }
 
-const BY_LABEL = { admin: "адмін", client: "учень" };
+const BY_LABEL = { admin: "майстер", client: "клієнт", student: "клієнт" }; // student — старі скасування клієнтом
 
 function EventDetailSheet({ ev, meta, onClose, theme }) {
   const [closing, setClosing] = useState(false);
@@ -283,7 +194,7 @@ function EventDetailSheet({ ev, meta, onClose, theme }) {
           </div>
 
           <div style={{padding:"14px 20px 28px",display:"flex",flexDirection:"column",gap:8}}>
-            <InfoRow label="УЧЕНЬ" value={ev.name} valueStyle={{fontSize:16,fontWeight:800,color:theme.TEXT}} theme={theme} />
+            <InfoRow label="КЛІЄНТ" value={ev.name} valueStyle={{fontSize:16,fontWeight:800,color:theme.TEXT}} theme={theme} />
             {ev.slot && <InfoRow label={ev.type === "new_student" ? "ТЕЛЕФОН" : "ЗАНЯТТЯ"} value={ev.slot} theme={theme} />}
             {byLabel && <InfoRow label="ДІЯ ВІД" value={byLabel} theme={theme} />}
           </div>
@@ -302,7 +213,7 @@ function InfoRow({ label, value, theme, valueStyle = {} }) {
       border:`1px solid ${theme.BORDER}`,
       padding:"10px 14px",
     }}>
-      <div style={{fontSize:10,color:theme.FAINT,letterSpacing:1,marginBottom:4}}>{label}</div>
+      <div style={{fontSize:11,color:theme.FAINT,letterSpacing:1,marginBottom:4}}>{label}</div>
       <div style={{fontSize:14,fontWeight:600,color:theme.DIM,...valueStyle}}>{value}</div>
     </div>
   );
@@ -310,15 +221,14 @@ function InfoRow({ label, value, theme, valueStyle = {} }) {
 
 export default function JournalView() {
   const theme = useContext(ThemeContext);
-  const { BG_DEEP, SURF_HI, SURFACE, BORDER, DIM, FAINT, ACCENT, ACC_HI, SO } = theme;
-  const shade = a => `rgba(${theme.SHADE},${a})`;
+  const { BG_DEEP, SURF_HI, SURFACE, BORDER, DIM, ACCENT } = theme;
   const glow  = a => `rgba(${theme.GLOW},${a})`;
 
   const EVENT_TYPES = {
     new:         { label: "Новий запис", color: theme.GREEN, icon: "📅" },
     cancel:      { label: "Скасовано",   color: theme.RED,   icon: "✗"  },
     reschedule:  { label: "Перенос",     color: theme.GOLD,  icon: "↔"  },
-    new_student: { label: "Новий учень", color: theme.BLUE,  icon: "🆕" },
+    new_student: { label: "Новий клієнт", color: theme.BLUE,  icon: "🆕" },
   };
 
   const [bookingEvents, setBookingEvents] = useState([]);
@@ -327,6 +237,7 @@ export default function JournalView() {
     () => [...bookingEvents, ...studentEvents].sort((a, b) => b.ts - a.ts),
     [bookingEvents, studentEvents]
   );
+  const rawBookingsRef = React.useRef(null), staffRef = React.useRef({});
   const [section,    setSection]   = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
   const [detail,     setDetail]    = useState(null);
@@ -335,33 +246,34 @@ export default function JournalView() {
   const [keyPortalEl, setKeyPortalEl] = useState(null);
   // Лічильник, а не просто boolean — при кожному тапі на кнопку календар
   // монтується заново (key змінюється), навіть якщо попередній стан
-  // технічно ще "відкрито" (напр. учень прогорнув сторінку і календар
+  // технічно ще "відкрито" (напр. клієнт прогорнув сторінку і календар
   // візуально загубився). Тап завжди гарантовано відкриває свіжу шторку.
   const [calOpenKey, setCalOpenKey] = useState(0);
   const openMonthCal = () => { setCalOpenKey(k => k + 1); setShowMonthCal(true); };
-
-  const [loginEvents, setLoginEvents] = useState([]);
-  const [prevLoginReadAt] = useState(getLoginReadAt);
-  const [loginsSeen, setLoginsSeen] = useState(false);
-  const [showLogins, setShowLogins] = useState(false);
-  const loginBadge = loginsSeen ? 0 : loginEvents.filter(e => e.ts > prevLoginReadAt).length;
-  const openLogins = () => { setShowLogins(true); setLoginsSeen(true); setLoginReadAtStorage(); };
 
   useEffect(() => { setKeyPortalEl(document.getElementById('topbar-key-portal')); }, []);
 
   useEffect(() => {
     setJournalReadAt();
     const unsub = onValue(iRef( "bookings"), snap => {
-      setBookingEvents(buildEvents(snap.val()));
+      rawBookingsRef.current = snap.val();
+      setBookingEvents(buildEvents(snap.val(), staffRef.current));
     });
     return unsub;
   }, []);
+
+  // Імена майстрів салону для рядка події (у «Одному майстрі» вузол staff порожній)
+  useEffect(() => onValue(iRef("staff"), snap => {
+    const names = {};
+    Object.entries(snap.val() || {}).forEach(([id, m]) => { if (m?.name) names[id] = m.name; });
+    staffRef.current = names;
+    if (rawBookingsRef.current) setBookingEvents(buildEvents(rawBookingsRef.current, names));
+  }, () => {}), []);
 
   useEffect(() => {
     const unsub = onValue(iRef( "users"), snap => {
       const val = snap.val();
       setStudentEvents(buildStudentEvents(val));
-      setLoginEvents(buildLoginEvents(val));
     });
     return unsub;
   }, []);
@@ -403,23 +315,26 @@ export default function JournalView() {
       <style>{`
         .jrow{cursor:pointer;transition:background .1s}
         .jrow:active{background:rgba(255,255,255,0.03)!important}
+        .jtiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-bottom:12px}
+        @media (max-width:399px){.jtiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
       `}</style>
 
       {/* Section tabs */}
       <div style={{
-        display:"flex",gap:4,marginBottom:12,
-        background:BG_DEEP,borderRadius:12,padding:4,
-        border:`1px solid ${BORDER}`,
+        display:"flex",gap:0,marginBottom:12,
+        background:SURFACE,borderRadius:14,padding:3,
+        border:`1px solid ${BORDER}`,backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",
       }}>
         {[
           ["all",   unreadCount > 0 ? `Всі записи · ${unreadCount}` : "Всі записи"],
-          ["admin", "Дії адміна"],
+          ["admin", "Дії майстра"],
         ].map(([id, lbl]) => (
           <button key={id} onClick={() => setSection(id)} style={{
-            flex:1,padding:"7px 10px",borderRadius:9,border:"none",
-            cursor:"pointer",fontSize:12,fontWeight:700,fontFamily:"inherit",
-            background: section === id ? ACCENT : "transparent",
-            color: section === id ? "#fff" : DIM,
+            flex:1,padding:"10px 10px",borderRadius:11,border:"none",
+            cursor:"pointer",fontSize:12,fontWeight:600,fontFamily:"inherit",
+            background: section === id ? SURF_HI : "transparent",
+            color: section === id ? theme.TEXT : DIM,
+            boxShadow: section === id ? "0 2px 8px rgba(0,0,0,.12)" : "none",
             transition:"all .15s",
           }}>{lbl}</button>
         ))}
@@ -427,29 +342,27 @@ export default function JournalView() {
 
       {/* Type filter — stat tiles */}
       <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:6 }}>
-        <span style={{fontSize:10,color:FAINT}}>{bySection.length} {noun(bySection.length)}</span>
+        <span style={{fontSize:12,color:DIM}}>{bySection.length} {noun(bySection.length)}</span>
       </div>
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(4,1fr)", gap:6, marginBottom:12 }}>
+      <div className="jtiles">
         {[
           ["new",         "✓ НОВИЙ",     theme.GREEN],
           ["cancel",      "✕ СКАСОВАНО", theme.RED  ],
           ["reschedule",  "↻ ПЕРЕНОС",   theme.GOLD ],
-          ["new_student", "🆕 УЧЕНЬ",    theme.BLUE ],
+          ["new_student", "🆕 КЛІЄНТ",    theme.BLUE ],
         ].map(([id, lbl, color]) => {
           const active = typeFilter === id;
           const count  = bySection.filter(e => e.type === id).length;
           return (
             <button key={id} onClick={() => setTypeFilter(active ? "all" : id)} style={{
-              border: active ? `1px solid color-mix(in srgb,${color} 45%,transparent)` : "1px solid transparent",
-              cursor:"pointer",borderRadius:11,padding:"8px 6px",textAlign:"center",fontFamily:"inherit",
-              background: active
-                ? `linear-gradient(155deg,color-mix(in srgb,${color} 40%,${BG_DEEP}) 0%,color-mix(in srgb,${color} 14%,${BG_DEEP}) 100%)`
-                : `linear-gradient(145deg,${SURF_HI},${SURFACE})`,
-              boxShadow: active ? "none" : SO,
+              border: active ? `1px solid color-mix(in srgb,${color} 55%,transparent)` : `1px solid ${BORDER}`,
+              cursor:"pointer",borderRadius:16,padding:"10px 6px",textAlign:"center",fontFamily:"inherit",
+              background: active ? `color-mix(in srgb,${color} 26%,transparent)` : SURFACE,
+              backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",
               transition:"all .15s",
             }}>
-              <div style={{fontSize:15,fontWeight:800,color: active ? "#fff" : color}}>{count}</div>
-              <div style={{fontSize:9,fontWeight:700,letterSpacing:0.5,marginTop:2,color: active ? "rgba(255,255,255,0.8)" : FAINT}}>{lbl}</div>
+              <div style={{fontSize:22,fontWeight:800,color: active ? theme.TEXT : color}}>{count}</div>
+              <div style={{fontSize:11,fontWeight:600,letterSpacing:0.2,marginTop:2,color: DIM}}>{lbl}</div>
             </button>
           );
         })}
@@ -458,7 +371,7 @@ export default function JournalView() {
       {/* Empty state */}
       {groups.length === 0 && (
         <div style={{ textAlign:"center", color:DIM, fontSize:13, paddingTop:40 }}>
-          {section === "admin" ? "Немає дій адміна" : "Журнал порожній"}
+          {section === "admin" ? "Немає дій майстра" : "Журнал порожній"}
         </div>
       )}
 
@@ -472,9 +385,9 @@ export default function JournalView() {
           {/* Day header */}
           <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6,paddingLeft:2}}>
             <div style={{width:28,height:3,borderRadius:2,background:glow(0.10),flexShrink:0}}/>
-            <span style={{fontSize:13,fontWeight:800,color:"#fff",letterSpacing:1,textTransform:"uppercase",flexShrink:0}}>{group.label}</span>
+            <span style={{fontSize:12,fontWeight:700,color:DIM,letterSpacing:0.8,textTransform:"uppercase",flexShrink:0}}>{group.label}</span>
             <div style={{flex:1,height:1,background:BORDER}}/>
-            <span style={{fontSize:9,color:FAINT,flexShrink:0}}>{group.evs.length} {noun(group.evs.length)}</span>
+            <span style={{fontSize:11,color:DIM,flexShrink:0}}>{group.evs.length} {noun(group.evs.length)}</span>
           </div>
 
           {/* Events — tinted cards, big time on the left */}
@@ -490,10 +403,11 @@ export default function JournalView() {
                 className="jrow"
                 onClick={() => setDetail(ev)}
                 style={{
-                  display:"flex",alignItems:"center",gap:10,padding:"10px 12px",
-                  borderRadius:13,marginBottom:6,
-                  background:`linear-gradient(155deg,color-mix(in srgb,${meta.color} 45%,${BG_DEEP}) 0%,color-mix(in srgb,${meta.color} 15%,${BG_DEEP}) 100%)`,
-                  border:`1px solid color-mix(in srgb,${meta.color} 40%,transparent)`,
+                  display:"flex",alignItems:"center",gap:10,padding:"11px 12px",minHeight:60,
+                  borderRadius:14,marginBottom:7,
+                  background:`color-mix(in srgb,${meta.color} 26%,transparent)`,
+                  border:`1px solid color-mix(in srgb,${meta.color} 55%,transparent)`,
+                  backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",
                 }}
               >
                 {/* Time */}
@@ -505,12 +419,12 @@ export default function JournalView() {
                 <div style={{flex:1,minWidth:0}}>
                   <div style={{display:"flex",alignItems:"center",gap:5}}>
                     <span style={{
-                      fontSize:12.5,fontWeight:isNew?800:700,color:"#fff",
-                      overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",
+                      fontSize:14,fontWeight:isNew?700:600,color:"#fff",
+                      overflowWrap:"anywhere",
                     }}>{ev.name}</span>
                     {isNew && <div style={{width:5,height:5,borderRadius:"50%",flexShrink:0,background:"#fff",boxShadow:"0 0 4px #fff"}}/>}
                   </div>
-                  <div style={{fontSize:10.5,marginTop:2,fontWeight:700,color:"rgba(255,255,255,0.8)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                  <div style={{fontSize:11.5,marginTop:2,fontWeight:500,color:"rgba(255,255,255,0.88)",overflowWrap:"anywhere"}}>
                     {prefix} {meta.label}
                     {ev.slot && <span> · {ev.slot}</span>}
                     {byLabel && <span> · {byLabel}</span>}
@@ -530,27 +444,6 @@ export default function JournalView() {
 
       {keyPortalEl && createPortal(
         <div style={{display:"flex",alignItems:"center",gap:6}}>
-          <button
-            onClick={openLogins}
-            title="Нові входи в застосунок"
-            style={{
-              position:"relative",
-              width:32, height:32, borderRadius:11, cursor:"pointer",
-              background:`linear-gradient(135deg,color-mix(in srgb,${theme.PURPLE} 45%,${BG_DEEP}) 0%,${BG_DEEP} 100%)`,
-              border:`1px solid color-mix(in srgb,${theme.PURPLE} 35%,transparent)`,
-              display:"flex", alignItems:"center", justifyContent:"center",
-              flexShrink:0,
-            }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z"/><circle cx="12" cy="12" r="3"/></svg>
-            {loginBadge > 0 && (
-              <div style={{
-                position:"absolute",top:-4,right:-4,
-                background:theme.PURPLE,color:"#fff",borderRadius:10,
-                padding:"1px 5px",fontSize:9,fontWeight:800,
-                boxShadow:`0 0 8px ${theme.PURPLE}88`,lineHeight:1.4,
-              }}>{loginBadge}</div>
-            )}
-          </button>
           <button
             onClick={openMonthCal}
             title="Місячний календар"
@@ -572,15 +465,6 @@ export default function JournalView() {
           bookings={calBookings}
           onClose={()=>setShowMonthCal(false)}
           onPickDate={(dateStr)=>{ jumpToDate(dateStr); }}
-        />
-      )}
-
-      {showLogins && (
-        <LoginsSheet
-          events={loginEvents}
-          prevReadAt={prevLoginReadAt}
-          onClose={() => setShowLogins(false)}
-          theme={theme}
         />
       )}
 

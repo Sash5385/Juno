@@ -1,5 +1,5 @@
 import { useState, useEffect, useContext } from "react";
-import { onValue, update, push, remove } from "firebase/database";
+import { onValue, update, remove } from "firebase/database";
 import { iRef } from "../firebase";
 
 import { ThemeContext } from "../theme.js";
@@ -15,46 +15,11 @@ const PALETTE = [
 const colorOf = id => PALETTE.find(p=>p.id===id)?.color || "#7ed957";
 
 const SERVICES = {
-  sv1:{ name:"Автошкола 1г", color:"#7ed957", type:"school"  },
-  sv2:{ name:"Автошкола 2г", color:"#7ed957", type:"school"  },
-  sv3:{ name:"Приватний 1г", color:"#f7c948", type:"private" },
-  sv4:{ name:"Приватний 2г", color:"#f7c948", type:"private" },
+  sv1:{ name:"Стандарт 1г", color:"#7ed957", type:"school"  },
+  sv2:{ name:"Стандарт 2г", color:"#7ed957", type:"school"  },
+  sv3:{ name:"Індивідуальний 1г", color:"#f7c948", type:"private" },
+  sv4:{ name:"Індивідуальний 2г", color:"#f7c948", type:"private" },
 };
-
-// ─── ADD TO QUEUE MODAL ─────────────────────────────────────────
-function AddToQueueModal({ onSave, onClose, svcs }) {
-  const { SURF_HI, SURFACE, PURPLE, DIM, SO } = useContext(ThemeContext);
-  const [form, setForm] = useState({ name:"", phone:"", svcId:"sv1" });
-  const upd = (k,v) => setForm(f=>({...f,[k]:v}));
-  const valid = form.name.trim() && form.phone.trim();
-  return (
-    <Modal open onClose={onClose} sheet size="md" title="⏳ Додати до черги"
-      footer={<>
-        <Btn variant="ghost" flex={1} onClick={onClose}>Скасувати</Btn>
-        <Btn variant="primary" accent={PURPLE} flex={1} disabled={!valid} onClick={()=>valid&&onSave(form)}>Додати до черги</Btn>
-      </>}>
-      {[{k:"name",label:"Ім'я учня",placeholder:"Ім'я Прізвище",type:"text"},{k:"phone",label:"Телефон",placeholder:"+380...",type:"tel"}].map(f=>(
-        <div key={f.k} style={{marginBottom:12}}>
-          <div style={{fontSize:10,color:"#5a5c62",letterSpacing:1,marginBottom:5}}>{f.label.toUpperCase()}</div>
-          <input type={f.type} value={form[f.k]} onChange={e=>upd(f.k,e.target.value)} placeholder={f.placeholder}
-            style={{width:"100%",background:"transparent",border:`1px solid rgba(255,255,255,0.08)`,borderRadius:10,padding:"10px 14px",color:"inherit",fontSize:14,outline:"none",boxSizing:"border-box",fontFamily:"inherit"}}/>
-        </div>
-      ))}
-      <div style={{marginBottom:0}}>
-        <div style={{fontSize:10,color:"#5a5c62",letterSpacing:1,marginBottom:5}}>ПОСЛУГА</div>
-        <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-          {Object.entries(svcs||SERVICES).map(([id,s])=>(
-            <button key={id} onClick={()=>upd("svcId",id)} style={{
-              padding:"6px 12px",borderRadius:9,border:"none",cursor:"pointer",fontSize:12,fontWeight:700,fontFamily:"inherit",
-              background:form.svcId===id?`linear-gradient(145deg,${s.color}44,${s.color}22)`:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,
-              color:form.svcId===id?s.color:DIM,boxShadow:SO,
-            }}>{s.name}</button>
-          ))}
-        </div>
-      </div>
-    </Modal>
-  );
-}
 
 // ─── QUEUE OFFER MODAL ──────────────────────────────────────────
 function QueueOfferModal({ cancelledBk, waiting, queueMode, onInvite, onClose, svcsMap }) {
@@ -73,7 +38,7 @@ function QueueOfferModal({ cancelledBk, waiting, queueMode, onInvite, onClose, s
         </Btn>
       </>}>
       <div style={{fontSize:12,color:DIM,marginTop:-12,marginBottom:16}}>
-        Є <b style={{color:PURPLE}}>{waiting.length}</b> {waiting.length===1?"учень":"учнів"} в черзі.
+        Є <b style={{color:PURPLE}}>{waiting.length}</b> {waiting.length===1?"клієнт":"клієнтів"} в черзі.
         Режим: <b style={{color:GOLD}}>{queueMode==="fifo"?"FIFO":queueMode==="broadcast"?"Broadcast":"Ручний"}</b>
       </div>
       <div style={{display:"flex",flexDirection:"column",gap:6}}>
@@ -86,7 +51,7 @@ function QueueOfferModal({ cancelledBk, waiting, queueMode, onInvite, onClose, s
             <div style={{width:4,height:32,borderRadius:3,background:PURPLE,flexShrink:0}}/>
             <div style={{flex:1}}>
               <div style={{fontSize:13,fontWeight:800,color:TEXT}}>{q.name}</div>
-              <div style={{fontSize:10,color:DIM}}>{q.phone} · {(svcsMap||SERVICES)[q.svcId]?.name||q.svcId}</div>
+              <div style={{fontSize:11,color:DIM}}>{q.phone} · {(svcsMap||SERVICES)[q.svcId]?.name||q.svcId}</div>
             </div>
             {selected.includes(q.id) && <span style={{fontSize:16}}>✓</span>}
           </div>
@@ -104,7 +69,7 @@ function statusInfo(status, C) {
   return { text: status || "—", color: C.DIM };
 }
 
-// ─── CARDS (стиль застосунку: кольорові градієнтні картки, як у «Учні» / «Послуги») ─────
+// ─── CARDS (стиль застосунку: кольорові градієнтні картки, як у «Клієнти» / «Послуги») ─────
 const MON = ["січ","лют","бер","кві","тра","чер","лип","сер","вер","жов","лис","гру"];
 const initialsOf = n => (n||"?").split(" ").map(w=>w[0]).slice(0,2).join("").toUpperCase();
 
@@ -118,18 +83,17 @@ function fmtWait(ts, now) {
 
 // slotKey "2026-10-05_11:00" → "05.10 · 11:00"
 function slotLabel(key) {
-  const [d, t] = String(key || "").split("_");
+  const [d, t] = String(key || "").split("~").pop().split("_");
   const p = (d || "").split("-");
   return p.length === 3 ? `${p[2]}.${p[1]}${t ? ` · ${t}` : ""}` : String(key || "").replace("_", " ");
 }
 
 function CardShell({ color, children }) {
-  const { BG_DEEP } = useContext(ThemeContext);
   const { shade, glow } = useFX();
   return (
     <div className="fade-in" style={{
       position:"relative", flexShrink:0, borderRadius:14, overflow:"hidden",
-      background:`linear-gradient(155deg,color-mix(in srgb,${color} 46%,${BG_DEEP}) 0%,color-mix(in srgb,${color} 16%,${BG_DEEP}) 100%)`,
+      background:`color-mix(in srgb,${color} 26%,transparent)`,backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",
       border:`1px solid color-mix(in srgb,${color} 42%,transparent)`,
       boxShadow:`-2px 5px 13px ${shade(0.45)},inset 1px 1px 0 ${glow(0.15)}`,
     }}>
@@ -143,14 +107,14 @@ function CardShell({ color, children }) {
 function Pill({ color, children }) {
   const { shade } = useFX();
   return (
-    <span style={{fontSize:9.5,fontWeight:800,color,background:shade(0.35),padding:"2px 8px",borderRadius:7,whiteSpace:"nowrap"}}>{children}</span>
+    <span style={{fontSize:11,fontWeight:800,color:`color-mix(in srgb,${color} 55%,#fff)`,background:shade(0.35),padding:"2px 8px",borderRadius:7,whiteSpace:"nowrap"}}>{children}</span>
   );
 }
 
 function HoursChip({ h }) {
   const { GOLD } = useContext(ThemeContext);
   if (!h) return null;
-  return <span style={{padding:"2px 7px",borderRadius:7,background:`${GOLD}26`,border:`1px solid ${GOLD}4d`,fontSize:10.5,fontWeight:900,color:GOLD,whiteSpace:"nowrap"}}>{h} год</span>;
+  return <span style={{padding:"2px 7px",borderRadius:7,background:`${GOLD}26`,border:`1px solid ${GOLD}4d`,fontSize:11,fontWeight:900,color:`color-mix(in srgb,${GOLD} 55%,#fff)`,whiteSpace:"nowrap"}}>{h} год</span>;
 }
 
 function BkCard({ b, st }) {
@@ -162,16 +126,16 @@ function BkCard({ b, st }) {
       <div style={{display:"flex",alignItems:"center",gap:10,padding:"9px 11px"}}>
         <div style={{
           width:40,height:40,borderRadius:11,flexShrink:0,color:"#fff",lineHeight:1,
-          background:`linear-gradient(155deg,${st.color},color-mix(in srgb,${st.color} 40%,#000))`,
+          background:`linear-gradient(155deg,color-mix(in srgb,${st.color} 72%,#000),color-mix(in srgb,${st.color} 30%,#000))`,
           display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",
           boxShadow:`-2px 3px 8px color-mix(in srgb,${st.color} 40%,transparent)`,
         }}>
           <div style={{fontSize:15,fontWeight:900}}>{d[2] || "—"}</div>
-          <div style={{fontSize:8.5,fontWeight:800,opacity:0.85,marginTop:2,textTransform:"uppercase"}}>{MON[(+d[1] || 1) - 1]}</div>
+          <div style={{fontSize:11,fontWeight:800,opacity:0.85,marginTop:2,textTransform:"uppercase"}}>{MON[(+d[1] || 1) - 1]}</div>
         </div>
         <div style={{flex:1,minWidth:0}}>
-          <div style={{fontSize:13,fontWeight:800,color:"#fff",textShadow:`0 1px 3px ${shade(0.5)}`,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{b.name}</div>
-          <div style={{fontSize:10,color:"rgba(255,255,255,0.7)",marginTop:2,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+          <div style={{fontSize:13,fontWeight:800,color:"#fff",textShadow:`0 1px 3px ${shade(0.5)}`,overflowWrap:"anywhere"}}>{b.name}</div>
+          <div style={{fontSize:11,color:"rgba(255,255,255,0.85)",marginTop:2,overflowWrap:"anywhere"}}>
             {b.time || "—"}{b.phone ? ` · ${b.phone}` : ""}{b.serviceName ? ` · ${b.serviceName}` : ""}{b.price != null ? ` · ${b.price}₴` : ""}
           </div>
           {b.studentNote && (
@@ -188,57 +152,57 @@ function BkCard({ b, st }) {
 }
 
 function QCard({ q, pos, svc, now, onInvite, onRemove }) {
-  const { BORDER, GOLD, GREEN, PURPLE, RED, BG_DEEP } = useContext(ThemeContext);
+  const { BORDER, GOLD, GREEN, PURPLE, BG_DEEP, TEXT } = useContext(ThemeContext);
   const { shade } = useFX();
   const color = q.status === "offered" ? GOLD : q.status === "booked" ? GREEN : PURPLE;
   const label = q.status === "offered" ? "Запрошено" : q.status === "booked" ? "Записаний" : "Очікує";
   const hrs = q.durationHours || (svc.name || "").match(/(\d+)г/)?.[1];
   const waiting = q.status === "waiting";
-  const btn = { padding:"8px 0",border:"none",cursor:"pointer",background:"transparent",fontSize:11,fontWeight:700,fontFamily:"inherit",display:"flex",alignItems:"center",justifyContent:"center",gap:5 };
+  const btn = { padding:"10px 0",border:"none",cursor:"pointer",background:"transparent",color:TEXT,fontSize:12,fontWeight:700,fontFamily:"inherit",display:"flex",alignItems:"center",justifyContent:"center",gap:6 };
   return (
     <CardShell color={color}>
       <div style={{display:"flex",alignItems:"center",gap:10,padding:"9px 11px"}}>
         <div style={{position:"relative",flexShrink:0}}>
           <div style={{
-            width:36,height:36,borderRadius:11,color:"#fff",fontSize:13,fontWeight:900,
-            background:`linear-gradient(155deg,${color},color-mix(in srgb,${color} 40%,#000))`,
+            width:36,height:36,borderRadius:11,color:"#fff",fontSize:13,fontWeight:900,textShadow:"0 1px 2px rgba(0,0,0,0.55)",
+            background:`linear-gradient(155deg,color-mix(in srgb,${color} 72%,#000),color-mix(in srgb,${color} 30%,#000))`,
             display:"flex",alignItems:"center",justifyContent:"center",
             boxShadow:`-2px 3px 8px color-mix(in srgb,${color} 40%,transparent)`,
           }}>{initialsOf(q.name)}</div>
           <div style={{
-            position:"absolute",top:-5,left:-5,width:15,height:15,borderRadius:5,
-            background:BG_DEEP,color,fontSize:8.5,fontWeight:900,
+            position:"absolute",top:-6,left:-6,minWidth:18,height:18,padding:"0 3px",borderRadius:6,
+            background:BG_DEEP,color:`color-mix(in srgb,${color} 55%,#fff)`,fontSize:11,fontWeight:900,
             display:"flex",alignItems:"center",justifyContent:"center",
             border:`1px solid color-mix(in srgb,${color} 45%,transparent)`,
           }}>{pos}</div>
         </div>
         <div style={{flex:1,minWidth:0}}>
-          <div style={{fontSize:13,fontWeight:800,color:"#fff",textShadow:`0 1px 3px ${shade(0.5)}`,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{q.name}</div>
-          <div style={{fontSize:10,color:"rgba(255,255,255,0.7)",marginTop:2,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+          <div style={{fontSize:13,fontWeight:800,color:"#fff",textShadow:`0 1px 3px ${shade(0.5)}`,overflowWrap:"anywhere"}}>{q.name}</div>
+          <div style={{fontSize:11,color:"rgba(255,255,255,0.85)",marginTop:2,overflowWrap:"anywhere"}}>
             {q.phone}{svc.name ? `${q.phone ? " · " : ""}${svc.name}` : ""}
           </div>
           {(q.slotKey || hrs) && (
             <div style={{display:"flex",gap:5,flexWrap:"wrap",marginTop:5}}>
-              {q.slotKey && <span style={{padding:"2px 8px",borderRadius:7,background:shade(0.3),fontSize:10.5,fontWeight:800,color:"#fff",whiteSpace:"nowrap"}}>📅 {slotLabel(q.slotKey)}</span>}
+              {q.slotKey && <span style={{padding:"2px 8px",borderRadius:7,background:shade(0.3),fontSize:11,fontWeight:800,color:"#fff",whiteSpace:"nowrap"}}>📅 {slotLabel(q.slotKey)}</span>}
               <HoursChip h={hrs}/>
             </div>
           )}
         </div>
         <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4,flexShrink:0}}>
           <Pill color={color}>{label}</Pill>
-          {q.addedAt ? <div style={{fontSize:9.5,color:"rgba(255,255,255,0.7)"}}>{fmtWait(q.addedAt, now)}</div> : null}
+          {q.addedAt ? <div style={{fontSize:11,color:"rgba(255,255,255,0.8)"}}>{fmtWait(q.addedAt, now)}</div> : null}
         </div>
       </div>
       <div style={{display:"grid",gridTemplateColumns:waiting?"1fr 1fr":"1fr",borderTop:`1px solid ${BORDER}`}}>
         {waiting && (
-          <button onClick={onInvite} style={{...btn,borderRight:`1px solid ${BORDER}`,color:PURPLE}}>
+          <button onClick={onInvite} style={{...btn,borderRight:`1px solid ${BORDER}`}}>
             <div className="icon3d" style={{width:22,height:22,background:"linear-gradient(165deg,#c084fc,#7c3aed)",borderRadius:7}}>
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" style={{position:"relative",zIndex:1}}><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
             </div>
             Запросити
           </button>
         )}
-        <button onClick={onRemove} style={{...btn,color:`${RED}cc`}}>
+        <button onClick={onRemove} style={btn}>
           <div className="icon3d" style={{width:22,height:22,background:"linear-gradient(165deg,#f87171,#dc2626)",borderRadius:7}}>
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" style={{position:"relative",zIndex:1}}><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
           </div>
@@ -262,7 +226,6 @@ textarea{color-scheme:dark}
   const [svcsMap,      setSvcsMap]      = useState(SERVICES);
   const [queue,        setQueue]        = useState([]);
   const [queueOpen,    setQueueOpen]    = useState(true);
-  const [addQueueOpen, setAddQueueOpen] = useState(false);
   const [queueOffer,   setQueueOffer]   = useState(null);
   const [search,       setSearch]       = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -307,7 +270,6 @@ textarea{color-scheme:dark}
     },()=>{});
   }, []);
 
-  const addToQueue     = form => push(iRef("queue"),{...form,addedAt:Date.now(),status:"waiting"});
   const removeFromQueue= item => {
     if(typeof item==="string"){remove(iRef(`queue/${item}`));return;}
     if(item._nested)remove(iRef(`queue/${item._slotKey}/entries/${item._uid}`));
@@ -373,7 +335,7 @@ textarea{color-scheme:dark}
             <div style={{width:32,height:32,borderRadius:10,flexShrink:0,background:"linear-gradient(165deg,#c084fc,#7c3aed)",boxShadow:SO,display:"flex",alignItems:"center",justifyContent:"center",fontSize:15}}>⏳</div>
             <span style={{flex:1,fontSize:13,fontWeight:800,color:TEXT}}>Черга очікування</span>
             {waitingCount>0 && (
-              <span style={{background:"linear-gradient(145deg,#c084fc,#7c3aed)",color:"#fff",borderRadius:8,padding:"1px 8px",fontSize:11,fontWeight:700,boxShadow:"0 0 8px rgba(192,132,252,0.5)"}}>
+              <span style={{background:"linear-gradient(145deg,#9333ea,#6d28d9)",color:"#fff",borderRadius:8,padding:"1px 8px",fontSize:11,fontWeight:700,boxShadow:"0 0 8px rgba(192,132,252,0.5)"}}>
                 {waitingCount} очікує
               </span>
             )}
@@ -392,25 +354,18 @@ textarea{color-scheme:dark}
                 <div style={{textAlign:"center",padding:"22px 0 12px",color:FAINT}}>
                   <div style={{fontSize:30,marginBottom:6}}>⏳</div>
                   <div style={{fontSize:14,fontWeight:700,color:DIM}}>Черга порожня</div>
-                  <div style={{fontSize:12,marginTop:4}}>Додайте учнів кнопкою нижче</div>
+                  <div style={{fontSize:12,marginTop:4}}>Клієнти стають у чергу самі в застосунку</div>
                 </div>
               ) : activeQueue.map((q,i)=>(
                 <QCard key={q.id} q={q} pos={i+1} now={now} svc={(svcsMap||SERVICES)[q.svcId]||{}}
                   onInvite={()=>markOffered(q)} onRemove={()=>removeFromQueue(q)}/>
               ))}
-              <Btn variant="primary" accent={PURPLE} onClick={()=>setAddQueueOpen(true)} style={{width:"100%"}}>
-                <div className="icon3d" style={{width:26,height:26,background:`${PURPLE}33`,borderRadius:8}}>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" style={{position:"relative",zIndex:1}}><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                </div>
-                Додати до черги
-              </Btn>
             </div>
           )}
         </div>
 
       </div>
 
-      {addQueueOpen && <AddToQueueModal onSave={form=>{addToQueue(form);setAddQueueOpen(false);}} onClose={()=>setAddQueueOpen(false)} svcs={svcsMap}/>}
       {queueOffer && <QueueOfferModal cancelledBk={queueOffer.cancelledBk} waiting={queueOffer.waiting} queueMode={queueMode} svcsMap={svcsMap} onInvite={items=>{items.forEach(item=>markOffered(item));setQueueOffer(null);}} onClose={()=>setQueueOffer(null)}/>}
     </>
   );

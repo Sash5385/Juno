@@ -7,8 +7,9 @@ import { LOGIN_CSS } from "./loginStyles";
 import { APP_VERSION } from "./version";
 import { DEMO, DEMO_USER } from "./demo/demoMode.js";
 import { deleteAccountRequest } from "./deleteAccountApi";
+import { ACCOUNT_SOLO, ACCOUNT_SALON, ownerRow } from "./workspace";
 
-// Вендор SaaS (ви) — бачить усіх інструкторів замість власного кабінету.
+// Вендор SaaS (ви) — бачить усіх майстрів замість власного кабінету.
 const VENDOR_EMAIL = "sash5385@gmail.com";
 export const isVendor = (user) => user?.email === VENDOR_EMAIL;
 
@@ -32,7 +33,7 @@ const ACCENT  = "#ff5a3c";
 const SO = "6px 6px 16px rgba(0,0,0,0.45),-3px -3px 10px rgba(255,255,255,0.025)";
 
 // Multi-tenant: логін дозволений будь-якому зареєстрованому Firebase-користувачу —
-// iid інструктора = його ж auth.uid. Профіль (є він, чи потрібна анкета
+// iid майстра = його ж auth.uid. Профіль (є він, чи потрібна анкета
 // InstructorSetupScreen) перевіряється окремо в App.jsx.
 export function useAdminAuth() {
   const [user, setUser] = useState(DEMO ? DEMO_USER : undefined);
@@ -60,7 +61,7 @@ export function LoginScreen() {
   const [password, setPassword] = useState("");
   const [error,    setError]    = useState("");
   const [loading,  setLoading]  = useState(false);
-  // "login" — вхід, "register" — реєстрація нового інструктора (далі — анкета та пробний період)
+  // "login" — вхід, "register" — реєстрація нового майстра (далі — анкета та пробний період)
   const [mode,      setMode]      = useState("login");
   const [password2, setPassword2] = useState("");
   const [info,      setInfo]      = useState("");
@@ -92,10 +93,10 @@ export function LoginScreen() {
   // (логін тут, або одразу кабінет, якщо сесія вже активна).
   const IOS_UA_RE = /iphone|ipad|ipod/i;
   const ios = IOS_UA_RE.test(window.navigator.userAgent);
-  const [bannerDismissed, setBannerDismissed] = useState(() => localStorage.getItem('pwa_install_offered') === '1');
+  const [bannerDismissed, setBannerDismissed] = useState(() => localStorage.getItem((import.meta.env.BASE_URL === '/' ? 'pwa_install_offered' : 'pwa_install_offered_admin')) === '1');
   const bannerEligible = !installed && !bannerDismissed && (installPrompt || ios);
   useEffect(() => {
-    if (bannerEligible) localStorage.setItem('pwa_install_offered', '1');
+    if (bannerEligible) localStorage.setItem((import.meta.env.BASE_URL === '/' ? 'pwa_install_offered' : 'pwa_install_offered_admin'), '1');
   }, [bannerEligible]);
 
   const login = async () => {
@@ -161,9 +162,9 @@ export function LoginScreen() {
       <div className="lg-bg" aria-hidden="true"><i/><i/><i/></div>
       <div className="lg-card">
         <div className="lg-head">
-          <img className="lg-logo" src="/icon-192.png" alt="DrivePad"/>
-          <div className="lg-title">DrivePad</div>
-          <div className="lg-sub">{registering ? "Реєстрація інструктора · 14 днів безкоштовно" : "Вхід для інструктора"}</div>
+          <img className="lg-logo" src={import.meta.env.BASE_URL + "icon-192.png"} alt="Juno"/>
+          <div className="lg-title">Juno</div>
+          <div className="lg-sub">{registering ? "Реєстрація майстра · 14 днів безкоштовно" : "Вхід для майстра"}</div>
         </div>
         <div className="lg-body">
           <div className="lg-field">
@@ -247,9 +248,9 @@ const INP = { width:"100%", background:BG_DEEP, border:`1px solid ${BORDER}`, bo
 const LBL = { fontSize:12, color:DIM, marginBottom:6 };
 const TRIAL_DAYS = 14;
 // Адреси, що збігаються з розділами/службовими шляхами застосунку
-const RESERVED_SLUGS = ["admin","api","i","book","www","drivepad","login","auth","cabinet","schedule","home","about","settings","support","help","test","demo"];
+const RESERVED_SLUGS = ["admin","api","i","book","www","drivepad","juno","login","auth","cabinet","schedule","home","about","settings","support","help","test","demo"];
 
-// Перший вхід нового інструктора — заповнює профіль (учні бачать його при
+// Перший вхід нового майстра — заповнює профіль (клієнти бачать його при
 // записі) і бронює slug для публічної сторінки /book/{slug}. Заводить license
 // в trial на TRIAL_DAYS — той самий вузол, що читає useLicense()/checkLicenseExpiry.
 export function InstructorSetupScreen({ onDone }) {
@@ -257,6 +258,7 @@ export function InstructorSetupScreen({ onDone }) {
   const [phone,      setPhone]      = useState("");
   const [address,    setAddress]    = useState("");
   const [experience, setExperience] = useState("");
+  const [accountType, setAccountType] = useState(ACCOUNT_SOLO);
   const [slug,       setSlug]       = useState("");
   const [slugError,  setSlugError]  = useState("");
   const [saving,     setSaving]     = useState(false);
@@ -307,11 +309,17 @@ export function InstructorSetupScreen({ onDone }) {
         experience: Number(experience) || 0,
         slug,
       };
-      await update(iRef(""), {
-        "admin_settings/profile": profile,
-        "license/status":      "trial",
-        "license/trialEndsAt": Date.now() + TRIAL_DAYS * 24 * 3600 * 1000,
-      });
+      // Ліцензія вже може існувати (напр. після скидання даних) — правила дозволяють майстру
+      // лише створити trial, а не перезаписати наявну, тому тоді пишемо тільки профіль.
+      const licSnap = await get(iRef("license/status"));
+      const payload = { "admin_settings/profile": profile, "admin_settings/accountType": accountType };
+      // Салон: власник одразу стає першим майстром у складі простору
+      if (accountType === ACCOUNT_SALON) payload[`staff/${iid}`] = ownerRow(profile.name);
+      if (!licSnap.exists()) {
+        payload["license/status"] = "trial";
+        payload["license/trialEndsAt"] = Date.now() + TRIAL_DAYS * 24 * 3600 * 1000;
+      }
+      await update(iRef(""), payload);
       await set(ref(db, `instructor_index/${iid}`), {
         name: profile.name, phone: profile.phone, slug, createdAt: Date.now(),
       });
@@ -326,15 +334,30 @@ export function InstructorSetupScreen({ onDone }) {
   return (
     <div style={{ minHeight:"100vh", background:BG_DEEP, display:"flex", alignItems:"center", justifyContent:"center", padding:"20px", paddingTop:"calc(20px + env(safe-area-inset-top, 0px))", paddingBottom:"calc(20px + env(safe-area-inset-bottom, 0px))" }}>
       <div style={{ background:`linear-gradient(135deg,${SURF_HI},${SURFACE})`, borderRadius:20, padding:"32px 28px", width:"100%", maxWidth:400, boxShadow:SO, border:`1px solid ${BORDER}` }}>
+        <button onClick={() => signOut(auth).catch(() => {})} disabled={saving} style={{ background:"none", border:"none", color:DIM, fontSize:13, fontWeight:700, cursor:"pointer", padding:"0 0 12px", fontFamily:"inherit" }}>← Назад</button>
         <div style={{ textAlign:"center", marginBottom:28 }}>
-          <img src="/icon-192.png" alt="DrivePad" style={{width:64,height:64,borderRadius:"50%",marginBottom:10,boxShadow:"-3px 5px 14px rgba(0,0,0,0.45)"}}/>
+          <img src={import.meta.env.BASE_URL + "icon-192.png"} alt="Juno" style={{width:64,height:64,borderRadius:"50%",marginBottom:10,boxShadow:"-3px 5px 14px rgba(0,0,0,0.45)"}}/>
           <div style={{ fontSize:20, fontWeight:800, color:TEXT }}>Налаштування профілю</div>
-          <div style={{ fontSize:13, color:DIM, marginTop:6 }}>Заповніть інформацію про себе — учні побачать її при записі</div>
+          <div style={{ fontSize:13, color:DIM, marginTop:6 }}>Заповніть інформацію про себе — клієнти побачать її при записі</div>
         </div>
 
         <div style={{ marginBottom:14 }}>
-          <div style={LBL}>Ім'я та прізвище *</div>
-          <input value={name} onChange={e=>handleNameChange(e.target.value)} placeholder="Олександр Коваленко" style={INP}/>
+          <div style={LBL}>Як ви працюєте *</div>
+          <div style={{ display:"flex", background:BG_DEEP, border:`1px solid ${BORDER}`, borderRadius:12, padding:3 }}>
+            {[[ACCOUNT_SOLO,"Один майстер"],[ACCOUNT_SALON,"Салон"]].map(([k,l]) => (
+              <button key={k} type="button" onClick={()=>setAccountType(k)} disabled={saving} style={{
+                flex:1, padding:"10px 6px", borderRadius:10, border:"none", cursor:"pointer", fontFamily:"inherit", fontSize:13, fontWeight:700,
+                background: accountType===k ? "linear-gradient(135deg,#ff7a5c,#ff5a3c)" : "transparent", color: accountType===k ? "#fff" : DIM,
+              }}>{l}</button>
+            ))}
+          </div>
+          <div style={{ fontSize:11, color:DIM, marginTop:6 }}>
+            {accountType===ACCOUNT_SALON ? "Кілька майстрів в одному акаунті: у кожного свій календар, клієнти спільні. Майстрів додасте пізніше." : "Ви працюєте самі: один календар, свої клієнти."}
+          </div>
+        </div>
+        <div style={{ marginBottom:14 }}>
+          <div style={LBL}>{accountType===ACCOUNT_SALON ? "Назва салону *" : "Ім'я та прізвище *"}</div>
+          <input value={name} onChange={e=>handleNameChange(e.target.value)} placeholder={accountType===ACCOUNT_SALON ? "Салон Краса" : "Олександр Коваленко"} style={INP}/>
         </div>
         <div style={{ marginBottom:14 }}>
           <div style={LBL}>Телефон *</div>
@@ -398,7 +421,7 @@ function bookingStatusLabel(b) {
   return { text: b.status || "—", color: DIM };
 }
 
-// ─── Деталі інструктора в суперадмінці: записи, учні, суми ──────────
+// ─── Деталі майстра в суперадмінці: записи, клієнти, суми ──────────
 const fmtMoney = (n) => `${Math.round(n).toLocaleString("uk")}₴`;
 const isCancelled = (b) => b.status === "cancelled" || !!b.cancelledBy;
 
@@ -413,7 +436,7 @@ function bookingPrice(b, services) {
 
 const DAY_MS = 86400000;
 const dayKey = (ts) => new Date(ts).toLocaleDateString("sv-SE");
-// Коли запис створено: createdAt або (запасний варіант) дата уроку
+// Коли запис створено: createdAt або (запасний варіант) дата запису
 const bookingCreatedTs = (b) => b.createdAt || (b.date ? new Date(`${b.date}T12:00:00`).getTime() : 0);
 const INACTIVE_DAYS = 14;
 
@@ -467,7 +490,7 @@ function InstructorDetail({ loading, data, iid, onStudentDeleted }) {
   const sum = (arr) => arr.reduce((t, r) => t + (r.price.value || 0), 0);
   const monthRows = active.filter(r => (r.b.date || "").startsWith(month));
 
-  // Учні — з записів (ім'я/телефон/uid у записах є завжди)
+  // Клієнти — з записів (ім'я/телефон/uid у записах є завжди)
   const studentMap = {};
   rows.forEach(r => {
     const key = r.b.uid || r.b.phone || r.b.studentName;
@@ -500,7 +523,7 @@ function InstructorDetail({ loading, data, iid, onStudentDeleted }) {
   return (
     <div style={{ marginTop:12, paddingTop:12, borderTop:`1px solid ${BORDER}` }}>
       <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:12 }}>
-        {[["Записів", active.length], ["У цьому місяці", monthRows.length], ["Учнів", students.length],
+        {[["Записів", active.length], ["У цьому місяці", monthRows.length], ["Клієнтів", students.length],
           ["Сума за місяць", fmtMoney(sum(monthRows))], ["Сума всього", fmtMoney(sum(active))]].map(([l, v]) => (
           <div key={l} style={{ flex:"1 1 80px", padding:"8px 10px", borderRadius:10, background:"rgba(255,255,255,0.04)", border:`1px solid ${BORDER}` }}>
             <div style={{ fontSize:10, color:DIM }}>{l}</div>
@@ -516,7 +539,7 @@ function InstructorDetail({ loading, data, iid, onStudentDeleted }) {
 
       <div style={{ display:"flex", gap:6, marginBottom:10 }}>
         {chip("bookings", `Записи · ${rows.length}`, tab, setTab)}
-        {chip("students", `Учні · ${students.length}`, tab, setTab)}
+        {chip("students", `Клієнти · ${students.length}`, tab, setTab)}
       </div>
 
       <input value={query} onChange={e => { setQuery(e.target.value); setLimit(50); }} placeholder="Пошук: ім'я, телефон, послуга"
@@ -555,7 +578,7 @@ function InstructorDetail({ loading, data, iid, onStudentDeleted }) {
       {tab === "students" && (
         <>
           {students.filter(st => !q || `${st.name} ${st.phone}`.toLowerCase().includes(q)).length === 0 && (
-            <div style={{ color:DIM, fontSize:12, textAlign:"center", padding:12 }}>Учнів нема</div>
+            <div style={{ color:DIM, fontSize:12, textAlign:"center", padding:12 }}>Клієнтів нема</div>
           )}
           {students.filter(st => !q || `${st.name} ${st.phone}`.toLowerCase().includes(q)).map(st => (
             <div key={st.key} onClick={() => { setTab("bookings"); setFilter("all"); setQuery(st.name); }}
@@ -569,7 +592,7 @@ function InstructorDetail({ loading, data, iid, onStudentDeleted }) {
                 <div style={{ fontSize:11, color:DIM }}>{st.count} зап.{st.cancelled ? ` · скас. ${st.cancelled}` : ""}</div>
               </div>
               {st.uid && (
-                <button title="Видалити учня" onClick={e => { e.stopPropagation(); setDelStudent({ uid: st.uid, name: st.name }); }}
+                <button title="Видалити клієнта" onClick={e => { e.stopPropagation(); setDelStudent({ uid: st.uid, name: st.name }); }}
                   style={{ flexShrink:0, width:32, height:32, borderRadius:8, border:"1px solid rgba(239,68,68,0.4)", background:"rgba(239,68,68,0.1)", color:"#f87171", cursor:"pointer", fontSize:14 }}>🗑</button>
               )}
             </div>
@@ -579,14 +602,14 @@ function InstructorDetail({ loading, data, iid, onStudentDeleted }) {
       {delStudent && (
         <div onClick={() => !delBusy && setDelStudent(null)} style={{ position:"fixed", inset:0, zIndex:300, background:"rgba(0,0,0,0.65)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
           <div onClick={e => e.stopPropagation()} style={{ width:"100%", maxWidth:360, padding:18, borderRadius:16, background:SURFACE, border:"1px solid rgba(239,68,68,0.4)" }}>
-            <div style={{ fontSize:15, fontWeight:800, color:"#f87171", marginBottom:8 }}>Видалити учня?</div>
+            <div style={{ fontSize:15, fontWeight:800, color:"#f87171", marginBottom:8 }}>Видалити клієнта?</div>
             <div style={{ fontSize:13, color:TEXT, marginBottom:6 }}>{delStudent.name}</div>
-            <div style={{ fontSize:12, color:DIM, lineHeight:1.5, marginBottom:14 }}>Будуть видалені профіль, записи, чат і сповіщення учня в цього інструктора; майбутні заняття скасовуються, слоти звільняються. Неможливо скасувати.</div>
+            <div style={{ fontSize:12, color:DIM, lineHeight:1.5, marginBottom:14 }}>Будуть видалені профіль, записи, чат і сповіщення клієнта в цього майстра; майбутні записи скасовуються, слоти звільняються. Неможливо скасувати.</div>
             <div style={{ display:"flex", gap:8 }}>
               <button disabled={delBusy} onClick={async () => {
                 setDelBusy(true);
                 try { await deleteAccountRequest({ type:"student", iid, uid: delStudent.uid }); onStudentDeleted?.(iid, delStudent.uid); setDelStudent(null); }
-                catch { alert("Не вдалося видалити учня"); }
+                catch { alert("Не вдалося видалити клієнта"); }
                 setDelBusy(false);
               }} style={{ flex:1, padding:10, borderRadius:10, border:"none", background:"#ef4444", color:"#fff", fontWeight:800, cursor:"pointer" }}>{delBusy ? "Видалення…" : "Видалити"}</button>
               <button disabled={delBusy} onClick={() => setDelStudent(null)} style={{ padding:"10px 16px", borderRadius:10, border:`1px solid ${BORDER}`, background:"transparent", color:TEXT, fontWeight:700, cursor:"pointer" }}>Скасувати</button>
@@ -598,9 +621,9 @@ function InstructorDetail({ loading, data, iid, onStudentDeleted }) {
   );
 }
 
-// Панель вендора SaaS — список усіх зареєстрованих інструкторів (instructor_index)
+// Панель вендора SaaS — список усіх зареєстрованих майстрів (instructor_index)
 // з їх поточним статусом ліцензії, і кнопки ручного продовження/призупинення
-// (для інструкторів, що платять поза автоматичними LiqPay/Monobank вебхуками,
+// (для майстрів, що платять поза автоматичними LiqPay/Monobank вебхуками,
 // або для пробного продовження).
 export function SuperAdminScreen() {
   const [index, setIndex] = useState(null);
@@ -615,7 +638,7 @@ export function SuperAdminScreen() {
       await deleteAccountRequest({ type: "instructor", iid: delInst.iid });
       setLicenses(prev => { const n = { ...prev }; delete n[delInst.iid]; return n; });
       setDelInst(null); setDelInstText("");
-    } catch { alert("Не вдалося видалити інструктора"); }
+    } catch { alert("Не вдалося видалити майстра"); }
     setDelInstBusy(false);
   };
   // Нічна резервна копія (functions: nightlyBackup) — вмикається тут
@@ -689,13 +712,13 @@ export function SuperAdminScreen() {
   };
 
   const suspend = async (iid) => {
-    if (!window.confirm("Призупинити підписку? Інструктор перейде в режим читання одразу.")) return;
+    if (!window.confirm("Призупинити підписку? Майстер перейде в режим читання одразу.")) return;
     setBusyIid(iid);
     await update(ref(db, `instructors/${iid}/license`), { status: "suspended" }).catch(() => {});
     setBusyIid(null);
   };
 
-  // Записи (бронювання) інструктора — вантажимо один раз при розгортанні
+  // Записи (бронювання) майстра — вантажимо один раз при розгортанні
   // картки і кешуємо, щоб повторний клік не робив зайвий запит.
   const fetchInstructorBookings = async (iid) => {
     try {
@@ -730,7 +753,7 @@ export function SuperAdminScreen() {
     setLoadingBookingsIid(null);
   };
 
-  // Статистика по всіх інструкторах: вантажимо записи тих, кого ще нема в кеші (по 5 паралельно)
+  // Статистика по всіх майстрах: вантажимо записи тих, кого ще нема в кеші (по 5 паралельно)
   const [statsLoading, setStatsLoading] = useState(false);
   const loadAllStats = async () => {
     setStatsLoading(true);
@@ -785,7 +808,7 @@ export function SuperAdminScreen() {
 
   const TABS = [
     ["overview", "🏠", "Огляд", "#5b9bff"],
-    ["instructors", "👥", "Інструктори", "#4caf6b"],
+    ["instructors", "👥", "Майстри", "#4caf6b"],
     ["payments", "💳", "Платежі", "#f7c948"],
     ["messages", "📨", "Звернення", "#2dd4bf"],
     ["errors", "🐞", "Помилки", "#ff5a3c"],
@@ -852,7 +875,7 @@ export function SuperAdminScreen() {
         {section === "overview" && index !== null && (
           <>
             <div style={{ display:"flex", gap:10, flexWrap:"wrap", marginBottom:14 }}>
-              {tile("Інструкторів", allRows.length, "#5b9bff", `trial: ${counts.trial || 0}`, () => go("instructors", "all"))}
+              {tile("Майстрів", allRows.length, "#5b9bff", `trial: ${counts.trial || 0}`, () => go("instructors", "all"))}
               {tile("Платних", paying.length, "#4caf6b", "активні підписки", () => go("instructors", "active"))}
               {tile("≈ Дохід / міс", `${Math.round(mrr)}₴`, "#f7c948", "за тарифами 299 / 2999")}
               {tile("Потребують уваги", attentionRows.length, attentionRows.length ? "#ff5a3c" : "#4caf6b", "закінчуються / прострочені", () => go("instructors", "attention"))}
@@ -877,7 +900,7 @@ export function SuperAdminScreen() {
                   <div style={{ fontSize:11, color:"rgba(255,255,255,0.6)", marginBottom:6 }}>Усього нових записів: <b style={{ color:TEXT }}>{total30}</b></div>
                   <BarChart data={data} height={70} />
                 </>);
-              })() : <div style={{ fontSize:11, color:"rgba(255,255,255,0.55)", marginTop:6 }}>Завантажує записи всіх інструкторів один раз — потрібно для графіка та «Неактивні».</div>}
+              })() : <div style={{ fontSize:11, color:"rgba(255,255,255,0.55)", marginTop:6 }}>Завантажує записи всіх майстрів один раз — потрібно для графіка та «Неактивні».</div>}
             </>)}
 
             {panel(attentionRows.length ? "#ff5a3c" : "#4caf6b", <>
@@ -894,7 +917,7 @@ export function SuperAdminScreen() {
 
         {section === "instructors" && index !== null && (
           <>
-            {allRows.length === 0 && <div style={{ color:DIM, textAlign:"center", padding:40 }}>Ще немає зареєстрованих інструкторів</div>}
+            {allRows.length === 0 && <div style={{ color:DIM, textAlign:"center", padding:40 }}>Ще немає зареєстрованих майстрів</div>}
             {allRows.length > 0 && (
               <div style={{ display:"flex", gap:6, marginBottom:14, flexWrap:"wrap" }}>
                 {FILTERS.map(([id, label, n]) => {
@@ -1039,7 +1062,7 @@ export function SuperAdminScreen() {
                   <div style={{ fontSize:11, fontWeight:800, color:"#ff5a3c", flexShrink:0 }}>×{e.count || 1}</div>
                 </div>
                 <div style={{ fontSize:11, color:"rgba(255,255,255,0.6)", marginTop:4 }}>
-                  {e.app === "client" ? "учень" : "адмінка"} · {e.version} · {e.url} · {new Date(e.last).toLocaleString("uk")}
+                  {e.app === "client" ? "клієнт" : "адмінка"} · {e.version} · {e.url} · {new Date(e.last).toLocaleString("uk")}
                 </div>
                 {e.stack && <pre style={{ fontSize:10, color:"rgba(255,255,255,0.5)", whiteSpace:"pre-wrap", wordBreak:"break-all", margin:"8px 0 0", maxHeight:120, overflow:"auto" }}>{e.stack}</pre>}
                 <div style={{ fontSize:10, color:"rgba(255,255,255,0.4)", marginTop:6, wordBreak:"break-word" }}>{e.ua}</div>
@@ -1057,7 +1080,7 @@ export function SuperAdminScreen() {
                 <div style={{ minWidth:0 }}>
                   <div style={{ fontSize:14, fontWeight:800, color:TEXT }}>💾 Нічна резервна копія</div>
                   <div style={{ fontSize:11, color:"rgba(255,255,255,0.6)", marginTop:2 }}>
-                    Щодня о 03:00 — записи, учні, налаштування в Cloud Storage, зберігається 30 днів
+                    Щодня о 03:00 — записи, клієнти, налаштування в Cloud Storage, зберігається 30 днів
                   </div>
                 </div>
                 <button onClick={toggleBackup} disabled={backupOn === null} aria-pressed={!!backupOn}
@@ -1069,7 +1092,7 @@ export function SuperAdminScreen() {
               <div style={{ fontSize:11, marginTop:8, color: backupStatus && backupStatus.ok === false ? ACCENT : "rgba(255,255,255,0.6)" }}>
                 {backupStatus
                   ? (backupStatus.ok
-                      ? `Остання копія: ${new Date(backupStatus.at).toLocaleString("uk")} · інструкторів: ${backupStatus.instructors} · ${(backupStatus.bytes/1024).toFixed(0)} КБ`
+                      ? `Остання копія: ${new Date(backupStatus.at).toLocaleString("uk")} · майстрів: ${backupStatus.instructors} · ${(backupStatus.bytes/1024).toFixed(0)} КБ`
                       : `Помилка останньої копії (${new Date(backupStatus.at).toLocaleString("uk")}): ${backupStatus.error || "—"}`)
                   : (backupOn ? "Перша копія буде створена найближчої ночі" : "Вимкнено — копії не створюються")}
               </div>
@@ -1094,10 +1117,10 @@ export function SuperAdminScreen() {
       {delInst && (
         <div onClick={() => !delInstBusy && setDelInst(null)} style={{ position:"fixed", inset:0, zIndex:300, background:"rgba(0,0,0,0.65)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
           <div onClick={e => e.stopPropagation()} style={{ width:"100%", maxWidth:380, padding:18, borderRadius:16, background:SURFACE, border:"1px solid rgba(239,68,68,0.45)" }}>
-            <div style={{ fontSize:16, fontWeight:800, color:"#f87171", marginBottom:8 }}>Видалити акаунт інструктора?</div>
+            <div style={{ fontSize:16, fontWeight:800, color:"#f87171", marginBottom:8 }}>Видалити акаунт майстра?</div>
             <div style={{ fontSize:14, fontWeight:700, color:TEXT, marginBottom:8 }}>{delInst.name}</div>
             <div style={{ fontSize:12, color:DIM, lineHeight:1.55, marginBottom:12 }}>
-              Назавжди видаляє інструктора, його учнів, записи, чати, налаштування, адресу сторінки й обліковий запис входу. Перед видаленням повний архів його даних зберігається в Storage (backups/deleted/). Підписка не повертається; автосписання LiqPay (якщо є) скасуйте окремо.
+              Назавжди видаляє майстра, його клієнтів, записи, чати, налаштування, адресу сторінки й обліковий запис входу. Перед видаленням повний архів його даних зберігається в Storage (backups/deleted/). Підписка не повертається; автосписання LiqPay (якщо є) скасуйте окремо.
               Для підтвердження введіть <b style={{ color:TEXT }}>ВИДАЛИТИ</b>.
             </div>
             <input value={delInstText} onChange={e => setDelInstText(e.target.value)} placeholder="ВИДАЛИТИ"

@@ -3,7 +3,8 @@ name: Deploy to Firebase
 on:
   push:
     branches:
-      - claude/optimistic-bardeen-o4gf7w
+      - ccr-0afc4178-9t5dvx
+  workflow_dispatch:
 
 jobs:
   tests:
@@ -54,15 +55,15 @@ jobs:
         # зеленим. Тепер основні функції деплояться окремо і БЕЗ continue-on-error:
         # якщо вони не виїхали — CI червоніє, а не мовчить.
         env:
-          GCLOUD_PROJECT: drivepad-86fe1
-          FIREBASE_CONFIG: '{"projectId":"drivepad-86fe1","databaseURL":"https://drivepad-86fe1-default-rtdb.europe-west1.firebasedatabase.app"}'
+          GCLOUD_PROJECT: juno-booking
+          FIREBASE_CONFIG: '{"projectId":"juno-booking","databaseURL":"https://juno-booking-default-rtdb.europe-west1.firebasedatabase.app"}'
         run: |
           CORE=$(cd functions && node -e "console.log(Object.keys(require('./index.js')).filter(n=>!/^(createLiqPayOrder|liqpayCallback|createMonobankInvoice|monobankCallback)\$/.test(n)).map(n=>'functions:'+n).join(','))")
           echo "Deploying: $CORE"
           npx firebase-tools deploy --only "$CORE" --token "${{ secrets.FIREBASE_TOKEN }}"
 
       - name: Deploy Landing (публічний сайт)
-        # Окремо і з continue-on-error: лендинг (папка landing/, сайт drivepad-86fe1.web.app)
+        # Окремо і з continue-on-error: лендинг (папка landing/, сайт juno-booking.web.app)
         # не повинен валити критичний деплой адмінки. Іде ПІСЛЯ функцій, бо форма
         # зв'язку (/api/contact) перенаправляється на функцію submitContact.
         continue-on-error: true
@@ -75,3 +76,18 @@ jobs:
         # падатиме — і НЕ повинен валити критичний деплой hosting/database/пушів.
         continue-on-error: true
         run: npx firebase-tools deploy --only functions:createLiqPayOrder,functions:liqpayCallback,functions:createMonobankInvoice,functions:monobankCallback --token "${{ secrets.FIREBASE_TOKEN }}"
+
+  # Після успішного деплою просимо репо aldemi перезібрати сайт aldemi.com.ua (/junoadmin, /junoclient).
+  # Потрібен секрет ALDEMI_DISPATCH_TOKEN (fine-grained PAT на Sash5385/aldemi, Contents: Read and write);
+  # без нього крок просто пропускається.
+  notify-aldemi:
+    needs: build-and-deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Запустити деплой aldemi.com.ua
+        env:
+          TOKEN: ${{ secrets.ALDEMI_DISPATCH_TOKEN }}
+        run: |
+          if [ -z "$TOKEN" ]; then echo "ALDEMI_DISPATCH_TOKEN не задано — пропущено"; exit 0; fi
+          curl -fsS -X POST -H "Authorization: Bearer $TOKEN" -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/Sash5385/aldemi/dispatches -d '{"event_type":"juno-updated"}'
