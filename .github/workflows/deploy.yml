@@ -76,3 +76,18 @@ jobs:
         # падатиме — і НЕ повинен валити критичний деплой hosting/database/пушів.
         continue-on-error: true
         run: npx firebase-tools deploy --only functions:createLiqPayOrder,functions:liqpayCallback,functions:createMonobankInvoice,functions:monobankCallback --token "${{ secrets.FIREBASE_TOKEN }}"
+
+  # Після успішного деплою просимо репо aldemi перезібрати сайт aldemi.com.ua (/junoadmin, /junoclient).
+  # Потрібен секрет ALDEMI_DISPATCH_TOKEN (fine-grained PAT на Sash5385/aldemi, Contents: Read and write);
+  # без нього крок просто пропускається.
+  notify-aldemi:
+    needs: build-and-deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Запустити деплой aldemi.com.ua
+        env:
+          TOKEN: ${{ secrets.ALDEMI_DISPATCH_TOKEN }}
+        run: |
+          if [ -z "$TOKEN" ]; then echo "ALDEMI_DISPATCH_TOKEN не задано — пропущено"; exit 0; fi
+          curl -fsS -X POST -H "Authorization: Bearer $TOKEN" -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/Sash5385/aldemi/dispatches -d '{"event_type":"juno-updated"}'
