@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:aldemi": "VITE_BASE=/junoadmin/ vite build --outDir dist-aldemi",
     "lint": "eslint .",
     "preview": "vite preview"
   },

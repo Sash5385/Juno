@@ -1,0 +1,104 @@
+name: Deploy to aldemi.com.ua (SFTP)
+
+# Збірка під підшлях /junoadmin і заливка по SFTP. Секрети репо (Settings → Secrets → Actions):
+#   ALDEMI_SFTP_HOST, ALDEMI_SFTP_USER, ALDEMI_SFTP_KEY (приватний ключ) АБО ALDEMI_SFTP_PASSWORD,
+#   ALDEMI_REMOTE_DIR_ADMIN — абсолютний шлях папки /junoadmin на сервері (напр. /home/user/public_html/junoadmin).
+# Необов'язкові: ALDEMI_SFTP_PORT (22 за замовчуванням), ALDEMI_SFTP_KNOWN_HOSTS (рядок з known_hosts;
+# без нього відбиток хоста береться ssh-keyscan при кожному запуску).
+# Без ALDEMI_SFTP_HOST і ALDEMI_REMOTE_DIR_ADMIN воркфлоу пропускає заливку, а не падає.
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-aldemi-ADMIN
+  cancel-in-progress: false
+
+jobs:
+  build-and-upload:
+    runs-on: ubuntu-latest
+    env:
+      SFTP_HOST: ${{ secrets.ALDEMI_SFTP_HOST }}
+      SFTP_USER: ${{ secrets.ALDEMI_SFTP_USER }}
+      SFTP_PORT: ${{ secrets.ALDEMI_SFTP_PORT }}
+      SFTP_KEY: ${{ secrets.ALDEMI_SFTP_KEY }}
+      SFTP_PASSWORD: ${{ secrets.ALDEMI_SFTP_PASSWORD }}
+      KNOWN_HOSTS: ${{ secrets.ALDEMI_SFTP_KNOWN_HOSTS }}
+      REMOTE_DIR: ${{ secrets.ALDEMI_REMOTE_DIR_ADMIN }}
+    steps:
+      - name: Перевірка секретів
+        id: cfg
+        run: |
+          if [ -z "$SFTP_HOST" ] || [ -z "$REMOTE_DIR" ] || [ -z "$SFTP_USER" ] || { [ -z "$SFTP_KEY" ] && [ -z "$SFTP_PASSWORD" ]; }; then
+            echo "Секрети SFTP не задані — заливку пропущено"
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.cfg.outputs.ready == 'true'
+
+      - uses: actions/setup-node@v4
+        if: steps.cfg.outputs.ready == 'true'
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        if: steps.cfg.outputs.ready == 'true'
+        run: npm ci
+
+      - name: Build (aldemi, base /junoadmin)
+        if: steps.cfg.outputs.ready == 'true'
+        run: npm run build:aldemi
+
+      - name: Upload via SFTP
+        if: steps.cfg.outputs.ready == 'true'
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq lftp
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          PORT="${SFTP_PORT:-22}"
+          if [ -n "$KNOWN_HOSTS" ]; then echo "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          else ssh-keyscan -p "$PORT" -H "$SFTP_HOST" > ~/.ssh/known_hosts; fi
+          SSH_CMD="ssh -a -x -p $PORT -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$HOME/.ssh/known_hosts"
+          PASS="$SFTP_PASSWORD"
+          if [ -n "$SFTP_KEY" ]; then
+            printf '%s\n' "$SFTP_KEY" > ~/.ssh/id_deploy && chmod 600 ~/.ssh/id_deploy
+            SSH_CMD="$SSH_CMD -i $HOME/.ssh/id_deploy -o IdentitiesOnly=yes"
+            PASS="x"
+          fi
+          # Спершу все, крім точок входу (hash-імена assets не конфліктують зі старою версією),
+          # потім index.html / sw / manifest / version.json — так сайт ніколи не посилається на ще не залиті файли.
+          cat > ~/deploy.lftp <<EOF
+          set sftp:connect-program "$SSH_CMD"
+          set net:max-retries 3
+          set net:timeout 30
+          open -u "$SFTP_USER","$PASS" sftp://$SFTP_HOST
+          mkdir -p "$REMOTE_DIR"
+          mirror -R --parallel=4 --verbose --exclude-glob index.html --exclude-glob sw.js --exclude-glob registerSW.js --exclude-glob manifest.webmanifest --exclude-glob version.json dist-aldemi "$REMOTE_DIR"
+          put -O "$REMOTE_DIR" dist-aldemi/index.html
+          put -O "$REMOTE_DIR" dist-aldemi/sw.js
+          put -O "$REMOTE_DIR" dist-aldemi/registerSW.js
+          put -O "$REMOTE_DIR" dist-aldemi/manifest.webmanifest
+          put -O "$REMOTE_DIR" dist-aldemi/version.json
+          bye
+          EOF
+          lftp -f ~/deploy.lftp
+          rm -f ~/.ssh/id_deploy ~/deploy.lftp
+
+      - name: Перевірка версії на сайті
+        if: steps.cfg.outputs.ready == 'true'
+        run: |
+          EXPECTED=$(node -p "require('./dist-aldemi/version.json').version")
+          for i in 1 2 3 4 5 6; do
+            GOT=$(curl -fsS "https://aldemi.com.ua/junoadmin/version.json?t=$(date +%s)" | node -p "JSON.parse(require('fs').readFileSync(0,'utf8')).version" || true)
+            echo "очікується $EXPECTED, на сайті $GOT"
+            [ "$GOT" = "$EXPECTED" ] && exit 0
+            sleep 10
+          done
+          echo "::error::Версія на сайті не збігається з залитою"
+          exit 1
