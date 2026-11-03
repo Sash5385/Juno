@@ -116,4 +116,31 @@ t("stats per master", () => {
   assert.deepEqual([r.m2.total, r.m2.completed, r.m2.cancelled, r.m2.revenue], [2, 1, 1, 450]);
   assert.equal(r.m3.total, 0); assert.equal(s.all.revenue, 950); assert.equal(s.all.total, 5);
 });
+t("stats: no-shows, ratings, occupancy", () => {
+  const s = L.aggregateStats([
+    { masterId: "m1", status: "completed", price: 500, durationMin: 60, rating: 5 },
+    { masterId: "m1", status: "completed", price: 300, durationMin: 60, rating: 4 },
+    { masterId: "m1", status: "no_show", price: 400, durationMin: 120 },
+    { masterId: "m1", status: "completed", price: 100, durationMin: 30, rating: 99 },
+    { masterId: "m1", status: "cancelled", durationMin: 600 },
+    { masterId: "m1", status: "personal", durationMin: 60 },
+  ], ["m1"]);
+  const r = s.rows[0];
+  assert.deepEqual([r.total, r.completed, r.noShow, r.cancelled, r.upcoming, r.revenue], [5, 3, 1, 1, 0, 900]);
+  assert.equal(r.rating, 4.5); assert.equal(r.ratingCount, 2);
+  assert.equal(r.bookedMin, 60 + 60 + 120 + 30); assert.equal(r.personalMin, 60);
+  assert.equal(L.noShowPct(r), 25);
+  // 2030-05-13 (пн) – 2030-05-14: за замовчуванням 09:00–18:00 = 540 хв/день → 1080; мінус особисті 60 → 1020
+  assert.equal(L.workMinutes(undefined, "2030-05-13", "2030-05-14"), 1080);
+  assert.equal(L.occupancyPct(r, 1080), Math.round((270 / 1020) * 100));
+  assert.equal(L.occupancyPct(r, 0), null); assert.equal(L.occupancyPct({ bookedMin: 5000, personalMin: 0 }, 100), 100);
+  assert.equal(L.noShowPct({ completed: 0, noShow: 0 }), 0);
+});
+t("work minutes skip days off; month helpers", () => {
+  const wh = [{ from: "10:00", to: "12:00" }, { off: true }];
+  assert.equal(L.workMinutes(wh, "2030-05-13", "2030-05-14"), 120);
+  assert.deepEqual(L.monthRange("2030-02"), ["2030-02-01", "2030-02-28"]);
+  assert.deepEqual(L.monthRange("2032-02"), ["2032-02-01", "2032-02-29"]);
+  assert.equal(L.shiftMonth("2030-01", -1), "2029-12"); assert.equal(L.shiftMonth("2030-12", 1), "2031-01");
+});
 console.log(`salonLogic: ${n} OK`);

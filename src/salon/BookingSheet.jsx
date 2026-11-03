@@ -4,7 +4,7 @@ import { get } from "firebase/database";
 import { Modal, Btn, Pill, ModalSection, Field, Chip } from "../ui.jsx";
 import { useSalon } from "./ctx.js";
 import { sref } from "./data.js";
-import { confirmBooking, completeBooking, cancelBooking, markPaidOnSite, moveBooking, saveBookingNote, refundBooking } from "./actions.js";
+import { confirmBooking, completeBooking, cancelBooking, markPaidOnSite, markNoShow, moveBooking, saveBookingNote, refundBooking } from "./actions.js";
 import { errText } from "./api.js";
 import { Confirm, Select, Input, Hint, statusOf, PAY, money, dateLabel, useTh } from "./kit.jsx";
 import { freeStartTimes, bookingEndMin, minToTime, timeToMin, slotIdOf, isCancelledBooking, toYMD } from "../salonLogic.js";
@@ -46,6 +46,7 @@ export default function BookingSheet({ booking, onClose }) {
   if (!b) return null;
   const st = statusOf(b);
   const closed = isCancelledBooking(b);
+  const started = `${b.date} ${b.time}` <= `${toYMD(new Date())} ${new Date().toTimeString().slice(0, 5)}`; // «Не з’явився» — лише коли час запису настав
   const master = masters.find((m) => m.id === b.masterId);
   const paid = Number(b.paidAmount) || 0;
   const pay = PAY[b.paymentStatus];
@@ -58,10 +59,11 @@ export default function BookingSheet({ booking, onClose }) {
   return (
     <>
       <Modal open onClose={onClose} title={b.clientName || "Запис"} icon="📋"
-        footer={!closed && b.status !== "completed" ? (
+        footer={!closed && b.status !== "completed" && b.status !== "no_show" ? (
           <>
             {b.status === "pending" && <Btn flex={2} disabled={busy} onClick={() => run(() => confirmBooking(ctx, b.id), "Підтверджено", onClose)}>✓ Підтвердити</Btn>}
             {b.status === "confirmed" && <Btn flex={2} disabled={busy} onClick={() => run(() => completeBooking(ctx, b.id), "Візит завершено", onClose)}>✓ Візит відбувся</Btn>}
+            {started && <Btn variant="ghost" flex={1} disabled={busy} accent={th.GOLD} onClick={() => setConfirm("noshow")}>Не з’явився</Btn>}
             <Btn variant="ghost" flex={1} disabled={busy} accent={th.RED} onClick={() => setConfirm("cancel")}>Скасувати</Btn>
           </>
         ) : null}>
@@ -70,6 +72,8 @@ export default function BookingSheet({ booking, onClose }) {
           {pay && <Pill label={pay.label} color={pay.color} bg={`color-mix(in srgb, ${pay.color} 18%, transparent)`} />}
           {b.cancelledBy && <span style={{ fontSize: 11, color: th.DIM }}>скасував: {({ client: "клієнт", admin: "власник", master: "майстер", license: "система", payment_timeout: "не оплачено вчасно", reschedule: "перенесено" })[b.cancelledBy] || b.cancelledBy}</span>}
         </div>
+        {b.clientConfirmed && <Line k="Візит">✅ клієнт підтвердив</Line>}
+        {Number.isInteger(b.rating) && <Line k="Оцінка"><span style={{ color: th.GOLD, fontWeight: 800 }}>{"★".repeat(b.rating)}{"☆".repeat(5 - b.rating)}</span></Line>}
         <Line k="Дата">{dateLabel(b.date)} · {b.time}–{minToTime(bookingEndMin(b))} ({b.durationMin || 60} хв)</Line>
         <Line k="Майстер">{master?.profile?.name || "—"}</Line>
         <Line k="Послуга">{b.serviceName || "—"}</Line>
@@ -111,6 +115,9 @@ export default function BookingSheet({ booking, onClose }) {
       <Confirm open={confirm === "cancel"} danger title="Скасувати запис?" yes="Скасувати запис" no="Ні"
         text={`${b.clientName || "Клієнт"} · ${dateLabel(b.date)} ${b.time}\nКлієнт отримає сповіщення, час звільниться.${paid > 0 ? `\nПередоплату ${money(paid)} буде повернено клієнту автоматично.` : ""}`}
         onNo={() => setConfirm(null)} onYes={() => run(() => cancelBooking(ctx, b.id), "Запис скасовано", onClose)} />
+      <Confirm open={confirm === "noshow"} danger title="Клієнт не з’явився?" yes="Так, неявка" no="Ні"
+        text={`${b.clientName || "Клієнт"} · ${dateLabel(b.date)} ${b.time}\nЗапис буде позначено як неявку (виручку не враховано).`}
+        onNo={() => setConfirm(null)} onYes={() => run(() => markNoShow(ctx, b.id), "Позначено: неявка", onClose)} />
       <Confirm open={confirm === "refund"} danger title="Повернути кошти?" yes="Повернути" no="Ні" text={`Клієнту ${b.clientName || ""} буде повернено ${money(paid)}.`}
         onNo={() => setConfirm(null)} onYes={() => run(() => refundBooking(b.id), "Повернення ініційовано", onClose)} />
     </>

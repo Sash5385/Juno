@@ -74,7 +74,7 @@ export function Confirm({ open, title, text, yes = "Так", no = "Ні", danger
 export const STATUS = {
   pending: { label: "Очікує", color: "#f7c948" }, confirmed: { label: "Підтверджено", color: "#5b9bff" },
   completed: { label: "Завершено", color: "#7ed957" }, cancelled: { label: "Скасовано", color: "#ef4444" },
-  personal: { label: "Особисте", color: "#94a3b8" },
+  no_show: { label: "Неявка", color: "#f97316" }, personal: { label: "Особисте", color: "#94a3b8" },
 };
 export const statusOf = (b) => (b.status === "cancelled" || b.cancelledBy ? STATUS.cancelled : STATUS[b.status] || STATUS.pending);
 export const PAY = { deposit_paid: { label: "Передоплата", color: "#2dd4bf" }, paid: { label: "Оплачено", color: "#7ed957" }, refunded: { label: "Повернено", color: "#94a3b8" } };

@@ -26,8 +26,8 @@ export default function Bookings() {
       if (filter === "cancelled") return c;
       if (c) return false;
       if (filter === "pending") return b.status === "pending";
-      if (filter === "past") return b.date < today || b.status === "completed";
-      return b.date >= today && b.status !== "completed";
+      if (filter === "past") return b.date < today || b.status === "completed" || b.status === "no_show";
+      return b.date >= today && b.status !== "completed" && b.status !== "no_show";
     }).filter((b) => !s || `${b.clientName || ""} ${b.phone || ""} ${b.serviceName || ""}`.toLowerCase().includes(s))
       .sort((a, b) => (filter === "past" || filter === "cancelled" ? -bookingSort(a, b) : bookingSort(a, b)));
   }, [bookings, filter, q, today]);

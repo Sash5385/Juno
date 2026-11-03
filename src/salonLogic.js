@@ -113,20 +113,62 @@ export const isCancelledBooking = (b) => !b || b.status === "cancelled" || !!b.c
 export const bookingEndMin = (b) => timeToMin(b.time) + (Number(b.durationMin) || 60);
 export const bookingSort = (a, b) => (a.date || "").localeCompare(b.date || "") || timeToMin(a.time) - timeToMin(b.time);
 
-// Статистика по майстрах: completed — візит відбувся; виручка — сума цін completed (або оплачено); скасування окремо
+// Статистика по майстрах: completed — візит відбувся; виручка — сума цін completed; скасування і неявки (no_show) окремо.
+// Оцінки клієнтів (rating 1–5) — лише з записів, що потрапили у вибірку; bookedMin/personalMin — для заповненості (occupancyPct).
+const validRating = (r) => Number.isInteger(r) && r >= 1 && r <= 5;
+const EMPTY_ROW = { total: 0, completed: 0, upcoming: 0, cancelled: 0, noShow: 0, revenue: 0, prepaid: 0, ratingSum: 0, ratingCount: 0, bookedMin: 0, personalMin: 0 };
 export function aggregateStats(bookings, masterIds = []) {
   const rows = {};
-  const row = (id) => (rows[id] ||= { masterId: id, total: 0, completed: 0, upcoming: 0, cancelled: 0, revenue: 0, prepaid: 0 });
+  const row = (id) => (rows[id] ||= { masterId: id, ...EMPTY_ROW });
   masterIds.forEach(row);
   for (const b of bookings) {
-    if (!b || b.status === "personal" || !b.masterId) continue;
+    if (!b || !b.masterId) continue;
     const r = row(b.masterId);
+    if (b.status === "personal") { r.personalMin += Number(b.durationMin) || 0; continue; }
     r.total++;
     if (isCancelledBooking(b)) { r.cancelled++; continue; }
+    r.bookedMin += Number(b.durationMin) || 60;
     if (b.status === "completed") { r.completed++; r.revenue += Number(b.price) || 0; }
+    else if (b.status === "no_show") r.noShow++;
     else r.upcoming++;
+    if (validRating(b.rating)) { r.ratingSum += b.rating; r.ratingCount++; }
     r.prepaid += Number(b.paidAmount) || 0;
   }
-  const all = Object.values(rows).reduce((s, r) => ({ total: s.total + r.total, completed: s.completed + r.completed, upcoming: s.upcoming + r.upcoming, cancelled: s.cancelled + r.cancelled, revenue: s.revenue + r.revenue, prepaid: s.prepaid + r.prepaid }), { total: 0, completed: 0, upcoming: 0, cancelled: 0, revenue: 0, prepaid: 0 });
-  return { rows: Object.values(rows), all };
+  const list = Object.values(rows);
+  const all = list.reduce((s, r) => Object.fromEntries(Object.keys(EMPTY_ROW).map((k) => [k, s[k] + r[k]])), { ...EMPTY_ROW });
+  for (const r of list) r.rating = r.ratingCount ? Math.round((r.ratingSum / r.ratingCount) * 10) / 10 : null;
+  all.rating = all.ratingCount ? Math.round((all.ratingSum / all.ratingCount) * 10) / 10 : null;
+  return { rows: list, all };
+}
+
+// Скільки хвилин майстер працює у проміжку [fromYmd, toYmd] за графіком workHours (вихідні й порожні дні — 0)
+export function workMinutes(workHours, fromYmd, toYmd) {
+  const wh = normWorkHours(workHours);
+  let total = 0;
+  for (let d = fromYmd; d <= toYmd; d = addDays(d, 1)) {
+    const h = wh[weekdayMon0(d)];
+    if (h && !h.off) total += Math.max(0, timeToMin(h.to) - timeToMin(h.from));
+  }
+  return total;
+}
+// Заповненість, %: заброньовані хвилини / (робочі хвилини − особистий час). Без графіка → null; не більше 100
+export function occupancyPct(row, capacityMin) {
+  const cap = (Number(capacityMin) || 0) - (row?.personalMin || 0);
+  if (cap <= 0) return null;
+  return Math.min(100, Math.round(((row?.bookedMin || 0) / cap) * 100));
+}
+// Неявки, % від візитів, що мали відбутись (завершені + неявки)
+export const noShowPct = (row) => { const d = (row?.completed || 0) + (row?.noShow || 0); return d ? Math.round(((row?.noShow || 0) / d) * 100) : 0; };
+
+// Перший і останній день місяця "YYYY-MM" → [from, to]
+export function monthRange(ym) {
+  const [y, m] = ym.split("-").map(Number);
+  const from = `${y}-${String(m).padStart(2, "0")}-01`;
+  const last = new Date(y, m, 0).getDate();
+  return [from, `${y}-${String(m).padStart(2, "0")}-${String(last).padStart(2, "0")}`];
+}
+export function shiftMonth(ym, delta) {
+  const [y, m] = ym.split("-").map(Number);
+  const d = new Date(y, m - 1 + delta, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }

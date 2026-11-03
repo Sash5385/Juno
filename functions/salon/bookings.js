@@ -5,7 +5,7 @@
 const { onValueWritten } = require("firebase-functions/v2/database");
 const {
   REGION, sRef, pushClient, pushOwner, pushMaster, pushStaff, masterName, masterUid, saveNotification,
-  durationMinOf, isLicenseReadonly, fmtDM, buildAdminLink, clientBookingsLink, buildBookingBody,
+  durationMinOf, isLicenseReadonly, fmtDM, buildAdminLink, clientBookingsLink, clientMasterChatLink, postMasterAutoMessage, buildBookingBody,
 } = require("./lib");
 const { buildSlotUpdates, buildRescheduleSlotUpdates, applySlotUpdates } = require("./slots");
 const { inviteNextInQueue } = require("./queue");
@@ -122,10 +122,38 @@ async function handleCancel(salonId, bookingId, before, after) {
   }
 }
 
+const validRating = (r) => Number.isInteger(r) && r >= 1 && r <= 5;
+
+// Рейтинг майстра: середнє і кількість оцінок його записів → masters/{id}/rating (публічне читання, пише лише сервер)
+async function recomputeMasterRating(salonId, masterId) {
+  if (!masterId) return null;
+  const snap = await sRef(salonId, "bookings").orderByChild("masterId").equalTo(masterId).get();
+  let sum = 0, count = 0;
+  snap.forEach((c) => { const r = c.val()?.rating; if (validRating(r)) { sum += r; count++; } });
+  const rating = count ? { avg: Math.round((sum / count) * 100) / 100, count, updatedAt: Date.now() } : null;
+  if (!(await sRef(salonId, `masters/${masterId}/profile`).get()).exists()) return null; // майстра видалено — не відтворюємо вузол
+  await sRef(salonId, `masters/${masterId}/rating`).set(rating);
+  return rating;
+}
+
+// Побічні дії, що не заважають основній логіці: перерахунок рейтингу і прохання оцінити візит після завершення
+async function handleRatingSideEffects(salonId, bookingId, before, after) {
+  if (before?.rating !== after?.rating || before?.masterId !== after?.masterId) {
+    for (const mid of new Set([before?.masterId, after?.masterId].filter(Boolean))) await recomputeMasterRating(salonId, mid);
+  }
+  if (after && after.status === "completed" && before && before.status !== "completed" && after.clientUid && !validRating(after.rating)) {
+    const mName = (await masterName(salonId, after.masterId)) || "майстра";
+    const text = `Дякуємо за візит! Оцініть, будь ласка, роботу майстра ${mName}${after.serviceName ? ` (${after.serviceName})` : ""}.`;
+    await postMasterAutoMessage(salonId, after.masterId, after.clientUid, text, { kind: "rate", bookingId });
+    await pushClient(salonId, after.clientUid, "⭐ Оцініть візит", `Як вам робота майстра ${mName}?`, { url: clientMasterChatLink(after.masterId) }).catch(() => {});
+  }
+}
+
 async function handleBookingChange(salonId, bookingId, before, after) {
   const cur = after || before;
   if (!cur) return;
   if (!cur.masterId) { console.warn(`salonOnBookingChanged: booking ${bookingId} without masterId — skipped`); return; }
+  await handleRatingSideEffects(salonId, bookingId, before, after).catch((e) => console.error("salon rating error:", e));
 
   // Особистий час майстра: лише слоти
   if (cur.status === "personal") {
@@ -198,4 +226,4 @@ const salonOnBookingChanged = onValueWritten(
   }
 );
 
-module.exports = { salonOnBookingChanged, handleBookingChange };
+module.exports = { salonOnBookingChanged, handleBookingChange, recomputeMasterRating };

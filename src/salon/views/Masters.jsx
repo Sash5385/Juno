@@ -33,6 +33,7 @@ export default function Masters() {
                 <div style={{ fontSize: 14, fontWeight: 800, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name || "Майстер"}</div>
                 <div style={{ fontSize: 12, color: th.DIM, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.spec || "—"} · {workDays || "вихідні"}</div>
                 <Row gap={6} wrap style={{ marginTop: 5 }}>
+                  {m.rating?.count > 0 && <Pill label={`★ ${m.rating.avg} · ${m.rating.count}`} color={th.GOLD} bg="rgba(247,201,72,0.15)" />}
                   {p.active === false && <Pill label="Прихований" color={th.DIM} bg="rgba(148,163,184,0.16)" />}
                   <Pill label={linked(m.id) ? (linked(m.id) === ctx.user.uid ? "Це ви" : "Є вхід") : "Без входу"} color={linked(m.id) ? th.GREEN : th.GOLD} bg={linked(m.id) ? "rgba(126,217,87,0.15)" : "rgba(247,201,72,0.15)"} />
                 </Row>

@@ -13,6 +13,7 @@ export async function createBooking(ctx, b) {
 }
 export const confirmBooking = (ctx, id) => update(sref(ctx.salonId, `bookings/${id}`), { status: "confirmed" });
 export const completeBooking = (ctx, id) => update(sref(ctx.salonId, `bookings/${id}`), { status: "completed" });
+export const markNoShow = (ctx, id) => update(sref(ctx.salonId, `bookings/${id}`), { status: "no_show", noShowAt: Date.now() });
 export const cancelBooking = (ctx, id) => update(sref(ctx.salonId, `bookings/${id}`), { status: "cancelled", cancelledBy: by(ctx), cancelledAt: Date.now() });
 export const markPaidOnSite = (ctx, b) => update(sref(ctx.salonId, `bookings/${b.id}`), { paymentStatus: "paid", paidAmount: Number(b.price) || 0, paidAt: Date.now(), paymentMethod: "onsite" });
 export const moveBooking = (ctx, id, { date, time, masterId }) => update(sref(ctx.salonId, `bookings/${id}`), { date, time, masterId });

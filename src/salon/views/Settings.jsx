@@ -61,15 +61,16 @@ function ProfileForm() {
   const ctx = useSalon();
   const th = useTh();
   const p = ctx.profile;
-  const [f, setF] = useState({ name: p.name || "", phone: p.phone || "", address: p.address || "", about: p.about || "", timezone: p.timezone || "Europe/Kyiv", slotStep: String(ctx.step), slug: p.slug || "" });
+  const [f, setF] = useState({ name: p.name || "", phone: p.phone || "", address: p.address || "", about: p.about || "", timezone: p.timezone || "Europe/Kyiv", slotStep: String(ctx.step), slug: p.slug || "", reminderHours: String(p.reminderHours ?? 24) });
   const [busy, setBusy] = useState(false);
   const link = `${CLIENT_URL}/s/${p.slug || ""}`;
   const save = async () => {
     setBusy(true);
     try {
       const slug = slugify(f.slug);
+      const reminderHours = String(f.reminderHours).trim() === "0" ? 0 : Math.min(72, Math.max(3, Math.round(Number(f.reminderHours)) || 24)); // 0 = без нагадування в чаті
       const upd = { [`salons/${ctx.salonId}/profile/name`]: f.name.trim(), [`salons/${ctx.salonId}/profile/phone`]: f.phone.trim(), [`salons/${ctx.salonId}/profile/address`]: f.address.trim(),
-        [`salons/${ctx.salonId}/profile/about`]: f.about.trim(), [`salons/${ctx.salonId}/profile/timezone`]: f.timezone, [`salons/${ctx.salonId}/profile/slotStep`]: Number(f.slotStep), [`salon_index/${ctx.salonId}/name`]: f.name.trim() };
+        [`salons/${ctx.salonId}/profile/about`]: f.about.trim(), [`salons/${ctx.salonId}/profile/timezone`]: f.timezone, [`salons/${ctx.salonId}/profile/slotStep`]: Number(f.slotStep), [`salons/${ctx.salonId}/profile/reminderHours`]: reminderHours, [`salon_index/${ctx.salonId}/name`]: f.name.trim() };
       if (slug !== p.slug) {
         if ((await get(rootRef(`salon_slugs/${slug}`))).exists()) { ctx.toast("Це посилання вже зайняте — оберіть інше", "err"); return; }
         if (p.slug) upd[`salon_slugs/${p.slug}`] = null;
@@ -92,6 +93,7 @@ function ProfileForm() {
         <Select label="Часовий пояс" value={f.timezone} onChange={(v) => setF({ ...f, timezone: v })} options={TZ.map((z) => ({ v: z, l: z.replace("_", " ") }))} style={{ flex: 2 }} />
         <Select label="Крок сітки" value={f.slotStep} onChange={(v) => setF({ ...f, slotStep: v })} options={STEPS.map((s) => ({ v: String(s), l: `${s} хв` }))} style={{ flex: 1 }} />
       </Row>
+      <Input label="Нагадування в чаті майстра — за скільки годин (3–72, 0 — вимкнути)" type="number" value={f.reminderHours} onChange={(v) => setF({ ...f, reminderHours: v })} />
       <Input label="Посилання для запису" value={f.slug} onChange={(v) => setF({ ...f, slug: v })} />
       <Card inset style={{ padding: "9px 12px", marginBottom: 10 }}><div style={{ fontSize: 12, wordBreak: "break-all", color: th.DIM }}>{link}</div></Card>
       <Row gap={8}><Btn flex={1} variant="ghost" onClick={copy}>Копіювати посилання</Btn><Btn flex={1} disabled={busy || !f.name.trim() || !f.slug.trim()} onClick={save}>{busy ? "Зберігаю..." : "Зберегти"}</Btn></Row>

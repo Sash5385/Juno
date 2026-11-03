@@ -150,6 +150,17 @@ function buildAdminLink({ date, time, masterId, bookingId } = {}) {
   return qs ? `${adminUrl()}/?${qs}` : `${adminUrl()}/`;
 }
 const clientBookingsLink = () => `${clientUrl()}/cabinet/bookings`;
+const clientMasterChatLink = (masterId) => `${clientUrl()}/cabinet/chat?master=${masterId}`;
+
+// Автоповідомлення клієнту в чат з майстром (від імені майстра): masterChats/{masterId}/{uid} + лічильник непрочитаних.
+// extra: {kind: "reminder" | "rate", bookingId} — за ним клієнтський застосунок малює кнопки.
+async function postMasterAutoMessage(salonId, masterId, uid, text, extra = {}) {
+  if (!masterId || !uid) return;
+  const ts = Date.now();
+  const time = new Date(ts).toLocaleTimeString("uk", { hour: "2-digit", minute: "2-digit", timeZone: DEFAULT_TZ });
+  await sRef(salonId, `masterChats/${masterId}/${uid}`).push({ from: "master", auto: true, text, ts, time, ...extra });
+  await sRef(salonId, `masterChatMeta/${masterId}/${uid}`).update({ lastMsg: text, lastTs: ts, unreadForClient: admin.database.ServerValue.increment(1) });
+}
 
 // Текст пуша про запис: клієнт · послуга тривалість / дата о час · телефон / 💬 нотатка (+ майстер для власника)
 function buildBookingBody(b, { masterName: mName = "", withMaster = false } = {}) {
@@ -185,6 +196,6 @@ module.exports = {
   tzOffsetMs, localToMs, localDate, localHour, isQuietHour,
   collectDeviceTokens, sendToDevices, pushOwner, pushMaster, pushClient, pushStaff,
   masterUid, masterName, salonName, salonTimezone, salonSlotStep, saveNotification,
-  durationMinOf, isCancelled, fmtDM, buildAdminLink, clientBookingsLink, buildBookingBody,
+  durationMinOf, isCancelled, fmtDM, buildAdminLink, clientBookingsLink, clientMasterChatLink, postMasterAutoMessage, buildBookingBody,
   LICENSE_GRACE_MS, LICENSE_WARN_MS, licenseUntilTs, isLicenseReadonly, allSalonIds,
 };

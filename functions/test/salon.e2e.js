@@ -332,6 +332,27 @@ async function del(id) { const before = await val(`bookings/${id}`); await sref(
   await fns.salonOnAdminSlotOpened.run(wr({ time: "09:30", available: false, adminBlocked: false }, { time: "09:30", available: true, adminBlocked: false }, { salonId: S, masterId: "m1", date: D1, slotId: "slot0930" }));
   check("ordinary slot changes (not an owner unblock) do not invite", (await val("queue/m1/2030-05-14_09:30/entries/c2/status")) === "waiting");
 
+  // ═══ Оцінка майстра ═══
+  console.log("── master rating");
+  await seed();
+  await book("rt1", NB({ id: "rt1", status: "confirmed", time: "09:00" }));
+  await book("rt2", NB({ id: "rt2", status: "confirmed", time: "10:30", clientUid: "c2", clientName: "Client Two" }));
+  pushes.length = 0;
+  await patch("rt1", { status: "completed" });
+  const rate1 = Object.values((await val("masterChats/m1/c1")) || {}).filter((m) => m.kind === "rate");
+  check("completed visit: auto chat message asks to rate, with booking id", rate1.length === 1 && rate1[0].bookingId === "rt1" && rate1[0].auto === true && rate1[0].from === "master", JSON.stringify(rate1));
+  check("completed visit: client pushed to rate", titles("tok-c1").includes("⭐ Оцініть візит"));
+  await patch("rt1", { rating: 5 });
+  await patch("rt2", { status: "completed" });
+  await patch("rt2", { rating: 4 });
+  const r1 = await val("masters/m1/rating");
+  check("rating aggregate: avg and count per master", r1 && r1.avg === 4.5 && r1.count === 2, JSON.stringify(r1));
+  await patch("rt2", { rating: 99 });
+  check("invalid rating values are ignored by the aggregate", (await val("masters/m1/rating/count")) === 1 && (await val("masters/m1/rating/avg")) === 5);
+  await patch("rt1", { rating: null });
+  check("no ratings left → aggregate removed", (await val("masters/m1/rating")) === null);
+  check("other master untouched", (await val("masters/m2/rating")) === null);
+
   // ═══ Нагадування ═══
   console.log("── reminders");
   await seed();
@@ -345,20 +366,36 @@ async function del(id) { const before = await val(`bookings/${id}`); await sref(
   await mk("pers", "2030-05-14", "09:50", { status: "personal" });
   await reminders.remindSalon(S, T0);
   const rb = pushOf("tok-c1").map((p) => p.title);
-  check("24h and 2h reminders sent once each", rb.filter((t) => t === "💈 Нагадування про запис").length === 1 && rb.filter((t) => t === "⏰ Запис через 2 години").length === 1, rb.join("|"));
-  check("reminder text carries time and master", pushOf("tok-c1").every((p) => /Anna/.test(p.body)) && pushOf("tok-c1").some((p) => /09:30/.test(p.body)));
+  check("24h reminder (chat push) and 2h reminder sent once each", rb.filter((t) => t === "💈 Anna: підтвердіть запис").length === 1 && rb.filter((t) => t === "⏰ Запис через 2 години").length === 1, rb.join("|"));
+  check("reminder text carries time and master", pushOf("tok-c1").every((p) => /Anna/.test(p.title + p.body)) && pushOf("tok-c1").some((p) => /09:30/.test(p.body)));
+  const chat1 = Object.values((await val("masterChats/m1/c1")) || {});
+  check("24h reminder lands in the master chat as an auto message with booking id", chat1.length === 1 && chat1[0].from === "master" && chat1[0].auto === true && chat1[0].kind === "reminder" && chat1[0].bookingId === "r24" && /09:30/.test(chat1[0].text), JSON.stringify(chat1));
+  check("master chat meta: unreadForClient bumped", (await val("masterChatMeta/m1/c1/unreadForClient")) === 1);
   check("cancelled / walk-in / personal / far bookings not reminded", pushOf("tok-c1").length === 2);
   await reminders.remindSalon(S, T0);
-  check("second run: no duplicates (flags)", pushOf("tok-c1").length === 2 && (await val("sentReminders/r24/r24")) === true && (await val("sentReminders/r2/r2")) === true);
+  check("second run: no duplicates (flags)", pushOf("tok-c1").length === 2 && Object.keys((await val("masterChats/m1/c1")) || {}).length === 1 && (await val("sentReminders/r24/r24")) === true && (await val("sentReminders/r2/r2")) === true);
   await seed();
   await mk("q24", "2030-05-15", "00:00");                 // рівно через 23.5 год від 00:30 — вікно 24-год відкрите, але це тихі години
   await reminders.remindSalon(S, Date.UTC(2030, 4, 13, 21, 30)); // 00:30 за Києвом
   check("quiet hours (23:00–06:00) suppress the 24h reminder", pushOf("tok-c1").length === 0);
+  // reminderHours: власне вікно (6 год), 0 = чат вимкнено (класичний push)
+  await seed();
+  await sref("profile/reminderHours").set(6);
+  await mk("h6", "2030-05-13", "16:30");                  // через 6.5 год → вікно 5–6 год ще закрите
+  await mk("h6b", "2030-05-13", "15:30");                 // через 5.5 год → відкрите
+  await reminders.remindSalon(S, T0);
+  const ch6 = Object.values((await val("masterChats/m1/c1")) || {}).map((m) => m.bookingId);
+  check("reminderHours=6: only the booking inside the 5–6h window gets a chat reminder", ch6.length === 1 && ch6[0] === "h6b", ch6.join("|"));
+  await seed();
+  await sref("profile/reminderHours").set(0);
+  await mk("r24", "2030-05-14", "09:30");
+  await reminders.remindSalon(S, T0);
+  check("reminderHours=0: classic push, nothing in the chat", pushOf("tok-c1").map((p) => p.title).includes("💈 Нагадування про запис") && (await val("masterChats/m1/c1")) === null);
   await seed();
   await sref("license").set({ status: "suspended" });
   await mk("r24", "2030-05-14", "09:30");
   await reminders.remindSalon(S, T0);
-  check("read-only salon: no reminders", pushes.length === 0);
+  check("read-only salon: no reminders", pushes.length === 0 && (await val("masterChats")) === null);
   await seed();
   await book("b1", NB({ status: "confirmed" })); pushes.length = 0;
   await patch("b1", { time: "11:00" });
