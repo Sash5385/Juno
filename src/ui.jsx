@@ -4,6 +4,7 @@
 // Panel look = gradient SURF_HI→SURFACE. Coffee-correct via glow/shade/ink.
 // ═══════════════════════════════════════════════════════════════
 import { useState, useEffect, useRef, useContext } from "react";
+import PhoneField from "./PhoneField.jsx";
 import { ThemeContext } from "./theme.js";
 
 // ── useBackClose: Android/PWA back gesture closes an open modal/sheet
@@ -147,7 +148,7 @@ export function Field({ label, value, onChange, placeholder, type = "text", text
       {label && <div style={{ fontSize: 10, color: FAINT, letterSpacing: 1, marginBottom: 5 }}>{label.toUpperCase()}</div>}
       {textarea
         ? <textarea value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} rows={rows} style={{ ...base, resize: "vertical" }} />
-        : <input type={type} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} style={base} />}
+        : type === "tel" ? <PhoneField value={value} onChange={onChange} placeholder={placeholder} inputStyle={base} /> : <input type={type} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} style={base} />}
     </div>
   );
 }

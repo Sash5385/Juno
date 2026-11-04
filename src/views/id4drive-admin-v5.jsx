@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useLayoutEffect, useMemo, useContext } from "react";
+import PhoneField from "../PhoneField.jsx";
 import { createPortal } from "react-dom";
 import { update, get, onValue, off, remove, push as fbPush, increment } from "firebase/database";
 import { iRef, auth } from "../firebase";
@@ -1159,6 +1160,16 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   const [dragId, setDragId] = useState(null);
   const [holdId, setHoldId] = useState(null);
   const [quickCancelId, setQuickCancelId] = useState(null);
+  // ── Копіювання запису: copySource — режим вставки; copyGhost — «привид» при перетягуванні значка 📋
+  const [copySource, setCopySource] = useState(null);
+  const copySourceRef = useRef(null);
+  copySourceRef.current = copySource;
+  const [copyGhost, setCopyGhost] = useState(null);
+  const copyPressRef = useRef(null);
+  const copyTapRef = useRef(null);
+  const copyRecentRef = useRef([]);
+  const copyToastTimerRef = useRef(null);
+  const [copyToast, setCopyToast] = useState(null);
   const quickCancelRef = useRef(null);
   const [cancellingSet, setCancellingSet] = useState(new Set());
   // Записи, що саме скасовуються: фонові ефекти синхронізації timeslots їх
@@ -2041,6 +2052,107 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
     // Блоки: жодного hold-таймера — drag активується одразу при русі >4px в onMove
   };
 
+  // ── Копіювання запису ─────────────────────────────────────────────
+  const showCopyToast = (msg) => {
+    setCopyToast(msg);
+    clearTimeout(copyToastTimerRef.current);
+    copyToastTimerRef.current = setTimeout(() => setCopyToast(null), 2200);
+  };
+  // Чи перетинається інтервал з активним записом того ж дня (скасовані та vip-слоти не рахуємо)
+  const copyIsBusy = (dateStr, startMin, durMin) => {
+    const now = Date.now();
+    copyRecentRef.current = copyRecentRef.current.filter(r => now - r.t < 4000);
+    const hit = (x) => startMin < x.startMin + x.durMin && startMin + durMin > x.startMin;
+    if (copyRecentRef.current.some(r => r.dateStr === dateStr && hit(r))) return true;
+    return (bookingsRef.current || []).some(x =>
+      x.status !== "cancelled" && x.type !== "vip-slot" && x.startMin != null && x.durMin &&
+      (x.date || absDayToDateStr(x.day)) === dateStr && hit(x));
+  };
+  // Створення копії: той самий шлях, що й новий запис адміна (bookings/{uid}/{id} + блокування слотів)
+  const pasteCopy = (src, dateStr, startMin) => {
+    if (!src || !src.userId || !dateStr || startMin == null || !src.durMin) return false;
+    const { workStart, workEnd } = calcRef.current;
+    const durMin = src.durMin;
+    if (startMin < workStart * 60 || startMin + durMin > workEnd * 60) { showCopyToast("Поза робочим часом"); return false; }
+    if (copyIsBusy(dateStr, startMin, durMin)) { navigator.vibrate?.([20, 30, 20]); showCopyToast("Час зайнятий"); return false; }
+    const id = `b-${Date.now()}`;
+    const fbData = {
+      id, date: dateStr, time: fmtTime(startMin),
+      startMin, durMin, durationHours: durMin / 60,
+      studentName: src.name, name: src.name, phone: src.phone || "",
+      ...(src.serviceId && { serviceId: src.serviceId }),
+      serviceType: src.type, type: src.type,
+      status: "confirmed", hours: 0,
+      createdAt: Date.now(), createdBy: "admin",
+    };
+    update(iRef( `bookings/${src.userId}/${id}`), fbData).catch(()=>{});
+    blockSlotRange(dateStr, startMin, durMin, { bookingStart: true }).catch(() => {});
+    copyRecentRef.current.push({ dateStr, startMin, durMin, t: Date.now() });
+    navigator.vibrate?.(40);
+    return true;
+  };
+  // Цільовий день/час за позицією пальця — та сама математика, що й у drag запису
+  const computeCopyTarget = (clientX, clientY, press) => {
+    const gridEl = gridRef.current;
+    if (!gridEl) return null;
+    const { PX_PER_MIN, snapMin, workStart, workEnd, COL_W, dayOffset, N_DAYS } = calcRef.current;
+    const src = press.src;
+    const rect = gridEl.getBoundingClientRect();
+    const t = gridWrapRef.current?.style.transform;
+    const m = t && t.match(/translateX\((-?[\d.]+)px\)/);
+    const wrapTx = m ? parseFloat(m[1]) : 0;
+    const xInContent = clientX - rect.left + gridEl.scrollLeft - wrapTx;
+    let newDay = dayOffset + Math.floor(xInContent / (COL_W + 4));
+    newDay = Math.max(0, Math.min(dayOffset + N_DAYS - 1, newDay));
+    let s0 = Math.round((src.startMin + (clientY - press.y) / PX_PER_MIN) / snapMin) * snapMin;
+    if (s0 < workStart * 60) s0 = workStart * 60;
+    if (s0 + src.durMin > workEnd * 60) s0 = workEnd * 60 - src.durMin;
+    const dateStr = absDayToDateStr(newDay);
+    return { day: newDay, dateStr, startMin: s0, busy: copyIsBusy(dateStr, s0, src.durMin) };
+  };
+  const copyFnsRef = useRef({});
+  copyFnsRef.current = { pasteCopy, computeCopyTarget };
+  useEffect(() => {
+    const hideIcon = () => setTimeout(() => {
+      // Затримка: «привидний» click після відпускання значка не має відкрити картку
+      xVisibleRef.current = false; quickCancelRef.current = null; setQuickCancelId(null);
+    }, 400);
+    const onMv = (e) => {
+      const p = copyPressRef.current;
+      if (!p) return;
+      if (!p.dragging) {
+        if (Math.hypot(e.clientX - p.x, e.clientY - p.y) <= 8) return;
+        p.dragging = true;
+        navigator.vibrate?.(18);
+      }
+      const g = copyFnsRef.current.computeCopyTarget(e.clientX, e.clientY, p);
+      p.target = g;
+      setCopyGhost(g ? { ...g, durMin: p.src.durMin } : null);
+    };
+    const onUpC = (e) => {
+      const p = copyPressRef.current;
+      if (!p) return;
+      copyPressRef.current = null;
+      setCopyGhost(null);
+      if (p.dragging) {
+        if (p.target) copyFnsRef.current.pasteCopy(p.src, p.target.dateStr, p.target.startMin);
+      } else {
+        setCopySource(p.src);
+        navigator.vibrate?.(15);
+      }
+      hideIcon();
+    };
+    const onCancelC = () => { copyPressRef.current = null; setCopyGhost(null); };
+    window.addEventListener("pointermove", onMv);
+    window.addEventListener("pointerup", onUpC);
+    window.addEventListener("pointercancel", onCancelC);
+    return () => {
+      window.removeEventListener("pointermove", onMv);
+      window.removeEventListener("pointerup", onUpC);
+      window.removeEventListener("pointercancel", onCancelC);
+    };
+  }, []);
+
   // Listeners always attached — dragRef gives instant access without useEffect re-fire
   useEffect(() => {
     const onMove = (e) => {
@@ -2871,6 +2983,30 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
       boxShadow: isLight ? "0 8px 24px rgba(92,42,26,0.14)" : "0 8px 24px rgba(0,0,0,0.45)",
     }}>
       <div style={{display:"flex", flex:1, minHeight:0, overflow:"hidden", position:"relative"}}>
+        {copySource && (
+          <div style={{
+            position:"absolute", top:6, left:"50%", transform:"translateX(-50%)", zIndex:40,
+            display:"flex", alignItems:"center", gap:8, maxWidth:"calc(100% - 16px)",
+            padding:"7px 12px", borderRadius:14, whiteSpace:"nowrap",
+            background:"linear-gradient(145deg,#60a5fa,#1d4ed8)", color:"#fff",
+            fontSize:12, fontWeight:800, boxShadow:"0 4px 14px rgba(29,78,216,0.55)",
+          }}>
+            <span style={{overflow:"hidden", textOverflow:"ellipsis"}}>📋 {"Оберіть місце для копії"}</span>
+            <span style={{opacity:0.7}}>·</span>
+            <button onClick={()=>{ setCopySource(null); copyTapRef.current = null; }} style={{
+              border:"none", background:"rgba(255,255,255,0.22)", color:"#fff", cursor:"pointer",
+              fontSize:12, fontWeight:800, padding:"3px 9px", borderRadius:9, fontFamily:"inherit",
+            }}>{"Скасувати"}</button>
+          </div>
+        )}
+        {copyToast && (
+          <div style={{
+            position:"absolute", bottom:16, left:"50%", transform:"translateX(-50%)", zIndex:40,
+            padding:"8px 14px", borderRadius:14, whiteSpace:"nowrap", pointerEvents:"none",
+            background:"linear-gradient(145deg,#f87171,#b91c1c)", color:"#fff",
+            fontSize:12, fontWeight:800, boxShadow:"0 4px 14px rgba(185,28,28,0.55)",
+          }}>{copyToast}</div>
+        )}
 
         {/* TIME COLUMN — fixed left, never scrolls */}
         <div
@@ -3171,6 +3307,12 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
               <div
                 onClick={e=>{ if(xJustShownRef.current){ xJustShownRef.current=false; return; } if(quickCancelId){ xVisibleRef.current=false; setQuickCancelId(null); } }}
                 onPointerDown={e=>{
+                  // Режим копіювання: тап на порожнє місце/вільний слот вставляє копію (див. onPointerUp)
+                  if (copySourceRef.current) {
+                    slotClaimedRef.current = false;
+                    copyTapRef.current = { x: e.clientX, y: e.clientY };
+                    return;
+                  }
                   // Дотик уже "заявлений" дочірнім вільним слотом (без stopPropagation,
                   // щоб не заважати нативному touch-action панорамуванню) — не відкриваємо
                   // меню "новий слот" поверх уже існуючого.
@@ -3206,7 +3348,17 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                   }
                 }}
                 onPointerUp={e=>{
+                  if (copySourceRef.current && copyTapRef.current) {
+                    const tp = copyTapRef.current;
+                    copyTapRef.current = null;
+                    if (!isPastDay && Math.hypot(e.clientX - tp.x, e.clientY - tp.y) <= 8) {
+                      const rect = e.currentTarget.getBoundingClientRect();
+                      const rawMin = calcRef.current.workStart * 60 + (e.clientY - rect.top) / calcRef.current.PX_PER_MIN;
+                      pasteCopy(copySourceRef.current, dateStrCol, Math.floor(rawMin / 30) * 30);
+                    }
+                  }
                   // Короткий клік по порожній клітинці нічого не створює —
+
                   // випадковий дотик (скрол/промах) не повинен спавнити слот.
                   // Відкрити слот можна лише через довгий тап (меню з підтвердженням).
                   clearTimeout(emptyHoldTimerRef.current);
@@ -3594,6 +3746,18 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                 );
               })}
 
+              {/* «Привид» копії при перетягуванні значка 📋 */}
+              {copyGhost && copyGhost.day === absDay && (
+                <div style={{
+                  position:"absolute", left:0, right:0,
+                  top:minToPx(copyGhost.startMin)+1, height:copyGhost.durMin*PX_PER_MIN-2,
+                  zIndex:25, pointerEvents:"none", borderRadius:8,
+                  border:`2px dashed ${copyGhost.busy ? "#f87171" : "#60a5fa"}`,
+                  background: copyGhost.busy ? "rgba(248,113,113,0.25)" : "rgba(96,165,250,0.30)",
+                  boxShadow:"0 4px 14px rgba(0,0,0,0.35)",
+                }}/>
+              )}
+
               {/* Bookings */}
               {(bookingsByDay.get(absDay) || EMPTY_LIST).map(origB=>{
                 if (origB.status === "cancelled") return null;
@@ -3917,6 +4081,30 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                       {!b._mergedIds && !isLockedPast && <div className="slot-handle bottom" style={{height:handleH}} onPointerDown={e=>onPointerDown(e,b,"bottom")}/>}
 
                     </div>
+
+                    {/* ── Значок копіювання: тап = режим вставки, затиснути й тягнути = «привид» копії ── */}
+                    {quickCancelId===b.id && !isBlock && !isVipSlot && !isPersonal && b.userId && !b._mergedIds && (
+                      <div
+                        onPointerDown={e=>{
+                          e.stopPropagation();
+                          copyPressRef.current = { src: b, x: e.clientX, y: e.clientY, dragging: false, target: null };
+                        }}
+                        onClick={e=>e.stopPropagation()}
+                        style={{
+                          position:"absolute", top:-11, left:-11, zIndex:30,
+                          width:30, height:30, borderRadius:"50%",
+                          background:"linear-gradient(145deg,#60a5fa,#1d4ed8)",
+                          boxShadow:"0 0 0 3px rgba(30,30,40,0.85), 0 4px 12px #1d4ed899",
+                          display:"flex", alignItems:"center", justifyContent:"center",
+                          cursor:"pointer", touchAction:"none",
+                        }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+                          stroke="#fff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="9" y="9" width="12" height="12" rx="2"/>
+                          <path d="M5 15V5a2 2 0 0 1 2-2h8"/>
+                        </svg>
+                      </div>
+                    )}
 
                     {/* ── Значок скасування (довге натискання) — поза slot-base щоб не обрізатись ── */}
                     {quickCancelId===b.id && (
@@ -6273,9 +6461,7 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
                   onChange={e=>setNewName(e.target.value)}
                   style={{padding:"10px 12px",borderRadius:11,border:`1.5px solid ${BORDER}`,
                     background:SURFACE_LO,color:TEXT,fontSize:14,fontWeight:600,outline:"none"}}/>
-                <input type="tel" placeholder="+380..." value={newPhone}
-                  onChange={e=>setNewPhone(e.target.value)}
-                  style={{padding:"10px 12px",borderRadius:11,border:`1.5px solid ${BORDER}`,
+                <PhoneField placeholder="+380..." value={newPhone} onChange={setNewPhone} inputStyle={{padding:"10px 12px",borderRadius:11,border:`1.5px solid ${BORDER}`,
                     background:SURFACE_LO,color:TEXT,fontSize:14,fontWeight:600,outline:"none"}}/>
               </div>
             ) : selStudent ? (
@@ -7039,8 +7225,7 @@ function StudentsView() {
                 <div style={{fontSize:11,color:FT,fontWeight:700,letterSpacing:1.2,textTransform:"uppercase",marginBottom:2}}>Редагування</div>
                 <input placeholder="Ім'я та прізвище" value={editing.name}
                   onChange={e=>setEditing(v=>({...v,name:e.target.value}))} style={inputSt}/>
-                <input placeholder="+380..." type="tel" value={editing.phone}
-                  onChange={e=>setEditing(v=>({...v,phone:e.target.value}))} style={inputSt}/>
+                <PhoneField placeholder="+380..." value={editing.phone} onChange={v=>setEditing(x=>({...x,phone:v}))} inputStyle={inputSt}/>
                 <div style={{display:"flex",gap:8}}>
                   <button onClick={()=>setEditing(null)}
                     style={{...btnBase,flex:1,background:ink(0.06),color:DM}}>Скасувати</button>

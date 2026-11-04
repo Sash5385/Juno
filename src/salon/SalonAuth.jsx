@@ -1,5 +1,6 @@
 // Вхід/реєстрація (email+пароль, Google) і онбординг: створити салон або прийняти запрошення майстра.
 import { useState, useEffect } from "react";
+import PhoneField from "../PhoneField.jsx";
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult } from "firebase/auth";
 import { update, push, get } from "firebase/database";
 import { auth, db } from "../firebase.js";
@@ -145,7 +146,7 @@ export function Onboarding({ user, inviteCode, onDone }) {
           {tab === "create" ? (
             <>
               <div className="lg-field"><label className="lg-label" htmlFor="o-name">Назва салону</label><input id="o-name" className="lg-input" value={name} onChange={(e) => setName(e.target.value)} /></div>
-              <div className="lg-field"><label className="lg-label" htmlFor="o-phone">Телефон</label><input id="o-phone" className="lg-input" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} /></div>
+              <div className="lg-field"><label className="lg-label" htmlFor="o-phone">Телефон</label><PhoneField id="o-phone" inputClassName="lg-input" value={phone} onChange={setPhone} /></div>
               <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13, margin: "4px 0 10px", cursor: "pointer" }}>
                 <input type="checkbox" checked={alsoMaster} onChange={(e) => setAlsoMaster(e.target.checked)} /> Я також приймаю клієнтів (створити мене майстром)
               </label>
