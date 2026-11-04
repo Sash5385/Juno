@@ -3,7 +3,7 @@
 // @firebase/database, але set/update/remove/push/runTransaction по
 // instructors/{iid}/… відхиляє, поки ліцензія в режимі readonly. Виняток —
 // license та fcmTokens (оплата, push-токени). Це захист клієнта; сервер додатково
-// відкидає нові записи учнів (onBookingChanged) — див. functions/index.js.
+// відкидає нові записи клієнтів (onBookingChanged) — див. functions/index.js.
 import {
   set as realSet, update as realUpdate, remove as realRemove,
   push as realPush, runTransaction as realRunTransaction,

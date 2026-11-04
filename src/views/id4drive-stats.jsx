@@ -1,11 +1,16 @@
 import { useState, useEffect, useContext, useRef } from "react";
 import { onValue, get, update } from "firebase/database";
-import { iRef } from "../firebase";
+import { iRef, auth } from "../firebase";
+import { normStaff, masterOf } from "../workspace";
 import { LangContext } from "../App";
 import { createT } from "../lang";
 
 import { ThemeContext } from "../theme.js";
-import { UICss, Card, useFX } from "../ui";
+import { UICss, Card, useFX, ScrollChips } from "../ui";
+import { bookingAddonTotals } from "../addons";
+import { hasOwnSchedule } from "../masterSettings";
+import { periodDates, utilization, cancelStats, sources, clientStats, serviceStats, heatmap, quietestSlot, attendance, cohorts, courseStats, packageStats } from "./stats-extra";
+import { normDirection } from "../terms";
 
 const UK_MONTHS     = ["Січ","Лют","Бер","Кві","Тра","Чер","Лип","Сер","Вер","Жов","Лис","Гру"];
 const UK_WEEK_LABELS= ["Пн","Вт","Ср","Чт","Пт","Сб"];
@@ -18,8 +23,8 @@ function getDateStr(d) {
 }
 
 function bkType(b) { return b.serviceType || b.type || "private"; }
-// Ціна послуги на дату уроку: якщо задано nextPrice/nextPriceFrom і дата
-// уроку вже досягла nextPriceFrom — використовуємо нову ціну (див. id4drive-admin-v5.jsx).
+// Ціна послуги на дату запису: якщо задано nextPrice/nextPriceFrom і дата
+// запису вже досягла nextPriceFrom — використовуємо нову ціну (див. id4drive-admin-v5.jsx).
 function effectivePrice(svc, dateStr) {
   if (!svc) return 0;
   if (svc.nextPrice != null && svc.nextPriceFrom && dateStr && dateStr >= svc.nextPriceFrom) {
@@ -29,17 +34,21 @@ function effectivePrice(svc, dateStr) {
 }
 function bkIncome(b, svcs) {
   if (b.manualPrice != null) return b.manualPrice;
+  if (b.packageId && !b.packageError) return bookingAddonTotals(b).price; // послуга оплачена пакетом
+  if (typeof b.price === "number" && b.price > 0 && Math.round((b.durationHours != null ? b.durationHours : (b.durMin||60)/60) * 60) === (b.durMin || 60)) return b.price;
   const svc = (svcs||[]).find(s => s.id === b.serviceId);
   const dur = b.durMin || (b.durationHours ? b.durationHours * 60 : 60);
-  if (svc && svc.price && svc.duration) return Math.round((effectivePrice(svc, b.date) / svc.duration) * dur);
+  // Допуслуги: їхні хвилини не множаться на тариф, ціна додається окремо
+  const ax = bookingAddonTotals(b);
+  if (svc && svc.price && svc.duration) return Math.round((effectivePrice(svc, b.date) / svc.duration) * Math.max(0, dur - ax.minutes)) + ax.price;
   if (b.price && b.durationHours && b.durMin) return Math.round((b.price / (b.durationHours * 60)) * b.durMin);
   return b.price || 0;
 }
 
-// Сусідні (без розриву в часі) записи одного учня в один день адмінка
-// показує ОДНІЄЮ карткою в розкладі — тут так само рахуємо їх ОДНИМ уроком,
-// а не по кожному окремому Firebase-запису (інакше 2-годинний урок,
-// збережений як два сусідні 1-годинні записи, рахувався як "2 уроки").
+// Сусідні (без розриву в часі) записи одного клієнта в один день адмінка
+// показує ОДНІЄЮ карткою в розкладі — тут так само рахуємо їх ОДНИМ записом,
+// а не по кожному окремому Firebase-запису (інакше 2-годинний запис,
+// збережений як два сусідні 1-годинні записи, рахувався як "2 записи").
 function markMergedContinuations(bookings) {
   const byGroup = {};
   bookings.forEach(b => {
@@ -67,7 +76,7 @@ function aggregateBuckets(buckets, bookings, getKey, svcs) {
     const st = b.status || "confirmed";
     if (st === "confirmed" || st === "pending") {
       map[k].income += bkIncome(b, svcs);
-      // Годин рахуємо по КОЖНОМУ запису (не по злитих уроках) — урок може
+      // Годин рахуємо по КОЖНОМУ запису (не по злитих записах) — запис може
       // тривати 2-3 години і складатись з кількох сусідніх записів.
       map[k].hours += (b.durMin || (b.durationHours ? b.durationHours*60 : 60)) / 60;
       if (!continuations.has(b._key)) {
@@ -202,7 +211,13 @@ function trendPct(cur, prev) {
 
 // ─── CHIP ────────────────────────────────────────────────────────
 const Chip = ({label, active, onClick, color}) => {
-  const { ACC_HI, ACCENT, SURF_HI, SURFACE, DIM, SO } = useContext(ThemeContext);
+  const { ACC_HI, ACCENT, SURF_HI, SURFACE, DIM, SO, FOG, TEXT } = useContext(ThemeContext);
+  if (FOG && !color) return (
+    <button onClick={onClick} style={{
+      flex:"1 1 0", minWidth:0, padding:"9px 0", borderRadius:11, border:"none", cursor:"pointer", fontSize:11, fontWeight:600, fontFamily:"inherit", textAlign:"center", whiteSpace:"nowrap",
+      background: active ? SURF_HI : "transparent", color: active ? TEXT : DIM, boxShadow: active ? "0 2px 8px rgba(0,0,0,.12)" : "none",
+    }}>{label}</button>
+  );
   return (
     <button onClick={onClick} style={{
       flex:1, padding:"7px 4px", borderRadius:9, border:"none", cursor:"pointer", fontSize:11, fontWeight:700, fontFamily:"inherit", textAlign:"center",
@@ -213,12 +228,15 @@ const Chip = ({label, active, onClick, color}) => {
 };
 
 // ─── MAIN ────────────────────────────────────────────────────────
-export default function StatsView() {
-  const { BG_DEEP, SURFACE, SURF_HI, BORDER, TEXT, DIM, FAINT, ACCENT, ACC_HI, GREEN, BLUE, PURPLE, GOLD, RED, SO, SI } = useContext(ThemeContext);
+export default function StatsView({ onViewStudent, direction } = {}) {
+  const { BG_DEEP, SURFACE, SURF_HI, BORDER, TEXT, DIM, FAINT, ACCENT, ACC_HI, GREEN, BLUE, PURPLE, GOLD, RED, TEAL, SO, SI } = useContext(ThemeContext);
+  const TEAL_C = TEAL || GREEN;
   const lang = useContext(LangContext);
   const t = createT(lang);
   const [period,     setPeriod]    = useState("month");
-  const [bookings,   setBookings]  = useState([]);
+  const [bookingsRaw, setBookings] = useState([]);
+  const [staff,      setStaff]     = useState([]);   // салон: склад майстрів (порожній — «Один майстер»)
+  const [masterFilter, setMasterFilter] = useState(""); // "" — усі майстри
   const [services,   setServices]  = useState([]);
   const [topBy,      setTopBy]     = useState("paid");
   const [selectedDays, setSelectedDays] = useState(() => new Set());
@@ -232,6 +250,12 @@ export default function StatsView() {
   const [incomeGoal,  setIncomeGoal]  = useState(0);
   const [editingGoal, setEditingGoal] = useState(false);
   const [goalInput,   setGoalInput]   = useState("");
+  const [sec,         setSec]         = useState("overview"); // вкладка: overview | masters | clients | load
+  const [weekSchedule, setWeekSchedule] = useState(null);     // тижневий графік салону (для завантаження %)
+  const [masterSet,   setMasterSet]   = useState({});         // master_settings: власні графіки майстрів
+  const [svcBy,       setSvcBy]       = useState("sum");
+  const [sleepAll,    setSleepAll]    = useState(false);
+  const [users,       setUsers]       = useState({});         // users/{uid}: пакети клієнтів
 
   const css = `
 @keyframes bar-grow{from{height:0%}to{height:var(--h)}}
@@ -260,21 +284,36 @@ export default function StatsView() {
   }, []);
 
   useEffect(() => {
+    const owner = auth.currentUser?.uid || "";
+    return onValue(iRef("staff"), snap => setStaff(snap.exists() ? normStaff(snap.val(), owner) : []), () => {});
+  }, []);
+
+  useEffect(() => {
     return onValue(iRef( "admin_settings/services"), snap => {
       const d = snap.val();
       setServices(Array.isArray(d) ? d : []);
     }, () => {});
   }, []);
 
+  useEffect(() => onValue(iRef("admin_settings/weekSchedule"), snap => setWeekSchedule(Array.isArray(snap.val()) ? snap.val() : null), () => {}), []);
+  useEffect(() => onValue(iRef("master_settings"), snap => setMasterSet(snap.val() || {}), () => {}), []);
+  useEffect(() => onValue(iRef("users"), snap => setUsers(snap.val() || {}), () => {}), []);
+
   useEffect(() => {
     get(iRef( "admin_settings/incomeGoal")).then(s => { if (s.exists()) setIncomeGoal(s.val() || 0); }).catch(() => {});
   }, []);
 
-  const data     = period === "week"   ? computeWeekData(bookings, 0, services)
-                 : period === "year"   ? computeYearData(bookings, 0, services)
-                 : period === "day"    ? computeDayData(bookings, 0, services)
-                 : period === "custom" ? computeSelectedDaysData(bookings, selectedDays, services)
-                 :                       computeMonthData(bookings, 0, services);
+  // Салон: фільтр по майстру (записи без masterId — власника)
+  const ownerUid = auth.currentUser?.uid || "";
+  const bookings = masterFilter ? bookingsRaw.filter(b => masterOf(b, ownerUid) === masterFilter) : bookingsRaw;
+  const periodData = (list) => period === "week"   ? computeWeekData(list, 0, services)
+                 : period === "year"   ? computeYearData(list, 0, services)
+                 : period === "day"    ? computeDayData(list, 0, services)
+                 : period === "custom" ? computeSelectedDaysData(list, selectedDays, services)
+                 :                       computeMonthData(list, 0, services);
+  const perMaster = staff.length > 1 ? staff.map(m => ({ m, ...periodSum(periodData(bookingsRaw.filter(b => masterOf(b, ownerUid) === m.id))) })) : [];
+
+  const data     = periodData(bookings);
 
   const prevData = period === "custom" ? data
                  : period === "week"   ? computeWeekData(bookings, -1, services)
@@ -308,6 +347,58 @@ export default function StatsView() {
   const topStudents  = computeTopStudents(periodBookings, topBy, services);
   const popularSlots = computePopularSlots(periodBookings, services);
   const byPeriodLabel= period === "day" ? "По годинах" : period === "year" ? "По місяцях" : "По днях";
+
+  // ── Вкладки статистики (етап 1): додаткові показники ──
+  const secEff   = sec === "masters" && staff.length <= 1 ? "overview" : sec;
+  const incomeOf = b => bkIncome(b, services);
+  const pDates   = periodDates(data, period);
+  const cancels  = cancelStats(periodBookings, incomeOf);
+  const prevCancels = period === "custom" ? null : cancelStats(filterByPeriod(bookings, prevData, period), incomeOf);
+  const src      = sources(periodBookings);
+  // Напрямок послуг: набір показників (слова підміняє terms.js)
+  const dir      = normDirection(direction);
+  const sleepDays = dir === "education" ? 14 : dir === "consult" ? 30 : 60;
+  const clients  = clientStats(bookings, periodBookings, todayStr, sleepDays);
+  const sleepList = dir === "consult" ? clients.sleeping.filter(c => c.visits >= 2) : clients.sleeping;
+  const showName = (n) => dir === "consult" ? String(n || "").split(/\s+/).filter(Boolean).map(w => w[0].toUpperCase() + ".").join("") || "—" : n;
+  const att      = attendance(periodBookings, todayStr);
+  const coh      = dir === "education" ? cohorts(bookings, todayStr) : null;
+  const course   = dir === "consult" ? courseStats(bookings, todayStr) : null;
+  const pk       = packageStats(users, pDates);
+  const svcRows  = serviceStats(periodBookings, services, incomeOf).sort((a, b) => svcBy === "n" ? b.n - a.n : b.sum - a.sum).slice(0, 6);
+  const avgCheck = totalLessons ? Math.round(totalIncome / totalLessons) : 0;
+  const prevAvg  = prev.lessons ? Math.round(prev.income / prev.lessons) : 0;
+  const weekOf   = (mid) => hasOwnSchedule(masterSet[mid]) ? masterSet[mid].weekSchedule : weekSchedule;
+  const prevPeriodData = (list) => period === "custom" ? null
+                 : period === "week"   ? computeWeekData(list, -1, services)
+                 : period === "year"   ? computeYearData(list, -1, services)
+                 : period === "day"    ? computeDayData(list, -1, services)
+                 :                       computeMonthData(list, -1, services);
+  const masterRows = perMaster.map(r => {
+    const list = bookingsRaw.filter(b => masterOf(b, ownerUid) === r.m.id);
+    const c = cancelStats(filterByPeriod(list, data, period), incomeOf);
+    const pv = prevPeriodData(list);
+    return { ...r, avg: r.lessons ? Math.round(r.income / r.lessons) : 0, load: utilization(list, pDates, weekOf(r.m.id)),
+      lost: c.cancelled + c.noshow, trend: pv ? trendPct(r.income, periodSum(pv).income) : null };
+  }).sort((a, b) => b.income - a.income);
+  const maxMasterIncome = Math.max(1, ...masterRows.map(r => r.income));
+  const loadOne  = staff.length > 1 && !masterFilter ? null : utilization(bookings, pDates, masterFilter ? weekOf(masterFilter) : weekSchedule);
+  const onDays   = (weekSchedule || []).filter(d => d && d.enabled && d.start != null && d.end != null);
+  const hmFrom   = onDays.length ? Math.floor(Math.min(...onDays.map(d => d.start))) : 8;
+  const hmTo     = onDays.length ? Math.ceil(Math.max(...onDays.map(d => d.end))) : 20;
+  const hm       = heatmap(periodBookings, hmFrom, Math.min(hmTo, hmFrom + 14));
+  const hmHasData = hm.grid.some(row => row.some(v => v > 0));
+  const quiet    = period !== "day" && hmHasData ? quietestSlot(hm, masterFilter ? weekOf(masterFilter) : weekSchedule) : null;
+  const DOW      = ["Пн","Вт","Ср","Чт","Пт","Сб","Нд"];
+  const DOW_LONG = ["понеділок","вівторок","середу","четвер","пʼятницю","суботу","неділю"];
+  const secTitle = { fontSize:11, color:DIM, letterSpacing:1, textTransform:"uppercase", fontWeight:700 };
+  const fmtDate  = (ds) => { const d = new Date(ds + "T00:00:00"); return `${d.getDate()}.${String(d.getMonth()+1).padStart(2,"0")}.${String(d.getFullYear()).slice(2)}`; };
+  const miniTile = (value, label, color) => (
+    <div style={{background:BG_DEEP,borderRadius:10,boxShadow:SI,padding:"7px 4px",textAlign:"center",minWidth:0}}>
+      <div style={{fontSize:14,fontWeight:900,color:color||TEXT,whiteSpace:"nowrap"}}>{value}</div>
+      <div style={{fontSize:11,color:DIM,marginTop:1}}>{label}</div>
+    </div>
+  );
 
   // Календар завжди на екрані (замість модалки/полів дат) — швидкий вибір
   // місяця (тап на назву місяця), тижня чи конкретного дня (тап на день).
@@ -436,31 +527,55 @@ export default function StatsView() {
       <div style={{display:"flex",flexDirection:"column",gap:8,fontFamily:"ui-sans-serif,-apple-system,system-ui,sans-serif",color:TEXT}}>
 
         {/* ── PERIOD ── */}
-        <div style={{display:"flex",gap:6}}>
+        <div style={{display:"flex",gap:0,background:SURFACE,padding:3,borderRadius:14,border:`1px solid ${BORDER}`,backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)"}}>
           {[["day","День"],["week",t('st2.week')],["month",t('st2.month')],["year",t('st2.year')],["custom","Період"]].map(([k,l])=>(
             <Chip key={k} label={l} active={period===k} onClick={()=>setPeriod(k)}/>
           ))}
         </div>
 
+        {/* ── САЛОН: фільтр по майстру ── */}
+        {staff.length > 1 && (
+          <ScrollChips activeKey={masterFilter}>
+            {[{ id:"", name:"Усі майстри", color:ACCENT }, ...staff].map(m => {
+              const on = masterFilter === m.id;
+              return (
+                <button key={m.id || "all"} onClick={()=>setMasterFilter(m.id)} style={{
+                  flex:"1 0 auto",justifyContent:"center",display:"flex",alignItems:"center",gap:7,padding:"8px 13px",borderRadius:99,cursor:"pointer",fontFamily:"inherit",fontSize:12.5,fontWeight:600,whiteSpace:"nowrap",
+                  border:`1px solid ${on ? m.color : BORDER}`,background:on?`color-mix(in srgb,${m.color} 26%,transparent)`:SURFACE,color:on?TEXT:DIM,
+                }}>
+                  {m.id && <span style={{width:10,height:10,borderRadius:"50%",background:m.color}}/>}{m.name}
+                </button>
+              );
+            })}
+          </ScrollChips>
+        )}
+
+        {/* ── ВКЛАДКИ СТАТИСТИКИ ── */}
+        <div style={{display:"flex",gap:0,background:SURFACE,padding:3,borderRadius:14,border:`1px solid ${BORDER}`,backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)"}}>
+          {[["overview","Огляд"], ...(staff.length > 1 ? [["masters","Майстри"]] : []), ["clients","Клієнти"], ["load","Зайнятість"]].map(([k,l])=>(
+            <Chip key={k} label={l} active={secEff===k} onClick={()=>setSec(k)}/>
+          ))}
+        </div>
+
         {/* ── CALENDAR (завжди відкритий — швидкий вибір місяця/тижня/дня) ── */}
-        <Card className="fu" style={{padding:"12px"}}>
-          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:9}}>
+        {secEff === "overview" && <Card className="fu" style={{padding:"12px"}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:11}}>
             <button onClick={()=>calGoMonth(-1)} style={{
-              width:34,height:34,borderRadius:9,border:"none",cursor:"pointer",fontFamily:"inherit",
+              width:36,height:36,borderRadius:99,border:`1px solid ${BORDER}`,cursor:"pointer",fontFamily:"inherit",
               background:SURF_HI,color:DIM,fontSize:18,fontWeight:700,lineHeight:1,
             }}>‹</button>
             <button onClick={calPickMonth} title="Обрати весь місяць" style={{
               border:"none",cursor:"pointer",fontFamily:"inherit",background:"transparent",
-              fontSize:13,fontWeight:800,color:TEXT,textTransform:"capitalize",padding:"4px 10px",borderRadius:8,
+              fontSize:13,fontWeight:800,color:TEXT,textTransform:"capitalize",padding:"0 10px",minHeight:36,borderRadius:8,
             }}>{calMonthLabel}</button>
             <button onClick={()=>calGoMonth(1)} style={{
-              width:34,height:34,borderRadius:9,border:"none",cursor:"pointer",fontFamily:"inherit",
+              width:36,height:36,borderRadius:99,border:`1px solid ${BORDER}`,cursor:"pointer",fontFamily:"inherit",
               background:SURF_HI,color:DIM,fontSize:18,fontWeight:700,lineHeight:1,
             }}>›</button>
           </div>
           <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:3,marginBottom:4}}>
             {["Пн","Вт","Ср","Чт","Пт","Сб","Нд"].map(d=>(
-              <div key={d} style={{textAlign:"center",fontSize:8,color:FAINT,fontWeight:700,textTransform:"uppercase"}}>{d}</div>
+              <div key={d} style={{textAlign:"center",fontSize:11,color:DIM,fontWeight:700,textTransform:"uppercase"}}>{d}</div>
             ))}
           </div>
           <div
@@ -482,61 +597,61 @@ export default function StatsView() {
               const isSel = period === "custom" && selectedDays.has(dateStr);
               const inPreview = calDragPreview && day >= Math.min(calDragPreview.start,calDragPreview.end) && day <= Math.max(calDragPreview.start,calDragPreview.end);
               let bg = SURF_HI, color = DIM;
-              if (n > 0) { const tier = calTierColor(n); bg = `${tier}22`; color = tier; }
+              if (n > 0) { const tier = calTierColor(n); bg = `color-mix(in srgb,${tier} 22%,transparent)`; color = `color-mix(in srgb,${tier} 55%,#fff)`; }
               if (inPreview) { bg = `${ACCENT}45`; color = ACCENT; }
               return (
                 <button key={day} data-cal-day={day} style={{
-                  height:26, borderRadius:6, cursor:"pointer", fontFamily:"inherit",
-                  border: isToday ? `1.5px solid ${ACCENT}` : inPreview ? `1px solid ${ACCENT}` : "none",
-                  background: isSel ? ACCENT : bg,
+                  height:34, borderRadius:11, cursor:"pointer", fontFamily:"inherit",
+                  border: isToday ? `1.5px solid ${ACCENT}` : inPreview ? `1px solid ${ACCENT}` : `1px solid ${BORDER}`,
+                  background: isSel ? `linear-gradient(145deg,${ACC_HI},${ACCENT})` : bg,
                   color: isSel ? "#04231f" : color,
-                  fontSize:10, fontWeight:700,
+                  fontSize:12, fontWeight:700,
                 }}>{day}</button>
               );
             })}
           </div>
           <div style={{display:"flex",gap:10,justifyContent:"center",marginTop:8}}>
             {[[RED,"мало"],[GOLD,"середньо"],[GREEN,"багато"]].map(([c,l])=>(
-              <span key={l} style={{fontSize:8,color:FAINT,fontWeight:700,display:"flex",alignItems:"center",gap:3}}>
-                <i style={{width:6,height:6,borderRadius:2,background:c,display:"inline-block"}}/>{l}
+              <span key={l} style={{fontSize:11,color:FAINT,fontWeight:700,display:"flex",alignItems:"center",gap:4}}>
+                <i style={{width:8,height:8,borderRadius:3,background:c,display:"inline-block"}}/>{l}
               </span>
             ))}
           </div>
           {period === "custom" && selectedStrips.length > 0 && (
             <div style={{marginTop:9,display:"flex",alignItems:"center",gap:6}}>
-              <div style={{flex:1,textAlign:"center",fontSize:10.5,fontWeight:700,color:ACCENT,background:`${ACCENT}1a`,borderRadius:8,padding:"6px 8px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+              <div style={{flex:1,textAlign:"center",fontSize:11,fontWeight:700,color:ACCENT,background:`${ACCENT}1a`,borderRadius:8,padding:"6px 8px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
                 {selectedStrips.map(([s,e])=> s===e ? fmtDM(s) : `${fmtDM(s)}–${fmtDM(e)}`).join(", ")}
               </div>
               <button onClick={calClearSelection} title="Скинути вибір" style={{
                 flexShrink:0, padding:"6px 9px", borderRadius:8, border:"none", cursor:"pointer", fontFamily:"inherit",
-                background:SURF_HI, color:FAINT, fontSize:10.5, fontWeight:700,
+                background:SURF_HI, color:FAINT, fontSize:11, fontWeight:700,
               }}>✕</button>
             </div>
           )}
-        </Card>
+        </Card>}
 
         {/* ── KPI 3 ── */}
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:7}}>
+        {secEff === "overview" && <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:7}}>
           {[
             {label:"Дохід",        value:fmtK(totalIncome),               color:GOLD,  trend:trendPct(cur.income,  prev.income)},
-            {label:"Уроків",       value:totalLessons,                    color:BLUE,  trend:trendPct(cur.lessons, prev.lessons)},
+            {label:"Записів",       value:totalLessons,                    color:BLUE,  trend:trendPct(cur.lessons, prev.lessons)},
             {label:"Години",       value:totalHours,                      color:GREEN, trend:trendPct(totalHours, prevHours)},
           ].map((k, i) => (
             <Card key={i} className="fu" style={{
               padding:"10px 9px",
-              background:`linear-gradient(155deg,color-mix(in srgb,${k.color} 20%,${BG_DEEP}),color-mix(in srgb,${k.color} 6%,${BG_DEEP}))`,
+              background:`color-mix(in srgb,${k.color} 18%,transparent)`,backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",
               border:`1px solid color-mix(in srgb,${k.color} 30%,transparent)`,
               textAlign:"center",
             }}>
-              <div style={{fontSize:8,color:"rgba(255,255,255,0.6)",letterSpacing:0.6,textTransform:"uppercase",fontWeight:700,marginBottom:6}}>{k.label}</div>
-              <div style={{fontSize:18,fontWeight:900,color:"#fff",letterSpacing:-0.3,lineHeight:1.05}}>{k.value}</div>
+              <div style={{fontSize:11,color:"rgba(255,255,255,0.7)",letterSpacing:0.6,textTransform:"uppercase",fontWeight:600,marginBottom:6}}>{k.label}</div>
+              <div style={{fontSize:"min(21px,4.5vw)",fontWeight:800,color:"#fff",letterSpacing:-0.3,lineHeight:1.05,whiteSpace:"nowrap"}}>{k.value}</div>
               {(k.extra || (k.trend != null && k.trend !== 0)) && (
                 <div style={{display:"flex",justifyContent:"center",alignItems:"center",gap:5,marginTop:5,flexWrap:"wrap"}}>
-                  {k.extra && <span style={{fontSize:9,color:"rgba(255,255,255,0.55)",fontWeight:700}}>{k.extra}</span>}
+                  {k.extra && <span style={{fontSize:11,color:"rgba(255,255,255,0.74)",fontWeight:600}}>{k.extra}</span>}
                   {k.trend != null && k.trend !== 0 && (
                     <span style={{
-                      fontSize:8, fontWeight:800, padding:"1px 5px", borderRadius:5,
-                      color:k.trend>=0?GREEN:RED,
+                      fontSize:11, fontWeight:700, padding:"2px 7px", borderRadius:99,
+                      color:`color-mix(in srgb,${k.trend>=0?GREEN:RED} 55%,#fff)`,
                       background:k.trend>=0?`${GREEN}1f`:`${RED}1f`,
                     }}>{k.trend>=0?"+":""}{k.trend}%</span>
                   )}
@@ -544,15 +659,73 @@ export default function StatsView() {
               )}
             </Card>
           ))}
-        </div>
+        </div>}
+
+        {/* ── KPI: середній чек, нові клієнти, скасування ── */}
+        {secEff === "overview" && (
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:7}}>
+            {(() => {
+              const kAvg   = {label:"Сер. чек", value:fmtK(avgCheck), trend:trendPct(avgCheck, prevAvg), good:true};
+              const kNew   = {label:"Нові", value:clients.fresh, sub:`з ${clients.total} клієнтів`};
+              const kCanc  = {label:"Скасовано", value:`${cancels.pct}%`, trend:prevCancels ? cancels.pct - prevCancels.pct : null, good:false, pp:true};
+              const noshowPct = cancels.total ? Math.round((cancels.noshow / cancels.total) * 100) : 0;
+              const prevNoshowPct = prevCancels && prevCancels.total ? Math.round((prevCancels.noshow / prevCancels.total) * 100) : null;
+              if (dir === "education") return [
+                {label:"Явка", value:att.pct == null ? "—" : `${att.pct}%`, sub:att.missed ? `пропусків ${att.missed}` : null},
+                kNew,
+                kAvg,
+              ];
+              if (dir === "consult") return [
+                {label:"Неявки", value:`${noshowPct}%`, trend:prevNoshowPct == null ? null : noshowPct - prevNoshowPct, good:false, pp:true},
+                kNew,
+                kAvg,
+              ];
+              return [kAvg, kNew, kCanc];
+            })().map((k, i) => (
+              <Card key={i} className="fu" style={{padding:"10px 9px",textAlign:"center"}}>
+                <div style={{fontSize:10.5,color:DIM,letterSpacing:0.3,textTransform:"uppercase",fontWeight:600,marginBottom:6,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{k.label}</div>
+                <div style={{fontSize:"min(19px,4.3vw)",fontWeight:800,color:TEXT,lineHeight:1.05,whiteSpace:"nowrap"}}>{k.value}</div>
+                {k.sub && <div style={{fontSize:11,color:DIM,marginTop:5}}>{k.sub}</div>}
+                {k.trend != null && k.trend !== 0 && (() => {
+                  const ok = k.good ? k.trend > 0 : k.trend < 0;
+                  return <div style={{marginTop:5}}><span style={{fontSize:11,fontWeight:700,padding:"2px 7px",borderRadius:99,color:`color-mix(in srgb,${ok?GREEN:RED} 55%,#fff)`,background:ok?`${GREEN}1f`:`${RED}1f`}}>{k.trend>0?"+":""}{k.trend}{k.pp?" п.п.":"%"}</span></div>;
+                })()}
+              </Card>
+            ))}
+          </div>
+        )}
+
+        {/* ── МАЙСТРИ (салон) ── */}
+        {secEff === "masters" && (masterFilter ? masterRows.filter(r => r.m.id === masterFilter) : masterRows).map(r => (
+          <Card key={r.m.id} className="fu" style={{padding:"12px 13px"}}>
+            <div style={{display:"flex",alignItems:"center",gap:10}}>
+              <span style={{width:12,height:12,borderRadius:"50%",background:r.m.color,flexShrink:0}}/>
+              <span style={{flex:1,minWidth:0,fontSize:14,fontWeight:700,color:TEXT,overflowWrap:"anywhere"}}>{r.m.name}</span>
+              <div style={{textAlign:"right",flexShrink:0}}>
+                <div style={{fontSize:15,fontWeight:800,color:TEXT}}>{fmtK(r.income)}</div>
+                {r.trend != null && r.trend !== 0 && <div style={{fontSize:11,fontWeight:700,color:`color-mix(in srgb,${r.trend>0?GREEN:RED} 55%,#fff)`}}>{r.trend>0?"+":""}{r.trend}%</div>}
+              </div>
+            </div>
+            <div style={{height:6,borderRadius:3,background:BG_DEEP,boxShadow:SI,margin:"8px 0 9px",overflow:"hidden"}}>
+              <div style={{height:"100%",width:`${(r.income/maxMasterIncome)*100}%`,borderRadius:3,background:r.m.color}}/>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(4,minmax(0,1fr))",gap:6}}>
+              {miniTile(r.lessons, "записів")}
+              {miniTile(fmtK(r.avg), "сер. чек")}
+              {miniTile(r.load == null ? "—" : `${r.load}%`, "зайнятість", r.load == null ? DIM : r.load >= 75 ? GREEN : r.load >= 40 ? GOLD : RED)}
+              {miniTile(r.lost, "скас./неявки", r.lost ? GOLD : TEXT)}
+            </div>
+          </Card>
+        ))}
+        {secEff === "masters" && <div style={{fontSize:11,color:DIM,textAlign:"center",padding:"0 8px"}}>Зайнятість — заброньовані години від робочих за графіком майстра (або салону).</div>}
 
         {/* ── INCOME GOAL ── */}
-        <Card className="fu" style={{padding:"12px 13px"}}>
+        {secEff === "overview" && <Card className="fu" style={{padding:"12px 13px"}}>
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:editingGoal?10:incomeGoal?9:4}}>
-            <div style={{fontSize:9,color:FAINT,letterSpacing:1,textTransform:"uppercase",fontWeight:700}}>🎯 Ціль місяця</div>
+            <div style={{fontSize:11,color:DIM,letterSpacing:1,textTransform:"uppercase",fontWeight:700}}>🎯 Ціль місяця</div>
             {!editingGoal && (
               <button onClick={()=>{setGoalInput(String(incomeGoal||""));setEditingGoal(true);}} style={{
-                padding:"3px 8px",borderRadius:6,border:"none",cursor:"pointer",fontSize:10,fontWeight:700,fontFamily:"inherit",
+                padding:"7px 11px",borderRadius:8,border:"none",cursor:"pointer",fontSize:11,fontWeight:700,fontFamily:"inherit",
                 background:`${GOLD}22`,color:GOLD,
               }}>{incomeGoal?"✏️":"+ Встановити"}</button>
             )}
@@ -580,15 +753,15 @@ export default function StatsView() {
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",marginBottom:curMonthForecast>curMonthCurrent?7:11}}>
                 <div>
                   <div style={{fontSize:24,fontWeight:900,color:GOLD,lineHeight:1}}>{fmtK(incomeGoal)}</div>
-                  <div style={{fontSize:8,color:FAINT,marginTop:3}}>ціль місяця</div>
+                  <div style={{fontSize:11,color:FAINT,marginTop:3}}>ціль місяця</div>
                 </div>
                 <div style={{textAlign:"right"}}>
                   <div style={{fontSize:16,fontWeight:800,color:curMonthCurrent>=incomeGoal?GREEN:TEXT,lineHeight:1}}>{fmtK(curMonthCurrent)}</div>
-                  <div style={{fontSize:8,color:FAINT,marginTop:3}}>вже зароблено</div>
+                  <div style={{fontSize:11,color:FAINT,marginTop:3}}>вже зароблено</div>
                 </div>
               </div>
               {curMonthForecast > curMonthCurrent && (
-                <div style={{fontSize:9,color:ACCENT,fontWeight:700,marginBottom:7}}>
+                <div style={{fontSize:11,color:ACCENT,fontWeight:700,marginBottom:7}}>
                   прогноз із записами наперед: {fmtK(curMonthForecast)}
                 </div>
               )}
@@ -609,42 +782,42 @@ export default function StatsView() {
                 }}/>
               </div>
               <div style={{display:"flex",justifyContent:"space-between"}}>
-                <span style={{fontSize:10,fontWeight:800,color:curMonthCurrent>=incomeGoal?GREEN:FAINT}}>
+                <span style={{fontSize:11,fontWeight:800,color:curMonthCurrent>=incomeGoal?GREEN:FAINT}}>
                   {Math.min(100,Math.round((curMonthCurrent/incomeGoal)*100))}%
                 </span>
                 {curMonthCurrent<incomeGoal
-                  ? <span style={{fontSize:10,color:FAINT}}>залишилось {fmtK(incomeGoal-curMonthCurrent)}</span>
-                  : <span style={{fontSize:10,color:GREEN,fontWeight:700}}>🎉 Ціль досягнута!</span>
+                  ? <span style={{fontSize:11,color:FAINT}}>залишилось {fmtK(incomeGoal-curMonthCurrent)}</span>
+                  : <span style={{fontSize:11,color:GREEN,fontWeight:700}}>🎉 Ціль досягнута!</span>
                 }
               </div>
             </>
           ) : (
-            <div style={{fontSize:11,color:FAINT}}>Встановіть ціль доходу на місяць</div>
+            <div style={{fontSize:11,color:DIM}}>Встановіть ціль доходу на місяць</div>
           )}
-        </Card>
+        </Card>}
 
         {/* ── РОЗПОДІЛ + ПО ДНЯХ ── */}
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7}}>
+        {secEff === "overview" && <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7}}>
           <Card className="fu" style={{
             padding:"12px",
-            background:`linear-gradient(155deg,color-mix(in srgb,${GREEN} 14%,${BG_DEEP}),color-mix(in srgb,${GREEN} 3%,${BG_DEEP}))`,
+            background:`color-mix(in srgb,${GREEN} 18%,transparent)`,backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",
             border:`1px solid color-mix(in srgb,${GREEN} 24%,transparent)`,
           }}>
-            <div style={{fontSize:9,color:"rgba(255,255,255,0.6)",letterSpacing:1,textTransform:"uppercase",fontWeight:700,marginBottom:7}}>Розподіл</div>
+            <div style={{fontSize:11,color:"rgba(255,255,255,0.74)",letterSpacing:1,textTransform:"uppercase",fontWeight:700,marginBottom:7}}>Розподіл</div>
             {(() => {
               const totalRatio = totalSchool + totalPrivate;
               const schoolPct = totalRatio ? Math.round((totalSchool/totalRatio)*100) : 0;
               return (
                 <div style={{display:"flex",flexDirection:"column",gap:5}}>
-                  {[[GREEN,"Автошкола",totalSchool,schoolPct],[GOLD,"Приватний",totalPrivate,100-schoolPct]].map(([c,l,v,pct])=>(
-                    <div key={l} style={{display:"flex",alignItems:"center",gap:5}}>
+                  {[[GREEN,"Стандарт",totalSchool,schoolPct],[GOLD,"Індивідуальний",totalPrivate,100-schoolPct]].map(([c,l,v,pct])=>(
+                    <div key={l} style={{display:"flex",alignItems:"center",gap:5,flexWrap:"wrap",rowGap:2}}>
                       <i style={{width:7,height:7,borderRadius:2,background:c,flexShrink:0}}/>
-                      <span style={{flex:1,fontSize:9.5,color:"rgba(255,255,255,0.7)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{l}</span>
+                      <span style={{flex:"1 1 auto",fontSize:11,color:"rgba(255,255,255,0.85)"}}>{l}</span>
                       <span style={{fontSize:12,fontWeight:900,color:c}}>{v}</span>
-                      <span style={{fontSize:8.5,color:"rgba(255,255,255,0.5)",width:26,textAlign:"right",flexShrink:0}}>{pct}%</span>
+                      <span style={{fontSize:11,color:"rgba(255,255,255,0.75)",width:30,textAlign:"right",flexShrink:0}}>{pct}%</span>
                     </div>
                   ))}
-                  <div style={{display:"flex",height:6,borderRadius:4,overflow:"hidden",boxShadow:SI,marginTop:1}}>
+                  <div style={{display:"flex",height:8,borderRadius:99,overflow:"hidden",marginTop:2}}>
                     <div style={{width:`${totalRatio?schoolPct:50}%`,background:GREEN,transition:"width .5s ease"}}/>
                     <div style={{width:`${totalRatio?100-schoolPct:50}%`,background:GOLD,transition:"width .5s ease"}}/>
                   </div>
@@ -655,48 +828,95 @@ export default function StatsView() {
 
           <Card className="fu" style={{
             padding:"12px",
-            background:`linear-gradient(155deg,color-mix(in srgb,${GOLD} 14%,${BG_DEEP}),color-mix(in srgb,${GOLD} 3%,${BG_DEEP}))`,
+            background:`color-mix(in srgb,${GOLD} 18%,transparent)`,backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",
             border:`1px solid color-mix(in srgb,${GOLD} 24%,transparent)`,
           }}>
-            <div style={{fontSize:9,color:"rgba(255,255,255,0.6)",letterSpacing:1,textTransform:"uppercase",fontWeight:700,marginBottom:7}}>{byPeriodLabel}</div>
+            <div style={{fontSize:11,color:"rgba(255,255,255,0.74)",letterSpacing:1,textTransform:"uppercase",fontWeight:700,marginBottom:7}}>{byPeriodLabel}</div>
             <div style={{display:"flex",flexDirection:"column",gap:4,maxHeight:140,overflowY:"auto",paddingRight:2}}>
               {data.map((d, i) => {
                 const maxI = Math.max(...data.map(x => x.income), 1);
                 const pct  = d.income / maxI;
                 return (
                   <div key={i} style={{display:"flex",alignItems:"center",gap:6}}>
-                    <span style={{fontSize:8.5,color:"rgba(255,255,255,0.55)",fontWeight:700,width:16,textAlign:"right",flexShrink:0}}>{d.label}</span>
-                    <div style={{flex:1,height:4,background:BG_DEEP,borderRadius:3,boxShadow:SI,overflow:"hidden"}}>
+                    <span style={{fontSize:11,color:"rgba(255,255,255,0.74)",fontWeight:700,width:18,textAlign:"right",flexShrink:0}}>{d.label}</span>
+                    <div style={{flex:1,height:6,background:"rgba(255,255,255,.1)",borderRadius:99,overflow:"hidden"}}>
                       <div style={{height:"100%",width:`${pct*100}%`,borderRadius:3,background:`linear-gradient(90deg,${GOLD},${GREEN})`,transition:"width .5s ease"}}/>
                     </div>
-                    <span style={{fontSize:8.5,color:GOLD,fontWeight:800,width:32,textAlign:"right",flexShrink:0}}>{d.income ? fmtK(d.income) : <span style={{color:FAINT}}>—</span>}</span>
+                    <span style={{fontSize:11,color:GOLD,fontWeight:800,width:46,textAlign:"right",flexShrink:0,whiteSpace:"nowrap"}}>{d.income ? fmtK(d.income) : <span style={{color:FAINT}}>—</span>}</span>
                   </div>
                 );
               })}
             </div>
           </Card>
-        </div>
+        </div>}
+
+        {/* ── ЗВІДКИ ЗАПИСИ ── */}
+        {secEff === "overview" && src.total > 0 && (() => {
+          const on = Math.round((src.online / src.total) * 100);
+          return (
+            <Card className="fu" style={{padding:"12px 13px"}}>
+              <div style={{...secTitle,marginBottom:9}}>Звідки записи</div>
+              <div style={{display:"flex",height:10,borderRadius:99,overflow:"hidden",gap:2}}>
+                {src.online > 0 && <div style={{width:`${on}%`,background:BLUE}}/>}
+                {src.manual > 0 && <div style={{width:`${100-on}%`,background:GOLD}}/>}
+              </div>
+              <div style={{display:"flex",justifyContent:"space-between",gap:8,marginTop:8,fontSize:12,color:DIM,flexWrap:"wrap"}}>
+                <span><i style={{display:"inline-block",width:8,height:8,borderRadius:3,background:BLUE,marginRight:5}}/>Онлайн {src.online} · {on}%</span>
+                <span><i style={{display:"inline-block",width:8,height:8,borderRadius:3,background:GOLD,marginRight:5}}/>Вручну {src.manual} · {100-on}%</span>
+              </div>
+            </Card>
+          );
+        })()}
+
+        {/* ── ЗАЙНЯТІСТЬ: теплокарта день × година ── */}
+        {secEff === "load" && (
+          <Card className="fu" style={{padding:"12px 13px"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:9}}>
+              <div style={secTitle}>Зайнятість по годинах</div>
+              {loadOne != null && <div style={{fontSize:12,fontWeight:800,color:loadOne >= 75 ? GREEN : loadOne >= 40 ? GOLD : RED}}>{loadOne}% годин зайнято</div>}
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:`22px repeat(${hm.hours.length},minmax(0,1fr))`,gap:2,fontSize:10,color:DIM,marginBottom:2}}>
+              <span/>
+              {hm.hours.map((h, i) => <span key={h} style={{textAlign:"center"}}>{i % 2 === 0 ? h : ""}</span>)}
+            </div>
+            {hm.grid.map((row, d) => (
+              <div key={d} style={{display:"grid",gridTemplateColumns:`22px repeat(${hm.hours.length},minmax(0,1fr))`,gap:2,marginTop:2,alignItems:"center"}}>
+                <span style={{fontSize:11,color:DIM,fontWeight:700}}>{DOW[d]}</span>
+                {row.map((v, i) => (
+                  <div key={i} title={`${DOW[d]} ${hm.hours[i]}:00 — ${v}`} style={{height:16,borderRadius:3,
+                    background: v ? `color-mix(in srgb,${ACCENT} ${Math.round(15 + (v / hm.max) * 80)}%,transparent)` : BG_DEEP}}/>
+                ))}
+              </div>
+            ))}
+            {!hmHasData && <div style={{fontSize:12,color:DIM,marginTop:9,textAlign:"center"}}>За цей період записів немає</div>}
+            {quiet && (
+              <div style={{marginTop:10,padding:"8px 10px",borderRadius:10,background:`${GOLD}1a`,fontSize:12,color:`color-mix(in srgb,${GOLD} 60%,#fff)`,lineHeight:1.4}}>
+                {`Найбільше вільного часу в ${DOW_LONG[quiet.d]} з ${quiet.h}:00 до ${quiet.h + 2}:00 — можна дати знижку на ці години.`}
+              </div>
+            )}
+          </Card>
+        )}
 
         {/* ── ПОПУЛЯРНІ СЛОТИ ── */}
-        {popularSlots.length > 0 && (
+        {secEff === "load" && popularSlots.length > 0 && (
           <Card className="fu" style={{
             padding:"12px 13px",
-            background:`linear-gradient(155deg,color-mix(in srgb,${GOLD} 14%,${BG_DEEP}),color-mix(in srgb,${GOLD} 3%,${BG_DEEP}))`,
+            background:`color-mix(in srgb,${GOLD} 18%,transparent)`,backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",
             border:`1px solid color-mix(in srgb,${GOLD} 24%,transparent)`,
           }}>
-            <div style={{fontSize:9,color:"rgba(255,255,255,0.6)",letterSpacing:1,textTransform:"uppercase",fontWeight:700,marginBottom:10}}>Популярні слоти</div>
+            <div style={{fontSize:11,color:"rgba(255,255,255,0.74)",letterSpacing:1,textTransform:"uppercase",fontWeight:700,marginBottom:10}}>Популярні слоти</div>
             {popularSlots.map((s, i) => {
               const maxCount = popularSlots[0].count;
               const pct = s.count / maxCount;
               return (
                 <div key={s.hour} style={{display:"flex",alignItems:"center",gap:8,marginBottom:7}}>
                   <span style={{fontSize:11,color:i===0?GOLD:FAINT,fontWeight:700,width:36,flexShrink:0}}>{s.hour}</span>
-                  <div style={{flex:1,height:6,background:BG_DEEP,borderRadius:3,boxShadow:SI,overflow:"hidden"}}>
+                  <div style={{flex:1,height:8,background:"rgba(255,255,255,.1)",borderRadius:99,overflow:"hidden"}}>
                     <div style={{height:"100%",width:`${pct*100}%`,borderRadius:3,
                       background:i===0?`linear-gradient(90deg,${GOLD},${GREEN})`:`linear-gradient(90deg,${PURPLE},${ACCENT})`,
                       transition:"width .5s ease"}}/>
                   </div>
-                  <span style={{fontSize:10,color:i===0?GOLD:PURPLE,fontWeight:800,width:44,textAlign:"right",flexShrink:0}}>
+                  <span style={{fontSize:11,color:`color-mix(in srgb,${i===0?GOLD:PURPLE} 55%,#fff)`,fontWeight:800,width:44,textAlign:"right",flexShrink:0}}>
                     {s.count} ур.
                   </span>
                 </div>
@@ -705,17 +925,147 @@ export default function StatsView() {
           </Card>
         )}
 
+        {/* ── СКАСУВАННЯ І НЕЯВКИ (консультації — ще й в огляді: неявки там головний показник) ── */}
+        {(secEff === "load" || (secEff === "overview" && dir === "consult")) && (
+          <Card className="fu" style={{padding:"12px 13px"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",gap:8,marginBottom:9}}>
+              <div style={secTitle}>Скасування і неявки · {cancels.cancelled + cancels.noshow}</div>
+              {cancels.lost > 0 && <div style={{fontSize:12,fontWeight:800,color:RED,whiteSpace:"nowrap"}}>−{fmtK(cancels.lost)}</div>}
+            </div>
+            {cancels.cancelled + cancels.noshow === 0
+              ? <div style={{fontSize:12,color:DIM}}>Скасувань за цей період немає</div>
+              : (() => {
+                  const rows = [["Скасував клієнт", cancels.client], ["Скасував салон", cancels.salon], ["Не прийшов", cancels.noshow], ["Система (оплата, ліцензія)", cancels.system]].filter(([, n]) => n > 0);
+                  const mx = Math.max(...rows.map(([, n]) => n));
+                  return rows.map(([l, n]) => (
+                    <div key={l} style={{display:"flex",alignItems:"center",gap:8,padding:"4px 0"}}>
+                      <span style={{flex:1,minWidth:0,fontSize:12.5,color:TEXT}}>{l}</span>
+                      <div style={{width:"34%",height:6,borderRadius:3,background:BG_DEEP,boxShadow:SI,overflow:"hidden"}}><div style={{height:"100%",width:`${(n/mx)*100}%`,background:GOLD,borderRadius:3}}/></div>
+                      <span style={{width:22,textAlign:"right",fontSize:12.5,fontWeight:800,color:TEXT}}>{n}</span>
+                    </div>
+                  ));
+                })()}
+          </Card>
+        )}
+
+        {/* ── КЛІЄНТИ: нові / постійні / інтервал ── */}
+        {secEff === "clients" && (
+          <Card className="fu" style={{padding:"12px 13px"}}>
+            <div style={{...secTitle,marginBottom:9}}>Клієнти за період · {clients.total}</div>
+            {clients.total > 0 && (
+              <>
+                <div style={{display:"flex",height:10,borderRadius:99,overflow:"hidden",gap:2}}>
+                  {clients.fresh > 0 && <div style={{width:`${(clients.fresh/clients.total)*100}%`,background:GREEN}}/>}
+                  {clients.regular > 0 && <div style={{width:`${(clients.regular/clients.total)*100}%`,background:BLUE}}/>}
+                </div>
+                <div style={{display:"flex",justifyContent:"space-between",marginTop:8,fontSize:12,color:DIM}}>
+                  <span><i style={{display:"inline-block",width:8,height:8,borderRadius:3,background:GREEN,marginRight:5}}/>Нові {clients.fresh}</span>
+                  <span><i style={{display:"inline-block",width:8,height:8,borderRadius:3,background:BLUE,marginRight:5}}/>Постійні {clients.regular}</span>
+                </div>
+              </>
+            )}
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7,marginTop:10}}>
+              {miniTile(clients.avgGap == null ? "—" : `${clients.avgGap} дн.`, "між записами")}
+              {miniTile(sleepList.length, dir === "consult" ? "перервали курс" : "давно не були", sleepList.length ? GOLD : TEXT)}
+            </div>
+          </Card>
+        )}
+
+        {/* ── «СПЛЯЧІ» КЛІЄНТИ ── */}
+        {secEff === "clients" && sleepList.length > 0 && (
+          <Card className="fu" style={{padding:"12px 13px 6px"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",gap:8}}>
+              <div style={secTitle}>{dir === "consult" ? "Перервали курс" : "Давно не були"}</div>
+              {sleepList.length > 5 && (
+                <button onClick={()=>setSleepAll(v=>!v)} style={{border:"none",background:"transparent",color:BLUE,fontFamily:"inherit",fontSize:12,fontWeight:700,cursor:"pointer",minHeight:32}}>
+                  {sleepAll ? "Згорнути" : `Усі ${sleepList.length}`}
+                </button>
+              )}
+            </div>
+            <div style={{fontSize:11,color:DIM,margin:"2px 0 6px"}}>{dir === "consult" ? `Мали 2+ записи, нових немає понад ${sleepDays} днів` : `Останній запис понад ${sleepDays} днів тому, нових немає`}</div>
+            {(sleepAll ? sleepList : sleepList.slice(0, 5)).map(c => (
+              <div key={c.uid} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderTop:`1px solid ${BORDER}`}}>
+                <div style={{flex:1,minWidth:0}}>
+                  <div data-notrans={dir === "consult" ? "1" : undefined} style={{fontSize:13,fontWeight:700,color:TEXT,overflowWrap:"anywhere"}}>{showName(c.name)}</div>
+                  <div style={{fontSize:11,color:DIM}}>{`${c.days} дн. тому · записів ${c.visits} · ${fmtDate(c.last)}`}</div>
+                </div>
+                {onViewStudent && (
+                  <button onClick={()=>onViewStudent(c.uid)} style={{flexShrink:0,minHeight:36,padding:"0 12px",borderRadius:10,border:`1px solid ${BLUE}66`,background:`${BLUE}1f`,color:`color-mix(in srgb,${BLUE} 60%,#fff)`,fontFamily:"inherit",fontSize:12,fontWeight:800,cursor:"pointer"}}>Відкрити</button>
+                )}
+              </div>
+            ))}
+          </Card>
+        )}
+
+        {/* ── НАВЧАННЯ: утримання по місяцях ── */}
+        {secEff === "clients" && coh && coh.some(c => c.total > 0) && (
+          <Card className="fu" style={{padding:"12px 13px"}}>
+            <div style={secTitle}>Утримання</div>
+            <div style={{fontSize:11,color:DIM,margin:"2px 0 8px"}}>Скільки клієнтів, що прийшли вперше в цьому місяці, ходять досі</div>
+            {coh.map(c => (
+              <div key={c.month} style={{display:"flex",alignItems:"center",gap:8,padding:"4px 0"}}>
+                <span style={{width:34,fontSize:12,color:DIM,fontWeight:700}}>{UK_MONTHS[c.month]}</span>
+                <div style={{flex:1,height:8,borderRadius:4,background:BG_DEEP,boxShadow:SI,overflow:"hidden"}}><div style={{height:"100%",width:`${c.pct || 0}%`,background:TEAL_C,borderRadius:4}}/></div>
+                <span style={{width:40,textAlign:"right",fontSize:12,fontWeight:800,color:TEXT}}>{c.pct == null ? "—" : `${c.pct}%`}</span>
+                <span style={{width:38,textAlign:"right",fontSize:11,color:DIM}}>{c.total ? `${c.kept}/${c.total}` : ""}</span>
+              </div>
+            ))}
+          </Card>
+        )}
+
+        {/* ── КОНСУЛЬТАЦІЇ: тривалість курсу ── */}
+        {secEff === "clients" && course && course.total > 0 && (
+          <Card className="fu" style={{padding:"12px 13px"}}>
+            <div style={{...secTitle,marginBottom:9}}>Тривалість курсу</div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7,marginBottom:10}}>
+              {miniTile(course.avg, "записів на клієнта", PURPLE)}
+              {miniTile(`${course.returned}%`, "повернулись після першого", course.returned >= 60 ? GREEN : GOLD)}
+            </div>
+            {(() => { const mx = Math.max(1, ...course.buckets.map(b => b.n)); return course.buckets.map(b => (
+              <div key={b.label} style={{display:"flex",alignItems:"center",gap:8,padding:"4px 0"}}>
+                <span style={{width:40,fontSize:12,color:DIM,fontWeight:700}}>{b.label}</span>
+                <div style={{flex:1,height:8,borderRadius:4,background:BG_DEEP,boxShadow:SI,overflow:"hidden"}}><div style={{height:"100%",width:`${(b.n/mx)*100}%`,background:PURPLE,borderRadius:4}}/></div>
+                <span style={{width:26,textAlign:"right",fontSize:12,fontWeight:800,color:TEXT}}>{b.n}</span>
+              </div>
+            )); })()}
+          </Card>
+        )}
+
+        {/* ── ПАКЕТИ (абонементи) ── */}
+        {secEff === "clients" && (pk.active > 0 || pk.sold > 0) && (
+          <Card className="fu" style={{padding:"12px 13px"}}>
+            <div style={{...secTitle,marginBottom:9}}>Пакети</div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:6}}>
+              {miniTile(pk.active, "активних")}
+              {miniTile(pk.sold, "продано", pk.sold ? GREEN : TEXT)}
+              {miniTile(pk.ending.length, "закінчуються", pk.ending.length ? GOLD : TEXT)}
+            </div>
+            {pk.soldSum > 0 && <div style={{fontSize:12,color:DIM,marginTop:8}}>{`Продано пакетів на ${fmtK(pk.soldSum)}`}</div>}
+            {pk.ending.slice(0, 5).map(e => (
+              <div key={e.uid + e.pkName} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderTop:`1px solid ${BORDER}`,marginTop:6}}>
+                <div style={{flex:1,minWidth:0}}>
+                  <div data-notrans={dir === "consult" ? "1" : undefined} style={{fontSize:13,fontWeight:700,color:TEXT,overflowWrap:"anywhere"}}>{showName(e.name)}</div>
+                  <div style={{fontSize:11,color:DIM}}>{`${e.pkName}: лишилось ${e.left} з ${e.total}`}</div>
+                </div>
+                {onViewStudent && (
+                  <button onClick={()=>onViewStudent(e.uid)} style={{flexShrink:0,minHeight:36,padding:"0 12px",borderRadius:10,border:`1px solid ${GOLD}66`,background:`${GOLD}1f`,color:`color-mix(in srgb,${GOLD} 60%,#fff)`,fontFamily:"inherit",fontSize:12,fontWeight:800,cursor:"pointer"}}>Відкрити</button>
+                )}
+              </div>
+            ))}
+          </Card>
+        )}
+
         {/* ── ТОП-5 ── */}
-        {topStudents.length > 0 && (
+        {secEff === "clients" && topStudents.length > 0 && (
           <Card className="fu" style={{padding:"12px 13px 8px"}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-              <div style={{fontSize:9,color:FAINT,letterSpacing:1,textTransform:"uppercase",fontWeight:700}}>Топ-5 учнів</div>
+              <div style={{fontSize:11,color:FAINT,letterSpacing:1,textTransform:"uppercase",fontWeight:700}}>Топ-5 клієнтів</div>
               <div style={{display:"flex",gap:5}}>
                 {[["paid","₴"],["lessons","год"]].map(([k,l])=>(
                   <button key={k} onClick={()=>setTopBy(k)} style={{
-                    padding:"3px 8px", borderRadius:6, border:"none", cursor:"pointer", fontSize:10, fontWeight:700, fontFamily:"inherit",
+                    minWidth:36, padding:"7px 11px", borderRadius:8, border:"none", cursor:"pointer", fontSize:11, fontWeight:700, fontFamily:"inherit",
                     background:topBy===k?GOLD:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,
-                    color:topBy===k?"#1a1a1a":FAINT, boxShadow:SO,
+                    color:topBy===k?"#1a1a1a":TEXT, boxShadow:SO,
                   }}>{l}</button>
                 ))}
               </div>
@@ -735,18 +1085,18 @@ export default function StatsView() {
                 }}>
                   <div style={{
                     width:24, height:24, borderRadius:7, flexShrink:0,
-                    background: i<3 ? `linear-gradient(145deg,${medals[i]},${medals[i]}88)` : `linear-gradient(145deg,${SURF_HI},${SURFACE})`,
+                    background: i<3 ? `linear-gradient(145deg,${medals[i]},${medals[i]}dd)` : `linear-gradient(145deg,${SURF_HI},${SURFACE})`,
                     display:"flex", alignItems:"center", justifyContent:"center",
-                    fontSize:10, fontWeight:900, color:i<3?"#1a1a1a":"#fff", boxShadow:SO,
+                    fontSize:11, fontWeight:900, color:i<3?"#1a1a1a":"#fff", boxShadow:SO,
                   }}>{i+1}</div>
                   <div style={{
                     width:32, height:32, borderRadius:9, flexShrink:0,
-                    background:`linear-gradient(145deg,hsl(${s.hue},60%,44%),hsl(${(s.hue+35)%360},70%,28%))`,
+                    background:`linear-gradient(145deg,hsl(${s.hue},60%,27%),hsl(${(s.hue+35)%360},70%,18%))`,
                     display:"flex", alignItems:"center", justifyContent:"center",
-                    fontSize:10, fontWeight:800, color:"#fff", boxShadow:`0 2px 8px hsla(${s.hue},50%,30%,.5)`,
+                    fontSize:11, fontWeight:800, color:"#fff", boxShadow:`0 2px 8px hsla(${s.hue},50%,30%,.5)`,
                   }}>{s.name.split(" ").map(w=>w[0]).join("")}</div>
                   <div style={{flex:1,minWidth:0}}>
-                    <div style={{fontSize:12,fontWeight:700,color:TEXT,marginBottom:4,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{s.name}</div>
+                    <div style={{fontSize:12,fontWeight:700,color:TEXT,marginBottom:4,overflowWrap:"anywhere"}}>{s.name}</div>
                     <div style={{height:4,background:BG_DEEP,borderRadius:3,boxShadow:SI,overflow:"hidden"}}>
                       <div style={{
                         height:"100%", width:`${(barVal/maxH)*100}%`, borderRadius:3,
@@ -756,10 +1106,41 @@ export default function StatsView() {
                   </div>
                   <div style={{flexShrink:0,textAlign:"right"}}>
                     {topBy === 'lessons'
-                      ? <><div style={{fontSize:12,fontWeight:800,color:BLUE}}>{s.hours} год</div><div style={{fontSize:9,color:FAINT}}>{fmtK(s.paid)}</div></>
-                      : <><div style={{fontSize:12,fontWeight:800,color:GOLD}}>{fmtK(s.paid)}</div><div style={{fontSize:9,color:FAINT}}>{s.hours} год</div></>
+                      ? <><div style={{fontSize:12,fontWeight:800,color:BLUE}}>{s.hours} год</div><div style={{fontSize:11,color:FAINT}}>{fmtK(s.paid)}</div></>
+                      : <><div style={{fontSize:12,fontWeight:800,color:GOLD}}>{fmtK(s.paid)}</div><div style={{fontSize:11,color:FAINT}}>{s.hours} год</div></>
                     }
                   </div>
+                </div>
+              );
+            })}
+          </Card>
+        )}
+
+        {/* ── ПОСЛУГИ ── */}
+        {secEff === "clients" && svcRows.length > 0 && (
+          <Card className="fu" style={{padding:"12px 13px"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+              <div style={secTitle}>Послуги</div>
+              <div style={{display:"flex",gap:5}}>
+                {[["sum","₴"],["n","к-сть"]].map(([k,l])=>(
+                  <button key={k} onClick={()=>setSvcBy(k)} style={{
+                    minWidth:36, padding:"7px 11px", borderRadius:8, border:"none", cursor:"pointer", fontSize:11, fontWeight:700, fontFamily:"inherit",
+                    background:svcBy===k?GOLD:`linear-gradient(145deg,${SURF_HI},${SURFACE})`, color:svcBy===k?"#1a1a1a":TEXT, boxShadow:SO,
+                  }}>{l}</button>
+                ))}
+              </div>
+            </div>
+            {svcRows.map(v => {
+              const mx = svcBy === "n" ? svcRows[0].n : svcRows[0].sum;
+              const val = svcBy === "n" ? v.n : v.sum;
+              return (
+                <div key={v.name} style={{padding:"5px 0"}}>
+                  <div style={{display:"flex",gap:8,fontSize:12.5}}>
+                    <span style={{flex:1,minWidth:0,color:TEXT,overflowWrap:"anywhere"}}>{v.name}</span>
+                    <span style={{color:DIM}}>{v.n}×</span>
+                    <span style={{fontWeight:800,color:TEXT,minWidth:58,textAlign:"right"}}>{fmtK(v.sum)}</span>
+                  </div>
+                  <div style={{height:4,borderRadius:2,background:BG_DEEP,marginTop:4,overflow:"hidden"}}><div style={{height:"100%",width:`${mx ? (val/mx)*100 : 0}%`,background:ACCENT,borderRadius:2}}/></div>
                 </div>
               );
             })}

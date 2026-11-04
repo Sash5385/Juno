@@ -65,7 +65,7 @@
     return new Promise(function (resolve) {
       var timer = setTimeout(function () { resolve(''); }, 2000);
       try {
-        fetch('/version.json?_=' + Date.now(), { cache: 'no-store' })
+        fetch((window.__BASE || '/') + 'version.json?_=' + Date.now(), { cache: 'no-store' })
           .then(function (r) { return r.json(); })
           .then(function (d) { clearTimeout(timer); resolve((d && d.version) || ''); })
           .catch(function () { clearTimeout(timer); resolve(''); });

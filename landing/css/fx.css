@@ -3,7 +3,7 @@
 body.fx{background:#0a0b0d}
 .fx #bg{position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none}
 .fx .hero,.fx .problem{background:none}
-.fx header{background:rgba(10,11,13,.55)}
+.fx header{background:rgba(10,11,13,.8)}
 .fx main,.fx footer{position:relative;z-index:1}
 #fxbar{position:fixed;top:0;left:0;height:3px;width:calc(var(--p,0)*100%);background:linear-gradient(90deg,var(--accent),var(--gold),var(--green));z-index:80;display:none}
 .fx #fxbar{display:block}
@@ -18,11 +18,12 @@ body.fx{background:#0a0b0d}
 
 /* ===== 9 · Скло ===== */
 .v9 #bg{background:#0a0b0d}
-.v9 .orb{position:absolute;border-radius:50%;filter:blur(40px);opacity:.75}
+.v9 #bg::after{content:"";position:absolute;inset:0;background:rgba(8,9,11,.42);pointer-events:none} /* затемнення орбів: текст завжди читається */
+.v9 .orb{position:absolute;border-radius:50%;filter:blur(40px);opacity:.4}
 .v9 .o1{width:46vw;height:46vw;left:-8vw;top:6vh;background:#ff5a3c;transform:translateY(calc(var(--syn)*-.18px))}
 .v9 .o2{width:38vw;height:38vw;right:-6vw;top:46vh;background:#7a4dff;transform:translateY(calc(var(--syn)*-.3px))}
 .v9 .o3{width:34vw;height:34vw;left:30vw;top:96vh;background:#14b8a6;transform:translateY(calc(var(--syn)*-.12px))}
-.v9 .card,.v9 .plan,.v9 details,.v9 .step{background:rgba(255,255,255,.07);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-color:rgba(255,255,255,.16)}
+.v9 .card,.v9 .plan,.v9 details,.v9 .step{background:rgba(18,19,23,.74);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border-color:rgba(255,255,255,.16)}
 @media(prefers-reduced-motion:reduce){.fx .rv{opacity:1!important;transform:none!important;filter:none!important;transition:none}.scrollcue i::after{animation:none}}
 .fx h1,.fx .sec-title,.fx .lead{text-shadow:0 2px 20px rgba(0,0,0,.5)}
 /* Анімація як у варіанта 6: поява з розмиття + колір фону плавно змінюється з прокруткою */

@@ -1,7 +1,7 @@
 // Генератор ВИДУМАНИХ даних для демо-режиму (скріншоти, реклама). Усі імена, телефони й
 // записи вигадані. Дати рахуються від "сьогодні", тож розклад завжди виглядає "живим".
 // Структура повторює реальну базу instructors/{iid}/… (див. demoDb.js).
-import { DEMO_UID, demoTheme } from "./demoMode.js";
+import { DEMO_UID, demoTheme, demoPreset } from "./demoMode.js";
 
 const pad = (n) => String(n).padStart(2, "0");
 const ymd = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -19,48 +19,79 @@ function rng(seed) {
   };
 }
 
-// name, тип (school — автошкола, private — приватний), досвід, vip, знижка ₴/год, своя ціна ₴/год,
-// firstDay — день першого уроку відносно сьогодні (null — навчається давно)
+// name, тип (school — стандарт, private — індивідуальний), vip, знижка ₴/год, своя ціна ₴/год,
+// firstDay — день першого запису відносно сьогодні (null — навчається давно)
 const STUDENTS = [
-  { n: "Марія Шевчук",          t: "school",  exp: "no_license"  },
-  { n: "Олексій Коваленко",     t: "private", exp: "novice" },
-  { n: "Ірина Бондаренко",      t: "school",  exp: "no_license", discount: 50 },
-  { n: "Дмитро Мельник",        t: "private", exp: "has_license", vip: true },
-  { n: "Софія Ткаченко",        t: "school",  exp: "no_license"  },
-  { n: "Андрій Кравченко",      t: "private", exp: "basic" },
-  { n: "Наталія Олійник",       t: "school",  exp: "no_license"  },
-  { n: "Максим Поліщук",        t: "private", exp: "novice", discount: 100 },
-  { n: "Катерина Лисенко",      t: "school",  exp: "no_license", firstDay: 0 },
-  { n: "Владислав Гриценко",    t: "private", exp: "has_license" },
-  { n: "Анастасія Мороз",       t: "school",  exp: "no_license"  },
-  { n: "Богдан Савчук",         t: "private", exp: "basic", vip: true },
-  { n: "Юлія Руденко",          t: "school",  exp: "no_license"  },
-  { n: "Сергій Павленко",       t: "private", exp: "licensed", customPrice: 700 },
-  { n: "Олена Кузьменко",       t: "school",  exp: "no_license", firstDay: 1 },
-  { n: "Тарас Іваненко",        t: "private", exp: "novice" },
-  { n: "Вікторія Семенко",      t: "school",  exp: "no_license"  },
-  { n: "Роман Гончаренко",      t: "private", exp: "has_license" },
-  { n: "Дарина Остапенко",      t: "school",  exp: "no_license", firstDay: 2 },
-  { n: "Євген Марченко",        t: "private", exp: "basic" },
-  { n: "Оксана Бойко",          t: "school",  exp: "no_license"  },
-  { n: "Артем Нестеренко",      t: "private", exp: "novice", firstDay: 3 },
-  { n: "Людмила Пархоменко",    t: "private", exp: "has_license" },
-  { n: "Ярослав Коваль",        t: "private", exp: "basic", firstDay: 4 },
+  { n: "Марія Шевчук",          t: "school"  },
+  { n: "Олексій Коваленко",     t: "private" },
+  { n: "Ірина Бондаренко",      t: "school", discount: 50 },
+  { n: "Дмитро Мельник",        t: "private", vip: true },
+  { n: "Софія Ткаченко",        t: "school"  },
+  { n: "Андрій Кравченко",      t: "private" },
+  { n: "Наталія Олійник",       t: "school"  },
+  { n: "Максим Поліщук",        t: "private", discount: 100 },
+  { n: "Катерина Лисенко",      t: "school", firstDay: 0 },
+  { n: "Владислав Гриценко",    t: "private" },
+  { n: "Анастасія Мороз",       t: "school"  },
+  { n: "Богдан Савчук",         t: "private", vip: true },
+  { n: "Юлія Руденко",          t: "school"  },
+  { n: "Сергій Павленко",       t: "private", customPrice: 700 },
+  { n: "Олена Кузьменко",       t: "school", firstDay: 1 },
+  { n: "Тарас Іваненко",        t: "private" },
+  { n: "Вікторія Семенко",      t: "school"  },
+  { n: "Роман Гончаренко",      t: "private" },
+  { n: "Дарина Остапенко",      t: "school", firstDay: 2 },
+  { n: "Євген Марченко",        t: "private" },
+  { n: "Оксана Бойко",          t: "school"  },
+  { n: "Артем Нестеренко",      t: "private", firstDay: 3 },
+  { n: "Людмила Пархоменко",    t: "private" },
+  { n: "Ярослав Коваль",        t: "private", firstDay: 4 },
 ].map((s, i) => ({
   ...s, uid: `demo_u${pad(i + 1)}`, phone: `+3809900000${pad(i + 10)}`,
   firstDay: s.firstDay === undefined ? null : s.firstDay,
 }));
 
 const SERVICES = [
-  { id: "sv1", name: "Автошкола 1 год", type: "school",  duration: 60,  price: 600,  colorId: "green",  active: true, description: "Урок за програмою автошколи" },
-  { id: "sv2", name: "Автошкола 2 год", type: "school",  duration: 120, price: 1100, colorId: "green",  active: true, description: "Подвійний урок" },
-  { id: "sv3", name: "Приватний 1 год", type: "private", duration: 60,  price: 800,  colorId: "yellow", active: true, description: "Індивідуальне заняття" },
-  { id: "sv5", name: "Приватний 1,5 год", type: "private", duration: 90, price: 1200, colorId: "purple", active: true, description: "Розширений урок" },
-  { id: "sv4", name: "Приватний 2 год", type: "private", duration: 120, price: 1500, colorId: "yellow", active: true, description: "Практика з маршрутом" },
+  { id: "sv1", name: "Стандарт 1 год", type: "school",  duration: 60,  price: 600,  colorId: "green",  active: true, description: "Стандартний запис",
+    addons: [{ id: "ad1", name: "Додаткові матеріали", price: 150, minutes: 0 }, { id: "ad2", name: "Подовження +30 хв", price: 300, minutes: 30 }] },
+  { id: "sv2", name: "Стандарт 2 год", type: "school",  duration: 120, price: 1100, colorId: "green",  active: true, description: "Подвійний запис" },
+  { id: "sv3", name: "Індивідуальний 1 год", type: "private", duration: 60,  price: 800,  colorId: "yellow", active: true, description: "Індивідуальний запис",
+    addons: [{ id: "ad3", name: "Подовження +15 хв", price: 150, minutes: 15 }], bufferMin: 15 },
+  { id: "sv5", name: "Індивідуальний 1,5 год", type: "private", duration: 90, price: 1200, colorId: "purple", active: true, description: "Розширений запис" },
+  { id: "sv4", name: "Індивідуальний 2 год", type: "private", duration: 120, price: 1500, colorId: "yellow", active: true, description: "Розширений запис із підготовкою" },
+  { id: "sv6", name: "Груповий запис 1 год", type: "school", duration: 60, price: 300, colorId: "teal", active: true, description: "Група до 6 клієнтів", capacity: 6 },
 ];
 
-const NOTES = ["Паркування задом", "Розворот у дворі", "Складний перехрест", "Нічна їзда", "Підйом на гірці", "Маршрут до іспиту"];
-const STUDENT_NOTES = ["Чи можна на 10 хв пізніше?", "Буду з навчальними правами", "Хочу відпрацювати паркування"];
+// Пресети сфер: ті самі id послуг (sv1–sv6) і тривалості, щоб генератор записів працював без змін;
+// міняються назви, ціни, профіль і напрям слів (direction).
+const svc = (id, name, price, description) => ({ id, name, price, description });
+const PRESETS = {
+  barber: { profile: { name: "Максим Бондар", address: "Київ, Поділ", experience: 9 }, direction: "beauty", services: [
+    svc("sv1", "Чоловіча стрижка", 450, "Стрижка машинкою й ножицями"), svc("sv2", "Стрижка + борода + камуфляж", 900, "Повний догляд"),
+    svc("sv3", "Стрижка бороди", 300, "Контур і моделювання"), svc("sv5", "Стрижка + борода", 650, "Комплекс"),
+    svc("sv4", "Королівське гоління + стрижка", 1100, "Гарячий рушник, догляд"), svc("sv6", "Дитяча стрижка", 300, "До 12 років") ] },
+  nails: { profile: { name: "Олена Квітка", address: "Львів, центр", experience: 6 }, direction: "beauty", services: [
+    svc("sv1", "Манікюр без покриття", 350, "Гігієнічний манікюр"), svc("sv2", "Нарощення нігтів", 1200, "Гель, будь-яка довжина"),
+    svc("sv3", "Манікюр + гель-лак", 650, "Покриття однотон"), svc("sv5", "Манікюр + педикюр", 950, "Комплекс"),
+    svc("sv4", "Педикюр з покриттям + дизайн", 1000, "Дизайн до 4 нігтів"), svc("sv6", "Зняття покриття", 150, "Без нового покриття") ] },
+  cosmo: { profile: { name: "Ірина Соловей", address: "Одеса, Аркадія", experience: 11 }, direction: "beauty", services: [
+    svc("sv1", "Консультація косметолога", 400, "Діагностика шкіри"), svc("sv2", "Комплексний догляд", 2200, "Чистка + пілінг + маска"),
+    svc("sv3", "Чистка обличчя", 900, "Ультразвук + механічна"), svc("sv5", "Пілінг + маска", 1300, "Підбір під тип шкіри"),
+    svc("sv4", "Біоревіталізація", 2800, "Препарат за погодженням"), svc("sv6", "Масаж обличчя", 600, "Класичний") ] },
+  tutor: { profile: { name: "Андрій Ткачук", address: "Онлайн · Zoom", experience: 8 }, direction: "education", services: [
+    svc("sv1", "Математика, 1 урок", 400, "5–9 клас"), svc("sv2", "Підготовка до НМТ, 2 уроки", 900, "Математика, НМТ"),
+    svc("sv3", "Англійська, 1 урок", 500, "Розмовна практика"), svc("sv5", "Англійська інтенсив 1,5 год", 700, "Граматика + говоріння"),
+    svc("sv4", "НМТ англійська, 2 уроки", 1000, "Тести й аудіювання"), svc("sv6", "Груповий урок", 200, "До 6 учнів") ] },
+  psy: { profile: { name: "Марія Левченко", address: "Київ, Печерськ · онлайн", experience: 10 }, direction: "consult", services: [
+    svc("sv1", "Консультація психолога", 900, "50 хвилин"), svc("sv2", "Подвійна сесія", 1700, "Для пар або глибокої роботи"),
+    svc("sv3", "Онлайн-консультація", 800, "Zoom / Meet"), svc("sv5", "Сімейна консультація", 1400, "1,5 години"),
+    svc("sv4", "Розширена сесія + план", 1900, "Діагностика й план терапії"), svc("sv6", "Група підтримки", 350, "До 6 учасників") ] },
+};
+const PRESET = PRESETS[demoPreset()] || null;
+if (PRESET) for (const o of PRESET.services) Object.assign(SERVICES.find((s) => s.id === o.id), o, { addons: undefined });
+
+const NOTES = ["Уточнити побажання", "Повторний візит", "Підготувати матеріали", "Додаткові деталі в чаті", "Другий етап роботи", "Коригування за результатом"];
+const STUDENT_NOTES = ["Чи можна на 10 хв пізніше?", "Буду з другом", "Хочу обговорити деталі на місці"];
 
 // Шаблон дня: Пн–Пт 9–19 з обідом 13–14, Сб 10–16 без обіду, Нд вихідний
 function dayTemplate(date) {
@@ -92,16 +123,17 @@ export function buildDemoTree() {
       status: "confirmed", hours: 0,
       createdAt: Math.min(nowTs - seq * 60000, new Date(`${date}T00:00:00`).getTime() - 86400000 * (1 + (seq % 3)) + ((9 + (seq * 7) % 11) * 60 + (seq * 13) % 60) * 60000), createdBy: "admin",
       ...(st.vip ? { isVipOnly: true, categoryId: "cat-vip" } : {}),
+      ...(PRESET ? { cardLabel: SERVICES.find((x) => x.id === svc)?.name } : {}),
       ...extra,
     };
-    if (b.status === "pending") delete b.createdBy; // запис створив сам учень
+    if (b.status === "pending") delete b.createdBy; // запис створив сам клієнт
     (bookings[st.uid] ||= {})[id] = b;
     (occ[date] ||= []).push([startMin, startMin + durMin]);
     list.push({ uid: st.uid, b });
     return b;
   };
 
-  // ── уроки: 60 днів історії + 21 день уперед ──────────────────
+  // ── записи: 60 днів історії + 21 день уперед ──────────────────
   const pickFrom = (eligible) => eligible[Math.floor(rnd() * eligible.length)];
   for (let d = -60; d <= 21; d++) {
     const date = addDays(today, d);
@@ -136,7 +168,7 @@ export function buildDemoTree() {
         else if (rnd() < 0.5) extra.rating = rnd() < 0.7 ? 5 : 4;
         if (d > -12 && rnd() < 0.035) extra.debtAmount = 300;
       } else if (d >= 2 && rnd() < 0.14) {
-        // запис учня, що чекає підтвердження
+        // запис клієнта, що чекає підтвердження
         extra.status = "pending";
         extra.studentNote = STUDENT_NOTES[Math.floor(rnd() * STUDENT_NOTES.length)];
       }
@@ -147,7 +179,7 @@ export function buildDemoTree() {
     }
   }
 
-  // ручні мітки та борг для різноманіття у видимому вікні (іспит / перевірка / повтор / борг)
+  // ручні мітки та борг для різноманіття у видимому вікні (мітка / перевірка / борг)
   const manualTag = (fromDay, tag, privateOnly) => {
     for (let d = fromDay; d < fromDay + 7; d++) {
       const ds = ymd(addDays(today, d));
@@ -157,7 +189,6 @@ export function buildDemoTree() {
     }
   };
   manualTag(1, "check", false);
-  manualTag(1, "repeat", false);
   manualTag(2, "exam", true);
   {
     // борг (300 ₴) — на першому занятті сьогодні, а якщо його нема — вчорашньому
@@ -180,11 +211,11 @@ export function buildDemoTree() {
     (occ[dateStr] ||= []).push([start, start + durMin]);
     list.push({ uid: "personal", b: personal[id] });
   };
-  addPersonal(1, "Техогляд авто", 60, "СТО на Оболоні", 2);
-  addPersonal(4, "Заміна масла", 60, "", null);
+  addPersonal(1, "Зустріч із постачальником", 60, "Офіс на Оболоні", 2);
+  addPersonal(4, "Оплата рахунків", 60, "", null);
   bookings.personal = personal;
 
-  // ── користувачі (учні) ───────────────────────────────────────
+  // ── користувачі (клієнти) ───────────────────────────────────────
   const hoursByUid = {};
   list.forEach(({ uid, b }) => {
     if (uid === "personal") return;
@@ -194,13 +225,13 @@ export function buildDemoTree() {
   STUDENTS.forEach((s, i) => {
     users[s.uid] = {
       profile: {
-        name: s.n, phone: s.phone, type: s.t, experience: s.exp,
-        filmingConsent: i % 5 !== 0, createdAt: nowTs - 86400000 * (s.firstDay === null ? 70 : 2),
+        name: s.n, phone: s.phone, type: s.t,
+        createdAt: nowTs - 86400000 * (s.firstDay === null ? 70 : 2),
       },
-      hours: Math.round(hoursByUid[s.uid] || 0), hoursOffset: 0,
+      hours: Math.round(hoursByUid[s.uid] || 0),
       discount: s.discount || 0, customPrice: s.customPrice ?? null,
-      notes: i === 3 ? "Готується до іспиту в сервісному центрі" : "", blocked: false, isVip: !!s.vip, noIntervalLimit: false,
-      maneuverCounts: {}, maneuverSuccessCounts: {}, badges: {},
+      notes: i === 3 ? "Постійний клієнт, віддає перевагу ранковим годинам" : "", blocked: false, isVip: !!s.vip, noIntervalLimit: false,
+      ...(i === 2 ? { packages: { demo1: { id: "demo1", name: "5 записів", total: 5, createdAt: nowTs - 86400000 * 10, expiresAt: nowTs + 86400000 * 80, uses: { u1: 1, u2: 1 } } } } : {}),
     };
   });
 
@@ -240,7 +271,7 @@ export function buildDemoTree() {
     }
     timeslots[dateStr] = day;
   }
-  // один слот, який зараз «дивиться» учень (👁)
+  // один слот, який зараз «дивиться» клієнт (👁)
   const viewDate = ymd(addDays(today, 2));
   const vd = timeslots[viewDate];
   const vId = vd && Object.keys(vd).find((id) => vd[id].available === true && !vd[id].vipOnly && !vd[id].privateOnly && !vd[id].surcharge && !vd[id].fixedPrice);
@@ -262,7 +293,7 @@ export function buildDemoTree() {
     });
   });
 
-  // учениця, очима якої показано клієнтський застосунок, теж стоїть у черзі на один зайнятий слот
+  // клієнтка, очима якої показано клієнтський застосунок, теж стоїть у черзі на один зайнятий слот
   {
     const me = STUDENTS[2];
     const qk = Object.keys(queue).find((k) => !queue[k].entries[me.uid] && !list.some((x) => x.uid === me.uid && `${x.b.date}_${x.b.time}` === k));
@@ -271,12 +302,12 @@ export function buildDemoTree() {
 
   // ── нотатки днів ─────────────────────────────────────────────
   const dayNotes = {
-    [ymd(addDays(today, 2))]: { notes: { 9: { startMin: 9 * 60, text: "Забрати розпечатані маршрутні листи", notify: true } }, updatedAt: nowTs },
+    [ymd(addDays(today, 2))]: { notes: { 9: { startMin: 9 * 60, text: "Підготувати матеріали на завтра", notify: true } }, updatedAt: nowTs },
     [ymd(addDays(today, 4))]: { notes: { 15: { startMin: 15 * 60 + 30, text: "Нагадати про оплату за місяць", notify: false } }, updatedAt: nowTs },
   };
 
   // ── чати: кілька живих діалогів ──────────────────────────────
-  const chats = { general: {}, __broadcast__: {} };
+  const chats = { __broadcast__: {} };
   const chatMeta = {};
   const mkMsg = (from, text, minsAgo) => {
     const ts = nowTs - minsAgo * 60000;
@@ -284,23 +315,19 @@ export function buildDemoTree() {
     return { from, text, time: `${pad(t.getHours())}:${pad(t.getMinutes())}`, ts };
   };
   const dialogs = [
-    [STUDENTS[0], [["student", "Доброго дня! Підкажіть, чи можна перенести завтрашній урок на годину пізніше?", 190], ["admin", "Добрий день, Маріє! Так, ставлю на 11:00 ✅", 170], ["student", "Дякую велике!", 160]], 0],
+    [STUDENTS[0], [["student", "Доброго дня! Підкажіть, чи можна перенести завтрашній запис на годину пізніше?", 190], ["admin", "Добрий день, Маріє! Так, ставлю на 11:00 ✅", 170], ["student", "Дякую велике!", 160]], 0],
     [STUDENTS[7], [["student", "Андрію, я трохи запізнюсь, буду за 10 хвилин", 35]], 1],
-    [STUDENTS[3], [["admin", "Нагадую: завтра іспитний маршрут о 10:00", 600], ["student", "Прийняв, буду вчасно 👍", 540], ["student", "А документи брати з собою?", 30]], 1],
+    [STUDENTS[3], [["admin", "Нагадую: завтра запис о 10:00", 600], ["student", "Прийняв, буду вчасно 👍", 540], ["student", "А щось брати з собою?", 30]], 1],
     [STUDENTS[10], [["student", "Чи є вільні години на суботу?", 300], ["admin", "Так, на 11:00 та 12:00 вільно — записуйтесь у застосунку", 280]], 0],
-    [STUDENTS[2], [["admin", "Ірино, на п'ятницю з'явилось вікно о 16:00 — якщо хочете, запишіться в застосунку 🚗", 420], ["student", "Дякую! Вже записалась 😊", 380], ["admin", "Чудово, чекаю на вас!", 370]], 0],
-    [STUDENTS[15], [["student", "Дякую за урок! Сьогодні вперше впевнено запаркувався", 1400]], 0],
+    [STUDENTS[2], [["admin", "Ірино, на п'ятницю з'явилось вікно о 16:00 — якщо хочете, запишіться в застосунку", 420], ["student", "Дякую! Вже записалась 😊", 380], ["admin", "Чудово, чекаю на вас!", 370]], 0],
+    [STUDENTS[15], [["student", "Дякую за запис! Результат дуже сподобався", 1400]], 0],
   ];
   dialogs.forEach(([st, msgs, unread]) => {
     msgs.forEach(([from, text, ago], i) => { (chats[st.uid] ||= {})[`m${String(i).padStart(2, "0")}`] = mkMsg(from, text, ago); });
     chatMeta[st.uid] = { unreadForAdmin: unread };
   });
-  [["student", STUDENTS[2], "Всім привіт! Хтось їздить у вихідні?", 900], ["admin", null, "Привіт! У суботу є вільні години — пишіть у чат", 880]].forEach(([from, st, text, ago], i) => {
-    const m = mkMsg(from, text, ago);
-    chats.general[`g${i}`] = from === "admin" ? { ...m, uid: "__admin__", name: "Інструктор" } : { ...m, uid: st.uid, name: st.n };
-  });
 
-  // ── сповіщення учня (кабінет клієнта в демо — це Ірина Бондаренко) ──
+  // ── сповіщення клієнта (кабінет клієнта в демо — це Ірина Бондаренко) ──
   const notifications = {};
   {
     const me = STUDENTS[2];
@@ -311,30 +338,37 @@ export function buildDemoTree() {
       return { type, title, body, date: `${pad(t.getDate())}.${pad(t.getMonth() + 1)}`, time: `${pad(t.getHours())}:${pad(t.getMinutes())}`, ts };
     };
     const n = (notifications[me.uid] = {});
-    n.n1 = mk("admin_message", "Повідомлення від інструктора", "Ірино, на п'ятницю з'явилось вікно о 16:00 — якщо хочете, запишіться в застосунку 🚗", 420);
-    if (next[0]) n.n2 = mk("booking_confirmed", "Запис підтверджено ✅", `Урок ${dl(next[0].b.date)} о ${next[0].b.time} підтверджено інструктором.`, 600);
-    if (next[1]) n.n3 = mk("lesson_reminder_day", "Завтра урок 📅", `Нагадуємо: ${dl(next[1].b.date)} о ${next[1].b.time} у вас заняття. До зустрічі!`, 1500);
+    n.n1 = mk("admin_message", "Повідомлення від майстра", "Ірино, на п'ятницю з'явилось вікно о 16:00 — якщо хочете, запишіться в застосунку", 420);
+    if (next[0]) n.n2 = mk("booking_confirmed", "Запис підтверджено ✅", `Запис ${dl(next[0].b.date)} о ${next[0].b.time} підтверджено майстром.`, 600);
+    if (next[1]) n.n3 = mk("lesson_reminder_day", "Завтра запис 📅", `Нагадуємо: ${dl(next[1].b.date)} о ${next[1].b.time} у вас запис. До зустрічі!`, 1500);
     n.n4 = mk("queue_offer", "Звільнилось місце 🎉", "У черзі на 16:00 з'явилось вільне місце — встигніть забронювати.", 2900);
-    n.n5 = mk("system", "Вітаємо! 🎉", "Ваш профіль підключено. Забронюйте урок у вкладці «Запис».", 60 * 24 * 40);
+    n.n5 = mk("system", "Вітаємо! 🎉", "Ваш профіль підключено. Забронюйте запис у вкладці «Запис».", 60 * 24 * 40);
   }
 
   // ── відгуки ──────────────────────────────────────────────────
   const reviews = {};
-  [[0, "Дуже терпляче пояснює, після трьох занять вже не боюсь міста. Рекомендую!", 5], [3, "Чітка підготовка до іспиту, склав з першого разу.", 5], [9, "Зручна система запису — все в телефоні.", 5]].forEach(([si, text, rating], i) => {
+  [[0, "Уважний майстер, пояснює кожен крок. Після трьох записів дуже задоволена. Рекомендую!", 5], [3, "Чітка робота й зрозумілі пояснення, результат з першого разу.", 5], [9, "Зручна система запису — все в телефоні.", 5]].forEach(([si, text, rating], i) => {
     const st = STUDENTS[si];
     (reviews[st.uid] ||= {})[`r${i}`] = { text, rating, name: st.n, createdAt: nowTs - 86400000 * (i + 2), status: "approved" };
   });
 
-  // ── налаштування інструктора ─────────────────────────────────
+  // ── налаштування майстра ─────────────────────────────────
   const weekday = { enabled: true, start: 9, end: 19, lunchEnabled: true, lunchStart: 13, lunchEnd: 14 };
   const admin_settings = {
-    profile: { name: "Андрій Мельник", phone: "+380990000000", address: "Київ, Оболонь", experience: 12, photo: null, slug: "demo", city: "Київ" },
+    profile: { name: "Андрій Мельник", phone: "+380990000000", address: "Київ, Оболонь", experience: 12, photo: null, slug: "demo", city: "Київ", ...(PRESET?.profile || {}) },
     workStart: 8, workEnd: 20, weekends: [6], daysShown: 5, snapMin: 30, interval: 30, slotCreateStep: 30,
     hourHeightPx: 60, autoHourHeight: true,
     lunchEnabled: true, lunchStart: 13, lunchEnd: 14,
     weekSchedule: [weekday, weekday, weekday, weekday, weekday, { enabled: true, start: 10, end: 16, lunchEnabled: false, lunchStart: 13, lunchEnd: 14 }, { enabled: false, start: 9, end: 18, lunchEnabled: false, lunchStart: 13, lunchEnd: 14 }],
     dateOverrides: [], pendingEnabled: true, lockPastBookings: false,
+    packages: [{ id: "pk1", name: "5 записів", count: 5, days: 90, price: 2500, serviceIds: [] }],
+    intake: { enabled: true, fields: [
+      { id: "f1", label: "Що хочете отримати від запису?", type: "text", required: true },
+      { id: "f2", label: "Як зручніше спілкуватись", type: "select", options: ["Телефон", "Месенджер", "Не телефонуйте"], required: false },
+      { id: "f3", label: "Є особливі побажання чи обмеження", type: "yesno", required: false },
+    ] },
     theme: demoTheme(), language: "uk",
+    direction: (() => { try { return new URLSearchParams(window.location.search).get("dir") || PRESET?.direction || "universal"; } catch { return "universal"; } })(), // ?demo=1&dir=education|consult|beauty
     queueAutoFifo: true, queueBroadcast: false, queueManual: false,
     studentCanReschedule: true, studentCanCancel: true, bookCutoffHours: 2, calendarOpenDays: 30, schoolCalendarOpenDays: 14, slotGenDays: 30,
     stickyTime: "both", showCompleteBtn: true, showSlotTimes: true, autoStudentColors: true,
@@ -343,9 +377,26 @@ export function buildDemoTree() {
     services: SERVICES,
   };
 
+  // ?demo=1&salon=1 — демо салону: власник + двоє майстрів, частина записів розкидана між ними
+  let salonExtra = {};
+  try {
+    if (new URLSearchParams(window.location.search).get("salon") === "1") {
+      const staff = {
+        [DEMO_UID]: { role: "owner", name: "Андрій", color: "#60a5fa", joinedAt: nowTs },
+        "demo-master-1": { role: "master", name: "Олена", color: "#f472b6", joinedAt: nowTs },
+        "demo-master-2": { role: "master", name: "Ігор", color: "#34d399", joinedAt: nowTs },
+      };
+      admin_settings.accountType = "salon";
+      let n = 0;
+      Object.values(bookings).forEach(list => Object.values(list || {}).forEach(b => { if (b && b.status !== "cancelled" && n++ % 3) b.masterId = n % 2 ? "demo-master-1" : "demo-master-2"; }));
+      salonExtra = { staff, masters: Object.fromEntries(Object.entries(staff).map(([id, m]) => [id, { name: m.name, color: m.color, owner: m.role === "owner" }])) };
+    }
+  } catch { /* лише демо */ }
+
   return {
     instructors: {
       [DEMO_UID]: {
+        ...salonExtra,
         admin_settings,
         admin_data: { services: SERVICES },
         users, bookings, timeslots, queue, dayNotes, chats, chatMeta, reviews, notifications,

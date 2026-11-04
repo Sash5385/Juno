@@ -22,7 +22,7 @@ async function postPlan(url, plan) {
 
 export async function startLicensePayment(provider, plan) {
   if (provider === "liqpay") {
-    const { data, signature, action } = await postPlan("/api/liqpay-order", plan);
+    const { data, signature, action } = await postPlan(import.meta.env.BASE_URL + "api/liqpay-order", plan);
     const form = document.createElement("form");
     form.method = "POST";
     form.action = action;
@@ -36,7 +36,7 @@ export async function startLicensePayment(provider, plan) {
     form.submit();
     document.body.removeChild(form);
   } else {
-    const { pageUrl } = await postPlan("/api/monobank-invoice", plan);
+    const { pageUrl } = await postPlan(import.meta.env.BASE_URL + "api/monobank-invoice", plan);
     window.open(pageUrl, "_blank");
   }
 }
