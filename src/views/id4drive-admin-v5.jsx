@@ -21,6 +21,14 @@ const blockSlotRange = async (dateStr, startMin, durMin, opts) => {
   const upd = blockRangeUpdates(snap.val() || {}, `${slotRoot()}/${dateStr}/`, startMin, durMin, opts);
   if (Object.keys(upd).length) await update(iRef("/"), upd);
 };
+// Зміна лише тривалості (час початку той самий) — бекенд onBookingChanged реагує тільки
+// на зміну date/time, тож timeslots синхронізуємо тут: звільняємо старий діапазон
+// (крім нового та зайнятого іншими записами) і блокуємо новий.
+const resyncDurSlots = async (dateStr, startMin, oldDur, newDur, keepRanges = []) => {
+  if (!dateStr || startMin == null || !oldDur || !newDur || oldDur === newDur) return;
+  await restoreSlotRange(dateStr, startMin, oldDur, undefined, [...keepRanges, [startMin, startMin + newDur]]);
+  await blockSlotRange(dateStr, startMin, newDur, { bookingStart: true });
+};
 
 import { ThemeContext, GREEN, BLUE, PURPLE, GOLD, RED, ACCENT, ACC_HI, SURFACE, SURF_HI, TEXT } from "../theme.js";
 import { useFX, useBackClose } from "../ui";
@@ -2573,6 +2581,41 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
       // Особиста подія: drag "move" лише пересуває картку локально (React
       // state) — Firebase досі показує СТАРИЙ час заблокованим, а НОВИЙ час
       // лишається вільним/бронювальним для студента. Синхронізуємо тут.
+      // Розтягування (top/bottom) раніше міняло лише локальний стан — тривалість
+      // не потрапляла в Firebase і після перезавантаження поверталась стара.
+      if (wasDragging && (draggedMeta.mode === "top" || draggedMeta.mode === "bottom") && !draggedMeta.isBlock &&
+          !(draggedMeta.mergedIds && draggedMeta.mergedIds.length)) {
+        const fb = (bookingsRef.current || []).find(b => b.id === draggedMeta.id);
+        if (fb && (fb.durMin !== draggedMeta.startDur || fb.startMin !== draggedMeta.startMinutes)) {
+          const dStr = fb.date || absDayToDateStr(fb.day);
+          const key = fb._fbKey || fb.id;
+          const startChanged = fb.startMin !== draggedMeta.startMinutes;
+          if (fb.type === "personal") {
+            const oldUpd = {};
+            for (let i = 0; i < draggedMeta.startDur; i += 30) {
+              const m = draggedMeta.startMinutes + i;
+              oldUpd[`timeslots/${dStr}/slot${String(Math.floor(m / 60)).padStart(2, "0")}${String(m % 60).padStart(2, "0")}`] = null;
+            }
+            Promise.resolve(Object.keys(oldUpd).length ? update(iRef("/"), oldUpd) : null)
+              .then(() => blockPersonalSlots(dStr, fb.startMin, fb.durMin)).catch(() => {});
+            update(iRef(`bookings/personal/${key}`), {
+              time: fmtTime(fb.startMin), startMin: fb.startMin, durMin: fb.durMin,
+              ...(startChanged && { reminderSent: false }),
+            }).catch(() => {});
+          } else if (fb.userId && fb.type !== "block" && fb.type !== "vip-slot") {
+            // Початок змінився — це «перенесення», слоти перебудує бекенд; інакше — тут.
+            update(iRef(`bookings/${fb.userId}/${key}`), {
+              time: fmtTime(fb.startMin), startMin: fb.startMin, durMin: fb.durMin, durationHours: fb.durMin / 60,
+            }).catch(() => {});
+            if (!startChanged) {
+              const keep = (bookingsRef.current || [])
+                .filter(x => x.id !== fb.id && x.status !== "cancelled" && x.type !== "vip-slot" && (x.date || absDayToDateStr(x.day)) === dStr)
+                .map(x => [x.startMin, x.startMin + x.durMin]);
+              resyncDurSlots(dStr, fb.startMin, draggedMeta.startDur, fb.durMin, keep).catch(() => {});
+            }
+          }
+        }
+      }
       if (wasDragging && draggedMeta.mode === "move" && !draggedMeta.isBlock) {
         const finalB = (bookingsRef.current || []).find(b => b.id === draggedMeta.id);
         if (finalB && finalB.type === "personal" &&
@@ -3059,6 +3102,14 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
         const key = b._fbKey || b.id;
         update(iRef( `bookings/${b.userId}/${key}`), patch).catch(()=>{});
       }
+        const old = (bookingsRef.current || []).find(x => x.id === b.id);
+        if (old && b.durMin !== undefined && old.durMin !== b.durMin && old.startMin != null) {
+          const dStr = old.date || absDayToDateStr(old.day);
+          const keep = (bookingsRef.current || [])
+            .filter(x => x.id !== b.id && x.status !== "cancelled" && x.type !== "vip-slot" && (x.date || absDayToDateStr(x.day)) === dStr)
+            .map(x => [x.startMin, x.startMin + x.durMin]);
+          resyncDurSlots(dStr, old.startMin, old.durMin, b.durMin, keep).catch(() => {});
+        }
       return;
     }
     setLocalSelectedBooking(null);
