@@ -20,5 +20,5 @@ assert.equal(parseInviteToken("abc"), "", "закороткий");
 assert.equal(parseInviteToken(""), "");
 assert.deepEqual(salonMasters({ masters: { b: "tok", a: "owner" } }), [{ iid: "a", owner: true }, { iid: "b", owner: false }]);
 assert.deepEqual(salonMasters(null), []);
-assert.equal(salonPublicUrl("x-y"), "https://juno-booking-client.web.app/s/x-y");
+assert.equal(salonPublicUrl("x-y"), "https://aldemi.com.ua/junoclient/s/x-y");
 console.log("salon tests: ALL PASS");
