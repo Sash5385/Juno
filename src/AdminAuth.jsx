@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import PhoneField from "./PhoneField.jsx";
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider, onAuthStateChanged, signOut } from "firebase/auth";
 import { ref, get, onValue, update, set, remove } from "firebase/database";
 import { auth, iRef, db } from "./firebase";
@@ -361,7 +362,7 @@ export function InstructorSetupScreen({ onDone }) {
         </div>
         <div style={{ marginBottom:14 }}>
           <div style={LBL}>Телефон *</div>
-          <input value={phone} onChange={e=>setPhone(e.target.value)} placeholder="+380XXXXXXXXX" type="tel" style={INP}/>
+          <PhoneField value={phone} onChange={setPhone} inputStyle={INP}/>
         </div>
         <div style={{ marginBottom:14 }}>
           <div style={LBL}>Адреса в посиланні * (мін. 3 символи)</div>

@@ -7,6 +7,7 @@ import StaffSection from "./StaffSection";
 import { accountTypeOf, ACCOUNT_SALON } from "../workspace";
 import { useConfirm } from "../ConfirmModal";
 import { DIRECTIONS, DIRECTION_IDS, normDirection } from "../terms";
+import PhoneField from "../PhoneField.jsx";
 import { createPortal } from "react-dom";
 import { get, set, update, onValue, off } from "firebase/database";
 import { uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
@@ -1553,12 +1554,8 @@ select{color-scheme:${isKava?"light":"dark"}}
           {/* КОНТАКТИ — телефон, джерело для кнопок дзвінка/Viber/WhatsApp/Telegram на лендингу */}
           <ProfileCard color={BLUE} icon="📞" title="КОНТАКТИ">
             <div style={{fontSize:11,fontWeight:800,color:DIM,letterSpacing:0.5,marginBottom:5}}>ТЕЛЕФОН</div>
-            <input
-              value={profile?.phone ?? ""}
-              onChange={e=>updProfile("phone", e.target.value)}
-              placeholder="+380XXXXXXXXX"
-              type="tel"
-              style={{width:"100%",boxSizing:"border-box",background:BG_DEEP,border:"none",outline:"none",color:TEXT,fontSize:13,padding:"10px 12px",borderRadius:10,boxShadow:SI,fontFamily:"inherit",marginBottom:6}}
+            <PhoneField value={profile?.phone ?? ""} onChange={v=>updProfile("phone", v)}
+              inputStyle={{width:"100%",boxSizing:"border-box",background:BG_DEEP,border:"none",outline:"none",color:TEXT,fontSize:13,padding:"10px 12px",borderRadius:10,boxShadow:SI,fontFamily:"inherit",marginBottom:0}} style={{marginBottom:6}}
             />
             <div style={{fontSize:11,color:DIM}}>Дзвінок, Viber, WhatsApp і Telegram на сторінці запису працюють через цей номер.</div>
           </ProfileCard>
