@@ -5647,6 +5647,32 @@ function computeBookingPrice(b, services) {
 const BookingModalFog = (p) => <FogScope><BookingModal {...p}/></FogScope>;
 const NewBookingModalFog = (p) => <FogScope><NewBookingModal {...p}/></FogScope>;
 
+// Вибір тривалості: пігулки + «−/+» (крок 15 хв) для довільного значення
+function DurPicker({ value, onChange, dark, min = 15, max = 480 }) {
+  const { SURF_LO, DIM, SO } = useContext(ThemeContext);
+  const PRESETS = [30, 45, 60, 90, 120];
+  const set = (v) => onChange(Math.min(max, Math.max(min, v)));
+  const pill = (active) => ({
+    flex:"1 1 auto", minWidth:44, padding:"9px 6px", borderRadius:10, border:"none", cursor:"pointer", fontFamily:"inherit",
+    textAlign:"center", fontSize:13, fontWeight:active?800:500, transition:"all .12s",
+    background: active ? (dark ? GREEN : "linear-gradient(165deg,#2f6fe0,#1d4ed8)") : (dark ? "rgba(0,0,0,0.22)" : SURF_LO),
+    color: active ? (dark ? "#0a0d0a" : "#fff") : (dark ? "rgba(255,255,255,.75)" : DIM),
+    boxShadow: active ? (dark ? "none" : `0 4px 12px ${BLUE}55`) : (dark ? "none" : SO),
+  });
+  return (
+    <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+      <button type="button" onClick={()=>set(value - 15)} style={{...pill(false),flex:"0 0 auto",minWidth:40,fontSize:16,fontWeight:800}}>−</button>
+      {PRESETS.map(m => (
+        <button type="button" key={m} onClick={()=>set(m)} style={pill(value === m)}>{m}</button>
+      ))}
+      <button type="button" onClick={()=>set(value + 15)} style={{...pill(false),flex:"0 0 auto",minWidth:40,fontSize:16,fontWeight:800}}>+</button>
+      {!PRESETS.includes(value) && (
+        <div style={{...pill(true),flex:"0 0 auto",cursor:"default"}}>{value} {"хв"}</div>
+      )}
+    </div>
+  );
+}
+
 function BookingModal({ booking, onClose, onAction, settings, bookings, onViewStudent, mergeInfo, autoTag }) {
   const { BG, BG_DEEP, SURFACE, SURF_HI, SURF_LO, BORDER, TEXT, DIM, FAINT, ACCENT, ACC_HI, SO, SI , GLOW, SHADE, INK } = useContext(ThemeContext);
   const glow=a=>`rgba(${GLOW},${a})`,shade=a=>`rgba(${SHADE},${a})`,ink=a=>`rgba(${INK},${a})`;
@@ -5748,6 +5774,12 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
     .filter(x => x.startMin > booking.startMin)
     .reduce((min, x) => Math.min(min, x.startMin), Infinity);
   const maxDurMin = nextStart === Infinity ? 360 : Math.max(15, nextStart - booking.startMin);
+  // Конфлікт нової тривалості: перетин з наступним записом або вихід за робочі години
+  const _wantDur = parseInt(draftDur, 10) || booking.durMin;
+  const durConflict = !editOpen ? null
+    : (nextStart !== Infinity && booking.startMin + _wantDur > nextStart) ? "Час зайнятий"
+    : (settings.workEnd != null && booking.startMin + _wantDur > settings.workEnd * 60 && _wantDur > booking.durMin) ? "Поза робочим часом"
+    : null;
 
   const openEdit = () => {
     // Редагування завжди діє лише на цей окремий запис — навіть якщо картка
@@ -5764,6 +5796,7 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
     if (!isNaN(n) && editRate) setDraftPrice(String(Math.round(editRate * n)));
   };
   const saveEdit = () => {
+    if (durConflict) return;
     const p = Math.max(0, parseInt(draftPrice, 10) || 0);
     const d = Math.min(maxDurMin, Math.max(15, parseInt(draftDur, 10) || booking.durMin));
     // Ручну ціну фіксуємо лише якщо майстер справді змінив суму; збіглася з розрахунковою (тариф, надбавка, знижка) — лишаємо авто,
@@ -5919,12 +5952,18 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
                       style={{width:"100%",textAlign:"center",padding:"9px 6px",borderRadius:10,border:"1px solid rgba(255,255,255,0.18)",background:"rgba(0,0,0,0.22)",color:"#fff",fontSize:14,fontWeight:800,fontFamily:"inherit"}}/>
                   </div>
                 </div>
+                <div style={{marginBottom:8}}>
+                  <DurPicker value={parseInt(draftDur,10)||booking.durMin} onChange={v=>onDurChange(String(v))}/>
+                </div>
+                {durConflict && (
+                  <div style={{fontSize:12,color:"#ef4444",textAlign:"center",marginBottom:8,fontWeight:700}}>{durConflict}</div>
+                )}
                 <div style={{fontSize:11,color:DIM,textAlign:"center",marginBottom:10}}>
                   Макс. тривалість зараз: {maxDurMin}хв · ціна перераховується автоматично при зміні тривалості
                 </div>
                 <div style={{display:"flex",gap:8}}>
                   <button onClick={()=>setEditOpen(false)} style={{flex:1,padding:"9px",borderRadius:11,border:"none",cursor:"pointer",fontFamily:"inherit",background:"rgba(0,0,0,0.22)",color:DIM,fontSize:12.5,fontWeight:700}}>Скасувати</button>
-                  <button onClick={saveEdit} style={{flex:1,padding:"9px",borderRadius:11,border:"none",cursor:"pointer",fontFamily:"inherit",background:GREEN,color:"#0a0d0a",fontSize:12.5,fontWeight:800}}>Зберегти</button>
+                  <button onClick={saveEdit} disabled={!!durConflict} style={{flex:1,padding:"9px",borderRadius:11,border:"none",cursor:"pointer",fontFamily:"inherit",opacity:durConflict?0.45:1,background:GREEN,color:"#0a0d0a",fontSize:12.5,fontWeight:800}}>Зберегти</button>
                 </div>
               </div>
             )}
@@ -6615,6 +6654,7 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
   const [dateOffset, setDateOffset] = useState(0);
   const [timeVal,    setTimeVal]    = useState(null);
   const [svcId,      setSvcId]      = useState(null);
+  const [durSel,     setDurSel]     = useState(null); // null = тривалість послуги
   const [addonIds,   setAddonIds]   = useState([]);
   const [usePkg,     setUsePkg]     = useState(true);
   const [note,       setNote]       = useState("");
@@ -6643,7 +6683,7 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
       setSearch(""); setSelStudent(null); setPhone("");
       setNewName(""); setNewPhone(""); setNote("");
       setDebtAmount("");
-      setSvcId(null);
+      setSvcId(null); setDurSel(null);
       setAddonIds([]);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -6678,7 +6718,19 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
   const pkgOn = !!availPkg && usePkg;
   const finalName = isNewStudent ? newName.trim() : selStudent ? selStudent.name : search.trim();
   const finalPhone= isNewStudent ? newPhone.trim() : phone || (selStudent?.phone ?? "");
-  const readyToConfirm = finalName.length > 1 && !!selSvc && timeVal != null;
+  const dur = durSel ?? (selSvc ? totalDur : 60);
+  const nbDateStr = (() => {
+    const t = new Date(); t.setHours(0,0,0,0); t.setDate(t.getDate() + dateOffset);
+    return `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`;
+  })();
+  const nbPrice = selSvc ? (durSel == null ? selSvc.price : Math.round(selSvc.price / selSvc.duration * Math.max(0, dur - axTotals.minutes))) : 0;
+  // Перетин з активним записом того дня (скасовані та vip-слоти не рахуємо) або вихід за робочі години
+  const durOutside = !!selSvc && timeVal != null && timeVal + dur > settings.workEnd * 60;
+  const durBusy = !!selSvc && timeVal != null && bookings.some(x =>
+    x.status !== "cancelled" && x.type !== "vip-slot" && x.startMin != null && x.durMin &&
+    (x.date || (() => { const t = new Date(); t.setHours(0,0,0,0); t.setDate(t.getDate() + (x.day || 0)); return `${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,'0')}-${String(t.getDate()).padStart(2,'0')}`; })()) === nbDateStr &&
+    timeVal < x.startMin + x.durMin && timeVal + dur > x.startMin);
+  const readyToConfirm = finalName.length > 1 && !!selSvc && timeVal != null && !durOutside && !durBusy;
   const canConfirm  = readyToConfirm && !!finalPhone;
   const missingPhone = readyToConfirm && !finalPhone;
 
@@ -6704,7 +6756,7 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
     const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
     onConfirm({
       id:`b-${Date.now()}`,
-      day:dateOffset, date:dateStr, startMin:timeVal, durMin:totalDur,
+      day:dateOffset, date:dateStr, startMin:timeVal, durMin:dur,
       name:finalName, phone:finalPhone, serviceId:selSvc.id,
       type:selSvc.type||"private", status:"confirmed",
       hoursDone:0, categoryId:null, isVipOnly:false,
@@ -6901,7 +6953,7 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
                 const active = s.id===svcId;
                 const c = colorOf(s.colorId || (s.type==="school"?"green":"yellow"));
                 return (
-                  <button key={s.id} onClick={()=>{ if (s.id!==svcId) { setSvcId(s.id); setAddonIds([]); } }} style={{
+                  <button key={s.id} onClick={()=>{ if (s.id!==svcId) { setSvcId(s.id); setAddonIds([]); } setDurSel(null); }} style={{
                     display:"flex",alignItems:"center",justifyContent:"space-between",
                     padding:"10px 13px",borderRadius:12,cursor:"pointer",
                     background:active?`${c}1a`:SURFACE_LO,
@@ -6964,6 +7016,14 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
             </button>
           )}
 
+          {/* ТРИВАЛІСТЬ */}
+          {selSvc && (
+            <div>
+              <SL>{"Тривалість, хв"}</SL>
+              <DurPicker value={dur} onChange={v=>setDurSel(v)}/>
+            </div>
+          )}
+
           {/* ЦІНА PREVIEW */}
           {selSvc && (
             <div style={{
@@ -6972,13 +7032,19 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
               background:`${GOLD}14`,border:`1px solid ${GOLD}30`,
             }}>
               <span style={{fontSize:15}}>💰</span>
-              <div style={{fontSize:15,fontWeight:800,color:GOLD}}>{(pkgOn ? 0 : selSvc.price) + axTotals.price}₴</div>
-              <div style={{fontSize:12,color:TEXT_DIM}}>· {totalDur} хв</div>
+              <div style={{fontSize:15,fontWeight:800,color:GOLD}}>{(pkgOn ? 0 : nbPrice) + axTotals.price}₴</div>
+              <div style={{fontSize:12,color:TEXT_DIM}}>· {dur} хв</div>
               {timeVal!=null && (
                 <div style={{marginLeft:"auto",fontSize:12,color:TEXT_DIM}}>
-                  {fmtTime(timeVal)} → {fmtTime(timeVal + totalDur)}
+                  {fmtTime(timeVal)} → {fmtTime(timeVal + dur)}
                 </div>
               )}
+            </div>
+          )}
+
+          {(durBusy || durOutside) && (
+            <div style={{fontSize:12,color:"#ef4444",textAlign:"center",marginTop:-8}}>
+              {durBusy ? "Час зайнятий" : "Поза робочим часом"}
             </div>
           )}
 
