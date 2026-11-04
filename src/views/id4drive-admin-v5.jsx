@@ -1350,6 +1350,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   const [copyGhost, setCopyGhost] = useState(null);
   const copyPressRef = useRef(null);
   const copyTapRef = useRef(null);
+  const copyPastedAtRef = useRef(0);
   const copyRecentRef = useRef([]);
   const copyToastTimerRef = useRef(null);
   const [copyToast, setCopyToast] = useState(null);
@@ -3221,7 +3222,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
     const [h, m] = time.split(":").map(Number);
     const slotMin = h * 60 + m;
     const today = new Date(); today.setHours(0,0,0,0);
-    const absDay = Math.round((new Date(dateStr + "T12:00:00") - today) / 86400000);
+    const absDay = Math.floor((new Date(dateStr + "T12:00:00") - today) / 86400000);
     const dayBkgs = (bookingsByDay.get(absDay) || EMPTY_LIST).filter(b => b.type !== "block" && b.type !== "vip-slot" && b.type !== "personal");
     const adjBefore = dayBkgs.some(b => b.startMin === slotMin + 60);
     const adjAfter  = dayBkgs.some(b => b.startMin + b.durMin === slotMin);
@@ -3559,7 +3560,18 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
 
               {/* SLOT CONTENT */}
               <div
-                onClick={e=>{ if(xJustShownRef.current){ xJustShownRef.current=false; return; } if(quickCancelId){ xVisibleRef.current=false; setQuickCancelId(null); } }}
+                onClick={e=>{
+                  // Фолбек для touch: якщо pointerdown/up не дійшли (жест браузера), вставляємо копію по click
+                  if (copySourceRef.current) {
+                    if (Date.now() - copyPastedAtRef.current < 600 || isPastDay) return;
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    const rawMin = calcRef.current.workStart * 60 + (e.clientY - rect.top) / calcRef.current.PX_PER_MIN;
+                    copyTapRef.current = null;
+                    copyPastedAtRef.current = Date.now();
+                    pasteCopy(copySourceRef.current, dateStrCol, Math.floor(rawMin / 30) * 30);
+                    return;
+                  }
+                  if(xJustShownRef.current){ xJustShownRef.current=false; return; } if(quickCancelId){ xVisibleRef.current=false; setQuickCancelId(null); } }}
                 onPointerDown={e=>{
                   // Режим копіювання: тап на порожнє місце/вільний слот вставляє копію (див. onPointerUp)
                   if (copySourceRef.current) {
@@ -3608,6 +3620,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                     if (!isPastDay && Math.hypot(e.clientX - tp.x, e.clientY - tp.y) <= 8) {
                       const rect = e.currentTarget.getBoundingClientRect();
                       const rawMin = calcRef.current.workStart * 60 + (e.clientY - rect.top) / calcRef.current.PX_PER_MIN;
+                      copyPastedAtRef.current = Date.now();
                       pasteCopy(copySourceRef.current, dateStrCol, Math.floor(rawMin / 30) * 30);
                     }
                   }
@@ -4882,7 +4895,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
               <button onClick={()=>{
                 const _sm = _menu.selectedMin ?? _menu.startMin;
                 const today = new Date(); today.setHours(0,0,0,0);
-                const dayOffset = Math.round((new Date(_menu.dateStr + "T12:00:00") - today) / 86400000);
+                const dayOffset = Math.floor((new Date(_menu.dateStr + "T12:00:00") - today) / 86400000);
                 setFormData({ day: Math.max(0, dayOffset), startMin: _sm });
                 _scatterLtm();
               }} style={{

@@ -7,7 +7,8 @@ export default function PhoneField({ value, onChange, style, inputStyle, placeho
   const [iso, setIso] = useState(init.country.iso)
   const cur = splitPhone(value)
   // Якщо значення ззовні змінилось на інший код — підхопити країну; для однакових кодів (US/CA) тримаємо вибір
-  const country = (cur.country.code === getCountry(iso).code) ? getCountry(iso) : cur.country
+  // Порожнє поле — тримаємо обрану країну (splitPhone('') повертав UA і скидав вибір)
+  const country = (!cur.national || cur.country.code === getCountry(iso).code) ? getCountry(iso) : cur.country
   const digits = cur.national
   return (
     <div style={{ display: 'flex', gap: 6, alignItems: 'center', minWidth: 0, ...style }}>
@@ -24,7 +25,7 @@ export default function PhoneField({ value, onChange, style, inputStyle, placeho
         className={inputClassName}
         inputMode="numeric"
         maxLength={country.max}
-        placeholder={placeholder}
+        placeholder={placeholder && !String(placeholder).startsWith('+') ? placeholder : 'X'.repeat(country.max)}
         value={digits}
         onChange={e => onChange(joinPhone(country, e.target.value.replace(/\D/g, '').slice(0, country.max)))}
         style={{ flex: 1, minWidth: 0, ...inputStyle }}
