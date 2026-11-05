@@ -4119,7 +4119,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                   <div key={b.id} className="cal-slot-wrap" style={{
                     position:"absolute", top:top+1, left:0, right:0,
                     height:height-2, overflow:"visible",
-                    zIndex: dragId===b.id?10:2,
+                    zIndex: dragId===b.id?10:quickCancelId===b.id?20:2, // з ✕/📋 — над сусідніми картками
                     background: BG_DEEP,
                     borderRadius: 8,
                   }}>
