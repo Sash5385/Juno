@@ -1306,6 +1306,102 @@ export function AutoSlots({ settings, bookings, masterId }) { // masterId — я
   return null;
 }
 
+// ── Віяла дій на картці запису (після довгого тапу) ───────────────────
+// Нормалізація телефону до E.164 (лише цифри, без "+"); порожній рядок — якщо номера нема
+const phoneDigits = (p) => {
+  let d = String(p || "").replace(/\D/g, "");
+  if (!d) return "";
+  if (d.length === 10 && d[0] === "0") d = "38" + d;       // 0671234567 → 380671234567
+  else if (d.length === 9) d = "380" + d;                  // 671234567 → 380671234567
+  return d;
+};
+const FAN_R = 66, FAN_BTN = 36;
+// Віяло з круглих кнопок: портал у body (position:fixed) — не обрізається колонками/сусідніми картками
+function ActionFan({ side, cx, cy, items, onClose }) {
+  const [shown, setShown] = useState(false);
+  useEffect(() => {
+    const r = requestAnimationFrame(() => setShown(true));
+    // тап поза віялом — закриває; скрол/ресайз — теж (координати fixed застаріють)
+    const down = (e) => { if (!e.target.closest?.("[data-fan]")) onClose(); };
+    const close = () => onClose();
+    document.addEventListener("pointerdown", down, true);
+    window.addEventListener("scroll", close, true);
+    window.addEventListener("resize", close);
+    return () => {
+      cancelAnimationFrame(r);
+      document.removeEventListener("pointerdown", down, true);
+      window.removeEventListener("scroll", close, true);
+      window.removeEventListener("resize", close);
+    };
+  }, [onClose]);
+  const vw = window.innerWidth, vh = window.innerHeight;
+  const sy = cy < FAN_R + 50 ? 1 : -1;                      // біля верху екрана — розкриваємо вниз
+  let sx = side === "r" ? -1 : 1;                           // праве — вліво, ліве — вправо
+  if (sx < 0 && cx - FAN_R < 24) sx = 1;
+  if (sx > 0 && cx + FAN_R > vw - 24) sx = -1;
+  const n = items.length;
+  return createPortal(
+    <div data-fan="1" style={{ position:"fixed", left:0, top:0, width:0, height:0, zIndex:10050 }}>
+      {items.map((it, i) => {
+        const t = (n === 1 ? 0.5 : i / (n - 1)) * (Math.PI / 2);
+        const x = Math.max(4, Math.min(vw - FAN_BTN - 4, cx + sx * FAN_R * Math.cos(t) - FAN_BTN / 2));
+        const y = Math.max(4, Math.min(vh - FAN_BTN - 4, cy + sy * FAN_R * Math.sin(t) - FAN_BTN / 2));
+        return (
+          <button key={it.k} data-fan="1" disabled={!it.on} title={it.label} aria-label={it.label}
+            onPointerDown={e => e.stopPropagation()}
+            onClick={e => { e.stopPropagation(); e.preventDefault(); if (it.on) it.run(); }}
+            style={{
+              position:"fixed", left:x, top:y, width:FAN_BTN, height:FAN_BTN, borderRadius:"50%",
+              border:"none", padding:0, fontSize:17, lineHeight:1, display:"flex", alignItems:"center", justifyContent:"center",
+              background: it.on ? it.bg : "linear-gradient(145deg,#6b7280,#374151)",
+              opacity: it.on ? 1 : 0.5, filter: it.on ? "none" : "grayscale(1)",
+              boxShadow: "0 0 0 2px rgba(30,30,40,0.85), 0 4px 12px rgba(0,0,0,0.45)",
+              cursor: it.on ? "pointer" : "default", touchAction:"manipulation",
+              transform: shown ? "translate(0,0) scale(1)" : `translate(${cx - FAN_BTN/2 - x}px,${cy - FAN_BTN/2 - y}px) scale(0.2)`,
+              transition: `transform .22s cubic-bezier(.2,.9,.3,1.2) ${i * 28}ms, opacity .15s`,
+            }}>{it.icon}</button>
+        );
+      })}
+    </div>, document.body);
+}
+// Міні-панель «Оцінка уроку»: 5 зірок + коментар. Нотатку можна зберегти й без зірок.
+function LessonRatePanel({ b, cx, cy, title, onSave, onClose }) {
+  const [stars, setStars] = useState(Number(b.lessonRating) || 0);
+  const [note, setNote] = useState(b.lessonNote || "");
+  const vw = window.innerWidth, vh = window.innerHeight;
+  const w = Math.min(300, vw - 16);
+  const left = Math.max(8, Math.min(vw - w - 8, cx - w / 2));
+  const pos = cy > vh / 2 ? { bottom: Math.max(8, vh - cy + 20) } : { top: Math.min(vh - 260, cy + 20) };
+  return createPortal(
+    <div data-fan="1" onClick={e => { e.stopPropagation(); onClose(); }} onPointerDown={e => e.stopPropagation()}
+      style={{ position:"fixed", inset:0, zIndex:10060 }}>
+      <div onClick={e => e.stopPropagation()} style={{
+        position:"absolute", left, width:w, boxSizing:"border-box", padding:12, borderRadius:16, ...pos,
+        background:"rgba(28,28,40,0.97)", border:"1px solid rgba(255,255,255,0.14)", color:"#fff",
+        boxShadow:"0 10px 30px rgba(0,0,0,0.55)",
+      }}>
+        <div style={{ fontSize:12, fontWeight:800, marginBottom:8, opacity:.85 }}>{title} · {b.name || b.studentName || ""}</div>
+        <div style={{ display:"flex", gap:4, justifyContent:"center", marginBottom:8 }}>
+          {[1,2,3,4,5].map(n => (
+            <button key={n} onClick={() => setStars(s => s === n ? 0 : n)} aria-label={String(n)} style={{
+              background:"none", border:"none", padding:2, fontSize:30, lineHeight:1, cursor:"pointer",
+              color: n <= stars ? "#fbbf24" : "rgba(255,255,255,0.28)",
+            }}>★</button>
+          ))}
+        </div>
+        <textarea value={note} maxLength={500} rows={3} onChange={e => setNote(e.target.value)}
+          placeholder={"Коментар до уроку"} style={{
+            width:"100%", boxSizing:"border-box", resize:"none", borderRadius:10, padding:8, fontSize:16,
+            background:"rgba(0,0,0,0.35)", color:"#fff", border:"1px solid rgba(255,255,255,0.14)", fontFamily:"inherit", outline:"none",
+          }}/>
+        <button onClick={() => onSave(stars || null, note.trim().slice(0, 500))} style={{
+          marginTop:8, width:"100%", padding:"9px 0", borderRadius:10, border:"none", cursor:"pointer",
+          background:"linear-gradient(145deg,#fbbf24,#d97706)", color:"#1f1300", fontWeight:800, fontSize:13, fontFamily:"inherit",
+        }}>{"Зберегти"}</button>
+      </div>
+    </div>, document.body);
+}
+
 function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bookings, setBookings, activeDragIds, navTo, slotExistsRef, openSlotsRef, jumpTarget, setJumpTarget, onViewStudent }) {
   const { BG, BG_DEEP, SURFACE, SURF_HI, SURF_LO, BORDER, TEXT, DIM, FAINT, ACCENT, ACC_HI, BLUE, GREEN, RED, SO, SI, STRIPE_A, STRIPE_B, GLOW, SHADE, INK } = useContext(ThemeContext);
   const isLight = BG !== "#1c1d21";
@@ -1354,6 +1450,10 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   const copyRecentRef = useRef([]);
   const copyToastTimerRef = useRef(null);
   const [copyToast, setCopyToast] = useState(null);
+  // ── Віяла дій (довгий тап → нижні кружки) ──
+  const [fan, setFan] = useState(null);        // { side:"r"|"l", b, cx, cy, canReview }
+  const [ratePanel, setRatePanel] = useState(null); // { b, cx, cy }
+  const closeFan = useRef(() => setFan(null)).current;
   const quickCancelRef = useRef(null);
   const [cancellingSet, setCancellingSet] = useState(new Set());
   // Записи, що саме скасовуються: фонові ефекти синхронізації timeslots їх
@@ -2256,6 +2356,47 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   }, []);
 
   // ── Копіювання запису ─────────────────────────────────────────────
+  // Дії віял. Усі пишуть у bookings/{userId}/{key} тим самим способом, що й решта update у файлі
+  const bookingFbKey = (b) => b._fbKey || b.id;
+  const saveLesson = (b, rating, note) => {
+    const patch = { lessonRating: rating || null, lessonNote: note || null, lessonRatedAt: Date.now() };
+    if (b.userId) update(iRef(`bookings/${b.userId}/${bookingFbKey(b)}`), patch).catch(()=>{});
+    setBookings(bs => bs.map(x => x.id === b.id ? { ...x, ...patch } : x));
+    setRatePanel(null);
+    showCopyToast("Збережено");
+  };
+  const requestReview = (b) => {
+    const at = Date.now();
+    update(iRef(`bookings/${b.userId}/${bookingFbKey(b)}`), { reviewRequestedAt: at }).catch(()=>{});
+    setBookings(bs => bs.map(x => x.id === b.id ? { ...x, reviewRequestedAt: at } : x));
+    showCopyToast("Запит на відгук надіслано");
+  };
+  const openFan = (e, side, b, canReview) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    setFan({ side, b, cx: r.left + r.width / 2, cy: r.top + r.height / 2, canReview });
+  };
+  const fanItems = () => {
+    if (!fan) return [];
+    const { b, side, cx, cy, canReview } = fan;
+    const done = () => { copyPastedAtRef.current = Date.now(); setFan(null); };
+    const d = phoneDigits(b.phone);
+    const go = (url) => () => { done(); window.location.href = url; };
+    if (side === "r") return [
+      { k:"call",  icon:"📞", label:"Подзвонити",   on:!!d, bg:"linear-gradient(145deg,#4ade80,#15803d)", run:go(`tel:+${d}`) },
+      { k:"chat",  icon:"💬", label:"Чат у застосунку", on:!!b.userId, bg:"linear-gradient(145deg,#60a5fa,#1d4ed8)",
+        run:() => { done(); window.__openChatUid = b.userId; navTo?.("chats"); } },
+      { k:"viber", icon:"🟣", label:"Viber",     on:!!d, bg:"linear-gradient(145deg,#a78bfa,#6d28d9)", run:go(`viber://chat?number=%2B${d}`) },
+      { k:"tg",    icon:"✈️", label:"Telegram",  on:!!d, bg:"linear-gradient(145deg,#38bdf8,#0369a1)", run:go(`https://t.me/+${d}`) },
+    ];
+    return [
+      { k:"note", icon:"📝", label:"Нотатка до уроку", on:true, bg:"linear-gradient(145deg,#c084fc,#7e22ce)",
+        run:() => { setFan(null); setRatePanel({ b, cx, cy }); } },
+      { k:"rate",  icon:"⭐", label:"Оцінка уроку", on:true, bg:"linear-gradient(145deg,#fbbf24,#d97706)",
+        run:() => { setFan(null); setRatePanel({ b, cx, cy }); } },
+      { k:"rev",   icon:"📣", label:"Попросити відгук", on:canReview, bg:"linear-gradient(145deg,#fb923c,#c2410c)",
+        run:() => { done(); requestReview(b); } },
+    ];
+  };
   const showCopyToast = (msg) => {
     setCopyToast(msg);
     clearTimeout(copyToastTimerRef.current);
@@ -3266,6 +3407,9 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
             fontSize:12, fontWeight:800, boxShadow:"0 4px 14px rgba(185,28,28,0.55)",
           }}>{copyToast}</div>
         )}
+        {fan && <ActionFan side={fan.side} cx={fan.cx} cy={fan.cy} items={fanItems()} onClose={closeFan}/>}
+        {ratePanel && <LessonRatePanel b={ratePanel.b} cx={ratePanel.cx} cy={ratePanel.cy} title={"Оцінка уроку"}
+          onSave={(r, n) => saveLesson(ratePanel.b, r, n)} onClose={() => setRatePanel(null)}/>}
 
         {/* TIME COLUMN — fixed left, never scrolls */}
         <div
@@ -4419,6 +4563,29 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                         </svg>
                       </div>
                     )}
+
+                    {/* ── Нижні кружки-віяла: праве 💬 (зв'язок), ліве ⭐ (урок) ── */}
+                    {quickCancelId===b.id && !isBlock && !isVipSlot && !isPersonal && b.userId && !b._mergedIds && [
+                      { side:"r", pos:{ bottom:-11, right:-11 }, bg:"linear-gradient(145deg,#4ade80,#15803d)", sh:"#15803d99", icon:"💬" },
+                      { side:"l", pos:{ bottom:-11, left:-11 },  bg:"linear-gradient(145deg,#fbbf24,#b45309)", sh:"#b4530999", icon:"⭐" },
+                    ].map(c => (
+                      <div key={c.side} data-fan="1"
+                        onPointerDown={e=>e.stopPropagation()}
+                        onClick={e=>{
+                          e.stopPropagation();
+                          if (xJustShownRef.current || Date.now() - copyPastedAtRef.current < 400) return;
+                          if (fan && fan.b.id===b.id && fan.side===c.side) { setFan(null); return; }
+                          setRatePanel(null);
+                          openFan(e, c.side, b, isPast && b.status!=="cancelled" && b.status!=="noshow" && !b.reviewRequestedAt);
+                        }}
+                        style={{
+                          position:"absolute", ...c.pos, zIndex:30,
+                          width:30, height:30, borderRadius:"50%", background:c.bg,
+                          boxShadow:`0 0 0 3px rgba(30,30,40,0.85), 0 4px 12px ${c.sh}`,
+                          display:"flex", alignItems:"center", justifyContent:"center",
+                          cursor:"pointer", fontSize:14, lineHeight:1, touchAction:"manipulation",
+                        }}>{c.icon}</div>
+                    ))}
 
                     {/* ── Значок скасування (довге натискання) — поза slot-base щоб не обрізатись ── */}
                     {quickCancelId===b.id && (

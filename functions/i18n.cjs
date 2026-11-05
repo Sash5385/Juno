@@ -116,6 +116,8 @@ const DICT = Object.fromEntries([
   E("{date} о {time} · {phone}", "{date} at {time} · {phone}", "{date} o {time} · {phone}", "{date} um {time} · {phone}", "{date} a las {time} · {phone}", "{date} à {time} · {phone}"),
   E("✅ Підтвердив присутність", "✅ Attendance confirmed", "✅ Potwierdzono obecność", "✅ Teilnahme bestätigt", "✅ Asistencia confirmada", "✅ Présence confirmée"),
   E("💬 Коментар до запису", "💬 Booking comment", "💬 Komentarz do rezerwacji", "💬 Kommentar zur Buchung", "💬 Comentario de la reserva", "💬 Commentaire sur la réservation"),
+  E("⭐ Оцініть візит", "⭐ Rate your visit", "⭐ Oceń wizytę", "⭐ Bewerte den Termin", "⭐ Valora la cita", "⭐ Évaluez votre rendez-vous"),
+  E("Як пройшов візит {date} о {time}? Залиште відгук", "How was your visit on {date} at {time}? Leave a review", "Jak minęła wizyta {date} o {time}? Zostaw opinię", "Wie war der Termin am {date} um {time}? Hinterlasse eine Bewertung", "¿Qué tal la cita del {date} a las {time}? Deja tu opinión", "Comment s'est passé le rendez-vous du {date} à {time} ? Laissez un avis"),
   E("🎉 Новий клієнт", "🎉 New client", "🎉 Nowy klient", "🎉 Neuer Kunde", "🎉 Nuevo cliente", "🎉 Nouveau client"),
   E("Новий клієнт", "New client", "Nowy klient", "Neuer Kunde", "Nuevo cliente", "Nouveau client"),
   E("Студент", "Client", "Klient", "Kunde", "Cliente", "Client"),

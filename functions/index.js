@@ -590,6 +590,15 @@ exports.onBookingChanged = onValueWritten(
 
     if (!before || !after) return;
 
+    // Адмін натиснув «Попросити відгук» — пуш учню з посиланням на форму відгуку саме цього уроку.
+    // Без return: зміна reviewRequestedAt/lessonRating/lessonNote не зачіпає інші гілки нижче.
+    if (after.reviewRequestedAt && before.reviewRequestedAt !== after.reviewRequestedAt && after.status !== "cancelled" && after.status !== "personal" && uid !== "admin" && uid !== "personal") {
+      console.log(`onBookingChanged: review requested iid=${iid} uid=${uid} bookingId=${bookingId}`);
+      await pushStudent(iid, uid, (L) => t(L, "⭐ Оцініть візит"), (L) => t(L, "Як пройшов візит {date} о {time}? Залиште відгук", { date: fmtDateLong(L, date), time }), {
+        url: `https://aldemi.com.ua/junoclient/cabinet/bookings?review=${encodeURIComponent(bookingId)}`, date, time,
+      }).catch(() => {});
+    }
+
     // Клієнт скасував — звільняємо слоти
     if (after.cancelledBy === "student" && before.cancelledBy !== "student") {
       console.log(`onBookingChanged: student cancel iid=${iid} uid=${uid}`);

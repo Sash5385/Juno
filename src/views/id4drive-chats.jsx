@@ -195,6 +195,10 @@ export default function ChatsView() {
   const [pickedTk,    setPickedTk]    = useState({});      // { uid: обраний тред }
   const threadUnsubs = useRef({});
   const msgUnsubs = useRef({});
+  // Відкриття конкретного чату з картки запису (віяло 💬): uid передається через window.__openChatUid
+  const pendingUidRef = useRef(null);
+  const toggleRef = useRef(null);
+  useEffect(() => { pendingUidRef.current = window.__openChatUid || null; window.__openChatUid = null; }, []);
   // Майстер салону: бачить лише чати зі своїми клієнтами (masterClients), без розсилки і видалення чатів
   const isMaster = isMasterSession();
   const myUid = auth.currentUser?.uid || "";
@@ -269,6 +273,8 @@ export default function ChatsView() {
         })
         .filter(c => c.name || c.phone);
       setContacts(list);
+      const pu = pendingUidRef.current;
+      if (pu && list.some(c => c.id === pu)) { pendingUidRef.current = null; setTimeout(() => toggleRef.current?.(pu), 0); }
       setLoading(false);
     }, () => { setLoading(false); showErr("Не вдалося завантажити клієнтів. Перевірте з'єднання."); });
     return unsub;
@@ -355,6 +361,7 @@ export default function ChatsView() {
     setOpenId(prev => prev===id ? null : id);
     if (id !== BROADCAST_ID) markRead(id, defaultTk(id));
   };
+  toggleRef.current = toggle;
   // Позначити тред прочитаним (лише його, інші треди клієнта лишаються з лічильниками)
   const markRead = (uid, tk) => {
     if (tk) setUnreadM(m => ({...m, [tKey(uid, tk)]:0}));
