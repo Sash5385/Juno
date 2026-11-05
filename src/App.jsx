@@ -229,7 +229,7 @@ function MasterTabs({ staff, active, onPick }) {
   const theme = useContext(ThemeContext);
   const tabs = [{ id: ALL_MASTERS, name: "Усі", color: "#94a3b8" }, ...staff];
   return (
-    <ScrollChips fade="rgba(16,20,28,0.92)" style={{padding:"2px 6px 8px"}}>
+    <ScrollChips fade="rgba(16,20,28,0.92)" style={{padding:"2px 6px 8px",margin:0}}>
       {tabs.map(m => {
         const on = m.id === active;
         return (
