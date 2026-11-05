@@ -1315,7 +1315,19 @@ const phoneDigits = (p) => {
   else if (d.length === 9) d = "380" + d;                  // 671234567 → 380671234567
   return d;
 };
-const FAN_R = 66, FAN_BTN = 36;
+const FAN_R = 112, FAN_BTN = 44;
+// Фірмові значки месенджерів (SVG), щоб одразу було видно, що це Viber / Telegram
+const ICON_VIBER = (
+  <svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true">
+    <path fill="#fff" d="M11.4 2C7 2.1 3.2 3.4 2.9 9.1c-.2 3.6.4 6.3 2.4 7.9v3.3c0 .5.6.7.9.4l2.4-2.6c4.5.4 9.2-.2 10.6-3.9 1-2.7 1-5.6.3-8.1C18.4 2.6 14.6 1.9 11.4 2zm.1 1.5c2.7 0 5.8.5 6.6 3.1.6 2.1.6 4.6-.2 6.9-1.1 3-5.2 3.3-8.9 3l-.4-.1-1.6 1.7v-2.3l-.3-.2c-1.7-1.2-2.2-3.4-2-6.5.2-4.6 3.2-5.5 6.8-5.6z"/>
+    <path fill="#fff" d="M8.6 6.3c.3 0 .5.2.7.5l.8 1.3c.2.4.1.8-.2 1l-.5.4c-.2.2-.2.4-.1.7.6 1.4 1.6 2.4 3 3 .3.1.5.1.7-.1l.4-.5c.3-.3.7-.4 1-.2l1.3.8c.3.2.5.5.4.8-.1.9-.9 1.6-1.8 1.5-3-.3-6.3-3.5-6.6-6.6-.1-.9.6-1.7 1.4-1.8z"/>
+  </svg>
+);
+const ICON_TG = (
+  <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true">
+    <path fill="#fff" d="M4.3 11.4l13.9-5.4c.7-.2 1.2.2 1 1.2l-2.4 11.2c-.2.8-.7 1-1.3.6l-3.6-2.7-1.8 1.7c-.2.2-.4.4-.8.4l.3-3.7 6.7-6.1c.3-.3-.1-.4-.4-.2l-8.3 5.2-3.6-1.1c-.8-.2-.8-.8.2-1.1z"/>
+  </svg>
+);
 // Віяло з круглих кнопок: портал у body (position:fixed) — не обрізається колонками/сусідніми картками
 function ActionFan({ side, cx, cy, items, onClose }) {
   const [shown, setShown] = useState(false);
@@ -1352,7 +1364,7 @@ function ActionFan({ side, cx, cy, items, onClose }) {
             onClick={e => { e.stopPropagation(); e.preventDefault(); if (it.on) it.run(); }}
             style={{
               position:"fixed", left:x, top:y, width:FAN_BTN, height:FAN_BTN, borderRadius:"50%",
-              border:"none", padding:0, fontSize:17, lineHeight:1, display:"flex", alignItems:"center", justifyContent:"center",
+              border:"none", padding:0, fontSize:20, lineHeight:1, display:"flex", alignItems:"center", justifyContent:"center",
               background: it.on ? it.bg : "linear-gradient(145deg,#6b7280,#374151)",
               opacity: it.on ? 1 : 0.5, filter: it.on ? "none" : "grayscale(1)",
               boxShadow: "0 0 0 2px rgba(30,30,40,0.85), 0 4px 12px rgba(0,0,0,0.45)",
@@ -2385,8 +2397,8 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
       { k:"call",  icon:"📞", label:"Подзвонити",   on:!!d, bg:"linear-gradient(145deg,#4ade80,#15803d)", run:go(`tel:+${d}`) },
       { k:"chat",  icon:"💬", label:"Чат у застосунку", on:!!b.userId, bg:"linear-gradient(145deg,#60a5fa,#1d4ed8)",
         run:() => { done(); window.__openChatUid = b.userId; navTo?.("chats"); } },
-      { k:"viber", icon:"🟣", label:"Viber",     on:!!d, bg:"linear-gradient(145deg,#a78bfa,#6d28d9)", run:go(`viber://chat?number=%2B${d}`) },
-      { k:"tg",    icon:"✈️", label:"Telegram",  on:!!d, bg:"linear-gradient(145deg,#38bdf8,#0369a1)", run:go(`https://t.me/+${d}`) },
+      { k:"viber", icon:ICON_VIBER, label:"Viber",     on:!!d, bg:"#7360F2", run:go(`viber://chat?number=%2B${d}`) },
+      { k:"tg",    icon:ICON_TG, label:"Telegram",  on:!!d, bg:"#2AABEE", run:go(`https://t.me/+${d}`) },
     ];
     return [
       { k:"note", icon:"📝", label:"Нотатка до уроку", on:true, bg:"linear-gradient(145deg,#c084fc,#7e22ce)",
