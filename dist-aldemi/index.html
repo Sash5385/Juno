@@ -8,10 +8,13 @@
     <meta name="theme-color" content="#0f0f14" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="DrivePad" />
-    <title>DrivePad Admin</title>
-    <script type="module" crossorigin src="/junoadmin/assets/index-BIWJkogl.js"></script>
-    <link rel="stylesheet" crossorigin href="/junoadmin/assets/index-Bl-5We1m.css">
+    <meta name="apple-mobile-web-app-title" content="Juno" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800&display=swap" />
+    <title>Juno</title>
+    <script type="module" crossorigin src="/junoadmin/assets/index-CA_NoLGB.js"></script>
+    <link rel="stylesheet" crossorigin href="/junoadmin/assets/index-ZYPqKcyS.css">
   <script>// Повноекранна анімація оновлення застосунку — кільце прогресу (як у проєкті Magentic).
 //
 // Це ЗВИЧАЙНИЙ скрипт без залежностей і без React: vite.config.js вставляє його в
@@ -79,7 +82,7 @@
     return new Promise(function (resolve) {
       var timer = setTimeout(function () { resolve(''); }, 2000);
       try {
-        fetch('/junoadmin/version.json?_=' + Date.now(), { cache: 'no-store' })
+        fetch((window.__BASE || '/') + 'version.json?_=' + Date.now(), { cache: 'no-store' })
           .then(function (r) { return r.json(); })
           .then(function (d) { clearTimeout(timer); resolve((d && d.version) || ''); })
           .catch(function () { clearTimeout(timer); resolve(''); });
@@ -188,7 +191,7 @@
     onBody(function () { setTimeout(preview, 600); });
   }
 })();
-</script><script>(function(){var B="v28.10.2";function check(){try{fetch("/junoadmin/version.json?_="+Date.now(),{cache:"no-store"}).then(function(r){return r.json()}).then(function(d){if(d&&d.version&&d.version!==B){var k="vreset_"+d.version;var last=+(sessionStorage.getItem(k)||0);if(Date.now()-last<10000)return;sessionStorage.setItem(k,String(Date.now()));var ov=window.__updOverlay;var anim=ov?ov.show(d.version):Promise.resolve();function rl(){location.reload()}var done_=false;function done(){if(done_)return;done_=true;anim.then(rl,rl)}setTimeout(done,2500);if("serviceWorker"in navigator){navigator.serviceWorker.getRegistrations().then(function(rs){return Promise.all(rs.map(function(r){return r.unregister()}))}).then(function(){return window.caches?caches.keys().then(function(ks){return Promise.all(ks.map(function(x){return caches.delete(x)}))}):null}).then(done).catch(done)}else{done()}}else if("serviceWorker"in navigator){navigator.serviceWorker.getRegistration().then(function(r){r&&r.update()}).catch(function(){})}}).catch(function(){})}catch(e){}}check();setInterval(check,45000);document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible")check()});if("serviceWorker"in navigator){var hadCtl=!!navigator.serviceWorker.controller;navigator.serviceWorker.addEventListener("controllerchange",function(){var o=window.__updOverlay;function rl(){location.reload()}if(hadCtl&&o){o.show().then(rl,rl)}else{rl()}})}})();</script><link rel="manifest" href="/junoadmin/manifest.webmanifest"><script id="vite-plugin-pwa:register-sw" src="/junoadmin/registerSW.js"></script></head>
+</script><script>window.__BASE="/junoadmin/";</script><script>(function(){var B="v02.11.6";function check(){try{fetch(window.__BASE+"version.json?_="+Date.now(),{cache:"no-store"}).then(function(r){return r.json()}).then(function(d){if(d&&d.version&&d.version!==B){var k="vreset_"+d.version;var last=+(sessionStorage.getItem(k)||0);if(Date.now()-last<10000)return;sessionStorage.setItem(k,String(Date.now()));var ov=window.__updOverlay;var anim=ov?ov.show(d.version):Promise.resolve();function rl(){location.reload()}var done_=false;function done(){if(done_)return;done_=true;anim.then(rl,rl)}setTimeout(done,2500);if("serviceWorker"in navigator){navigator.serviceWorker.getRegistrations().then(function(rs){return Promise.all(rs.map(function(r){return r.unregister()}))}).then(function(){return window.caches?caches.keys().then(function(ks){return Promise.all(ks.map(function(x){return caches.delete(x)}))}):null}).then(done).catch(done)}else{done()}}else if("serviceWorker"in navigator){navigator.serviceWorker.getRegistration().then(function(r){r&&r.update()}).catch(function(){})}}).catch(function(){})}catch(e){}}check();setInterval(check,45000);document.addEventListener("visibilitychange",function(){if(document.visibilityState==="visible")check()});if("serviceWorker"in navigator){var hadCtl=!!navigator.serviceWorker.controller;navigator.serviceWorker.addEventListener("controllerchange",function(){var o=window.__updOverlay;function rl(){location.reload()}if(hadCtl&&o){o.show().then(rl,rl)}else{rl()}})}})();</script><link rel="manifest" href="/junoadmin/manifest.webmanifest"><script id="vite-plugin-pwa:register-sw" src="/junoadmin/registerSW.js"></script></head>
   <body style="margin:0;background:#161719">
     <div id="root"></div>
   </body>

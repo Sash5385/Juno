@@ -304,7 +304,7 @@ export default function StatsView({ onViewStudent, direction } = {}) {
   }, []);
 
   // Салон: фільтр по майстру (записи без masterId — власника)
-  const ownerUid = auth.currentUser?.uid || "";
+  const ownerUid = (staff.find(m => m.owner) || {}).id || auth.currentUser?.uid || "";
   const bookings = masterFilter ? bookingsRaw.filter(b => masterOf(b, ownerUid) === masterFilter) : bookingsRaw;
   const periodData = (list) => period === "week"   ? computeWeekData(list, 0, services)
                  : period === "year"   ? computeYearData(list, 0, services)

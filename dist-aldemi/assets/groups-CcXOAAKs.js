@@ -1,0 +1,1 @@
+var e=e=>Math.max(1,Math.min(30,Math.round(Number(e?.capacity))||1)),t=t=>e(t)>1,n=e=>String(e||``).replace(`:`,``),r=(e,t)=>`${e}_${n(t)}`;export{r as n,t as r,e as t};

@@ -8,6 +8,7 @@ import { LOGIN_CSS } from "./loginStyles";
 import { APP_VERSION } from "./version";
 import { DEMO, DEMO_USER } from "./demo/demoMode.js";
 import { deleteAccountRequest } from "./deleteAccountApi";
+import { FOG_STYLE } from "./uiStyles";
 import { ACCOUNT_SOLO, ACCOUNT_SALON, ownerRow } from "./workspace";
 
 // Вендор SaaS (ви) — бачить усіх майстрів замість власного кабінету.
@@ -255,6 +256,12 @@ const RESERVED_SLUGS = ["admin","api","i","book","www","drivepad","juno","login"
 // записі) і бронює slug для публічної сторінки /book/{slug}. Заводить license
 // в trial на TRIAL_DAYS — той самий вузол, що читає useLicense()/checkLicenseExpiry.
 export function InstructorSetupScreen({ onDone }) {
+  // Стиль «Туман» — як у решті застосунку (локальні токени перекривають модульні)
+  const T = FOG_STYLE.theme;
+  const { BG_DEEP, SURFACE, SURF_HI, BORDER, TEXT, DIM, SO } = T;
+  const INP = { width:"100%", background:"rgba(255,255,255,0.06)", border:`1px solid ${BORDER}`, borderRadius:10, padding:"10px 14px", color:TEXT, fontSize:14, outline:"none", boxSizing:"border-box" };
+  const LBL = { fontSize:12, color:DIM, marginBottom:6 };
+  const BTN = `linear-gradient(145deg,${T.ACC_HI},${T.ACCENT})`;
   const [name,       setName]       = useState("");
   const [phone,      setPhone]      = useState("");
   const [address,    setAddress]    = useState("");
@@ -333,8 +340,8 @@ export function InstructorSetupScreen({ onDone }) {
   };
 
   return (
-    <div style={{ minHeight:"100vh", background:BG_DEEP, display:"flex", alignItems:"center", justifyContent:"center", padding:"20px", paddingTop:"calc(20px + env(safe-area-inset-top, 0px))", paddingBottom:"calc(20px + env(safe-area-inset-bottom, 0px))" }}>
-      <div style={{ background:`linear-gradient(135deg,${SURF_HI},${SURFACE})`, borderRadius:20, padding:"32px 28px", width:"100%", maxWidth:400, boxShadow:SO, border:`1px solid ${BORDER}` }}>
+    <div style={{ minHeight:"100vh", background:FOG_STYLE.wrap, display:"flex", alignItems:"center", justifyContent:"center", padding:"20px", paddingTop:"calc(20px + env(safe-area-inset-top, 0px))", paddingBottom:"calc(20px + env(safe-area-inset-bottom, 0px))" }}>
+      <div style={{ background:SURFACE, backdropFilter:"blur(16px)", WebkitBackdropFilter:"blur(16px)", borderRadius:20, padding:"32px 28px", width:"100%", maxWidth:400, boxShadow:SO, border:`1px solid ${BORDER}` }}>
         <button onClick={() => signOut(auth).catch(() => {})} disabled={saving} style={{ background:"none", border:"none", color:DIM, fontSize:13, fontWeight:700, cursor:"pointer", padding:"0 0 12px", fontFamily:"inherit" }}>← Назад</button>
         <div style={{ textAlign:"center", marginBottom:28 }}>
           <img src={import.meta.env.BASE_URL + "icon-192.png"} alt="Juno" style={{width:64,height:64,borderRadius:"50%",marginBottom:10,boxShadow:"-3px 5px 14px rgba(0,0,0,0.45)"}}/>
@@ -348,7 +355,7 @@ export function InstructorSetupScreen({ onDone }) {
             {[[ACCOUNT_SOLO,"Один майстер"],[ACCOUNT_SALON,"Салон"]].map(([k,l]) => (
               <button key={k} type="button" onClick={()=>setAccountType(k)} disabled={saving} style={{
                 flex:1, padding:"10px 6px", borderRadius:10, border:"none", cursor:"pointer", fontFamily:"inherit", fontSize:13, fontWeight:700,
-                background: accountType===k ? "linear-gradient(135deg,#ff7a5c,#ff5a3c)" : "transparent", color: accountType===k ? "#fff" : DIM,
+                background: accountType===k ? BTN : "transparent", color: accountType===k ? T.BTN_TX : DIM,
               }}>{l}</button>
             ))}
           </div>
@@ -386,7 +393,7 @@ export function InstructorSetupScreen({ onDone }) {
         {error && <div style={{ fontSize:12, color:ACCENT, textAlign:"center", marginBottom:14, padding:"8px", borderRadius:8, background:"rgba(255,90,60,0.1)" }}>{error}</div>}
 
         <button onClick={save} disabled={saving||!canSave}
-          style={{ width:"100%", padding:"13px", borderRadius:12, background: saving||!canSave ? "rgba(255,90,60,0.3)" : "linear-gradient(135deg,#ff7a5c,#ff5a3c)", border:"none", color:"#fff", fontSize:15, fontWeight:700, cursor: saving||!canSave ? "default":"pointer" }}>
+          style={{ width:"100%", padding:"13px", borderRadius:12, background: saving||!canSave ? "rgba(96,165,250,0.3)" : BTN, border:"none", color:T.BTN_TX, fontSize:15, fontWeight:700, cursor: saving||!canSave ? "default":"pointer" }}>
           {saving ? "Зберігаємо..." : "Розпочати роботу →"}
         </button>
       </div>

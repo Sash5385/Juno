@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useContext } from "react";
 import { createPortal } from "react-dom";
 import { onValue } from "firebase/database";
-import { iRef } from "../firebase";
+import { iRef, auth } from "../firebase";
 import { ThemeContext } from "../theme.js";
-import { useBackClose } from "../ui";
+import { useBackClose, ScrollChips } from "../ui";
+import { normStaff, masterOf } from "../workspace";
 import { MonthCalendarSheet } from "./id4drive-admin-v5";
 
 export const JOURNAL_READ_KEY = "journal_read_at";
@@ -93,7 +94,7 @@ function buildStudentEvents(data) {
   return evs;
 }
 
-function buildEvents(data, staffNames = {}) {
+function buildEvents(data, ownerUid) {
   const evs = [];
   if (!data) return evs;
   Object.values(data).forEach(userBkgs => {
@@ -109,15 +110,15 @@ function buildEvents(data, staffNames = {}) {
       // Послуга, ціна і майстер (салон) — щоб запис у журналі було видно повністю
       const svc = b.serviceName ? ` · ${b.serviceName}` : "";
       const price = Number(b.price) > 0 ? ` · ${b.price}₴` : "";
-      const master = b.masterId && staffNames[b.masterId] ? ` · ${staffNames[b.masterId]}` : "";
-      const slot = [dateStr, b.time].filter(Boolean).join(" ") + durStr + svc + price + master;
+      const slot = [dateStr, b.time].filter(Boolean).join(" ") + durStr + svc + price;
+      const mid = masterOf(b, ownerUid);
       // Клієнт переніс запис: старий запис скасовано (cancelledBy "reschedule"), новий має rescheduledFrom — показуємо ОДНУ подію «Перенос»
       const [fromDate, fromTime] = String(b.rescheduledFrom || "").split(" ");
       const fromSlot = fromDate ? ` (було ${fromDate.split("-").reverse().join(".")}${fromTime ? " " + fromTime : ""})` : "";
-      if (b.createdAt && b.rescheduledFrom) evs.push({ id: `${key}_reschedule_new`, type: "reschedule", ts: b.createdAt, name, slot: slot + fromSlot, by: "client" });
-      else if (b.createdAt) evs.push({ id: `${key}_new`,        type: "new",        ts: b.createdAt,     name, slot, by: b.createdBy   || "" });
-      if (b.cancelledAt && b.cancelledBy !== "reschedule") evs.push({ id: `${key}_cancel`,     type: "cancel",     ts: b.cancelledAt,   name, slot, by: b.cancelledBy  || "" });
-      if (b.rescheduledAt) evs.push({ id: `${key}_reschedule`, type: "reschedule", ts: b.rescheduledAt, name, slot, by: "" });
+      if (b.createdAt && b.rescheduledFrom) evs.push({ id: `${key}_reschedule_new`, type: "reschedule", ts: b.createdAt, name, slot: slot + fromSlot, mid, by: "client" });
+      else if (b.createdAt) evs.push({ id: `${key}_new`,        type: "new",        ts: b.createdAt,     name, slot, mid, by: b.createdBy   || "" });
+      if (b.cancelledAt && b.cancelledBy !== "reschedule") evs.push({ id: `${key}_cancel`,     type: "cancel",     ts: b.cancelledAt,   name, slot, mid, by: b.cancelledBy  || "" });
+      if (b.rescheduledAt) evs.push({ id: `${key}_reschedule`, type: "reschedule", ts: b.rescheduledAt, name, slot, mid, by: "" });
     });
   });
   return evs.sort((a, b) => b.ts - a.ts);
@@ -231,13 +232,17 @@ export default function JournalView() {
     new_student: { label: "Новий клієнт", color: theme.BLUE,  icon: "🆕" },
   };
 
-  const [bookingEvents, setBookingEvents] = useState([]);
+  const [bookingsRaw, setBookingsRaw] = useState(null);
+  const [staff, setStaff] = useState([]);   // салон: склад майстрів
+  const [masterFilter, setMasterFilter] = useState(""); // "" — усі майстри
+  const ownerUid = (staff.find(m => m.owner) || {}).id || auth.currentUser?.uid || "";
+  const bookingEvents = React.useMemo(() => buildEvents(bookingsRaw, ownerUid), [bookingsRaw, ownerUid]);
   const [studentEvents, setStudentEvents] = useState([]);
+  const isSalonJ = staff.length > 1;
   const events = React.useMemo(
     () => [...bookingEvents, ...studentEvents].sort((a, b) => b.ts - a.ts),
     [bookingEvents, studentEvents]
   );
-  const rawBookingsRef = React.useRef(null), staffRef = React.useRef({});
   const [section,    setSection]   = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
   const [detail,     setDetail]    = useState(null);
@@ -256,19 +261,15 @@ export default function JournalView() {
   useEffect(() => {
     setJournalReadAt();
     const unsub = onValue(iRef( "bookings"), snap => {
-      rawBookingsRef.current = snap.val();
-      setBookingEvents(buildEvents(snap.val(), staffRef.current));
+      setBookingsRaw(snap.val());
     });
     return unsub;
   }, []);
 
-  // Імена майстрів салону для рядка події (у «Одному майстрі» вузол staff порожній)
-  useEffect(() => onValue(iRef("staff"), snap => {
-    const names = {};
-    Object.entries(snap.val() || {}).forEach(([id, m]) => { if (m?.name) names[id] = m.name; });
-    staffRef.current = names;
-    if (rawBookingsRef.current) setBookingEvents(buildEvents(rawBookingsRef.current, names));
-  }, () => {}), []);
+  useEffect(() => {
+    const owner = auth.currentUser?.uid || "";
+    return onValue(iRef("staff"), snap => setStaff(snap.exists() ? normStaff(snap.val(), owner) : []), () => {});
+  }, []);
 
   useEffect(() => {
     const unsub = onValue(iRef( "users"), snap => {
@@ -306,7 +307,9 @@ export default function JournalView() {
   const jumpToDate = (dateStr) => setPendingJump(dateStr);
 
   const unreadCount = events.filter(e => e.ts > prevReadAt).length;
-  const bySection   = section === "admin" ? events.filter(e => e.by === "admin") : events;
+  // Салон: фільтр по майстру стосується лише подій записів (клієнти спільні)
+  const byMaster    = isSalonJ && masterFilter ? events.filter(e => e.type === "new_student" || e.mid === masterFilter) : events;
+  const bySection   = section === "admin" ? byMaster.filter(e => e.by === "admin") : byMaster;
   const filtered    = typeFilter === "all" ? bySection : bySection.filter(e => e.type === typeFilter);
   const groups      = buildDayGroups(filtered);
 
@@ -339,6 +342,25 @@ export default function JournalView() {
           }}>{lbl}</button>
         ))}
       </div>
+
+      {/* Салон: фільтр по майстру */}
+      {isSalonJ && (
+        <div style={{marginBottom:10}}>
+          <ScrollChips activeKey={masterFilter}>
+            {[{ id:"", name:"Усі майстри", color:ACCENT }, ...staff].map(m => {
+              const on = masterFilter === m.id;
+              return (
+                <button key={m.id || "all"} onClick={()=>setMasterFilter(m.id)} style={{
+                  flex:"1 0 auto",justifyContent:"center",display:"flex",alignItems:"center",gap:7,padding:"8px 13px",borderRadius:99,cursor:"pointer",fontFamily:"inherit",fontSize:12.5,fontWeight:600,whiteSpace:"nowrap",
+                  border:`1px solid ${on ? m.color : BORDER}`,background:on?`color-mix(in srgb,${m.color} 26%,transparent)`:SURFACE,color:on?theme.TEXT:DIM,
+                }}>
+                  {m.id && <span style={{width:10,height:10,borderRadius:"50%",background:m.color}}/>}{m.name}
+                </button>
+              );
+            })}
+          </ScrollChips>
+        </div>
+      )}
 
       {/* Type filter — stat tiles */}
       <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:6 }}>
@@ -424,6 +446,11 @@ export default function JournalView() {
                     }}>{ev.name}</span>
                     {isNew && <div style={{width:5,height:5,borderRadius:"50%",flexShrink:0,background:"#fff",boxShadow:"0 0 4px #fff"}}/>}
                   </div>
+                  {(() => { const mm = isSalonJ && ev.mid ? staff.find(m => m.id === ev.mid) : null; return mm ? (
+                    <div style={{display:"flex",alignItems:"center",gap:5,marginTop:2,fontSize:11.5,color:"rgba(255,255,255,0.88)"}}>
+                      <span style={{width:9,height:9,borderRadius:"50%",background:mm.color,flexShrink:0}}/>
+                      <span style={{overflowWrap:"anywhere"}}>{mm.name}</span>
+                    </div>) : null; })()}
                   <div style={{fontSize:11.5,marginTop:2,fontWeight:500,color:"rgba(255,255,255,0.88)",overflowWrap:"anywhere"}}>
                     {prefix} {meta.label}
                     {ev.slot && <span> · {ev.slot}</span>}

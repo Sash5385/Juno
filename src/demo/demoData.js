@@ -1,7 +1,7 @@
 // Генератор ВИДУМАНИХ даних для демо-режиму (скріншоти, реклама). Усі імена, телефони й
 // записи вигадані. Дати рахуються від "сьогодні", тож розклад завжди виглядає "живим".
 // Структура повторює реальну базу instructors/{iid}/… (див. demoDb.js).
-import { DEMO_UID, demoTheme, demoPreset } from "./demoMode.js";
+import { DEMO_UID, DEMO_AS, demoTheme, demoPreset, demoParam } from "./demoMode.js";
 
 const pad = (n) => String(n).padStart(2, "0");
 const ymd = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -377,23 +377,64 @@ export function buildDemoTree() {
     services: SERVICES,
   };
 
-  // ?demo=1&salon=1 — демо салону: власник + двоє майстрів, частина записів розкидана між ними
+  // ?demo=1&salon=1 — демо салону: власник + двоє майстрів, частина записів розкидана між ними.
+  // ?demo=1&salon=N (N ≥ 2) — власник + N майстрів, у кожного свій календар (timeslots_m) і свої записи.
   let salonExtra = {};
+  let timeslotsM = null;
   try {
-    if (new URLSearchParams(window.location.search).get("salon") === "1") {
-      const staff = {
-        [DEMO_UID]: { role: "owner", name: "Андрій", color: "#60a5fa", joinedAt: nowTs },
-        "demo-master-1": { role: "master", name: "Олена", color: "#f472b6", joinedAt: nowTs },
-        "demo-master-2": { role: "master", name: "Ігор", color: "#34d399", joinedAt: nowTs },
-      };
+    const sv = demoParam("salon");
+    const many = sv && sv !== "1" ? Math.min(30, Math.max(2, parseInt(sv, 10) || 0)) : 0;
+    if (sv === "1" || many) {
+      const NAMES = ["Олена", "Ігор", "Марія", "Дмитро", "Софія", "Максим", "Анна", "Тарас", "Юлія", "Богдан", "Наталя", "Олег", "Вікторія", "Роман", "Ірина", "Павло", "Катерина", "Сергій", "Оксана", "Назар"];
+      const COLS = ["#f472b6", "#34d399", "#fbbf24", "#f87171", "#a78bfa", "#2dd4bf", "#fb923c", "#38bdf8", "#a3e635", "#e879f9", "#facc15", "#4ade80", "#fb7185", "#818cf8", "#22d3ee", "#f59e0b", "#c084fc", "#84cc16", "#f43f5e", "#14b8a6"];
+      const staff = { [DEMO_UID]: { role: "owner", name: "Андрій", color: "#60a5fa", joinedAt: nowTs } };
+      const ids = [DEMO_UID];
+      if (many) {
+        for (let i = 0; i < many; i++) { const id = `demo-master-${i + 1}`; ids.push(id); staff[id] = { role: "master", name: i < NAMES.length ? NAMES[i] : `Майстер ${i + 1}`, color: COLS[i % COLS.length], joinedAt: nowTs + i }; }
+      } else {
+        staff["demo-master-1"] = { role: "master", name: "Олена", color: "#f472b6", joinedAt: nowTs };
+        staff["demo-master-2"] = { role: "master", name: "Ігор", color: "#34d399", joinedAt: nowTs };
+      }
       admin_settings.accountType = "salon";
       let n = 0;
-      Object.values(bookings).forEach(list => Object.values(list || {}).forEach(b => { if (b && b.status !== "cancelled" && n++ % 3) b.masterId = n % 2 ? "demo-master-1" : "demo-master-2"; }));
-      salonExtra = { staff, masters: Object.fromEntries(Object.entries(staff).map(([id, m]) => [id, { name: m.name, color: m.color, owner: m.role === "owner" }])) };
+      if (many) {
+        // записи по колу між власником і майстрами (власник — без masterId)
+        Object.values(bookings).forEach(l => Object.values(l || {}).forEach(b => { if (b && b.status !== "cancelled") { const id = ids[n++ % ids.length]; if (id !== DEMO_UID) b.masterId = id; } }));
+        // власні календарі: слоти з шаблону власника, блокування лише під записи цього майстра
+        const bookedBy = (mid) => list.filter(({ b }) => b.status !== "cancelled" && (b.masterId || DEMO_UID) === mid);
+        const build = (mid, keepFlags) => {
+          const out = {};
+          const mine = bookedBy(mid);
+          Object.entries(timeslots).forEach(([dateStr, day]) => {
+            const d = {};
+            Object.entries(day).forEach(([id, v]) => { if (!v.phantom) { d[id] = { time: v.time, available: true }; if (keepFlags) ["vipOnly", "privateOnly", "surcharge", "fixedPrice"].forEach(k => { if (v[k] != null) d[id][k] = v[k]; }); } });
+            mine.filter(x => x.b.date === dateStr).forEach(({ b }) => {
+              for (let m = b.startMin; m < b.startMin + b.durMin; m += 30) {
+                const id = slotId(m);
+                if (d[id]) { d[id].available = false; d[id].time = hhmm(m); } else d[id] = { time: hhmm(m), available: false, phantom: true };
+                if (m === b.startMin) d[id].bookingStart = true;
+                if (b.type === "personal") d[id].personal = true;
+              }
+            });
+            out[dateStr] = d;
+          });
+          return out;
+        };
+        timeslotsM = {};
+        ids.forEach((mid) => { if (mid === DEMO_UID) return; timeslotsM[mid] = build(mid, false); });
+        const ownDays = build(DEMO_UID, true);
+        Object.keys(ownDays).forEach((k) => { timeslots[k] = ownDays[k]; });
+      } else {
+        Object.values(bookings).forEach(list2 => Object.values(list2 || {}).forEach(b => { if (b && b.status !== "cancelled" && n++ % 3) b.masterId = n % 2 ? "demo-master-1" : "demo-master-2"; }));
+      }
+      salonExtra = { staff, masters: Object.fromEntries(Object.entries(staff).map(([id, m]) => [id, { name: m.name, color: m.color, owner: m.role === "owner" }])), ...(timeslotsM ? { timeslots_m: timeslotsM } : {}) };
     }
   } catch { /* лише демо */ }
 
+  // ?as=K: індекс майстра → власник, щоб App.jsx пустив у ws-режим
+  const staffIndex = DEMO_AS && salonExtra.staff?.[`demo-master-${DEMO_AS}`] ? { [`demo-master-${DEMO_AS}`]: { iid: DEMO_UID } } : null;
   return {
+    ...(staffIndex ? { staff_index: staffIndex } : {}),
     instructors: {
       [DEMO_UID]: {
         ...salonExtra,

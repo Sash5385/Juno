@@ -10,6 +10,7 @@ import { setGlobalLang, createT } from "./lang";
 import { readUiScale, uiScaleZoom, UI_SCALE_EVENT } from "./uiScale.js";
 import { ThemeContext, getTheme } from "./theme.js";
 import { FOG_STYLE } from "./uiStyles";
+import FogScope from "./FogScope";
 import { useMosaicSwitch, MosaicOverlay } from "./mosaic";
 import { APP_VERSION } from "./version.js";
 import LangSwitch from "./i18n/LangSwitch";
@@ -229,11 +230,11 @@ function MasterTabs({ staff, active, onPick }) {
   const theme = useContext(ThemeContext);
   const tabs = [{ id: ALL_MASTERS, name: "Усі", color: "#94a3b8" }, ...staff];
   return (
-    <ScrollChips fade="rgba(16,20,28,0.92)" style={{padding:"2px 6px 8px"}}>
+    <ScrollChips activeKey={active} fade="rgba(16,20,28,0.92)" style={{padding:"5px 6px",margin:0}}>
       {tabs.map(m => {
         const on = m.id === active;
         return (
-          <button key={m.id} onClick={() => onPick(m.id)} style={{
+          <button key={m.id} data-active={on?"1":"0"} onClick={() => onPick(m.id)} style={{
             flex:"1 0 auto",justifyContent:"center",display:"flex",alignItems:"center",gap:7,padding:"7px 13px",borderRadius:99,cursor:"pointer",fontFamily:"inherit",fontSize:12.5,fontWeight:600,whiteSpace:"nowrap",
             border:`1px solid ${on ? m.color : theme.BORDER}`,
             background: on ? `color-mix(in srgb,${m.color} 28%,transparent)` : "rgba(255,255,255,0.05)",
@@ -252,6 +253,7 @@ function BottomNav({ active, onChange, settings, chatUnread, journalUnread }) {
   const tl = createT(lang);
   const theme = useContext(ThemeContext);
   const isKava = settings?.theme === "light";
+  const bdg = isKava ? theme : FOG_STYLE.theme; // бейдж у стилі «Туман» і на вкладці «Розклад»
   const tabIcons = isKava ? makeTabIcons(INACTIVE_KAVA) : TabIcons;
   const visible = TAB_IDS.filter(t => settings?.navTabs?.includes(t.id) ?? true);
 
@@ -293,9 +295,9 @@ function BottomNav({ active, onChange, settings, chatUnread, journalUnread }) {
               {badgeCount > 0 && (
                 <div data-help="navbadge" style={{
                   position:"absolute",top:-6,right:-8,
-                  background:theme.ACCENT,color:theme.BTN_TX||"#fff",borderRadius:10,
+                  background:bdg.ACCENT,color:bdg.BTN_TX||"#fff",borderRadius:10,
                   padding:"1px 5px",fontSize:9,fontWeight:800,
-                  boxShadow:`0 0 8px ${theme.ACCENT}88`,lineHeight:1.4
+                  boxShadow:`0 0 8px ${bdg.ACCENT}88`,lineHeight:1.4
                 }}>{badgeCount}</div>
               )}
             </div>
@@ -568,7 +570,7 @@ function AllModeAutoSlots({ master, ownerIid, settings, bookings }) {
 }
 
 function ViewRenderer({ allMode, staffList, onPickMaster, ws, onWs, masterKey, scheduleSettings, scheduleBookings, scheduleSetBookings, tab, settings, setSettings, bookings, setBookings, onSlotClick, onEmptySlotClick, openInfos, toggleInfo, activeDragIds, navTo, slotExistsRef, openSlotsRef, jumpTarget, setJumpTarget, onViewStudent, studentJump, onStudentJumpHandled }) {
-  if (tab === "schedule" && allMode) return <AllMastersView bookings={bookings} staff={staffList} settings={settings} onPick={onPickMaster}/>;
+  if (tab === "schedule" && allMode) return <FogScope><AllMastersView bookings={bookings} staff={staffList} settings={settings} onPick={onPickMaster}/></FogScope>;
   if (tab === "schedule")  return <ScheduleView key={masterKey} settings={scheduleSettings || settings} setSettings={setSettings} bookings={scheduleBookings || bookings} setBookings={scheduleSetBookings || setBookings} onSlotClick={onSlotClick} onEmptySlotClick={onEmptySlotClick} activeDragIds={activeDragIds} navTo={navTo} slotExistsRef={slotExistsRef} openSlotsRef={openSlotsRef} jumpTarget={jumpTarget} setJumpTarget={setJumpTarget} onViewStudent={onViewStudent}/>;
   if (tab === "settings")  return ws ? <MasterProfileView ws={ws} onLeft={() => onWs(null)}/> : <SettingsView settings={settings} setSettings={setSettings}/>;
   if (tab === "bookings")  return <BookingsView settings={settings} bookings={bookings}/>;
@@ -650,7 +652,7 @@ function AdminApp({ adminUser, ws, onWs }) {
     window.addEventListener("unhandledrejection", h);
     return () => window.removeEventListener("unhandledrejection", h);
   }, []);
-  const [joinToken, setJoinToken] = useState(() => storedWorkspaceInvite());
+  const [joinToken, setJoinToken] = useState(() => { rememberWorkspaceInvite(); return storedWorkspaceInvite(); });
   const [profileReady, setProfileReady] = useState(null); // null=перевіряємо, false=потрібне налаштування, true=готово
   const { needRefresh, updateServiceWorker, isUpdating } = useAppUpdate()
 
@@ -1457,7 +1459,7 @@ const pendingDeletesRef = React.useRef(new Set());
         zIndex:1,
       }}>
         <TopBar tab={tab} onChange={switchTab} settings={navSettings} setSettings={setSettings}/>
-        <LicenseBanner state={licState}/>
+        <FogScope><LicenseBanner state={licState}/></FogScope>
         <div className="tab-anim" key={`${displayedTab}-${tabVisits[displayedTab]||0}`} style={{
           position:"relative",
           flex:1, minHeight:0,
@@ -1467,7 +1469,7 @@ const pendingDeletesRef = React.useRef(new Set());
           flexDirection:"column",
           background: !fogOn && theme.BG_IMAGE ? "#d4ba96" : "transparent",
         }}>
-          {salonOn && staffList.length > 1 && displayedTab === "schedule" && <MasterTabs staff={staffList} active={allMode ? ALL_MASTERS : masterId} onPick={setPickedMaster}/>}
+          {salonOn && !ws && staffList.length > 1 && displayedTab === "schedule" && <FogScope><MasterTabs staff={staffList} active={allMode ? ALL_MASTERS : masterId} onPick={setPickedMaster}/></FogScope>}
           <div style={displayedTab==="schedule" ? {display:"contents"} : {zoom: uiScaleZoom(uiScale)}}>
           <Suspense fallback={<Loader/>}>
             <div className={displayedTab==="schedule" ? "view-fill" : "pc-wrap"}>
@@ -1492,7 +1494,7 @@ const pendingDeletesRef = React.useRef(new Set());
       {/* Салон, режим «Усі»: автовідкриття для кожного майстра за його графіком (без дублів — одна пара autoSlotsDone_m на майстра) */}
       {settingsLoaded && settings.autoSlots && adminUser && !vendor && !ws && salonOn && allMode && staffList.map(m => <AllModeAutoSlots key={m.id} master={m} ownerIid={ownerIid} settings={settings} bookings={bookings}/>)}
       {settingsLoaded && settings.autoSlots && adminUser && !vendor && salonOn && !allMode && (!msTarget || masterMs?.id === msTarget) && <Suspense fallback={null}><AutoSlots key={masterId} settings={scheduleSettings} bookings={scheduleBookings}/></Suspense>}
-      <InstallBanner theme={theme}/>
+      <InstallBanner theme={FOG_STYLE.theme}/>
     </>
     </LangContext.Provider>
     </ThemeContext.Provider>

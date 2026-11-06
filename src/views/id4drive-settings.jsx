@@ -288,7 +288,7 @@ function Info({ title, text, color }) {
 
 // Список часу: тап по часу відкриває вибір зі списку (крок — з налаштувань)
 function TimeListSheet({ loM, hiM, sm, curM, onPick, onClose }) {
-  const { TEXT, FAINT, GREEN, BG_DEEP, SURF_HI } = useContext(ThemeContext);
+  const { TEXT, FAINT, GREEN, BG_DEEP, SURF_HI, SHEET } = useContext(ThemeContext);
   const selRef = useRef(null);
   const items = [];
   const st = (hiM - loM) / sm > 300 ? 5 : sm;              // дрібний крок (1 хв) → список по 5 хв, щоб не роздувати його
@@ -297,8 +297,8 @@ function TimeListSheet({ loM, hiM, sm, curM, onPick, onClose }) {
   useEffect(() => { selRef.current?.scrollIntoView({ block: "center" }); }, []);
   const fm = m => `${String(Math.floor(m / 60)).padStart(2,"0")}:${String(m % 60).padStart(2,"0")}`;
   return createPortal(
-    <div onClick={onClose} style={{position:"fixed",inset:0,zIndex:2000,background:"rgba(0,0,0,.55)",display:"flex",alignItems:"flex-end",justifyContent:"center"}}>
-      <div onClick={e=>e.stopPropagation()} style={{width:"100%",maxWidth:420,maxHeight:"55vh",overflowY:"auto",background:BG_DEEP,borderRadius:"18px 18px 0 0",padding:"8px 10px calc(12px + env(safe-area-inset-bottom))",boxShadow:"0 -8px 30px rgba(0,0,0,.5)"}}>
+    <div onClick={onClose} style={{position:"fixed",inset:0,zIndex:2000,background:"rgba(0,0,0,.55)",backdropFilter:"blur(8px)",WebkitBackdropFilter:"blur(8px)",display:"flex",alignItems:"flex-end",justifyContent:"center"}}>
+      <div onClick={e=>e.stopPropagation()} style={{width:"100%",maxWidth:420,maxHeight:"55vh",overflowY:"auto",background:SHEET||BG_DEEP,borderRadius:"18px 18px 0 0",padding:"8px 10px calc(12px + env(safe-area-inset-bottom))",boxShadow:"0 -8px 30px rgba(0,0,0,.5)"}}>
         {items.map(m => {
           const on = m === curM;
           return (
@@ -1667,7 +1667,7 @@ select{color-scheme:${isKava?"light":"dark"}}
       }}>
 
         {/* SECTION CHIPS — розділи гортаються вбік (замість нижньої рейки іконок) */}
-        <ScrollChips activeKey={active}>
+        <ScrollChips activeKey={active} >
           {SECTIONS.map(sec => {
             const isActive = active === sec.id;
             return (
