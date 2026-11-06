@@ -3,13 +3,15 @@ const MasterOverrides = lazy(() => import("./views/MasterOverrides"));
 import { ref, get, set, remove } from "firebase/database";
 import { signOut } from "firebase/auth";
 import { db, auth } from "./firebase";
-import { BG_DEEP, SURFACE, SURF_HI, BORDER, TEXT, DIM, ACCENT, SO } from "./theme.js";
+import { FOG_STYLE } from "./uiStyles";
+// Стиль «Туман» — як у решті застосунку
+const { BG_DEEP, SURFACE, BORDER, TEXT, DIM, ACCENT, ACC_HI, SO, BTN_TX } = FOG_STYLE.theme;
 import { masterRow, colorForUid, forgetWorkspaceInvite } from "./workspace";
 
-const wrap = { minHeight: "100vh", background: BG_DEEP, display: "flex", alignItems: "center", justifyContent: "center", padding: 20, paddingTop: "calc(20px + env(safe-area-inset-top, 0px))", boxSizing: "border-box" };
-const card = { background: `linear-gradient(135deg,${SURF_HI},${SURFACE})`, borderRadius: 20, padding: "32px 28px", width: "100%", maxWidth: 400, boxShadow: SO, border: `1px solid ${BORDER}`, color: TEXT, fontFamily: "Inter,ui-sans-serif,system-ui,sans-serif" };
-const inp = { width: "100%", boxSizing: "border-box", padding: "12px 14px", borderRadius: 12, border: `1px solid ${BORDER}`, background: BG_DEEP, color: TEXT, fontSize: 15, fontFamily: "inherit", outline: "none" };
-const primary = (off) => ({ width: "100%", padding: 13, borderRadius: 12, border: "none", cursor: off ? "default" : "pointer", fontFamily: "inherit", fontSize: 15, fontWeight: 800, color: "#fff", background: off ? "rgba(255,90,60,0.3)" : "linear-gradient(135deg,#ff7a5c,#ff5a3c)" });
+const wrap = { minHeight: "100vh", background: FOG_STYLE.wrap, display: "flex", alignItems: "center", justifyContent: "center", padding: 20, paddingTop: "calc(20px + env(safe-area-inset-top, 0px))", boxSizing: "border-box" };
+const card = { background: SURFACE, backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)", borderRadius: 20, padding: "32px 28px", width: "100%", maxWidth: 400, boxShadow: SO, border: `1px solid ${BORDER}`, color: TEXT, fontFamily: "Inter,ui-sans-serif,system-ui,sans-serif" };
+const inp = { width: "100%", boxSizing: "border-box", padding: "12px 14px", borderRadius: 12, border: `1px solid ${BORDER}`, background: "rgba(255,255,255,0.06)", color: TEXT, fontSize: 15, fontFamily: "inherit", outline: "none" };
+const primary = (off) => ({ width: "100%", padding: 13, borderRadius: 12, border: "none", cursor: off ? "default" : "pointer", fontFamily: "inherit", fontSize: 15, fontWeight: 800, color: BTN_TX, background: off ? "rgba(96,165,250,0.3)" : `linear-gradient(145deg,${ACC_HI},${ACCENT})` });
 const ghost = { background: "none", border: "none", color: DIM, fontSize: 13, fontWeight: 700, cursor: "pointer", padding: "0 0 16px", fontFamily: "inherit" };
 
 // Приєднатися до салону за запрошенням: майстер вписує СЕБЕ в склад простору й у staff_index.
