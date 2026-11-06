@@ -1,7 +1,7 @@
 // Генератор ВИДУМАНИХ даних для демо-режиму (скріншоти, реклама). Усі імена, телефони й
 // записи вигадані. Дати рахуються від "сьогодні", тож розклад завжди виглядає "живим".
 // Структура повторює реальну базу instructors/{iid}/… (див. demoDb.js).
-import { DEMO_UID, DEMO_AS, demoTheme, demoPreset } from "./demoMode.js";
+import { DEMO_UID, DEMO_AS, demoTheme, demoPreset, demoParam } from "./demoMode.js";
 
 const pad = (n) => String(n).padStart(2, "0");
 const ymd = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -382,7 +382,7 @@ export function buildDemoTree() {
   let salonExtra = {};
   let timeslotsM = null;
   try {
-    const sv = new URLSearchParams(window.location.search).get("salon");
+    const sv = demoParam("salon");
     const many = sv && sv !== "1" ? Math.min(30, Math.max(2, parseInt(sv, 10) || 0)) : 0;
     if (sv === "1" || many) {
       const NAMES = ["Олена", "Ігор", "Марія", "Дмитро", "Софія", "Максим", "Анна", "Тарас", "Юлія", "Богдан", "Наталя", "Олег", "Вікторія", "Роман", "Ірина", "Павло", "Катерина", "Сергій", "Оксана", "Назар"];
