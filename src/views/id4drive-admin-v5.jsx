@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect, useLayoutEffect, useMemo, useContext } from "react";
 import { createPortal } from "react-dom";
 import { update, get, onValue, off, remove, push as fbPush } from "firebase/database";
-import { iRef, auth, slotRoot, slotBookingsRoot, newBookingMasterFields } from "../firebase";
+import { iRef, auth, slotRoot, slotBookingsRoot, newBookingMasterFields, getActiveMaster } from "../firebase";
+import { normStaff } from "../workspace";
 import { blockRangeUpdates, restoreRangeUpdates } from "../slotRules";
 import { normPackages, pickPackage } from "../packages";
 import { isGroupService, capacityOf, groupKeyOf } from "../groups";
@@ -6422,6 +6423,9 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
   const [newTag,     setNewTag]     = useState(null); // ручна мітка: id довільної мітки
   const [students,   setStudents]   = useState([]);
   const [closing,    setClosing]    = useState(false);
+  const [staffM,     setStaffM]     = useState([]); // салон: склад майстрів (для рядка «Майстер»)
+  useEffect(()=>onValue(iRef("staff"), snap => setStaffM(snap.exists() ? normStaff(snap.val(), auth.currentUser?.uid || "") : []), ()=>{}),[]);
+  const activeM = staffM.length>1 ? staffM.find(m=>m.id===getActiveMaster()) : null;
 
   useEffect(()=>{
     const r = iRef( "users");
@@ -6566,6 +6570,7 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
           }}>
             <div style={{width:36,height:4,borderRadius:2,background:"rgba(34,197,94,0.35)",margin:"0 auto 12px"}}/>
             <div style={{fontSize:17,fontWeight:800,color:"#22c55e"}}>➕ Новий запис</div>
+            {activeM && <div style={{marginTop:6,fontSize:12,fontWeight:600,color:TEXT_DIM,display:"flex",alignItems:"center",gap:6}}>Майстер: <span style={{width:9,height:9,borderRadius:"50%",background:activeM.color,flexShrink:0}}/><span style={{color:TEXT,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{activeM.name}</span></div>}
           </div>
 
           <div style={{padding:"16px 16px 0",display:"flex",flexDirection:"column",gap:16}}>

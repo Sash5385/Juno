@@ -39,7 +39,9 @@ function build(dict, l) {
     const t = v && v[l]
     if (!t) continue
     if (/\{\d+\}/.test(k)) {
-      const re = new RegExp('^' + esc(k).replace(/\\\{\d+\\\}/g, '(.+?)') + '$')
+      // «{0}г» (години) — лише для числа, інакше «Олег» → «Олеh»
+      const cap = /^\{\d+\}[^\s{]{1,3}$/.test(k) ? '(\\d+(?:[.,]\\d+)?)' : '(.+?)'
+      const re = new RegExp('^' + esc(k).replace(/\\\{\d+\\\}/g, cap) + '$')
       patterns.push({ re, t, n: k.length })
     } else { exact.set(k, t); const lk = k.toLowerCase(); if (!lower.has(lk)) lower.set(lk, t) }
   }

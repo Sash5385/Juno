@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef, useMemo, useContext } from "react";
 import { onValue, update, remove } from "firebase/database";
-import { iRef } from "../firebase";
+import { iRef, auth } from "../firebase";
 import { ThemeContext } from "../theme.js";
-import { UICss, Section, useFX } from "../ui";
+import { UICss, Section, useFX, ScrollChips } from "../ui";
+import { normStaff } from "../workspace";
 
 const SERVICES = {
   sv1:{ name:"Стандарт 1г", color:"#7ed957"  },
@@ -69,7 +70,7 @@ function getHours(item, svc) {
   return m ? parseInt(m[1]) : null;
 }
 
-function QueueRow({ item, pos, onInvite, onBooked, onArchive, onDelete, dragHandleProps, isDragging, svcMap }) {
+function QueueRow({ item, pos, onInvite, onBooked, onArchive, onDelete, dragHandleProps, isDragging, svcMap, master }) {
   const { BORDER, FAINT, GOLD, GREEN, PURPLE, BG_DEEP, TEXT } = useContext(ThemeContext);
   const { shade, glow } = useFX();
 
@@ -121,6 +122,12 @@ function QueueRow({ item, pos, onInvite, onBooked, onArchive, onDelete, dragHand
             {item.phone}
             {svcLabel && ` · ${svcLabel}${hrs ? ` ${hrs}г` : ""}`}
           </div>
+          {master && (
+            <div style={{display:"flex",alignItems:"center",gap:5,marginTop:3,fontSize:11.5,color:"rgba(255,255,255,0.85)",minWidth:0}}>
+              <span style={{width:9,height:9,borderRadius:"50%",background:master.color,flexShrink:0}}/>
+              <span style={{overflowWrap:"anywhere"}}>{master.name}</span>
+            </div>
+          )}
         </div>
         <div style={{textAlign:"right",flexShrink:0}}>
           <div style={{fontSize:11,fontWeight:700,color:`color-mix(in srgb,${st.color} 55%,#fff)`}}>{st.label}</div>
@@ -172,8 +179,24 @@ function QueueRow({ item, pos, onInvite, onBooked, onArchive, onDelete, dragHand
 
 // ─── MAIN ────────────────────────────────────────────────────────
 export default function QueueView({ settings }) {
-  const { DIM, FAINT, GOLD, GREEN, PURPLE, BLUE, TEAL } = useContext(ThemeContext);
+  const { DIM, FAINT, GOLD, GREEN, PURPLE, BLUE, TEAL, ACCENT, BORDER, SURFACE, TEXT } = useContext(ThemeContext);
   const [all,       setAll]       = useState([]);
+  const [staff,     setStaff]     = useState([]);   // салон: склад майстрів
+  const [masterFilter, setMasterFilter] = useState(""); // "" — усі майстри
+
+  useEffect(() => {
+    const owner = auth.currentUser?.uid || "";
+    return onValue(iRef("staff"), snap => setStaff(snap.exists() ? normStaff(snap.val(), owner) : []), () => {});
+  }, []);
+  const isSalonQ = staff.length > 1;
+  const ownerUid = (staff.find(m => m.owner) || {}).id || auth.currentUser?.uid || "";
+  // Майстер запису: префікс «{mid}~» у ключі слота, без нього — власник
+  const masterIdOf = q => {
+    const k = String(q.slotKey || "");
+    const i = k.indexOf("~");
+    return i > 0 ? k.slice(0, i) : (typeof q.masterId === "string" && q.masterId) || ownerUid;
+  };
+  const masterById = id => staff.find(m => m.id === id);
 
   const colorIdMap = useMemo(() => ({
     green: GREEN, yellow: GOLD, blue: BLUE, purple: PURPLE,
@@ -217,9 +240,11 @@ export default function QueueView({ settings }) {
   });
 
   const isExpired = q => q.status === "waiting" && isSlotPast(q.slotKey);
-  const active   = all.filter(q => q.status !== "archived" && !isExpired(q));
-  const expired  = all.filter(q => q.status !== "archived" && isExpired(q));
-  const archived = all.filter(q => q.status === "archived");
+  const shown    = isSalonQ && masterFilter ? all.filter(q => masterIdOf(q) === masterFilter) : all;
+  const active   = shown.filter(q => q.status !== "archived" && !isExpired(q));
+  const expired  = shown.filter(q => q.status !== "archived" && isExpired(q));
+  const archived = shown.filter(q => q.status === "archived");
+  const mOf = q => (isSalonQ ? masterById(masterIdOf(q)) : undefined);
 
   const setStatus = (id, status) => update(iRef(`queue/${id}`),{status});
   const invite    = id => setStatus(id,"offered");
@@ -238,6 +263,23 @@ export default function QueueView({ settings }) {
     <>
       <UICss/>
       <div style={{display:"flex",flexDirection:"column",gap:10,fontFamily:"ui-sans-serif,-apple-system,system-ui,sans-serif"}}>
+
+        {/* ── САЛОН: фільтр по майстру ── */}
+        {isSalonQ && (
+          <ScrollChips activeKey={masterFilter}>
+            {[{ id:"", name:"Усі майстри", color:ACCENT }, ...staff].map(m => {
+              const on = masterFilter === m.id;
+              return (
+                <button key={m.id || "all"} onClick={()=>setMasterFilter(m.id)} style={{
+                  flex:"1 0 auto",justifyContent:"center",display:"flex",alignItems:"center",gap:7,padding:"8px 13px",borderRadius:99,cursor:"pointer",fontFamily:"inherit",fontSize:12.5,fontWeight:600,whiteSpace:"nowrap",
+                  border:`1px solid ${on ? m.color : BORDER}`,background:on?`color-mix(in srgb,${m.color} 26%,transparent)`:SURFACE,color:on?TEXT:DIM,
+                }}>
+                  {m.id && <span style={{width:10,height:10,borderRadius:"50%",background:m.color}}/>}{m.name}
+                </button>
+              );
+            })}
+          </ScrollChips>
+        )}
 
         {/* ── STATS ── */}
         <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8}}>
@@ -284,6 +326,7 @@ export default function QueueView({ settings }) {
                 pos={idx+1}
                 isDragging={false}
                 svcMap={svcMap}
+                master={mOf(item)}
                 onInvite={()=>invite(item.id)}
                 onBooked={()=>booked(item.id)}
                 onArchive={()=>archive(item.id)}
@@ -300,7 +343,7 @@ export default function QueueView({ settings }) {
             {expired.map(item=>(
               <QueueRow
                 key={item.id} item={item} pos="—" isDragging={false}
-                svcMap={svcMap}
+                svcMap={svcMap} master={mOf(item)}
                 onInvite={()=>invite(item.id)}
                 onBooked={()=>booked(item.id)}
                 onArchive={()=>archive(item.id)}
@@ -317,7 +360,7 @@ export default function QueueView({ settings }) {
             {archived.map(item=>(
               <QueueRow
                 key={item.id} item={item} pos="—" isDragging={false}
-                svcMap={svcMap}
+                svcMap={svcMap} master={mOf(item)}
                 onInvite={()=>{}} onBooked={()=>{}} onArchive={()=>{}}
                 onDelete={()=>del(item.id)}
                 dragHandleProps={{}}
