@@ -253,6 +253,7 @@ function BottomNav({ active, onChange, settings, chatUnread, journalUnread }) {
   const tl = createT(lang);
   const theme = useContext(ThemeContext);
   const isKava = settings?.theme === "light";
+  const bdg = isKava ? theme : FOG_STYLE.theme; // бейдж у стилі «Туман» і на вкладці «Розклад»
   const tabIcons = isKava ? makeTabIcons(INACTIVE_KAVA) : TabIcons;
   const visible = TAB_IDS.filter(t => settings?.navTabs?.includes(t.id) ?? true);
 
@@ -291,9 +292,9 @@ function BottomNav({ active, onChange, settings, chatUnread, journalUnread }) {
               {badgeCount > 0 && (
                 <div data-help="navbadge" style={{
                   position:"absolute",top:-6,right:-8,
-                  background:theme.ACCENT,color:theme.BTN_TX||"#fff",borderRadius:10,
+                  background:bdg.ACCENT,color:bdg.BTN_TX||"#fff",borderRadius:10,
                   padding:"1px 5px",fontSize:9,fontWeight:800,
-                  boxShadow:`0 0 8px ${theme.ACCENT}88`,lineHeight:1.4
+                  boxShadow:`0 0 8px ${bdg.ACCENT}88`,lineHeight:1.4
                 }}>{badgeCount}</div>
               )}
             </div>
@@ -1427,7 +1428,7 @@ const pendingDeletesRef = React.useRef(new Set());
           flexDirection:"column",
           background: !fogOn && theme.BG_IMAGE ? "#d4ba96" : "transparent",
         }}>
-          {salonOn && !ws && staffList.length > 1 && displayedTab === "schedule" && <MasterTabs staff={staffList} active={allMode ? ALL_MASTERS : masterId} onPick={setPickedMaster}/>}
+          {salonOn && !ws && staffList.length > 1 && displayedTab === "schedule" && <FogScope><MasterTabs staff={staffList} active={allMode ? ALL_MASTERS : masterId} onPick={setPickedMaster}/></FogScope>}
           <div style={displayedTab==="schedule" ? {display:"contents"} : {zoom: uiScaleZoom(uiScale)}}>
           <Suspense fallback={<Loader/>}>
             <div className={displayedTab==="schedule" ? "view-fill" : "pc-wrap"}>
