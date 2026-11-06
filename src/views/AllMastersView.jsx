@@ -55,7 +55,7 @@ export default function AllMastersView({ bookings, staff, settings, onPick }) {
 
       <div style={{ overflowX: "auto", borderRadius: 16, border: `1px solid ${BORDER}`, background: SURFACE, WebkitOverflowScrolling: "touch" }}>
         <div style={{ display: "flex", minWidth: AXIS_W + staff.length * COL_MIN }}>
-          <div style={{ width: AXIS_W, flexShrink: 0 }}>
+          <div style={{ width: AXIS_W, flexShrink: 0, position: "sticky", left: 0, zIndex: 2, background: SURFACE }}>
             <div style={{ height: 38 }} />
             {hours.map((h) => (<div key={h} style={{ height: HOUR_H, fontSize: 11, color: FAINT, textAlign: "right", paddingRight: 6, boxSizing: "border-box" }}>{fmt(h)}</div>))}
           </div>

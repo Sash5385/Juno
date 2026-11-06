@@ -112,8 +112,8 @@ code {
   bottom: 80px;
   left: 50%;
   transform: translateX(-50%);
-  background: #ff5a3c;
-  color: #fff;
+  background: linear-gradient(165deg, #93c5fd, #60a5fa);
+  color: #06182e;
   padding: 12px 24px;
   border-radius: 24px;
   font-size: 14px;
@@ -134,8 +134,8 @@ code {
   display: inline-block;
   width: 14px;
   height: 14px;
-  border: 2px solid rgba(255, 255, 255, 0.35);
-  border-top-color: #fff;
+  border: 2px solid rgba(6, 24, 46, 0.3);
+  border-top-color: #06182e;
   border-radius: 50%;
   animation: spin .7s linear infinite;
   flex-shrink: 0;

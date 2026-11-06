@@ -50,16 +50,16 @@ export function LicensePayPanel() {
 }
 
 function LicensePayModal({ onClose }) {
-  const { SURF_HI, SURFACE, BORDER, TEXT, DIM, GOLD, BG_DEEP } = useContext(ThemeContext);
+  const { SURF_HI, SURFACE, BORDER, TEXT, DIM, GOLD, BG_DEEP, SHEET } = useContext(ThemeContext);
   return createPortal(
     <div onClick={onClose} style={{
-      position: "fixed", inset: 0, zIndex: 9000, background: "rgba(0,0,0,0.6)",
+      position: "fixed", inset: 0, zIndex: 9000, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)",
       display: "flex", alignItems: "flex-end", justifyContent: "center",
     }}>
       <div onClick={e => e.stopPropagation()} style={{
         width: "100%", maxWidth: 440, padding: "16px 16px calc(20px + env(safe-area-inset-bottom, 0px))",
         borderRadius: "20px 20px 0 0", border: `1px solid ${BORDER}`,
-        background: `linear-gradient(145deg,${SURF_HI},${SURFACE})`, color: TEXT,
+        background: SHEET || `linear-gradient(145deg,${SURF_HI},${SURFACE})`, color: TEXT,
       }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
           <div style={{ fontSize: 15, fontWeight: 800 }}>💳 Оплата підписки</div>

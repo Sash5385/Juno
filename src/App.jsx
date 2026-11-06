@@ -230,11 +230,11 @@ function MasterTabs({ staff, active, onPick }) {
   const theme = useContext(ThemeContext);
   const tabs = [{ id: ALL_MASTERS, name: "Усі", color: "#94a3b8" }, ...staff];
   return (
-    <ScrollChips fade="rgba(16,20,28,0.92)" style={{padding:"5px 6px",margin:0}}>
+    <ScrollChips activeKey={active} fade="rgba(16,20,28,0.92)" style={{padding:"5px 6px",margin:0}}>
       {tabs.map(m => {
         const on = m.id === active;
         return (
-          <button key={m.id} onClick={() => onPick(m.id)} style={{
+          <button key={m.id} data-active={on?"1":"0"} onClick={() => onPick(m.id)} style={{
             flex:"1 0 auto",justifyContent:"center",display:"flex",alignItems:"center",gap:7,padding:"7px 13px",borderRadius:99,cursor:"pointer",fontFamily:"inherit",fontSize:12.5,fontWeight:600,whiteSpace:"nowrap",
             border:`1px solid ${on ? m.color : theme.BORDER}`,
             background: on ? `color-mix(in srgb,${m.color} 28%,transparent)` : "rgba(255,255,255,0.05)",
@@ -1417,7 +1417,7 @@ const pendingDeletesRef = React.useRef(new Set());
         zIndex:1,
       }}>
         <TopBar tab={tab} onChange={switchTab} settings={navSettings} setSettings={setSettings}/>
-        <LicenseBanner state={licState}/>
+        <FogScope><LicenseBanner state={licState}/></FogScope>
         <div className="tab-anim" key={`${displayedTab}-${tabVisits[displayedTab]||0}`} style={{
           position:"relative",
           flex:1, minHeight:0,
@@ -1448,7 +1448,7 @@ const pendingDeletesRef = React.useRef(new Set());
         </div>
       )}
       {settingsLoaded && settings.autoSlots && adminUser && !vendor && !ws && !salonOn && <Suspense fallback={null}><AutoSlots settings={settings} bookings={bookings}/></Suspense>}
-      <InstallBanner theme={theme}/>
+      <InstallBanner theme={FOG_STYLE.theme}/>
     </>
     </LangContext.Provider>
     </ThemeContext.Provider>

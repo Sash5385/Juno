@@ -117,7 +117,7 @@ export default function StaffSection({ settings, upd }) {
                   <div style={{ fontSize: 14.5, fontWeight: 600, color: TEXT, overflowWrap: "anywhere" }}>{m.name}</div>
                   <div style={{ fontSize: 11.5, color: FAINT }}>{m.owner ? "власник" : "майстер"}</div>
                 </div>
-                <div style={{ display: "flex", gap: 6, flex: "1 1 auto" }}>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6, flex: "1 1 auto" }}>
                   {!m.owner && <button onClick={() => setOvFor(ovFor === m.id ? null : m.id)} style={{ ...btn(false), flex: "1 1 auto", whiteSpace: "nowrap", padding: "10px 12px", fontSize: 12 }}>{ovFor === m.id ? "Сховати" : "Графік і ціни"}</button>}
                   <button onClick={() => setEdit({ id: m.id, name: m.name, color: m.color })} style={{ ...btn(false), flex: "1 1 auto", whiteSpace: "nowrap", padding: "10px 12px", fontSize: 12 }}>Змінити</button>
                   {!m.owner && <button aria-label={`Прибрати ${m.name}`} onClick={() => removeMaster(m)} style={{ ...btn(false, RED), flex: "0 0 44px", padding: "10px 0", fontSize: 12 }}>✕</button>}
