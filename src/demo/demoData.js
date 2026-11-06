@@ -400,6 +400,32 @@ export function buildDemoTree() {
       if (many) {
         // записи по колу між власником і майстрами (власник — без masterId)
         Object.values(bookings).forEach(l => Object.values(l || {}).forEach(b => { if (b && b.status !== "cancelled") { const id = ids[n++ % ids.length]; if (id !== DEMO_UID) b.masterId = id; } }));
+        // щільне заповнення: у кожного майстра (і власника) свої записи на -7…+14 днів, щоб календарі не були порожні
+        {
+          const r2 = rng(4242);
+          for (const mid of ids) {
+            const own = (b) => (b.masterId || DEMO_UID) === mid;
+            for (let d = -7; d <= 14; d++) {
+              const date = addDays(today, d); const tpl = dayTemplate(date); if (!tpl) continue;
+              const dateStr = ymd(date);
+              const taken = list.filter(x => x.b.status !== "cancelled" && own(x.b) && x.b.date === dateStr).map(x => [x.b.startMin, x.b.startMin + x.b.durMin]);
+              const density = d < 0 ? 0.8 : d <= 5 ? 0.85 : 0.7;
+              let busyUntil = 0;
+              for (const start of tpl.starts) {
+                if (start < busyUntil || r2() > density) continue;
+                const rr = r2();
+                const maxEnd = tpl.lunch && start < tpl.lunch[0] ? tpl.lunch[0] : tpl.end;
+                let dur = rr < 0.7 ? 60 : rr < 0.88 ? 90 : 120;
+                if (start + dur > maxEnd) dur = 60;
+                if (start + dur > maxEnd) continue;
+                if (taken.some(([x, y]) => start < y && start + dur > x)) continue;
+                const st = STUDENTS[Math.floor(r2() * STUDENTS.length)];
+                addBooking(st, dateStr, start, dur, mid === DEMO_UID ? {} : { masterId: mid });
+                busyUntil = start + dur;
+              }
+            }
+          }
+        }
         // власні календарі: слоти з шаблону власника, блокування лише під записи цього майстра
         const bookedBy = (mid) => list.filter(({ b }) => b.status !== "cancelled" && (b.masterId || DEMO_UID) === mid);
         const build = (mid, keepFlags) => {
