@@ -633,7 +633,7 @@ function AdminApp({ adminUser, ws, onWs }) {
     window.addEventListener("unhandledrejection", h);
     return () => window.removeEventListener("unhandledrejection", h);
   }, []);
-  const [joinToken, setJoinToken] = useState(() => storedWorkspaceInvite());
+  const [joinToken, setJoinToken] = useState(() => { rememberWorkspaceInvite(); return storedWorkspaceInvite(); });
   const [profileReady, setProfileReady] = useState(null); // null=перевіряємо, false=потрібне налаштування, true=готово
   const { needRefresh, updateServiceWorker, isUpdating } = useAppUpdate()
 
