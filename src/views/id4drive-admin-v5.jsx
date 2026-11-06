@@ -24,6 +24,7 @@ const blockSlotRange = async (dateStr, startMin, durMin, opts) => {
 import { ThemeContext, GREEN, BLUE, PURPLE, GOLD, RED, ACCENT, ACC_HI, SURFACE, SURF_HI, TEXT } from "../theme.js";
 import { useFX, useBackClose } from "../ui";
 import FogScope from "../FogScope";
+import { FOG_STYLE } from "../uiStyles";
 import { TAG_PRESETS, AUTO_TAG_IDS } from "../tags";
 import { MANUAL_DEFAULT_COLOR } from "../studentColors";
 // module-level aliases for vars used in ICONS (arrow fns, cannot use hooks)
@@ -531,7 +532,7 @@ const colorOf = (id) => PALETTE.find(p=>p.id===id)?.color || GREEN;
 // ═══════════════════════════════════════════════════════════════
 // BROADCAST MODAL — ручна розсилка повідомлень клієнтам
 // ═══════════════════════════════════════════════════════════════
-function BroadcastModal({ initialDate, initialSlot, onClose }) {
+function BroadcastModalBase({ initialDate, initialSlot, onClose }) {
   const { BG_DEEP, SURFACE, SURF_LO, BORDER, TEXT, DIM, FAINT, ACCENT, ACC_HI, SO, SI, GLOW, SHADE, INK } = useContext(ThemeContext);
   const glow = a => `rgba(${GLOW},${a})`, shade = a => `rgba(${SHADE},${a})`, ink = a => `rgba(${INK},${a})`;
   const SHADOW_IN = SI;
@@ -674,7 +675,7 @@ function BroadcastModal({ initialDate, initialSlot, onClose }) {
 // ═══════════════════════════════════════════════════════════════
 // MONTH CALENDAR SHEET — bottom-sheet monthly overview, tap a day to jump
 // ═══════════════════════════════════════════════════════════════
-function MonthCalendarSheet({ bookings, onClose, onPickDate }) {
+function MonthCalendarSheetBase({ bookings, onClose, onPickDate }) {
   const { BG, BG_DEEP, SURFACE, SURF_HI, TEXT, DIM, GOLD, GREEN, BLUE, RED } = useContext(ThemeContext);
   const { glow, shade, ink } = useFX();
   const isLight = BG_DEEP !== "#161719";
@@ -940,7 +941,7 @@ function MonthCalendarSheet({ bookings, onClose, onPickDate }) {
 // ═══════════════════════════════════════════════════════════════
 const _fmtHM = (min) => `${String(Math.floor(min/60)).padStart(2,"0")}:${String(min%60).padStart(2,"0")}`;
 
-function DayNotesModal({ dateStr, dayLabel, dayNum, dayMonth, note, settings, onClose }) {
+function DayNotesModalBase({ dateStr, dayLabel, dayNum, dayMonth, note, settings, onClose }) {
   const { BG_DEEP, SURFACE, SURF_HI, SURF_LO, BORDER, TEXT, DIM, FAINT, SO, SI } = useContext(ThemeContext);
   const { glow, shade } = useFX();
   const [closing, setClosing] = useState(false);
@@ -4337,7 +4338,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
       })()}/>
 
     {/* ── Модалка блокування ── */}
-    {(blockModal || blockModalClosing) && (() => {
+    {(blockModal || blockModalClosing) && (({BG,BG_DEEP,SURFACE,SURF_HI,SURF_LO,BORDER,TEXT,DIM,FAINT,ACCENT,ACC_HI,GREEN,BLUE,PURPLE,GOLD,RED,TEAL,SO,SI,GLOW,SHADE,INK,STRIPE_A,STRIPE_B,BTN_R,CARD_R,MODAL_R,BTN_TX,BTN_GRAD,BTN_SH}) => {
       const _closeBlock = () => setBlockModalClosing(true);
       return (
         <>
@@ -4420,9 +4421,9 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
           </div>
         </>
       );
-    })()}
+    })(FOG_STYLE.theme)}
 
-    {addSlotPos && (
+    {addSlotPos && (({BG,BG_DEEP,SURFACE,SURF_HI,SURF_LO,BORDER,TEXT,DIM,FAINT,ACCENT,ACC_HI,GREEN,BLUE,PURPLE,GOLD,RED,TEAL,SO,SI,GLOW,SHADE,INK,STRIPE_A,STRIPE_B,BTN_R,CARD_R,MODAL_R,BTN_TX,BTN_GRAD,BTN_SH}) => (
       <div onClick={()=>setAddSlotPos(null)} style={{position:"fixed",inset:0,zIndex:150}}>
         <div onClick={e=>e.stopPropagation()} style={{
           position:"absolute",
@@ -4452,9 +4453,9 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
           }}>+ Вільний слот</button>
         </div>
       </div>
-    )}
+    ))(FOG_STYLE.theme)}
 
-    {bubbleData && (
+    {bubbleData && (({BG,BG_DEEP,SURFACE,SURF_HI,SURF_LO,BORDER,TEXT,DIM,FAINT,ACCENT,ACC_HI,GREEN,BLUE,PURPLE,GOLD,RED,TEAL,SO,SI,GLOW,SHADE,INK,STRIPE_A,STRIPE_B,BTN_R,CARD_R,MODAL_R,BTN_TX,BTN_GRAD,BTN_SH}) => (
       <div onClick={()=>setBubbleData(null)} style={{position:"fixed",inset:"0 0 80px 0",zIndex:100}}>
         <div onClick={e=>e.stopPropagation()} style={{
           position:"absolute",
@@ -4491,9 +4492,9 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
           }}>📌 Особиста подія</button>
         </div>
       </div>
-    )}
+    ))(FOG_STYLE.theme)}
 
-    {(longTapMenu || ltmClosing || ltmScatter) && (()=>{
+    {(longTapMenu || ltmClosing || ltmScatter) && (({BG,BG_DEEP,SURFACE,SURF_HI,SURF_LO,BORDER,TEXT,DIM,FAINT,ACCENT,ACC_HI,GREEN,BLUE,PURPLE,GOLD,RED,TEAL,SO,SI,GLOW,SHADE,INK,STRIPE_A,STRIPE_B,BTN_R,CARD_R,MODAL_R,BTN_TX,BTN_GRAD,BTN_SH}) => {
       const _menu = longTapMenu || {};
       const _closeLtm = () => setLtmClosing(true);
       const _scatterLtm = (cb) => {
@@ -4657,10 +4658,10 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
         </div>
       </>
       );
-    })()}
+    })(FOG_STYLE.theme)}
 
     {/* ── Меню опцій слота (довгий тап на вільний слот) — bottom sheet ── */}
-    {(slotOptions || slotClosing) && (()=>{
+    {(slotOptions || slotClosing) && (({BG,BG_DEEP,SURFACE,SURF_HI,SURF_LO,BORDER,TEXT,DIM,FAINT,ACCENT,ACC_HI,GREEN,BLUE,PURPLE,GOLD,RED,TEAL,SO,SI,GLOW,SHADE,INK,STRIPE_A,STRIPE_B,BTN_R,CARD_R,MODAL_R,BTN_TX,BTN_GRAD,BTN_SH}) => {
       const _so = slotOptions || {};
       const _closeSO = () => { setFixedPriceEditing(false); setSlotClosing(true); };
       const _soStartMin = _so.startTime
@@ -4911,10 +4912,10 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
         </div>
       </>
       );
-    })()}
+    })(FOG_STYLE.theme)}
 
     {/* ── VIP слот модалка ── */}
-    {(vipSlotModal || vipSlotModalClosing) && (() => {
+    {(vipSlotModal || vipSlotModalClosing) && (({BG,BG_DEEP,SURFACE,SURF_HI,SURF_LO,BORDER,TEXT,DIM,FAINT,ACCENT,ACC_HI,GREEN,BLUE,PURPLE,GOLD,RED,TEAL,SO,SI,GLOW,SHADE,INK,STRIPE_A,STRIPE_B,BTN_R,CARD_R,MODAL_R,BTN_TX,BTN_GRAD,BTN_SH}) => {
       const _closeVip = () => setVipSlotModalClosing(true);
       return (
         <>
@@ -4996,7 +4997,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
           </div>
         </>
       );
-    })()}
+    })(FOG_STYLE.theme)}
 
     <NewBookingModalFog data={formData} onClose={()=>setFormData(null)}
       onConfirm={b=>{
@@ -5079,7 +5080,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
     />
 
     {/* Редагування особистої події */}
-    {personalEventView && (
+    {personalEventView && (({BG,BG_DEEP,SURFACE,SURF_HI,SURF_LO,BORDER,TEXT,DIM,FAINT,ACCENT,ACC_HI,GREEN,BLUE,PURPLE,GOLD,RED,TEAL,SO,SI,GLOW,SHADE,INK,STRIPE_A,STRIPE_B,BTN_R,CARD_R,MODAL_R,BTN_TX,BTN_GRAD,BTN_SH}) => (
       <div onClick={()=>setPersonalEventView(null)} style={{
         position:"fixed",inset:0,zIndex:200,background:`${shade(0.6)}`,
         display:"flex",alignItems:"center",justifyContent:"center",
@@ -5252,7 +5253,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
           </button>
         </div>
       </div>
-    )}
+    ))(FOG_STYLE.theme)}
     {broadcastInit && <BroadcastModal initialDate={broadcastInit.date} initialSlot={broadcastInit.slot} onClose={() => setBroadcastInit(null)}/>}
     {dayNotesModal && (
       <DayNotesModal
@@ -5272,7 +5273,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
 // ═══════════════════════════════════════════════════════════════
 // CREATE SLOT SHEET — вільний слот з вибором часу і тривалості
 // ═══════════════════════════════════════════════════════════════
-function CreateSlotSheet({ data, settings, onClose }) {
+function CreateSlotSheetBase({ data, settings, onClose }) {
   const { BG_DEEP, BORDER, TEXT, DIM, FAINT, GLOW, SHADE } = useContext(ThemeContext);
   const glow=a=>`rgba(${GLOW},${a})`,shade=a=>`rgba(${SHADE},${a})`;
   const TEXT_DIM = DIM, TEXT_FAINT = FAINT;
@@ -5437,6 +5438,12 @@ function computeBookingPrice(b, services) {
   return Math.max(0, Math.round(base + (b.surcharge || 0) - discount));
 }
 
+const BroadcastModal = (p) => <FogScope><BroadcastModalBase {...p}/></FogScope>;
+const MonthCalendarSheet = (p) => <FogScope><MonthCalendarSheetBase {...p}/></FogScope>;
+const DayNotesModal = (p) => <FogScope><DayNotesModalBase {...p}/></FogScope>;
+const CreateSlotSheet = (p) => <FogScope><CreateSlotSheetBase {...p}/></FogScope>;
+const PersonalEventModal = (p) => <FogScope><PersonalEventModalBase {...p}/></FogScope>;
+const ScheduleHelp = (p) => <FogScope><ScheduleHelpBase {...p}/></FogScope>;
 const BookingModalFog = (p) => <FogScope><BookingModal {...p}/></FogScope>;
 const NewBookingModalFog = (p) => <FogScope><NewBookingModal {...p}/></FogScope>;
 
@@ -5991,7 +5998,7 @@ function DrumRoll({ items, currentIdx, onChange, label, itemH=42, visible=4 }) {
 // ═══════════════════════════════════════════════════════════════
 // PERSONAL EVENT MODAL — bottom sheet для особистих подій
 // ═══════════════════════════════════════════════════════════════
-function PersonalEventModal({ data, onClose, onConfirm }) {
+function PersonalEventModalBase({ data, onClose, onConfirm }) {
   const { BG_DEEP, SURF_HI, SURF_LO, BORDER, TEXT, DIM, FAINT } = useContext(ThemeContext);
   const { shade, ink } = useFX();
 
@@ -6300,7 +6307,7 @@ const HELP_GLASS = {
   item:  { background:"rgba(255,255,255,0.07)", border:"1px solid rgba(45,212,191,0.25)" },
   ico:   { background:"rgba(45,212,191,0.10)" },
 };
-function ScheduleHelp({ onClose, onPick }) {
+function ScheduleHelpBase({ onClose, onPick }) {
   const hv = HELP_GLASS;
   const { BG_DEEP, SURFACE, SURF_HI, BORDER, TEXT, DIM } = useContext(ThemeContext);
   const keySvg = <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.2"/><rect x="14" y="3" width="7" height="7" rx="1.2"/><rect x="3" y="14" width="7" height="7" rx="1.2"/></svg>;

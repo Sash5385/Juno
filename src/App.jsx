@@ -10,6 +10,7 @@ import { setGlobalLang, createT } from "./lang";
 import { readUiScale, uiScaleZoom, UI_SCALE_EVENT } from "./uiScale.js";
 import { ThemeContext, getTheme } from "./theme.js";
 import { FOG_STYLE } from "./uiStyles";
+import FogScope from "./FogScope";
 import { useMosaicSwitch, MosaicOverlay } from "./mosaic";
 import { APP_VERSION } from "./version.js";
 import LangSwitch from "./i18n/LangSwitch";
@@ -229,7 +230,7 @@ function MasterTabs({ staff, active, onPick }) {
   const theme = useContext(ThemeContext);
   const tabs = [{ id: ALL_MASTERS, name: "Усі", color: "#94a3b8" }, ...staff];
   return (
-    <ScrollChips fade="rgba(16,20,28,0.92)" style={{padding:"2px 6px 8px",margin:0}}>
+    <ScrollChips fade="rgba(16,20,28,0.92)" style={{padding:"5px 6px",margin:0}}>
       {tabs.map(m => {
         const on = m.id === active;
         return (
@@ -551,7 +552,7 @@ const DEFAULT_SETTINGS = {
 
 // ─── VIEW RENDERER ───────────────────────────────────────────────
 function ViewRenderer({ allMode, staffList, onPickMaster, ws, onWs, masterKey, scheduleSettings, scheduleBookings, scheduleSetBookings, tab, settings, setSettings, bookings, setBookings, onSlotClick, onEmptySlotClick, openInfos, toggleInfo, activeDragIds, navTo, slotExistsRef, openSlotsRef, jumpTarget, setJumpTarget, onViewStudent, studentJump, onStudentJumpHandled }) {
-  if (tab === "schedule" && allMode) return <AllMastersView bookings={bookings} staff={staffList} settings={settings} onPick={onPickMaster}/>;
+  if (tab === "schedule" && allMode) return <FogScope><AllMastersView bookings={bookings} staff={staffList} settings={settings} onPick={onPickMaster}/></FogScope>;
   if (tab === "schedule")  return <ScheduleView key={masterKey} settings={scheduleSettings || settings} setSettings={setSettings} bookings={scheduleBookings || bookings} setBookings={scheduleSetBookings || setBookings} onSlotClick={onSlotClick} onEmptySlotClick={onEmptySlotClick} activeDragIds={activeDragIds} navTo={navTo} slotExistsRef={slotExistsRef} openSlotsRef={openSlotsRef} jumpTarget={jumpTarget} setJumpTarget={setJumpTarget} onViewStudent={onViewStudent}/>;
   if (tab === "settings")  return ws ? <MasterProfileView ws={ws} onLeft={() => onWs(null)}/> : <SettingsView settings={settings} setSettings={setSettings}/>;
   if (tab === "bookings")  return <BookingsView settings={settings} bookings={bookings}/>;
