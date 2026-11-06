@@ -1427,7 +1427,7 @@ const pendingDeletesRef = React.useRef(new Set());
           flexDirection:"column",
           background: !fogOn && theme.BG_IMAGE ? "#d4ba96" : "transparent",
         }}>
-          {salonOn && staffList.length > 1 && displayedTab === "schedule" && <MasterTabs staff={staffList} active={allMode ? ALL_MASTERS : masterId} onPick={setPickedMaster}/>}
+          {salonOn && !ws && staffList.length > 1 && displayedTab === "schedule" && <MasterTabs staff={staffList} active={allMode ? ALL_MASTERS : masterId} onPick={setPickedMaster}/>}
           <div style={displayedTab==="schedule" ? {display:"contents"} : {zoom: uiScaleZoom(uiScale)}}>
           <Suspense fallback={<Loader/>}>
             <div className={displayedTab==="schedule" ? "view-fill" : "pc-wrap"}>

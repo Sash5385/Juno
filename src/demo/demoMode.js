@@ -3,7 +3,17 @@
 // до закриття вкладки; ?demo=0 вимикає. Без цього параметра нічого не змінюється.
 //   ?demo=1&theme=light — демо у світлій (кавовій) темі.
 export const DEMO_UID = "demo-instructor";
-export const DEMO_USER = { uid: DEMO_UID, email: "demo@drivepad.pro", displayName: "Демо", isAnonymous: false };
+// ?demo=1&salon=N&as=K (K=1..N) — вхід очима майстра K (uid demo-master-K), а не власника
+export const DEMO_AS = (() => {
+  try {
+    const q = new URLSearchParams(window.location.search);
+    const k = parseInt(q.get("as") || "", 10), n = parseInt(q.get("salon") || "", 10);
+    return k >= 1 && n >= 2 && k <= Math.min(30, n) ? k : 0;
+  } catch { return 0; }
+})();
+export const DEMO_USER = DEMO_AS
+  ? { uid: `demo-master-${DEMO_AS}`, email: `master${DEMO_AS}@drivepad.pro`, displayName: "Демо майстер", isAnonymous: false }
+  : { uid: DEMO_UID, email: "demo@drivepad.pro", displayName: "Демо", isAnonymous: false };
 
 const KEY = "dp_demo";
 const TKEY = "dp_demo_theme";
