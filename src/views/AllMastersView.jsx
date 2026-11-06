@@ -1,12 +1,10 @@
-import { useState, useContext, useMemo } from "react";
+import { useState, useEffect, useContext, useMemo } from "react";
 import { ThemeContext } from "../theme.js";
 import { masterOf } from "../workspace";
 
 // Огляд салону на день: колонка на кожного майстра, записи блоками за часом. Лише перегляд — тап по запису відкриває календар
 // цього майстра (там усе редагується як завжди).
-const HOUR_H = 52;
 const AXIS_W = 40;
-const COL_MIN = 112;
 const pad = (n) => String(n).padStart(2, "0");
 const ymd = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 const fmt = (m) => `${pad(Math.floor(m / 60))}:${pad(m % 60)}`;
@@ -15,6 +13,9 @@ const SKIP = new Set(["vip-slot", "personal"]);
 export default function AllMastersView({ bookings, staff, settings, onPick }) {
   const { TEXT, DIM, FAINT, SURFACE, BORDER } = useContext(ThemeContext);
   const [date, setDate] = useState(() => new Date());
+  // Розмір вікна: масштаб осі часу й ширина колонок залежать від кнопок «години / діб» зверху
+  const [win, setWin] = useState(() => ({ w: window.innerWidth, h: window.innerHeight }));
+  useEffect(() => { const f = () => setWin({ w: window.innerWidth, h: window.innerHeight }); window.addEventListener("resize", f); return () => window.removeEventListener("resize", f); }, []);
   const day = ymd(date);
   const ownerIid = (staff.find((m) => m.owner) || {}).id;
   const shift = (n) => { const d = new Date(date); d.setDate(d.getDate() + n); setDate(d); };
@@ -36,6 +37,11 @@ export default function AllMastersView({ bookings, staff, settings, onPick }) {
   for (const b of all) { from = Math.min(from, Math.floor(b.startMin / 60) * 60); to = Math.max(to, Math.ceil((b.startMin + b.durMin) / 60) * 60); }
   to = Math.min(to, 24 * 60);
   const hours = Array.from({ length: Math.max(1, (to - from) / 60) }, (_, i) => from + i * 60);
+  // «N годин» — скільки годин вміщається на екрані (Авто — весь діапазон записів); «N діб» — скільки колонок майстрів на екрані
+  const wantHours = settings.autoHourHeight ? Math.max(6, Math.min(16, hours.length)) : Math.max(1, ((Number(settings.workEnd) || 18) - (Number(settings.workStart) || 9)) * 60 / (Number(settings.hourHeightPx) || 60));
+  const HOUR_H = Math.max(26, Math.round(Math.max(240, win.h - 330) / wantHours));
+  const cols = Math.max(1, Math.min(staff.length, Number(settings.daysShown) || 5));
+  const COL_W = Math.max(44, Math.floor((win.w - 18 - AXIS_W) / cols));
   const total = all.length;
   const isToday = day === ymd(new Date());
   const label = date.toLocaleDateString("uk-UA", { weekday: "long", day: "numeric", month: "long" });
@@ -54,13 +60,13 @@ export default function AllMastersView({ bookings, staff, settings, onPick }) {
       </div>
 
       <div style={{ overflowX: "auto", borderRadius: 16, border: `1px solid ${BORDER}`, background: SURFACE, WebkitOverflowScrolling: "touch" }}>
-        <div style={{ display: "flex", minWidth: AXIS_W + staff.length * COL_MIN }}>
+        <div style={{ display: "flex", minWidth: AXIS_W + staff.length * COL_W }}>
           <div style={{ width: AXIS_W, flexShrink: 0, position: "sticky", left: 0, zIndex: 2, background: SURFACE }}>
             <div style={{ height: 38 }} />
             {hours.map((h) => (<div key={h} style={{ height: HOUR_H, fontSize: 11, color: FAINT, textAlign: "right", paddingRight: 6, boxSizing: "border-box" }}>{fmt(h)}</div>))}
           </div>
           {staff.map((m) => (
-            <div key={m.id} style={{ flex: 1, minWidth: COL_MIN, borderLeft: `1px solid ${BORDER}` }}>
+            <div key={m.id} style={{ flex: 1, minWidth: COL_W, borderLeft: `1px solid ${BORDER}` }}>
               <button onClick={() => onPick(m.id)} style={{ width: "100%", height: 38, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, background: "none", border: "none", borderBottom: `1px solid ${BORDER}`, color: TEXT, fontFamily: "inherit", fontSize: 12.5, fontWeight: 700, cursor: "pointer", padding: "0 6px" }}>
                 <span style={{ width: 9, height: 9, borderRadius: "50%", background: m.color, flexShrink: 0 }} />
                 <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.name}</span>
