@@ -732,7 +732,10 @@ export default function StudentsView({ studentJump, onStudentJumpHandled, bookin
   };
   const updateStudent = (id,patch) => {
     setStudents(ss=>ss.map(x=>x.id===id?{...x,...patch}:x));
-    update(iRef(`users/${id}`),patch).catch(()=>{});
+    // Ім'я/телефон/тип показуються з profile/* (його пише й сам клієнт) — дублюємо туди, інакше правка майстра «не зберігається»
+    const prof = {};
+    ["name","phone","type"].forEach(k => { if (patch[k] !== undefined) prof[`profile/${k}`] = patch[k]; });
+    update(iRef(`users/${id}`),{...patch, ...prof}).catch(()=>{});
   };
   // Повне видалення клієнта на сервері: скасовує майбутні записи (слоти звільняються), прибирає записи, чат, сповіщення, черги
   const deleteStudent = id => {

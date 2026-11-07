@@ -139,6 +139,16 @@ async function nextBookingVars(uid) {
     };
     if (next.serviceName || next.service) vars["послуга"] = next.serviceName || next.service;
     if (next.price != null) vars["ціна"] = String(next.price);
+    else if (next.manualPrice != null) vars["ціна"] = String(next.manualPrice);
+    // Записи, створені майстром, часто мають лише serviceId — беремо назву й ціну з послуг
+    if ((!vars["послуга"] || !vars["ціна"]) && next.serviceId) {
+      const svcs = (await get(iRef("admin_settings/services"))).val();
+      const svc = (Array.isArray(svcs) ? svcs : Object.values(svcs || {})).find(x => x && x.id === next.serviceId);
+      if (svc) {
+        if (!vars["послуга"] && svc.name) vars["послуга"] = svc.name;
+        if (!vars["ціна"] && svc.price != null) vars["ціна"] = String(svc.price);
+      }
+    }
     return vars;
   } catch { return {}; }
 }

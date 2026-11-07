@@ -2140,6 +2140,24 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
 
   // Keep calc values fresh for always-on window listeners (avoids stale closure)
   calcRef.current = { PX_PER_MIN, snapMin: settings.snapMin, workStart: effectiveWorkStart, workEnd: effectiveWorkEnd, workStartMin: wsMinAbs, workEndMin: weMinAbs, COL_W, dayOffset, daysShown: settings.daysShown, N_DAYS, autoHourHeight: !!settings.autoHourHeight };
+  // Зміна ширини колонки (resize вікна, поворот планшета/телефона): тримаємо той самий перший видимий день,
+  // інакше старий scrollLeft вказує на інші дні, а віртуалізовані колонки лишаються «порожніми».
+  const prevColWRef = useRef(COL_W);
+  useLayoutEffect(() => {
+    const prev = prevColWRef.current;
+    prevColWRef.current = COL_W;
+    const el = gridRef.current;
+    if (!el || !prev || prev === COL_W) return;
+    // Перший видимий день беремо з останнього обчислення під час скролу: при звуженні вікна браузер
+    // ще до цього ефекту обрізає scrollLeft до нової (меншої) ширини вмісту, і він уже «не той» день.
+    const known = visDayRangeRef.current?.s;
+    const day = Number.isFinite(known) && known >= 0 ? known : Math.round(el.scrollLeft / (prev + 4));
+    const left = day * (COL_W + 4);
+    el.scrollLeft = left;
+    if (headersInnerRef.current) headersInnerRef.current.style.transform = `translateX(-${left}px)`;
+    vRangeRef.current = { s: -1, e: -1 }; // примусово перерахувати діапазон рендеру
+    computeVRange();
+  }, [COL_W]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Часовий діапазон записів/слотів у ВИДИМИХ днях — основа авто-висоти годин.
   // Рахуємо по індексу bookingsByDay (лише видимі дні), а не проходом по всіх записах.
@@ -3221,6 +3239,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
       return;
     }
     if (action === "noshow")  { setBookings(bs=>bs.map(x=>x.id===b.id?{...x,status:"noshow"}:x)); return; }
+    if (action === "attended") { setBookings(bs=>bs.map(x=>x.id===b.id?{...x,status:"confirmed"}:x)); return; }
     if (action === "delete")  setBookings(bs=>bs.filter(x=>x.id!==b.id));
     if (action === "repeat")  setBookings(bs=>[...bs,{...b, id:`b-${Date.now()}`, day:b.day+7, status:"confirmed"}]);
     if (action === "chat")     { navTo?.("chats"); return; }
@@ -5275,10 +5294,10 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                   <input type="number" min={0} step={50} autoFocus value={fixedPriceInput}
                     onChange={e=>setFixedPriceInput(e.target.value)}
                     placeholder="Сума, ₴"
-                    style={{flex:1,padding:"10px 12px",borderRadius:10,border:`1px solid ${ink(0.12)}`,background:BG_DEEP,color:TEXT,fontSize:14,fontWeight:700,fontFamily:"inherit"}}/>
+                    style={{flex:1,minWidth:0,width:0,padding:"10px 12px",borderRadius:10,border:`1px solid ${ink(0.12)}`,background:BG_DEEP,color:TEXT,fontSize:14,fontWeight:700,fontFamily:"inherit"}}/>
                   {_so.slot?.fixedPrice != null && (
                     <button onClick={()=>{ applySlotOption(_so.dateStr, fmtTime(_soSelMin), "fixedPrice_remove"); setFixedPriceEditing(false); }} style={{
-                      padding:"10px 14px",borderRadius:10,border:"none",cursor:"pointer",fontFamily:"inherit",
+                      flexShrink:0,padding:"10px 14px",borderRadius:10,border:"none",cursor:"pointer",fontFamily:"inherit",
                       background:"rgba(239,68,68,0.12)",color:"#f87171",fontSize:13,fontWeight:700,
                     }}>Скинути</button>
                   )}
@@ -5288,7 +5307,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                     applySlotOption(_so.dateStr, fmtTime(_soSelMin), { fixedPrice: n });
                     setFixedPriceEditing(false);
                   }} style={{
-                    padding:"10px 16px",borderRadius:10,border:"none",cursor:"pointer",fontFamily:"inherit",
+                    flexShrink:0,padding:"10px 16px",borderRadius:10,border:"none",cursor:"pointer",fontFamily:"inherit",
                     background:GREEN,color:"#062910",fontSize:13,fontWeight:800,
                   }}>Застосувати</button>
                 </div>
@@ -5989,6 +6008,16 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
     const endMs = new Date(dateStr + "T00:00:00").getTime() + (booking.startMin + (booking.durMin||60)) * 60000;
     return endMs <= Date.now();
   })();
+  // Запис уже почався — можна позначити «Не прийшов» (status "noshow" рахується у статистиці неявок)
+  const hasStarted = (() => {
+    const dateStr = booking.date || (() => {
+      const d = new Date(); d.setHours(0,0,0,0);
+      d.setDate(d.getDate() + booking.day);
+      return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    })();
+    return new Date(dateStr + "T00:00:00").getTime() + (booking.startMin || 0) * 60000 <= Date.now();
+  })();
+  const isNoshow = booking.status === "noshow";
 
   const bSvcs = settings.services || [];
   const bType = booking.serviceType || booking.type;
@@ -6387,6 +6416,16 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
                 </div>
               ))}
             </div>
+          )}
+
+          {/* Неявка: лише для запису, що вже почався; повторний тап повертає «прийшов» */}
+          {(hasStarted || isNoshow) && (
+            <button onClick={() => { onAction(isNoshow ? "attended" : "noshow", booking); _close(); }} style={{
+              width:"calc(100% - 28px)",margin:"12px 14px 0",padding:"12px 10px",borderRadius:14,cursor:"pointer",fontFamily:"inherit",
+              border:`1px solid ${isNoshow ? `${GREEN}55` : "rgba(239,68,68,0.35)"}`,
+              background:isNoshow ? `${GREEN}14` : "rgba(239,68,68,0.10)",
+              color:isNoshow ? GREEN : "#fca5a5",fontSize:13,fontWeight:800,
+            }}>{isNoshow ? "↺ Клієнт прийшов" : "🚫 Не прийшов"}</button>
           )}
 
           {/* Cancel link */}
@@ -8327,6 +8366,7 @@ export default function App() {
       }
     }
     if (action === "noshow")   setBookings(bs=>bs.map(x=>x.id===b.id?{...x,status:"noshow"}:x));
+    if (action === "attended") setBookings(bs=>bs.map(x=>x.id===b.id?{...x,status:"confirmed"}:x));
     if (action === "call")     window.location.href = `tel:${b.phone}`;
     if (action === "sms")      window.location.href = `sms:${b.phone}`;
     setSelectedBooking(null);
