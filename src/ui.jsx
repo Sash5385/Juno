@@ -9,8 +9,28 @@ import { ThemeContext } from "./theme.js";
 
 // ── useBackClose: Android/PWA back gesture closes an open modal/sheet
 //    instead of navigating away from the app ─────────────────────
+// Стек відкритих вікон: Escape на клавіатурі закриває лише верхнє (як системна «назад»)
+const escStack = [];
 export function useBackClose(active, onClose) {
   const pushedRef = useRef(false);
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+  useEffect(() => {
+    if (!active) return undefined;
+    const key = {};
+    escStack.push(key);
+    const onKey = (e) => {
+      if (e.key !== "Escape" || escStack[escStack.length - 1] !== key) return;
+      e.preventDefault();
+      closeRef.current();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      const i = escStack.indexOf(key);
+      if (i >= 0) escStack.splice(i, 1);
+    };
+  }, [active]);
   useEffect(() => {
     if (!active) return;
     // власна позначка запису в історії: закриваємо/відкочуємо лише СВІЙ запис, а глибину вкладок (ui4Tab) зберігаємо

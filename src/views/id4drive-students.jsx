@@ -265,12 +265,6 @@ function StudentDetailSheet({ settings, s, onClose, onUpdate, onDelete, onBlock,
 
   const _close = () => setClosing(true);
   useBackClose(true, _close);
-  // Escape на клавіатурі закриває картку (як і кнопка «Назад»)
-  useEffect(() => {
-    const onKey = (e) => { if (e.key === "Escape") _close(); };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, []);
 
   return (
     <>
