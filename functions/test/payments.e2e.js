@@ -45,11 +45,11 @@ const lic = async (iid) => (await db.ref(`instructors/${iid}/license`).get()).va
   let l = await lic("i1");
   check("valid signature → 200, trial becomes active (~31 days)", r.code === 200 && l.status === "active" && l.provider === "liqpay" && Math.abs(l.expiresAt - (now + 31 * DAY)) < 60000, JSON.stringify(l));
   const exp1 = l.expiresAt;
-  r = await call(fns.liqpayCallback, { body: lpBody({ order_id: `drivepad-i1-${now}`, status: "success", payment_id: 111 }) });
+  await call(fns.liqpayCallback, { body: lpBody({ order_id: `drivepad-i1-${now}`, status: "success", payment_id: 111 }) });
   check("duplicate webhook (same payment_id) does not extend again", (await lic("i1")).expiresAt === exp1);
-  r = await call(fns.liqpayCallback, { body: lpBody({ order_id: `drivepad-i1-${now + 1}`, status: "success", payment_id: 112 }) });
+  await call(fns.liqpayCallback, { body: lpBody({ order_id: `drivepad-i1-${now + 1}`, status: "success", payment_id: 112 }) });
   check("second real payment extends from current expiry", Math.abs((await lic("i1")).expiresAt - (exp1 + 31 * DAY)) < 60000);
-  r = await call(fns.liqpayCallback, { body: lpBody({ order_id: `drivepad-i2-y-${now}`, status: "success", payment_id: 221 }) });
+  await call(fns.liqpayCallback, { body: lpBody({ order_id: `drivepad-i2-y-${now}`, status: "success", payment_id: 221 }) });
   l = await lic("i2");
   check("yearly plan (-y-) extends ~366 days on top of active", l.plan === "yearly" && Math.abs(l.expiresAt - (now + 10 * DAY + 366 * DAY)) < 60000, JSON.stringify(l));
   const before = JSON.stringify(await lic("i1"));
@@ -59,13 +59,13 @@ const lic = async (iid) => (await db.ref(`instructors/${iid}/license`).get()).va
   check("missing signature → 400", r.code === 400);
   r = await call(fns.liqpayCallback, { body: lpBody({ order_id: "garbage", status: "success", payment_id: 5 }) });
   check("signed but unparsable order_id → 200, nothing changes", r.code === 200 && JSON.stringify(await lic("i1")) === before);
-  r = await call(fns.liqpayCallback, { body: lpBody({ order_id: `drivepad-i1-${now}`, status: "failure", payment_id: 333 }) });
+  await call(fns.liqpayCallback, { body: lpBody({ order_id: `drivepad-i1-${now}`, status: "failure", payment_id: 333 }) });
   check("failed payment does not extend", JSON.stringify(await lic("i1")) === before);
-  r = await call(fns.liqpayCallback, { body: lpBody({ order_id: `drivepad-i2-y-${now}`, status: "reversed", payment_id: 221 }) });
+  await call(fns.liqpayCallback, { body: lpBody({ order_id: `drivepad-i2-y-${now}`, status: "reversed", payment_id: 221 }) });
   l = await lic("i2");
   check("refund (reversed) rolls the yearly payment back", Math.abs(l.expiresAt - (now + 10 * DAY)) < 60000 && l.lastRefundAt, JSON.stringify(l));
   const afterRefund = l.expiresAt;
-  r = await call(fns.liqpayCallback, { body: lpBody({ order_id: `drivepad-i2-y-${now}`, status: "reversed", payment_id: 221 }) });
+  await call(fns.liqpayCallback, { body: lpBody({ order_id: `drivepad-i2-y-${now}`, status: "reversed", payment_id: 221 }) });
   check("repeated refund webhook ignored", (await lic("i2")).expiresAt === afterRefund);
   await db.ref("instructors/i3/license").set({ status: "trial", trialEndsAt: now + 2 * DAY });
   await call(fns.liqpayCallback, { body: lpBody({ order_id: `drivepad-i3-${now}`, status: "success", payment_id: 301 }) });
@@ -91,7 +91,7 @@ const lic = async (iid) => (await db.ref(`instructors/${iid}/license`).get()).va
   check("bad X-Sign → 400, nothing changes", r.code === 400 && (await lic("i4")).expiresAt === m1);
   r = await monoCall({ invoiceId: "inv3", status: "success", reference: `drivepad-i4-${now}` }, { noSign: true });
   check("no X-Sign → 400", r.code === 400 && (await lic("i4")).expiresAt === m1);
-  r = await monoCall({ invoiceId: "inv1", status: "reversed", reference: `drivepad-i4-${now}` });
+  await monoCall({ invoiceId: "inv1", status: "reversed", reference: `drivepad-i4-${now}` });
   l = await lic("i4");
   check("Monobank refund rolls back", l.status === "trial" && !l.expiresAt, JSON.stringify(l));
 

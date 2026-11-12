@@ -3222,7 +3222,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
         if (mb.startMin !== undefined && mb.durMin && !mb.groupKey) {
           try {
             await restoreSlotRange(mb.date || absDayToDateStr(mb.day), mb.startMin, mb.durMin + bufferOf(mb));
-          } catch {}
+          } catch { /* ignore */ }
         }
       };
       const allToCancel = b._mergedIds
@@ -5073,7 +5073,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                   update(iRef( `${slotRoot()}/${_menu.dateStr}/slot${_hh}${_mm}`), { available: true, time: `${_hh}:${_mm}`, lunchOverride: true }).catch(()=>{});
                   _closeLtm();
                 }} style={{
-                  flex:1,padding:"16px 8px",borderRadius:16,border:"none",cursor:"pointer",fontFamily:"inherit",
+                  flex:1,padding:"16px 8px",borderRadius:16,cursor:"pointer",fontFamily:"inherit",
                   background:`linear-gradient(160deg,rgba(99,211,120,0.22),rgba(34,197,94,0.14))`,
                   color:GREEN,fontSize:12,fontWeight:800,
                   display:"flex",flexDirection:"column",alignItems:"center",gap:6,
@@ -8534,7 +8534,7 @@ export default function App() {
         {/* MODALS */}
         <BookingModalFog booking={selectedBooking ? (bookings.find(x=>x.id===selectedBooking.id) || selectedBooking) : null} onClose={()=>setSelectedBooking(null)}
           onAction={handleAction} settings={settings}
-          autoTag={selectedBooking ? getAutoTag(selectedBooking) : null}/>
+          autoTag={null}/>
         <NewBookingModalFog data={newBookingData} onClose={()=>setNewBookingData(null)}
           onConfirm={handleNewBooking} bookings={bookings} settings={(() => {
             const sched = (settings.weekSchedule || []).filter(d => d.start != null);

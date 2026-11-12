@@ -923,7 +923,7 @@ select{color-scheme:${isKava?"light":"dark"}}
       const resp = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&accept-language=uk&lat=${lat}&lon=${lng}`);
       const data = await resp.json();
       if (data?.display_name) { updProfile("address", data.display_name); setAddressQuery(data.display_name); }
-    } catch {}
+    } catch { /* ignore */ }
   };
 
   const [profileSaving, setProfileSaving] = useState(false);
@@ -1001,7 +1001,7 @@ select{color-scheme:${isKava?"light":"dark"}}
     const next = (profile?.galleryPhotos || []).filter(p => p.name !== name);
     updProfile("galleryPhotos", next);
     await update(iRef("admin_settings/profile"), { galleryPhotos: next }).catch(() => {});
-    try { await deleteObject(iGalleryStorageRef(name)); } catch {}
+    try { await deleteObject(iGalleryStorageRef(name)); } catch { /* ignore */ }
   };
 
   const [installPrompt, setInstallPrompt] = useState(null);

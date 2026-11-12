@@ -351,7 +351,7 @@ export default function ChatsView() {
 
   useEffect(() => {
     const pending = localStorage.getItem("id4drive-free-slot");
-    if (pending) { try { const {msg,time}=JSON.parse(pending); if(msg) applyFreeSlotBroadcast(msg,time); } catch(_){} }
+    if (pending) { try { const {msg,time}=JSON.parse(pending); if(msg) applyFreeSlotBroadcast(msg,time); } catch { /* ignore */ } }
     const handler = e => { const {msg,time}=e.detail||{}; if(msg) applyFreeSlotBroadcast(msg,time); };
     window.addEventListener("id4drive-free-slot", handler);
     return () => window.removeEventListener("id4drive-free-slot", handler);

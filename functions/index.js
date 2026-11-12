@@ -1747,7 +1747,7 @@ exports.deleteAccount = onRequest({ region: "europe-west1", cors: true, timeoutS
     const caller = await admin.auth().verifyIdToken(idToken);
     const isVendor = caller.email === VENDOR_EMAIL && caller.email_verified === true;
     const { type, iid, uid } = req.body || {};
-    if (!iid || typeof iid !== "string" || /[.#$\[\]/]/.test(iid)) { res.status(400).json({ error: "bad iid" }); return; }
+    if (!iid || typeof iid !== "string" || /[.#$[\]/]/.test(iid)) { res.status(400).json({ error: "bad iid" }); return; }
 
     if (type === "instructor") {
       if (!isVendor && caller.uid !== iid) { res.status(403).json({ error: "forbidden" }); return; }
@@ -1775,7 +1775,7 @@ exports.deleteAccount = onRequest({ region: "europe-west1", cors: true, timeoutS
 
     if (type === "student") {
       const target = typeof uid === "string" ? uid : null;
-      if (!target || /[.#$\[\]/]/.test(target)) { res.status(400).json({ error: "bad uid" }); return; }
+      if (!target || /[.#$[\]/]/.test(target)) { res.status(400).json({ error: "bad uid" }); return; }
       const self = caller.uid === target;
       if (!self && !isVendor && caller.uid !== iid) { res.status(403).json({ error: "forbidden" }); return; }
       if (self) {

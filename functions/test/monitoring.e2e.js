@@ -29,7 +29,7 @@ const err = (over = {}) => ({ app: "admin", message: "TypeError: x is undefined"
   let l = await log(); const k = Object.keys(l);
   check("valid report → 200 and stored", r.code === 200 && k.length === 1 && l[k[0]].count === 1 && l[k[0]].app === "admin", JSON.stringify(l));
   check("query string stripped from url", l[k[0]]?.url === "/schedule", l[k[0]]?.url);
-  r = await call(fns.reportError, { body: err({ version: "v02.10.20" }) });
+  await call(fns.reportError, { body: err({ version: "v02.10.20" }) });
   l = await log();
   check("same error groups: count=2, latest version kept", Object.keys(l).length === 1 && l[k[0]].count === 2 && l[k[0]].version === "v02.10.20");
   await call(fns.reportError, { body: err({ app: "client" }) });

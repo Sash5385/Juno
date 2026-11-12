@@ -62,6 +62,9 @@ jobs:
           npm ci
           npm run build
 
+      - name: Lint (0 errors; попередження не блокують)
+        run: npm run lint
+
       - name: Install Playwright
         run: |
           cd tests/smoke

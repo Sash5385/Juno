@@ -1,7 +1,7 @@
 import { useState, useContext } from "react";
 import { ThemeContext } from "../theme.js";
 import { Btn } from "../ui";
-import { cur, money } from "../currency";
+import { money } from "../currency";
 
 // Макет «29 · Туман» (темне скло) для сторінки «Послуги»: сегменти → сітка 2×N скляних карток → скляна картка з рядками →
 // чипи → велика кнопка. Розміри/кольори/шрифти взяті 1-в-1 з макета.

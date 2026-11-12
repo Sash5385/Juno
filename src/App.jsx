@@ -796,7 +796,7 @@ function AdminApp({ adminUser, ws, onWs }) {
           const keys = await caches.keys();
           await Promise.all(keys.map(k => caches.delete(k)));
         }
-      } catch {}
+      } catch { /* ignore */ }
       window.location.reload();
     };
     const check = async () => {
@@ -809,7 +809,7 @@ function AdminApp({ adminUser, ws, onWs }) {
           sessionStorage.setItem(flag, '1');
           hardReset();
         }
-      } catch {}
+      } catch { /* ignore */ }
     };
     const t0 = setTimeout(check, 10 * 1000);
     const id = setInterval(check, 60 * 1000);
