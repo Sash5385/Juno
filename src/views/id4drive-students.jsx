@@ -427,11 +427,11 @@ function StudentDetailSheet({ settings, s, onClose, onUpdate, onDelete, onBlock,
                     }}>
                       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
                         <div style={{fontSize:14,fontWeight:800,color:TEXT}}>Колір слота</div>
-                        <button onClick={()=>setColorOpen(false)} style={{background:"none",border:"none",color:DIM,fontSize:22,lineHeight:1,cursor:"pointer"}}>×</button>
+                        <button aria-label="Закрити" onClick={()=>setColorOpen(false)} style={{background:"none",border:"none",color:DIM,fontSize:22,lineHeight:1,cursor:"pointer"}}>×</button>
                       </div>
                       <div style={{display:"grid",gridTemplateColumns:"repeat(10,1fr)",gap:6}}>
-                        {STUDENT_COLOR_CHOICES.map(c=>(
-                          <button key={c} onClick={()=>{onColorChange(c);setColorOpen(false);}} style={{
+                        {STUDENT_COLOR_CHOICES.map((c,ci)=>(
+                          <button key={c} aria-label={`Колір ${ci+1}`} onClick={()=>{onColorChange(c);setColorOpen(false);}} style={{
                             aspectRatio:"1",borderRadius:"50%",cursor:"pointer",padding:0,background:c,
                             border:slotColor===c?`2.5px solid ${TEXT}`:"2px solid transparent",
                             boxShadow:slotColor===c?`0 0 8px ${c}`:"none",
@@ -804,7 +804,7 @@ export default function StudentsView({ studentJump, onStudentJumpHandled, bookin
           {ICONS.search}
           <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Ім'я або телефон…"
             style={{flex:1,background:"transparent",border:"none",outline:"none",color:TEXT,padding:"11px 0",fontSize:14,minWidth:0,fontFamily:"inherit"}}/>
-          {search && <button onClick={()=>setSearch("")} style={{background:"none",border:"none",cursor:"pointer",color:FAINT,fontSize:16,padding:0,lineHeight:1}}>×</button>}
+          {search && <button aria-label="Очистити пошук" onClick={()=>setSearch("")} style={{background:"none",border:"none",cursor:"pointer",color:FAINT,fontSize:16,padding:0,lineHeight:1}}>×</button>}
         </div>
 
         <div style={{display:"flex",background:SURFACE,padding:3,borderRadius:14,border:`1px solid ${BORDER}`,backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)"}}>
@@ -878,7 +878,7 @@ export default function StudentsView({ studentJump, onStudentJumpHandled, bookin
             padding:"12px 16px calc(20px + env(safe-area-inset-bottom))",
             maxHeight:"88vh",overflowY:"auto",
           }}>
-            <button onClick={()=>setShowNew(false)} style={{
+            <button aria-label="Закрити" onClick={()=>setShowNew(false)} style={{
               position:"absolute",top:10,right:12,zIndex:5,
               width:26,height:26,borderRadius:8,border:"none",cursor:"pointer",
               background:"rgba(239,68,68,0.18)",color:"#ef4444",

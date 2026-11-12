@@ -561,7 +561,7 @@ export default function StatsView({ onViewStudent, direction } = {}) {
         {/* ── CALENDAR (завжди відкритий — швидкий вибір місяця/тижня/дня) ── */}
         {secEff === "overview" && <Card className="fu" style={{padding:"12px"}}>
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:11}}>
-            <button onClick={()=>calGoMonth(-1)} style={{
+            <button onClick={()=>calGoMonth(-1)} aria-label="Попередній місяць" style={{
               width:36,height:36,borderRadius:99,border:`1px solid ${BORDER}`,cursor:"pointer",fontFamily:"inherit",
               background:SURF_HI,color:DIM,fontSize:18,fontWeight:700,lineHeight:1,
             }}>‹</button>
@@ -569,7 +569,7 @@ export default function StatsView({ onViewStudent, direction } = {}) {
               border:"none",cursor:"pointer",fontFamily:"inherit",background:"transparent",
               fontSize:13,fontWeight:800,color:TEXT,textTransform:"capitalize",padding:"0 10px",minHeight:36,borderRadius:8,
             }}>{calMonthLabel}</button>
-            <button onClick={()=>calGoMonth(1)} style={{
+            <button onClick={()=>calGoMonth(1)} aria-label="Наступний місяць" style={{
               width:36,height:36,borderRadius:99,border:`1px solid ${BORDER}`,cursor:"pointer",fontFamily:"inherit",
               background:SURF_HI,color:DIM,fontSize:18,fontWeight:700,lineHeight:1,
             }}>›</button>
@@ -725,7 +725,7 @@ export default function StatsView({ onViewStudent, direction } = {}) {
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:editingGoal?10:incomeGoal?9:4}}>
             <div style={{fontSize:11,color:DIM,letterSpacing:1,textTransform:"uppercase",fontWeight:700}}>🎯 Ціль місяця</div>
             {!editingGoal && (
-              <button onClick={()=>{setGoalInput(String(incomeGoal||""));setEditingGoal(true);}} style={{
+              <button aria-label={incomeGoal?"Змінити ціль":undefined} onClick={()=>{setGoalInput(String(incomeGoal||""));setEditingGoal(true);}} style={{
                 padding:"7px 11px",borderRadius:8,border:"none",cursor:"pointer",fontSize:11,fontWeight:700,fontFamily:"inherit",
                 background:`${GOLD}22`,color:GOLD,
               }}>{incomeGoal?"✏️":"+ Встановити"}</button>
@@ -744,7 +744,7 @@ export default function StatsView({ onViewStudent, direction } = {}) {
                 padding:"8px 14px",borderRadius:9,border:"none",cursor:"pointer",fontFamily:"inherit",fontSize:13,fontWeight:700,
                 background:`linear-gradient(145deg,${GOLD}44,${GOLD}22)`,color:GOLD,
               }}>OK</button>
-              <button onClick={()=>setEditingGoal(false)} style={{
+              <button aria-label="Скасувати" onClick={()=>setEditingGoal(false)} style={{
                 padding:"8px 10px",borderRadius:9,border:"none",cursor:"pointer",fontFamily:"inherit",fontSize:13,
                 background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,color:FAINT,
               }}>✕</button>

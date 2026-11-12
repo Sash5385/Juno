@@ -1091,7 +1091,7 @@ export function SuperAdminScreen() {
                     Щодня о 03:00 — записи, клієнти, налаштування в Cloud Storage, зберігається 30 днів
                   </div>
                 </div>
-                <button onClick={toggleBackup} disabled={backupOn === null} aria-pressed={!!backupOn}
+                <button aria-label="Нічна резервна копія" onClick={toggleBackup} disabled={backupOn === null} aria-pressed={!!backupOn}
                   style={{ flexShrink:0, width:46, height:26, borderRadius:13, border:"none", cursor:"pointer", position:"relative",
                     background: backupOn ? "#4caf6b" : "rgba(255,255,255,0.15)", transition:"background .2s" }}>
                   <span style={{ position:"absolute", top:3, left: backupOn ? 23 : 3, width:20, height:20, borderRadius:"50%", background:"#fff", transition:"left .2s" }}/>

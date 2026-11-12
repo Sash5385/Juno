@@ -63,7 +63,7 @@ function LicensePayModal({ onClose }) {
       }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
           <div style={{ fontSize: 15, fontWeight: 800 }}>💳 Оплата підписки</div>
-          <button onClick={onClose} style={{ background: "none", border: "none", color: DIM, fontSize: 22, lineHeight: 1, cursor: "pointer" }}>×</button>
+          <button aria-label="Закрити" onClick={onClose} style={{ background: "none", border: "none", color: DIM, fontSize: 22, lineHeight: 1, cursor: "pointer" }}>×</button>
         </div>
         <div style={{
           padding: "12px 14px", borderRadius: 14, border: `1px solid ${GOLD}55`,

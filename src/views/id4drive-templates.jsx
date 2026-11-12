@@ -414,7 +414,7 @@ function TemplateCard({ tpl, onEdit, onSend, onToggle, onDelete }) {
       <div style={{position:"absolute",pointerEvents:"none",top:0,right:"6%",width:"55%",height:"45%",zIndex:1,
         background:"radial-gradient(ellipse at top right,rgba(255,255,255,0.18) 0%,transparent 65%)"}}/>
 
-      <button onClick={e=>{stop(e);onDelete(tpl.id);}} style={{
+      <button aria-label="Видалити шаблон" onClick={e=>{stop(e);onDelete(tpl.id);}} style={{
         position:"absolute",top:4,right:4,zIndex:3,width:26,height:26,borderRadius:"50%",border:"none",cursor:"pointer",
         background:RED,color:"#fff",display:"flex",alignItems:"center",justifyContent:"center",
         boxShadow:`0 2px 6px ${shade(0.4)}`,

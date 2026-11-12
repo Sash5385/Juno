@@ -433,7 +433,7 @@ export default function ChatsView() {
             </svg>
             <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Пошук клієнта…"
               style={{flex:1,background:"transparent",border:"none",outline:"none",color:TEXT,padding:"11px 0",fontSize:14,fontFamily:"inherit"}}/>
-            {search && <button onClick={()=>setSearch("")} style={{background:"none",border:"none",cursor:"pointer",color:FAINT,fontSize:16,padding:0,lineHeight:1}}>×</button>}
+            {search && <button aria-label="Очистити пошук" onClick={()=>setSearch("")} style={{background:"none",border:"none",cursor:"pointer",color:FAINT,fontSize:16,padding:0,lineHeight:1}}>×</button>}
           </div>
           {totalUnread > 0 && (
             <div style={{background:ACCENT,color:BTN_TX||"#fff",borderRadius:10,padding:"3px 9px",fontSize:11,fontWeight:800,flexShrink:0,boxShadow:`0 0 8px ${ACCENT}66`}}>
@@ -535,7 +535,7 @@ export default function ChatsView() {
                       : <span style={{width:8,height:8,borderRadius:4,background:"rgba(255,255,255,0.25)",display:"inline-block"}}/>
                     }
                   </div>
-                  {!isMaster && <button onClick={e=>handleDelete(e,c.id)}
+                  {!isMaster && <button onClick={e=>handleDelete(e,c.id)} aria-label="Видалити чат"
                     className={isDeleting?"del-confirm":""}
                     style={{flexShrink:0,background:"none",border:"none",cursor:"pointer",
                       minWidth:32,minHeight:32,padding:"4px 6px",borderRadius:8,marginLeft:0,

@@ -187,7 +187,7 @@ function ServiceFormModal({ svc, onSave, onClose }) {
             <span style={{color:GOLD,fontSize:12,fontWeight:700}}>{cur()}</span>
           </Inset>
           {(form.nextPrice != null || form.nextPriceFrom) && (
-            <button onClick={()=>{upd("nextPrice",null);upd("nextPriceFrom",null);}} style={{
+            <button aria-label="Скасувати нову ціну" onClick={()=>{upd("nextPrice",null);upd("nextPriceFrom",null);}} style={{
               width:32,height:32,borderRadius:theme.BTN_R!=null?Math.min(theme.BTN_R,16):9,border:"none",cursor:"pointer",
               background:`${ACCENT}1f`,color:ACCENT,fontSize:14,fontWeight:800,
             }}>✕</button>

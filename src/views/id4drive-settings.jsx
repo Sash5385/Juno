@@ -115,15 +115,15 @@ export function NumInput({ value, onChange, min=0, max=999, suffix="", step=1, c
     const fb = { width:36,height:36,border:"none",cursor:"pointer",background:"transparent",color:ACC_HI,fontSize:18,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,padding:0 };
     return (
       <div style={{display:"flex",alignItems:"center",background:SURF_HI,borderRadius:12}}>
-        <button onClick={()=>onChange(Math.max(min,value-step))} style={fb}>−</button>
+        <button onClick={()=>onChange(Math.max(min,value-step))} aria-label="Зменшити" style={fb}>−</button>
         <span style={{fontSize:14,fontWeight:700,color:TEXT,minWidth:54,textAlign:"center"}}>{value}{suffix}</span>
-        <button onClick={()=>onChange(Math.min(max,value+step))} style={fb}>+</button>
+        <button onClick={()=>onChange(Math.min(max,value+step))} aria-label="Збільшити" style={fb}>+</button>
       </div>
     );
   }
   return (
     <div style={{display:"flex",alignItems:"center",gap:4,background:BG_DEEP,borderRadius:9,boxShadow:SI,padding: compact ? "3px 5px" : "4px 6px"}}>
-      <button onClick={()=>onChange(Math.max(min,value-step))} style={{
+      <button onClick={()=>onChange(Math.max(min,value-step))} aria-label="Зменшити" style={{
         width:bs,height:bs,borderRadius:7,border:"none",cursor:"pointer",
         background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,color:TEXT,fontSize:compact?12:14,
         display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,boxShadow:SO,
@@ -131,7 +131,7 @@ export function NumInput({ value, onChange, min=0, max=999, suffix="", step=1, c
       <span style={{fontSize:compact?11:13,fontWeight:700,color:TEXT,minWidth:compact?26:32,textAlign:"center"}}>
         {value}{suffix}
       </span>
-      <button onClick={()=>onChange(Math.min(max,value+step))} style={{
+      <button onClick={()=>onChange(Math.min(max,value+step))} aria-label="Збільшити" style={{
         width:bs,height:bs,borderRadius:7,border:"none",cursor:"pointer",
         background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,color:TEXT,fontSize:compact?12:14,
         display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,boxShadow:SO,
@@ -256,15 +256,15 @@ function RowBlock({ label, hint, children, last, color }) {
   );
 }
 
-function Chip({ label, active, onClick, equal }) {
+function Chip({ label, active, onClick, equal, ariaLabel }) {
   const eq = equal ? {flex:"1 1 0",minWidth:0} : null;
   const { ACC_HI, ACCENT, SURF_HI, SURFACE, DIM, SO, FOG, BORDER, BTN_TX } = useContext(ThemeContext);
   if (FOG) return (
-    <button onClick={onClick} style={{flex:"1 1 auto",padding:"9px 13px",borderRadius:99,cursor:"pointer",fontSize:12,fontWeight:600,fontFamily:"inherit",
+    <button onClick={onClick} aria-label={ariaLabel} style={{flex:"1 1 auto",padding:"9px 13px",borderRadius:99,cursor:"pointer",fontSize:12,fontWeight:600,fontFamily:"inherit",
       border:`1px solid ${active?"transparent":BORDER}`,background:active?`linear-gradient(145deg,${ACC_HI},${ACCENT})`:SURFACE,color:active?BTN_TX:DIM}}>{label}</button>
   );
   return (
-    <button onClick={onClick} style={{
+    <button onClick={onClick} aria-label={ariaLabel} style={{
       ...eq,padding:"6px 12px",borderRadius:9,border:"none",cursor:"pointer",fontSize:11,fontWeight:700,
       background:active?`linear-gradient(145deg,${ACC_HI},${ACCENT})`:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,
       color:active?"#fff":DIM,boxShadow:active?"none":SO,
@@ -340,7 +340,7 @@ function TimeInput({ value, onChange, min=0, max=24, step=1/60, compact=false })
   const dW = compact ? 28 : 64;
   const dS = compact ? 9 : 18;
   const btn = (dir, ch) => (
-    <button onPointerDown={e=>{ e.preventDefault(); start(dir); }} onPointerUp={stop} onPointerLeave={stop} onPointerCancel={stop}
+    <button aria-label={dir<0?"Зменшити час":"Збільшити час"} onPointerDown={e=>{ e.preventDefault(); start(dir); }} onPointerUp={stop} onPointerLeave={stop} onPointerCancel={stop}
       style={{width:bW,height:bH,border:"none",cursor:"pointer",background:"transparent",color:FAINT,fontSize:fS,padding:0,lineHeight:1,touchAction:"none"}}>{ch}</button>
   );
   return (
@@ -614,6 +614,7 @@ function LocationMap({ lat, lng, onPick, flyTo }) {
       iconSize: [26, 26], iconAnchor: [13, 26],
     });
     const marker = L.marker(start, { draggable: true, icon }).addTo(map);
+    marker.getElement()?.setAttribute("aria-label", "Позначка на карті");
     marker.on("dragend", () => { const p = marker.getLatLng(); onPick(p.lat, p.lng); });
     map.on("click", (e) => { marker.setLatLng(e.latlng); onPick(e.latlng.lat, e.latlng.lng); });
     mapRef.current = map; markerRef.current = marker;
@@ -1253,7 +1254,7 @@ select{color-scheme:${isKava?"light":"dark"}}
             {tags.map(t => (
               <div key={t.id} style={{marginBottom:7,padding:"10px 12px",borderRadius:12,background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,boxShadow:SO}}>
                 <div style={{display:"flex",alignItems:"center",gap:8}}>
-                  <button onClick={()=>setTagIconOpen(tagIconOpen===t.id?null:t.id)} style={{width:40,height:40,borderRadius:11,border:`1.5px solid ${TAG_COLORS[t.colorId]}`,background:"rgba(0,0,0,0.2)",fontSize:20,cursor:"pointer",flexShrink:0}}>{t.icon}</button>
+                  <button onClick={()=>setTagIconOpen(tagIconOpen===t.id?null:t.id)} aria-label="Змінити іконку" style={{width:40,height:40,borderRadius:11,border:`1.5px solid ${TAG_COLORS[t.colorId]}`,background:"rgba(0,0,0,0.2)",fontSize:20,cursor:"pointer",flexShrink:0}}>{t.icon}</button>
                   <input value={t.label} maxLength={20} onChange={e=>patch(t.id,{label:e.target.value})} onBlur={e=>{ if(!e.target.value.trim()) patch(t.id,{label:"Мітка"}); }}
                     style={{flex:1,minWidth:0,alignSelf:"stretch",padding:"10px 12px",borderRadius:10,border:`1px solid ${BORDER}`,background:"rgba(0,0,0,0.18)",color:TEXT,fontSize:14,fontFamily:"inherit"}}/>
                   {!AUTO_TAG_IDS.includes(t.id) && (
@@ -1268,7 +1269,7 @@ select{color-scheme:${isKava?"light":"dark"}}
                 {tagIconOpen===t.id && (
                   <div style={{display:"flex",flexWrap:"wrap",gap:6,marginTop:10}}>
                     {TAG_ICONS.map(ic=>(
-                      <button key={ic} onClick={()=>{patch(t.id,{icon:ic});setTagIconOpen(null);}} style={{width:38,height:38,borderRadius:10,fontSize:19,cursor:"pointer",border:t.icon===ic?`1.5px solid ${TEAL}`:`1px solid ${BORDER}`,background:t.icon===ic?"rgba(45,212,191,0.15)":"rgba(0,0,0,0.15)"}}>{ic}</button>
+                      <button key={ic} onClick={()=>{patch(t.id,{icon:ic});setTagIconOpen(null);}} aria-label={`Іконка ${ic}`} style={{width:38,height:38,borderRadius:10,fontSize:19,cursor:"pointer",border:t.icon===ic?`1.5px solid ${TEAL}`:`1px solid ${BORDER}`,background:t.icon===ic?"rgba(45,212,191,0.15)":"rgba(0,0,0,0.15)"}}>{ic}</button>
                     ))}
                   </div>
                 )}
@@ -1477,7 +1478,7 @@ select{color-scheme:${isKava?"light":"dark"}}
             <RowBlock color={GOLD} label="Валюта цін" hint="Лише символ біля цін — суми не перераховуються">
               <div style={{display:"flex",gap:6}}>
                 {CURRENCIES.map(([code,sym])=>(
-                  <Chip equal key={code} label={sym} active={(settings.currency||"UAH")===code} onClick={()=>upd("currency",code)}/>
+                  <Chip equal key={code} label={sym} ariaLabel={code} active={(settings.currency||"UAH")===code} onClick={()=>upd("currency",code)}/>
                 ))}
               </div>
             </RowBlock>
@@ -1554,14 +1555,14 @@ select{color-scheme:${isKava?"light":"dark"}}
               {(profile?.galleryPhotos||[]).map((p, idx) => (
                 <div key={p.name} onClick={()=>openViewer(allProfilePhotos, (profile?.photoUrl?1:0)+idx)} style={{position:"relative",width:"100%",aspectRatio:"1",borderRadius:10,overflow:"hidden",boxShadow:SO,cursor:"pointer"}}>
                   <img src={p.url} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>
-                  <button onClick={(e)=>{e.stopPropagation();handleGalleryDelete(p.name);}} style={{
+                  <button aria-label="Видалити фото" onClick={(e)=>{e.stopPropagation();handleGalleryDelete(p.name);}} style={{
                     position:"absolute",top:3,right:3,width:20,height:20,borderRadius:"50%",border:"none",cursor:"pointer",
                     background:"rgba(0,0,0,0.6)",color:"#fff",fontSize:12,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1,
                   }}>×</button>
                 </div>
               ))}
               {(profile?.galleryPhotos||[]).length < GALLERY_MAX && (
-                <button onClick={()=>galleryInputRef.current?.click()} disabled={galleryUploading} style={{
+                <button aria-label="Додати фото" onClick={()=>galleryInputRef.current?.click()} disabled={galleryUploading} style={{
                   width:"100%",aspectRatio:"1",borderRadius:10,border:`1px dashed rgba(255,255,255,0.25)`,cursor:galleryUploading?"default":"pointer",
                   background:"transparent",color:DIM,fontSize:11,fontWeight:700,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:2,
                 }}>
@@ -1739,7 +1740,7 @@ select{color-scheme:${isKava?"light":"dark"}}
                   <span style={{minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{activeSec.title}</span>
                 </div>
               )}
-              <button onClick={()=>setShowHint(v=>!v)} style={{
+              <button onClick={()=>setShowHint(v=>!v)} aria-label="Підказка" style={{
                 width:36,height:36,borderRadius:12,border:"none",cursor:"pointer",flexShrink:0,
                 background:showHint?`${GOLD}33`:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,
                 fontSize:15,display:"flex",alignItems:"center",justifyContent:"center",

@@ -613,7 +613,7 @@ function BroadcastModalBase({ initialDate, initialSlot, onClose }) {
               ? `_br-down 0.26s ease-in forwards`
               : `_br-up 0.38s cubic-bezier(0.34,1.56,0.64,1)`,
           }}>
-          <button onClick={_close} style={{
+          <button aria-label="Закрити" onClick={_close} style={{
             position:"absolute", top:10, right:12, zIndex:5,
             width:26, height:26, borderRadius:8, border:"none", cursor:"pointer",
             background:"rgba(239,68,68,0.18)", color:"#ef4444",
@@ -833,7 +833,7 @@ function MonthCalendarSheetBase({ bookings, onClose, onPickDate }) {
             animation: closing ? `_mc-down 0.26s ease-in forwards` : `_mc-up 0.38s cubic-bezier(0.34,1.56,0.64,1)`,
             paddingBottom:"env(safe-area-inset-bottom, 0px)",
           }}>
-          <button onClick={close} style={{
+          <button aria-label="Закрити" onClick={close} style={{
             position:"absolute", top:10, right:12, zIndex:5,
             width:26, height:26, borderRadius:8, border:"none", cursor:"pointer",
             background:"rgba(239,68,68,0.18)", color:"#ef4444",
@@ -1052,7 +1052,7 @@ function DayNotesModalBase({ dateStr, dayLabel, dayNum, dayMonth, note, settings
                 <div key={h} style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
                   {isEditing ? (
                     <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:5,flexBasis:"100%",flexWrap:"wrap"}}>
-                      <button onClick={()=>setRow(h,{startMin:clampMin(r.startMin-60)})} style={{
+                      <button onClick={()=>setRow(h,{startMin:clampMin(r.startMin-60)})} aria-label="Мінус година" style={{
                         width:44,height:44,borderRadius:12,border:"none",cursor:"pointer",fontFamily:"inherit",
                         background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,color:TEXT,fontSize:22,fontWeight:800,
                         display:"flex",alignItems:"center",justifyContent:"center",padding:0,
@@ -1060,13 +1060,13 @@ function DayNotesModalBase({ dateStr, dayLabel, dayNum, dayMonth, note, settings
                       <div style={{width:34,textAlign:"center",fontSize:20,fontWeight:800,color:TEXT,fontVariantNumeric:"tabular-nums"}}>
                         {String(Math.floor(r.startMin/60)).padStart(2,"0")}
                       </div>
-                      <button onClick={()=>setRow(h,{startMin:clampMin(r.startMin+60)})} style={{
+                      <button onClick={()=>setRow(h,{startMin:clampMin(r.startMin+60)})} aria-label="Плюс година" style={{
                         width:44,height:44,borderRadius:12,border:"none",cursor:"pointer",fontFamily:"inherit",
                         background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,color:TEXT,fontSize:22,fontWeight:800,
                         display:"flex",alignItems:"center",justifyContent:"center",padding:0,
                       }}>+</button>
                       <span style={{color:FAINT,fontSize:20,fontWeight:800}}>:</span>
-                      <button onClick={()=>setRow(h,{startMin:clampMin(r.startMin-1)})} style={{
+                      <button onClick={()=>setRow(h,{startMin:clampMin(r.startMin-1)})} aria-label="Мінус хвилина" style={{
                         width:44,height:44,borderRadius:12,border:"none",cursor:"pointer",fontFamily:"inherit",
                         background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,color:TEXT,fontSize:22,fontWeight:800,
                         display:"flex",alignItems:"center",justifyContent:"center",padding:0,
@@ -1074,7 +1074,7 @@ function DayNotesModalBase({ dateStr, dayLabel, dayNum, dayMonth, note, settings
                       <div style={{width:34,textAlign:"center",fontSize:20,fontWeight:800,color:TEXT,fontVariantNumeric:"tabular-nums"}}>
                         {String(r.startMin%60).padStart(2,"0")}
                       </div>
-                      <button onClick={()=>setRow(h,{startMin:clampMin(r.startMin+1)})} style={{
+                      <button onClick={()=>setRow(h,{startMin:clampMin(r.startMin+1)})} aria-label="Плюс хвилина" style={{
                         width:44,height:44,borderRadius:12,border:"none",cursor:"pointer",fontFamily:"inherit",
                         background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,color:TEXT,fontSize:22,fontWeight:800,
                         display:"flex",alignItems:"center",justifyContent:"center",padding:0,
@@ -4840,7 +4840,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                 pointerEvents: blockModalClosing ? "none" : undefined,
                 animation: blockModalClosing ? `_bl-down 0.26s ease-in forwards` : `_bl-up 0.38s cubic-bezier(0.34,1.56,0.64,1)`,
               }}>
-              <button onClick={_closeBlock} style={{
+              <button aria-label="Закрити" onClick={_closeBlock} style={{
                 position:"absolute", top:10, right:12, zIndex:5,
                 width:26, height:26, borderRadius:8, border:"none", cursor:"pointer",
                 background:"rgba(239,68,68,0.18)", color:"#ef4444",
@@ -5019,7 +5019,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                   : `_ltm-up 0.38s cubic-bezier(0.34,1.56,0.64,1)`,
             }}>
             {!_anyClose && (
-              <button onClick={_closeLtm} style={{
+              <button aria-label="Закрити" onClick={_closeLtm} style={{
                 position:"absolute", top:8, right:12, zIndex:5,
                 width:26, height:26, borderRadius:8, border:"none", cursor:"pointer",
                 background:"rgba(239,68,68,0.18)", color:"#ef4444",
@@ -5173,7 +5173,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                 ? `_so-down 0.26s ease-in forwards`
                 : `_so-up 0.38s cubic-bezier(0.34,1.56,0.64,1)`,
             }}>
-            <button onClick={_closeSO} style={{
+            <button aria-label="Закрити" onClick={_closeSO} style={{
               position:"absolute", top:10, right:12, zIndex:5,
               width:26, height:26, borderRadius:8, border:"none", cursor:"pointer",
               background:"rgba(239,68,68,0.18)", color:"#ef4444",
@@ -5339,7 +5339,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                     );
                   })}
                   {_so.slot?.surcharge != null && (
-                    <button onClick={()=>{ applySlotOption(_so.dateStr, fmtTime(_soSelMin), "surcharge_remove"); setSurchargeEditing(false); }} style={{
+                    <button aria-label="Прибрати надбавку" onClick={()=>{ applySlotOption(_so.dateStr, fmtTime(_soSelMin), "surcharge_remove"); setSurchargeEditing(false); }} style={{
                       padding:"9px 12px",borderRadius:20,border:"none",cursor:"pointer",fontFamily:"inherit",
                       background:"rgba(239,68,68,0.12)",color:"#f87171",fontSize:13,fontWeight:700,
                     }}>×</button>
@@ -5417,7 +5417,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                 pointerEvents: vipSlotModalClosing ? "none" : undefined,
                 animation: vipSlotModalClosing ? `_vip-down 0.26s ease-in forwards` : `_vip-up 0.38s cubic-bezier(0.34,1.56,0.64,1)`,
               }}>
-              <button onClick={_closeVip} style={{
+              <button aria-label="Закрити" onClick={_closeVip} style={{
                 position:"absolute", top:10, right:12, zIndex:5,
                 width:26, height:26, borderRadius:8, border:"none", cursor:"pointer",
                 background:"rgba(239,68,68,0.18)", color:"#ef4444",
@@ -5822,7 +5822,7 @@ function CreateSlotSheetBase({ data, settings, onClose }) {
             pointerEvents: closing ? "none" : undefined,
             animation: closing ? `_cs-down 0.26s ease-in forwards` : `_cs-up 0.38s cubic-bezier(0.34,1.56,0.64,1)`,
           }}>
-          <button onClick={_close} style={{
+          <button aria-label="Закрити" onClick={_close} style={{
             position:"absolute", top:10, right:12, zIndex:5,
             width:26, height:26, borderRadius:8, border:"none", cursor:"pointer",
             background:"rgba(239,68,68,0.18)", color:"#ef4444",
@@ -5936,11 +5936,11 @@ function DurPicker({ value, onChange, dark, min = 15, max = 480 }) {
   });
   return (
     <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
-      <button type="button" onClick={()=>set(value - 15)} style={{...pill(false),flex:"0 0 auto",minWidth:40,fontSize:16,fontWeight:800}}>−</button>
+      <button type="button" onClick={()=>set(value - 15)} aria-label="Мінус 15 хвилин" style={{...pill(false),flex:"0 0 auto",minWidth:40,fontSize:16,fontWeight:800}}>−</button>
       {PRESETS.map(m => (
         <button type="button" key={m} onClick={()=>set(m)} style={pill(value === m)}>{m}</button>
       ))}
-      <button type="button" onClick={()=>set(value + 15)} style={{...pill(false),flex:"0 0 auto",minWidth:40,fontSize:16,fontWeight:800}}>+</button>
+      <button type="button" onClick={()=>set(value + 15)} aria-label="Плюс 15 хвилин" style={{...pill(false),flex:"0 0 auto",minWidth:40,fontSize:16,fontWeight:800}}>+</button>
       {!PRESETS.includes(value) && (
         <div style={{...pill(true),flex:"0 0 auto",cursor:"default"}}>{value} {"хв"}</div>
       )}
@@ -6129,7 +6129,7 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
               ? `_bm-down 0.26s ease-in forwards`
               : `_bm-up 0.38s cubic-bezier(0.34,1.56,0.64,1)`,
           }}>
-          <button onClick={_close} style={{
+          <button aria-label="Закрити" onClick={_close} style={{
             position:"absolute", top:10, right:12, zIndex:5,
             width:26, height:26, borderRadius:8, border:"none", cursor:"pointer",
             background:"rgba(239,68,68,0.18)", color:"#ef4444",
@@ -6405,7 +6405,7 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
                     const mm = String(booking.startMin%60).padStart(2,'0');
                     const slotKey = `${dateStr}_${hh}:${mm}`;
                     return (
-                      <button onClick={() => update(iRef(), {
+                      <button aria-label="Прибрати з черги" onClick={() => update(iRef(), {
                         [`queue/${slotKey}/entries/${e.uid}`]: null,
                         [`userQueue/${e.uid}/${slotKey}`]: null,
                       }).catch(()=>{})}
@@ -6591,7 +6591,7 @@ function PersonalEventModalBase({ data, onClose, onConfirm }) {
             pointerEvents: closing ? "none" : undefined,
             animation: closing ? `_pe-down 0.26s ease-in forwards` : `_pe-up 0.38s cubic-bezier(0.34,1.56,0.64,1)`,
           }}>
-          <button onClick={_close} style={{
+          <button aria-label="Закрити" onClick={_close} style={{
             position:"absolute", top:10, right:12, zIndex:5,
             width:26, height:26, borderRadius:8, border:"none", cursor:"pointer",
             background:"rgba(239,68,68,0.18)", color:"#ef4444",
@@ -7099,7 +7099,7 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
               ? `_nb-down 0.26s ease-in forwards`
               : `_nb-up 0.38s cubic-bezier(0.34,1.56,0.64,1)`,
           }}>
-          <button onClick={_close} style={{
+          <button aria-label="Закрити" onClick={_close} style={{
             position:"absolute", top:10, right:12, zIndex:5,
             width:26, height:26, borderRadius:8, border:"none", cursor:"pointer",
             background:"rgba(239,68,68,0.18)", color:"#ef4444",
@@ -7130,7 +7130,7 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
                   padding:"7px 12px",borderRadius:11,
                   background:`${GREEN}18`,border:`1.5px solid ${GREEN}44`}}>
                   <div style={{fontSize:12,fontWeight:700,color:GREEN}}>Новий клієнт</div>
-                  <button onClick={()=>{setSelStudent(null);setNewName("");setNewPhone("");}}
+                  <button aria-label="Скасувати вибір клієнта" onClick={()=>{setSelStudent(null);setNewName("");setNewPhone("");}}
                     style={{background:"none",border:"none",cursor:"pointer",color:TEXT_FAINT,fontSize:20,padding:0,lineHeight:1}}>×</button>
                 </div>
                 <input type="text" placeholder="Ім'я та прізвище" value={newName}
@@ -7148,7 +7148,7 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
                   <div style={{fontSize:14,fontWeight:800,color:TEXT}}>{selStudent.name}</div>
                   <div style={{fontSize:11,color:TEXT_DIM,marginTop:1}}>{selStudent.phone}</div>
                 </div>
-                <button onClick={()=>{setSelStudent(null);setPhone("");setSearch("");}}
+                <button aria-label="Скасувати вибір клієнта" onClick={()=>{setSelStudent(null);setPhone("");setSearch("");}}
                   style={{background:"none",border:"none",cursor:"pointer",color:TEXT_FAINT,fontSize:20,padding:"0 4px",lineHeight:1}}>×</button>
               </div>
             ) : (
@@ -7160,7 +7160,7 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
                   <input type="text" placeholder="Пошук за ім'ям..."
                     value={search} onChange={e=>setSearch(e.target.value)}
                     style={{flex:1,background:"none",border:"none",outline:"none",color:TEXT,fontSize:14,fontWeight:600}}/>
-                  {search && <button onClick={()=>setSearch("")}
+                  {search && <button aria-label="Очистити пошук" onClick={()=>setSearch("")}
                     style={{background:"none",border:"none",cursor:"pointer",color:TEXT_FAINT,fontSize:16,padding:0,lineHeight:1}}>×</button>}
                 </div>
                 <div style={{borderRadius:12,overflow:"hidden",border:`1px solid ${BORDER}`,maxHeight:164,overflowY:"auto"}}>
@@ -7713,7 +7713,7 @@ function SettingsView({ settings, setSettings }) {
               }}>
               {PALETTE.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
-            <button onClick={()=>upd("categories", settings.categories.filter(x=>x.id!==c.id))}
+            <button aria-label="Видалити категорію" onClick={()=>upd("categories", settings.categories.filter(x=>x.id!==c.id))}
               style={{background:"none",border:"none",cursor:"pointer",color:RED,fontSize:18}}>×</button>
           </div>
         ))}
@@ -7953,7 +7953,7 @@ function StudentsView() {
         <input placeholder="Пошук за ім'ям або телефоном..."
           value={search} onChange={e=>setSearch(e.target.value)}
           style={{flex:1,background:"none",border:"none",outline:"none",color:TEXT,fontSize:14}}/>
-        {search && <button onClick={()=>setSearch("")}
+        {search && <button aria-label="Очистити пошук" onClick={()=>setSearch("")}
           style={{background:"none",border:"none",cursor:"pointer",color:FT,fontSize:18,padding:0,lineHeight:1}}>×</button>}
       </div>
 
@@ -8455,10 +8455,10 @@ export default function App() {
           backdropFilter:"blur(20px)", zIndex:20,
           borderBottom:`1px solid ${BORDER}`
         }}>
-          <button style={{padding:0,background:"transparent",border:"none",cursor:"pointer"}}>{ICONS.menu(42)}</button>
+          <button aria-label="Меню" style={{padding:0,background:"transparent",border:"none",cursor:"pointer"}}>{ICONS.menu(42)}</button>
           <div style={{fontSize:17,fontWeight:800,letterSpacing:-0.3}}>{TITLES[tab]}</div>
           {settings.notifLocation==="topbar"
-            ? <button style={{padding:0,background:"transparent",border:"none",cursor:"pointer",position:"relative"}}>
+            ? <button aria-label="Сповіщення" style={{padding:0,background:"transparent",border:"none",cursor:"pointer",position:"relative"}}>
                 {ICONS.bell(42)}
                 <span style={{
                   position:"absolute",top:-2,right:-2,
@@ -8467,7 +8467,7 @@ export default function App() {
                   boxShadow:`0 0 8px ${ACCENT}88`
                 }}>3</span>
               </button>
-            : <button style={{padding:0,background:"transparent",border:"none",cursor:"pointer"}}>{ICONS.refresh(42)}</button>
+            : <button aria-label="Оновити" style={{padding:0,background:"transparent",border:"none",cursor:"pointer"}}>{ICONS.refresh(42)}</button>
           }
         </div>
 
@@ -8476,7 +8476,7 @@ export default function App() {
 
         {/* FAB on schedule */}
         {tab==="schedule" && (
-          <button style={{
+          <button aria-label="Додати запис" style={{
             position:"fixed",bottom:118,right:18,
             width:60,height:60,borderRadius:30,
             background:`linear-gradient(165deg,${ACCENT_HI},${ACCENT})`,

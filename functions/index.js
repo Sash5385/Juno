@@ -1602,7 +1602,8 @@ exports.checkLicenseExpiry = onSchedule(
 // Публічний POST без авторизації: honeypot-поле "website", валідація довжин,
 // обмеження частоти за хешем IP (30 с між запитами, до 5 за годину). Повідомлення
 // зберігаються в system/contactMessages (читає лише суперадмін, вкладка "Звернення").
-exports.submitContact = onRequest({ region: "europe-west1", cors: true }, async (req, res) => {
+// invoker:"public" — без нього Cloud Run відповідав 403 до виклику функції (форма лендингу й моніторинг не працювали)
+exports.submitContact = onRequest({ region: "europe-west1", cors: true, invoker: "public" }, async (req, res) => {
   if (req.method !== "POST") { res.status(405).json({ ok: false }); return; }
   try {
     const b = req.body || {};
@@ -1638,7 +1639,7 @@ exports.submitContact = onRequest({ region: "europe-west1", cors: true }, async 
 // за хешем IP, обрізання довжин, групування за відбитком (повтор лише збільшує лічильник).
 // Дані — system/errorLog/{відбиток} (читає лише суперадмін, вкладка "Помилки"). Про НОВУ
 // помилку власнику йде push (не частіше ніж раз на 10 хв), а в Cloud Logging — console.error.
-exports.reportError = onRequest({ region: "europe-west1", cors: true }, async (req, res) => {
+exports.reportError = onRequest({ region: "europe-west1", cors: true, invoker: "public" }, async (req, res) => {
   if (req.method !== "POST") { res.status(405).json({ ok: false }); return; }
   try {
     let b = req.body || {};
