@@ -59,6 +59,7 @@ export default function AllMastersView({ bookings, staff, settings, onPick }) {
         <button aria-label="Наступний день" onClick={() => shift(1)} style={nav}>›</button>
       </div>
 
+      <div style={{ padding: 8, borderRadius: 26, background: "radial-gradient(circle at 15% 0%, rgba(80,130,230,.45) 0, transparent 55%), radial-gradient(circle at 100% 100%, rgba(170,90,200,.35) 0, transparent 50%)" }}>
       <div style={{ overflowX: "auto", borderRadius: 20, border: "1px solid rgba(255,255,255,.16)", background: "rgba(255,255,255,.06)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)", WebkitOverflowScrolling: "touch" }}>
         <div style={{ display: "flex", minWidth: AXIS_W + staff.length * COL_W }}>
           <div style={{ width: AXIS_W, flexShrink: 0, position: "sticky", left: 0, zIndex: 2, background: "rgba(255,255,255,.04)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)" }}>
@@ -90,6 +91,7 @@ export default function AllMastersView({ bookings, staff, settings, onPick }) {
             </div>
           ))}
         </div>
+      </div>
       </div>
       <div style={{ fontSize: 11.5, color: FAINT, textAlign: "center" }}>Торкніться запису або імені майстра, щоб відкрити його календар</div>
     </div>
