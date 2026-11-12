@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback, useContext } from "react";
 import { onValue, push, update, set, increment, remove, get } from "firebase/database";
 import { iRef, auth, isMasterSession, watchChatMeta, watchChatMetaM } from "../firebase";
 import { LangContext } from "../App";
+import { DEMO, DEMO_USER } from "../demo/demoMode";
 
 import { ThemeContext } from "../theme.js";
 import { UICss, useFX } from "../ui";
@@ -201,7 +202,7 @@ export default function ChatsView() {
   useEffect(() => { pendingUidRef.current = window.__openChatUid || null; window.__openChatUid = null; }, []);
   // Майстер салону: бачить лише чати зі своїми клієнтами (masterClients), без розсилки і видалення чатів
   const isMaster = isMasterSession();
-  const myUid = auth.currentUser?.uid || "";
+  const myUid = auth.currentUser?.uid || (DEMO ? DEMO_USER.uid : "");
   const [myName, setMyName] = useState("");
   const [myClients, setMyClients] = useState(null);
   const [err, setErr] = useState("");
@@ -209,7 +210,8 @@ export default function ChatsView() {
   const showErr = (m) => { setErr(m); clearTimeout(errTimer.current); errTimer.current = setTimeout(() => setErr(""), 6000); };
   useEffect(() => () => clearTimeout(errTimer.current), []);
   useEffect(() => {
-    if (!isMaster || !myUid) return undefined;
+    if (!isMaster) return undefined;
+    if (!myUid) { setMyClients(new Set()); return undefined; } // без uid — порожній список, а не вічне завантаження
     get(iRef(`staff/${myUid}/name`)).then(sn => setMyName(String(sn.val() || ""))).catch(() => {});
     return onValue(iRef(`masterClients/${myUid}`), sn => setMyClients(new Set(Object.keys(sn.val() || {}))),
       () => { setMyClients(new Set()); showErr("Немає доступу до чатів. Спробуйте перезайти."); });

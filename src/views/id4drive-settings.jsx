@@ -817,6 +817,17 @@ select{color-scheme:${isKava?"light":"dark"}}
     });
     return () => off(r, "value", handler);
   }, []);
+  // Відгук прив'язаний до запису: masterId із запису (без нього — власник). Фільтр за майстром у салоні.
+  const [revMasters, setRevMasters] = useState({});
+  const [revMaster, setRevMaster] = useState("");
+  useEffect(() => {
+    const r = iRef("masters");
+    const handler = onValue(r, snap => setRevMasters(snap.val() || {}));
+    return () => off(r, "value", handler);
+  }, []);
+  const revOwnerId = Object.keys(revMasters).find(id => revMasters[id]?.owner) || "";
+  const revMasterOf = (rv) => rv.masterId || revOwnerId;
+  const shownReviews = revMaster ? reviews.filter(rv => revMasterOf(rv) === revMaster) : reviews;
   const toggleReviewHidden = (review) => {
     update(iRef( `reviews/${review.uid}/${review.id}`), { status: review.status === "hidden" ? "approved" : "hidden" }).catch(() => {});
   };
@@ -1407,9 +1418,24 @@ select{color-scheme:${isKava?"light":"dark"}}
       case "reviews": return (
         <div>
           {showHint && <Info color={GOLD} title="Відгуки клієнтів" text={"Клієнти лишають відгук самі після завершеного запису. Відгук одразу з’являється на вашій сторінці запису, його бачать усі відвідувачі.\n\nВидалити або змінити відгук не можна. Але його можна сховати кнопкою «Сховати» — тоді його не буде видно на сайті. Передумали — натисніть «Показати»."}/>}
-          {reviews.length === 0 ? (
+          {Object.keys(revMasters).length > 1 && (
+            <ScrollChips activeKey={revMaster || "all"}>
+              {[["", "Усі", null], ...Object.entries(revMasters).map(([id, m]) => [id, m?.name || "Майстер", m?.color])].map(([id, name, color]) => {
+                const on = revMaster === id;
+                const n = id ? reviews.filter(rv => revMasterOf(rv) === id).length : reviews.length;
+                return (
+                  <button key={id || "all"} data-active={on ? "1" : "0"} onClick={() => setRevMaster(id)} style={{
+                    flexShrink:0,whiteSpace:"nowrap",fontSize:12,fontWeight:600,fontFamily:"inherit",cursor:"pointer",padding:"7px 12px",borderRadius:99,
+                    border:`1px solid ${on ? "transparent" : "rgba(255,255,255,0.1)"}`,display:"flex",alignItems:"center",gap:6,
+                    background:on ? `linear-gradient(145deg,${SURF_HI},${SURFACE})` : "transparent",color:on ? TEXT : DIM,boxShadow:on ? SO : "none",
+                  }}>{color && <span style={{width:8,height:8,borderRadius:"50%",background:color}}/>}{`${name} · ${n}`}</button>
+                );
+              })}
+            </ScrollChips>
+          )}
+          {shownReviews.length === 0 ? (
             <div style={{textAlign:"center",padding:"24px 12px",color:DIM,fontSize:12}}>Поки що немає відгуків</div>
-          ) : reviews.map(rv => (
+          ) : shownReviews.map(rv => (
             <div key={`${rv.uid}_${rv.id}`} style={{
               padding:"10px 12px",borderRadius:11,marginBottom:6,
               background:SURF_LO,boxShadow:SI,opacity:rv.status==="hidden"?0.5:1,
@@ -1418,6 +1444,12 @@ select{color-scheme:${isKava?"light":"dark"}}
                 <div style={{fontSize:13,fontWeight:800,color:TEXT}}>{rv.studentName || "Клієнт"}</div>
                 <div style={{color:GOLD,fontSize:12,letterSpacing:1}}>{"★".repeat(rv.rating||0)}{"☆".repeat(5-(rv.rating||0))}</div>
               </div>
+              {Object.keys(revMasters).length > 1 && revMasters[revMasterOf(rv)] && (
+                <div style={{fontSize:11,color:FAINT,marginBottom:4,display:"flex",alignItems:"center",gap:5}}>
+                  <span style={{width:7,height:7,borderRadius:"50%",background:revMasters[revMasterOf(rv)].color}}/>
+                  {`Майстер: ${revMasters[revMasterOf(rv)].name}`}{rv.serviceName ? ` · ${rv.serviceName}` : ""}
+                </div>
+              )}
               {rv.text && <div style={{fontSize:12,color:DIM,lineHeight:1.5,marginBottom:6}}>{rv.text}</div>}
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                 <div style={{fontSize:11,color:FAINT}}>{rv.createdAt ? new Date(rv.createdAt).toLocaleDateString("uk-UA") : ""}</div>
@@ -1791,7 +1823,7 @@ select{color-scheme:${isKava?"light":"dark"}}
           if (daysLeft != null) rows.push(["Залишилось днів", blocked ? "0 (сплив)" : String(daysLeft)]);
           if (license.lastPaymentAt) rows.push(["Востаннє оплачено", fmtDate(license.lastPaymentAt)]);
           if (providerLabel) rows.push(["Спосіб оплати", providerLabel]);
-          rows.push(["Тариф", license.plan === "yearly" ? "Рік · 2999₴" : "Місяць · 299₴"]);
+          rows.push(["Тариф", license.plan === "yearly" ? "Рік · 2999₴ (≈ $72)" : "Місяць · 299₴ (≈ $7)"]);
         }
         return (
           <div style={{

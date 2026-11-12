@@ -315,7 +315,17 @@
         "reviews": {
           ".read": true,
           "$uid": {
-            ".write": "auth != null && auth.uid === $iid"
+            ".write": "auth != null && auth.uid === $iid",
+            // Відгук клієнта до свого запису: reviews/{uid}/{bookingId}. Лише до незасованого запису, masterId — з запису;
+            // схований майстром відгук клієнт не перезапише (статус лишається за майстром).
+            "$rid": {
+              ".write": "auth != null && auth.uid === $uid && root.child('instructors/'+$iid+'/bookings/'+$uid+'/'+$rid).exists() && root.child('instructors/'+$iid+'/bookings/'+$uid+'/'+$rid).child('status').val() !== 'cancelled' && (!data.exists() || data.child('status').val() !== 'hidden')",
+              ".validate": "auth.uid === $iid || (newData.hasChildren(['rating','createdAt','status']) && newData.child('rating').isNumber() && newData.child('rating').val() >= 1 && newData.child('rating').val() <= 5 && newData.child('createdAt').isNumber() && newData.child('status').val() === 'approved' && newData.child('masterId').val() === root.child('instructors/'+$iid+'/bookings/'+$uid+'/'+$rid).child('masterId').val())",
+              "text": { ".validate": "auth.uid === $iid || (newData.isString() && newData.val().length <= 1000)" },
+              "studentName": { ".validate": "auth.uid === $iid || (newData.isString() && newData.val().length <= 80)" },
+              "serviceName": { ".validate": "auth.uid === $iid || (newData.isString() && newData.val().length <= 120)" },
+              "$other": { ".validate": "auth.uid === $iid || $other === 'rating' || $other === 'createdAt' || $other === 'status' || $other === 'masterId'" }
+            }
           }
         },
         "invites": { },

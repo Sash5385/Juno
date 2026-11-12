@@ -221,6 +221,24 @@ console.log("── REVIEWS");
 await t("student writes fake review", X, () => set(R(S1, "instructors/inst1/reviews/stu1/r1"), { text: "great", approved: true }));
 await t("instructor writes review", A, () => set(R(I1, "instructors/inst1/reviews/stu1/r1"), { text: "ok", approved: true }));
 await t("anonymous reads reviews", A, () => get(R(anon, "instructors/inst1/reviews")));
+// відгук із запису: reviews/{uid}/{bookingId}, masterId — як у записі
+await env.withSecurityRulesDisabled(async (ctx) => {
+  const db = ctx.database();
+  await set(ref(db, "instructors/inst1/bookings/stu1/rvb"), { id: "rvb", date: D, status: "confirmed", masterId: "m1" });
+  await set(ref(db, "instructors/inst1/bookings/stu1/rvc"), { id: "rvc", date: D, status: "cancelled" });
+  await set(ref(db, "instructors/inst1/bookings/stu1/rvo"), { id: "rvo", date: D, status: "confirmed" });
+});
+const RV = { rating: 5, text: "Супер", studentName: "S1", createdAt: NOW, status: "approved" };
+await t("student reviews own booking (master from booking)", A, () => set(R(S1, "instructors/inst1/reviews/stu1/rvb"), { ...RV, masterId: "m1" }));
+await t("student reviews owner booking (no masterId)", A, () => set(R(S1, "instructors/inst1/reviews/stu1/rvo"), RV));
+await t("student review with wrong master", X, () => set(R(S1, "instructors/inst1/reviews/stu1/rvb"), { ...RV, masterId: "m2" }));
+await t("student review of cancelled booking", X, () => set(R(S1, "instructors/inst1/reviews/stu1/rvc"), RV));
+await t("student review rating 6", X, () => set(R(S1, "instructors/inst1/reviews/stu1/rvo"), { ...RV, rating: 6 }));
+await t("student review sets status hidden/other", X, () => set(R(S1, "instructors/inst1/reviews/stu1/rvo"), { ...RV, status: "pinned" }));
+await t("student review extra field", X, () => set(R(S1, "instructors/inst1/reviews/stu1/rvo"), { ...RV, approvedBy: "x" }));
+await t("other student writes review for stu1", X, () => set(R(SX, "instructors/inst1/reviews/stu1/rvo"), RV));
+await t("instructor hides review", A, () => update(R(I1, "instructors/inst1/reviews/stu1/rvo"), { status: "hidden" }));
+await t("student un-hides hidden review", X, () => set(R(S1, "instructors/inst1/reviews/stu1/rvo"), RV));
 console.log("── WORKSPACE (тип акаунта, склад, masterId)");
 await t("owner sets accountType salon", A, () => set(R(I1, "instructors/inst1/admin_settings/accountType"), "salon"));
 await t("owner sets accountType solo", A, () => set(R(I1, "instructors/inst1/admin_settings/accountType"), "solo"));

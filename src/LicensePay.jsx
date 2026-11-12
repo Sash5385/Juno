@@ -26,7 +26,7 @@ export function LicensePayPanel() {
             background: plan === p.id ? "rgba(255,255,255,0.14)" : "rgba(0,0,0,0.18)",
             color: "#fff", fontSize: 13, fontWeight: 800, lineHeight: 1.25,
           }}>
-            {p.label}<br/><span style={{ fontSize: 15 }}>{p.price}₴</span>
+            {p.label}<br/><span style={{ fontSize: 15 }}>{p.price}₴</span><br/><span style={{ fontSize: 10, opacity: 0.7 }}>≈ ${p.usd}</span>
           </button>
         ))}
       </div>
