@@ -13,7 +13,7 @@ const ATTRS = ['placeholder', 'title', 'aria-label', 'alt']
 export function detectLang() {
   try {
     const q = new URLSearchParams(location.search).get('lang')
-    if (q && LANGS.includes(q)) return q
+    if (q && LANGS.includes(q)) { localStorage.setItem('dp_lang', q); return q } // запам'ятати: редірект/перезавантаження губить ?lang
     const s = localStorage.getItem('dp_lang')
     if (s && LANGS.includes(s)) return s
   } catch { /* сховище недоступне */ }
