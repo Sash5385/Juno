@@ -40,8 +40,10 @@ export default function AllMastersView({ bookings, staff, settings, onPick }) {
   // «N годин» — скільки годин вміщається на екрані (Авто — весь діапазон записів); «N діб» — скільки колонок майстрів на екрані
   const wantHours = settings.autoHourHeight ? Math.max(6, Math.min(16, hours.length)) : Math.max(1, ((Number(settings.workEnd) || 18) - (Number(settings.workStart) || 9)) * 60 / (Number(settings.hourHeightPx) || 60));
   const HOUR_H = Math.max(26, Math.round(Math.max(240, win.h - 330) / wantHours));
-  const cols = Math.max(1, Math.min(staff.length, Number(settings.daysShown) || 5));
-  const COL_W = Math.max(44, Math.floor((win.w - 18 - AXIS_W) / cols));
+  // Телефон (< 480px): один майстер на екран, гортання свайпом із прилипанням до колонки
+  const phone = win.w < 480;
+  const cols = phone ? 1 : Math.max(1, Math.min(staff.length, Number(settings.daysShown) || 5));
+  const COL_W = Math.max(44, Math.floor((win.w - 36 - AXIS_W) / cols));
   const total = all.length;
   const isToday = day === ymd(new Date());
   const label = date.toLocaleDateString("uk-UA", { weekday: "long", day: "numeric", month: "long" });
@@ -60,14 +62,14 @@ export default function AllMastersView({ bookings, staff, settings, onPick }) {
       </div>
 
       <div style={{ padding: 8, borderRadius: 26, background: "radial-gradient(circle at 15% 0%, rgba(80,130,230,.45) 0, transparent 55%), radial-gradient(circle at 100% 100%, rgba(170,90,200,.35) 0, transparent 50%)" }}>
-      <div style={{ overflowX: "auto", borderRadius: 20, border: "1px solid rgba(255,255,255,.16)", background: "rgba(255,255,255,.06)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)", WebkitOverflowScrolling: "touch" }}>
+      <div style={{ overflowX: "auto", borderRadius: 20, border: "1px solid rgba(255,255,255,.16)", background: "rgba(255,255,255,.06)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)", WebkitOverflowScrolling: "touch", scrollSnapType: phone ? "x mandatory" : undefined, scrollPaddingLeft: AXIS_W }}>
         <div style={{ display: "flex", minWidth: AXIS_W + staff.length * COL_W }}>
           <div style={{ width: AXIS_W, flexShrink: 0, position: "sticky", left: 0, zIndex: 2, background: "rgba(255,255,255,.04)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)" }}>
             <div style={{ height: 38 }} />
             {hours.map((h) => (<div key={h} style={{ height: HOUR_H, fontSize: 11, color: FAINT, textAlign: "right", paddingRight: 6, boxSizing: "border-box" }}>{fmt(h)}</div>))}
           </div>
           {staff.map((m) => (
-            <div key={m.id} style={{ flex: 1, minWidth: COL_W, borderLeft: `1px solid ${BORDER}` }}>
+            <div key={m.id} style={{ flex: 1, minWidth: COL_W, borderLeft: `1px solid ${BORDER}`, scrollSnapAlign: phone ? "start" : undefined }}>
               <button onClick={() => onPick(m.id)} style={{ width: "100%", height: 38, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, background: "none", border: "none", borderBottom: `1px solid ${BORDER}`, color: TEXT, fontFamily: "inherit", fontSize: 12.5, fontWeight: 700, cursor: "pointer", padding: "0 6px" }}>
                 <span style={{ width: 9, height: 9, borderRadius: "50%", background: m.color, flexShrink: 0 }} />
                 <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.name}</span>

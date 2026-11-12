@@ -844,13 +844,13 @@ function MonthCalendarSheetBase({ bookings, onClose, onPickDate }) {
           <div style={{padding:"14px 16px 6px"}} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
             <div style={{width:38, height:4, borderRadius:2, background:ink(0.1), margin:"0 auto 14px"}}/>
             <div style={{display:"flex", alignItems:"center", justifyContent:"center", gap:14, marginBottom:14}}>
-              <button onClick={()=>goMonth(-1)} style={{
+              <button aria-label="Попередній місяць" onClick={()=>goMonth(-1)} style={{
                 width:30, height:30, borderRadius:9, border:"none", cursor:"pointer",
                 background:ink(0.06), color:TEXT, fontSize:16, fontWeight:800,
                 display:"flex", alignItems:"center", justifyContent:"center",
               }}>‹</button>
               <div style={{fontSize:15, fontWeight:800, color:TEXT, textTransform:"capitalize", minWidth:150, textAlign:"center"}}>{monthLabel}</div>
-              <button onClick={()=>goMonth(1)} style={{
+              <button aria-label="Наступний місяць" onClick={()=>goMonth(1)} style={{
                 width:30, height:30, borderRadius:9, border:"none", cursor:"pointer",
                 background:ink(0.06), color:TEXT, fontSize:16, fontWeight:800,
                 display:"flex", alignItems:"center", justifyContent:"center",
@@ -3838,7 +3838,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
               {isToday && nowMin >= wsMinAbs && nowMin <= weMinAbs && (
                 <div data-help="nowline" style={{
                   position:"absolute", left:0, right:0, top:minToPx(nowMin),
-                  height:3, zIndex:5, pointerEvents:"none",
+                  height:3, zIndex:1, pointerEvents:"none", // під картками записів (z 2), щоб не закривати текст
                   background:"#ef4444", boxShadow:"0 2px 6px rgba(239,68,68,0.6)",
                 }}/>
               )}
@@ -4762,10 +4762,10 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
           left:Math.min(Math.max(0, helpPos ? helpPos.x : window.innerWidth*0.9 - 46), window.innerWidth - 46),
           top:Math.min(Math.max(0, helpPos ? helpPos.y : window.innerHeight*0.3), window.innerHeight - 46),
           touchAction:"none", userSelect:"none", WebkitUserSelect:"none", WebkitTouchCallout:"none",
-          width:46, height:46, borderRadius:"50%", cursor:"grab", fontFamily:"inherit",
+          width:38, height:38, borderRadius:"50%", cursor:"grab", fontFamily:"inherit", opacity:0.85,
           border:"1.5px solid rgba(255,255,255,0.45)",
           background:"linear-gradient(145deg,#d8b4fe 0%,#a855f7 45%,#6d28d9 100%)",
-          color:"#fff", fontSize:24, fontWeight:900, lineHeight:1, padding:0,
+          color:"#fff", fontSize:20, fontWeight:900, lineHeight:1, padding:0,
           display:"flex", alignItems:"center", justifyContent:"center",
           boxShadow:"0 6px 18px rgba(168,85,247,0.6), inset 0 1px 0 rgba(255,255,255,0.5)",
           textShadow:"0 1px 3px rgba(0,0,0,0.4)",
@@ -6376,7 +6376,7 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
                   </div>
                 )}
                 <div style={{marginTop:8,fontSize:11,lineHeight:1.4,color:"rgba(255,255,255,.55)"}}>
-                  Позначка на картці запису в розкладі (1-й запис, важливо, борг тощо). Перший запис ставиться автоматично, решту — вручну («Змінити»).
+                  Позначка на картці запису в розкладі (1-й запис, важливо, борг тощо). Перший запис ставиться автоматично, решту — вручну («+ Додати»).
                 </div>
               </div>
             );

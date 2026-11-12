@@ -1002,7 +1002,7 @@ function AdminApp({ adminUser, ws, onWs }) {
   const ownerIid = ws?.iid || adminUser?.uid || null;
   const salonOn = !!ws || isSalon(settings);
   const [staffAll, setStaffList] = useState([]);
-  const [pickedMaster, setPickedMaster] = useState(null);
+  const [pickedMaster, setPickedMaster] = useState(ALL_MASTERS); // власник салону відкриває огляд «Усі»
   useEffect(() => {
     if (!adminUser?.uid || vendor || !salonOn) return undefined;
     return onValue(iRef("staff"), snap => setStaffList(normStaff(snap.val(), ownerIid)), () => {});
