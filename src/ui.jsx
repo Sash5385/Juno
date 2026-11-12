@@ -295,7 +295,7 @@ export function ScrollChips({ children, activeKey, fade, style }) {
   const toPage = (i) => { const el = ref.current; if (el) el.scrollTo({ left: i * (el.scrollWidth - el.clientWidth) / Math.max(1, pages - 1), behavior: "smooth" }); };
   return (
     <div style={{position:"relative",flexShrink:0}}>
-      <div ref={ref} onScroll={upd} style={{display:"flex",gap:6,overflowX:"auto",scrollbarWidth:"none",padding:"6px 10px 12px",margin:"-6px -10px -4px",...style}}>{children}</div>
+      <div ref={ref} onScroll={upd} style={{display:"flex",gap:6,overflowX:"auto",scrollbarWidth:"none",padding:"12px 16px 24px",margin:"-12px -16px -16px",...style}}>{children}</div>
       {pages > 1 && (
         <div style={{display:"flex",justifyContent:"center",gap:2,marginTop:2}}>
           {Array.from({length:pages}).map((_, i) => (
