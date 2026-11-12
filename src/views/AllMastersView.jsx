@@ -59,9 +59,9 @@ export default function AllMastersView({ bookings, staff, settings, onPick }) {
         <button aria-label="Наступний день" onClick={() => shift(1)} style={nav}>›</button>
       </div>
 
-      <div style={{ overflowX: "auto", borderRadius: 16, border: `1px solid ${BORDER}`, background: SURFACE, WebkitOverflowScrolling: "touch" }}>
+      <div style={{ overflowX: "auto", borderRadius: 20, border: "1px solid rgba(255,255,255,.16)", background: "rgba(255,255,255,.06)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)", WebkitOverflowScrolling: "touch" }}>
         <div style={{ display: "flex", minWidth: AXIS_W + staff.length * COL_W }}>
-          <div style={{ width: AXIS_W, flexShrink: 0, position: "sticky", left: 0, zIndex: 2, background: SURFACE }}>
+          <div style={{ width: AXIS_W, flexShrink: 0, position: "sticky", left: 0, zIndex: 2, background: "rgba(255,255,255,.04)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)" }}>
             <div style={{ height: 38 }} />
             {hours.map((h) => (<div key={h} style={{ height: HOUR_H, fontSize: 11, color: FAINT, textAlign: "right", paddingRight: 6, boxSizing: "border-box" }}>{fmt(h)}</div>))}
           </div>
@@ -79,7 +79,7 @@ export default function AllMastersView({ bookings, staff, settings, onPick }) {
                   return (
                     <button key={b.id} onClick={() => onPick(m.id)} title={`${fmt(b.startMin)}–${fmt(b.startMin + b.durMin)}`} style={{
                       position: "absolute", left: 3, right: 3, top, height: h, borderRadius: 9, padding: "3px 6px", textAlign: "left", overflow: "hidden", cursor: "pointer", fontFamily: "inherit", color: TEXT, boxSizing: "border-box",
-                      background: blocked ? "rgba(148,163,184,.18)" : `color-mix(in srgb,${m.color} 30%,transparent)`, border: `1px solid ${blocked ? BORDER : `color-mix(in srgb,${m.color} 60%,transparent)`}`,
+                      background: blocked ? "rgba(148,163,184,.18)" : `color-mix(in srgb,${m.color} 30%,transparent)`, backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", border: `1px solid ${blocked ? BORDER : `color-mix(in srgb,${m.color} 60%,transparent)`}`,
                     }}>
                       <div style={{ fontSize: 11, fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{blocked ? "Блок" : b.name}</div>
                       <div style={{ fontSize: 11, color: DIM, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{fmt(b.startMin)}{b.serviceName ? ` · ${b.serviceName}` : ""}</div>
