@@ -741,7 +741,8 @@ export default function StudentsView({ studentJump, onStudentJumpHandled, bookin
   // Повне видалення клієнта на сервері: скасовує майбутні записи (слоти звільняються), прибирає записи, чат, сповіщення, черги
   const deleteStudent = id => {
     setStudents(ss=>ss.filter(x=>x.id!==id));
-    deleteAccountRequest({ type:"student", iid:auth.currentUser.uid, uid:id })
+    // через then: без авторизації (демо) помилка йде в catch → локальне видалення, а не падіння сторінки
+    Promise.resolve().then(() => deleteAccountRequest({ type:"student", iid:auth.currentUser.uid, uid:id }))
       .catch(() => remove(iRef(`users/${id}`)).catch(()=>{}));
   };
   const createStudent = async (data) => {
