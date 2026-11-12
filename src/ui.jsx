@@ -299,7 +299,7 @@ export function ScrollChips({ children, activeKey, fade, style }) {
       {pages > 1 && (
         <div style={{display:"flex",justifyContent:"center",gap:2,marginTop:2}}>
           {Array.from({length:pages}).map((_, i) => (
-            <button key={i} aria-label={`Сторінка ${i+1}`} onClick={()=>toPage(i)} style={{border:"none",background:"none",padding:"6px 3px",cursor:"pointer"}}>
+            <button key={i} aria-label={`Сторінка ${i+1}`} onClick={()=>toPage(i)} style={{border:"none",background:"none",padding:"9px 5px",cursor:"pointer"}}>
               <span style={{display:"block",height:6,width:i===cur?18:6,borderRadius:3,background:i===cur?"#60a5fa":BORDER,transition:"all .2s"}}/>
             </button>
           ))}

@@ -120,8 +120,8 @@ function Conversation({ contact, messages, onSend, isBroadcast }) {
           <textarea ref={taRef} className="msg-input" value={text} onChange={e=>setText(e.target.value)}
             onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send();}}}
             placeholder={isBroadcast?"Повідомлення всім клієнтам…":"Повідомлення…"} rows={1}/>
-          <button onClick={send} disabled={!text.trim()} style={{
-            width:32,height:32,borderRadius:8,border:"none",flexShrink:0,
+          <button onClick={send} disabled={!text.trim()} aria-label="Надіслати" style={{
+            width:36,height:36,borderRadius:8,border:"none",flexShrink:0,
             cursor:text.trim()?"pointer":"default",
             background:text.trim()?sendBg:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,
             display:"flex",alignItems:"center",justifyContent:"center",

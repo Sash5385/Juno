@@ -1,4 +1,4 @@
-import React, { useState, useEffect, lazy, Suspense, createContext, useContext } from "react";
+import React, { useState, useEffect, lazy, Suspense, createContext, useContext, startTransition } from "react";
 import { ref, onValue, update, push, remove, get, set } from "firebase/database";
 import { iRef, db, watchBookings, watchChatMeta, watchChatMetaM, slotRoot, setActiveMaster, setMasterTokenUid, setCurrentIid, registerAdminFCM, onAdminForegroundMessage } from "./firebase";
 import { useAdminAuth, LoginScreen, InstructorSetupScreen, isVendor, SuperAdminScreen } from "./AdminAuth";
@@ -1003,6 +1003,9 @@ function AdminApp({ adminUser, ws, onWs }) {
   const salonOn = !!ws || isSalon(settings);
   const [staffAll, setStaffList] = useState([]);
   const [pickedMaster, setPickedMaster] = useState(ALL_MASTERS); // власник салону відкриває огляд «Усі»
+  // Капсула підсвічується одразу, а важкий перемонтаж календаря майстра йде фоном (не блокує тап на слабких телефонах)
+  const [pickedUi, setPickedUi] = useState(ALL_MASTERS);
+  const pickMaster = (id) => { setPickedUi(id); startTransition(() => setPickedMaster(id)); };
   useEffect(() => {
     if (!adminUser?.uid || vendor || !salonOn) return undefined;
     return onValue(iRef("staff"), snap => setStaffList(normStaff(snap.val(), ownerIid)), () => {});
@@ -1472,11 +1475,11 @@ const pendingDeletesRef = React.useRef(new Set());
           flexDirection:"column",
           background: !fogOn && theme.BG_IMAGE ? "#d4ba96" : "transparent",
         }}>
-          {salonOn && !ws && staffList.length > 1 && displayedTab === "schedule" && <FogScope><MasterTabs staff={staffList} active={allMode ? ALL_MASTERS : masterId} onPick={setPickedMaster}/></FogScope>}
+          {salonOn && !ws && staffList.length > 1 && displayedTab === "schedule" && <FogScope><MasterTabs staff={staffList} active={pickedUi !== pickedMaster ? pickedUi : (allMode ? ALL_MASTERS : masterId)} onPick={pickMaster}/></FogScope>}
           <div style={displayedTab==="schedule" ? {display:"contents"} : {zoom: uiScaleZoom(uiScale)}}>
           <Suspense fallback={<Loader/>}>
             <div className={displayedTab==="schedule" ? "view-fill" : "pc-wrap"}>
-            <ViewRenderer allMode={allMode} staffList={staffList} onPickMaster={setPickedMaster} ws={ws} onWs={onWs} masterKey={masterId} scheduleSettings={scheduleSettings} scheduleBookings={scheduleBookings} scheduleSetBookings={scheduleSetBookings} tab={displayedTab} settings={settings} setSettings={setSettings} bookings={bookings} setBookings={handleSetBookings} onSlotClick={setSelectedBooking} onEmptySlotClick={setNewBookingData} openInfos={openInfos} toggleInfo={toggleInfo} activeDragIds={activeDragIds} navTo={switchTab} slotExistsRef={slotExistsRef} openSlotsRef={openSlotsRef} jumpTarget={jumpTarget} setJumpTarget={setJumpTarget} onViewStudent={onViewStudent} studentJump={studentJump} onStudentJumpHandled={()=>setStudentJump(null)}/>
+            <ViewRenderer allMode={allMode} staffList={staffList} onPickMaster={pickMaster} ws={ws} onWs={onWs} masterKey={masterId} scheduleSettings={scheduleSettings} scheduleBookings={scheduleBookings} scheduleSetBookings={scheduleSetBookings} tab={displayedTab} settings={settings} setSettings={setSettings} bookings={bookings} setBookings={handleSetBookings} onSlotClick={setSelectedBooking} onEmptySlotClick={setNewBookingData} openInfos={openInfos} toggleInfo={toggleInfo} activeDragIds={activeDragIds} navTo={switchTab} slotExistsRef={slotExistsRef} openSlotsRef={openSlotsRef} jumpTarget={jumpTarget} setJumpTarget={setJumpTarget} onViewStudent={onViewStudent} studentJump={studentJump} onStudentJumpHandled={()=>setStudentJump(null)}/>
             </div>
           </Suspense>
           </div>

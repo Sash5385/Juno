@@ -149,7 +149,7 @@ function StudentCard({ s, onSelect, settings }) {
         <div style={{fontSize:11.5,color:"rgba(255,255,255,0.8)",fontWeight:500,marginTop:2}}>{typeLabel}</div>
       </div>
 
-      <button onClick={e=>{e.stopPropagation();navTo("chats");}} style={{position:"relative",zIndex:2,background:"rgba(0,0,0,0.25)",border:"none",borderRadius:8,cursor:"pointer",width:32,height:32,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+      <button aria-label="Чат з клієнтом" onClick={e=>{e.stopPropagation();navTo("chats");}} style={{position:"relative",zIndex:2,background:"rgba(0,0,0,0.25)",border:"none",borderRadius:8,cursor:"pointer",width:36,height:36,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
         {ICONS.chat}
       </button>
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="2.5" strokeLinecap="round" style={{position:"relative",zIndex:2,flexShrink:0}}>
@@ -265,6 +265,12 @@ function StudentDetailSheet({ settings, s, onClose, onUpdate, onDelete, onBlock,
 
   const _close = () => setClosing(true);
   useBackClose(true, _close);
+  // Escape на клавіатурі закриває картку (як і кнопка «Назад»)
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === "Escape") _close(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   return (
     <>
