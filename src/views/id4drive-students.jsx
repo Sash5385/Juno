@@ -10,6 +10,7 @@ import { makePalette } from "./id4drive-services";
 import { STUDENT_COLOR_CHOICES } from "../studentColors";
 import { useConfirm } from "../ConfirmModal";
 import { normPackages, normPackageTemplates, buildClientPackage, expiresLabel } from "../packages";
+import { cur as curSym } from "../currency";
 
 const M = ["","Січ","Лют","Бер","Кві","Тра","Чер","Лип","Сер","Вер","Жов","Лис","Гру"];
 const fmtS = d => { if(!d) return "—"; const [,m,day]=d.split("-"); return `${parseInt(day)} ${M[parseInt(m)]}`; };
@@ -60,7 +61,7 @@ function StudentForm({ initial, onSave, onCancel, saveLabel="Зберегти" }
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7}}>
         <Field label="Ім'я"      value={d.name||""}     onChange={v=>upd("name",v)}     placeholder="Ім'я Прізвище" style={{marginBottom:0}}/>
         <Field label="Телефон"   value={d.phone||""}    onChange={v=>upd("phone",v)}    placeholder="+380..." style={{marginBottom:0}}/>
-        <Field label="Знижка ₴/год"  value={d.discount||""} onChange={v=>upd("discount",v.replace(/[^\d]/g,""))} placeholder="0" type="text" inputMode="numeric" style={{marginBottom:0}}/>
+        <Field label={`Знижка ${curSym()}/год`}  value={d.discount||""} onChange={v=>upd("discount",v.replace(/[^\d]/g,""))} placeholder="0" type="text" inputMode="numeric" style={{marginBottom:0}}/>
         <div>
           <div style={{fontSize:11,color:FAINT,letterSpacing:1,marginBottom:5}}>ТИП</div>
           <div style={{display:"flex",gap:6}}>
@@ -72,7 +73,7 @@ function StudentForm({ initial, onSave, onCancel, saveLabel="Зберегти" }
           </div>
         </div>
       </div>
-      <Field label="Індивідуальна фікс. ціна ₴/год" value={d.customPrice||""} onChange={v=>upd("customPrice",v.replace(/[^\d]/g,""))} placeholder="Стандартна ціна послуги" type="text" inputMode="numeric" style={{marginBottom:0}}/>
+      <Field label={`Індивідуальна фікс. ціна ${curSym()}/год`} value={d.customPrice||""} onChange={v=>upd("customPrice",v.replace(/[^\d]/g,""))} placeholder="Стандартна ціна послуги" type="text" inputMode="numeric" style={{marginBottom:0}}/>
       <div onClick={()=>upd("isVip",!d.isVip)} style={{
         display:"flex",alignItems:"center",justifyContent:"space-between",
         padding:"10px 12px",borderRadius:10,cursor:"pointer",
@@ -390,7 +391,7 @@ function StudentDetailSheet({ settings, s, onClose, onUpdate, onDelete, onBlock,
                   </div>
                   <div style={{width:88,background:glow(0.04),borderRadius:10,padding:"9px 12px",border:`1px solid ${BORDER}`,textAlign:"center"}}>
                     <div style={{fontSize:11,color:FAINT,letterSpacing:1,textTransform:"uppercase",marginBottom:3}}>Знижка/год</div>
-                    <div style={{fontSize:18,fontWeight:900,color:s.discount>0?GOLD:DIM}}>{s.discount||0}₴</div>
+                    <div style={{fontSize:18,fontWeight:900,color:s.discount>0?GOLD:DIM}}>{s.discount||0}{curSym()}</div>
                   </div>
                 </div>
 
@@ -450,7 +451,7 @@ function StudentDetailSheet({ settings, s, onClose, onUpdate, onDelete, onBlock,
                 {s.customPrice > 0 && (
                   <div style={{background:"rgba(234,179,8,0.10)",border:"1px solid rgba(234,179,8,0.35)",borderRadius:10,padding:"9px 12px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
                     <div style={{fontSize:11,fontWeight:700,color:"#eab308"}}>💰 Індивідуальна ціна</div>
-                    <div style={{fontSize:14,fontWeight:900,color:"#eab308"}}>{s.customPrice}₴/год</div>
+                    <div style={{fontSize:14,fontWeight:900,color:"#eab308"}}>{s.customPrice}{`${curSym()}/год`}</div>
                   </div>
                 )}
 

@@ -4,6 +4,7 @@ import { iRef } from "../firebase";
 import { ThemeContext } from "../theme.js";
 import { Toggle, NumInput, WeekScheduleEditor } from "./id4drive-settings";
 import { hasOwnSchedule } from "../masterSettings";
+import { cur } from "../currency";
 
 const EMPTY_DAY = (i) => ({ enabled: i < 5, start: 9, end: 18, lunchEnabled: false, lunchStart: 12, lunchEnd: 13 });
 
@@ -73,7 +74,7 @@ export default function MasterOverrides({ mid }) {
               <Toggle on={active} onChange={(v) => setSvc(s, { active: v })} />
             </div>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-              <NumInput value={price} onChange={(v) => setSvc(s, { price: v })} min={0} max={100000} step={50} suffix=" ₴" />
+              <NumInput value={price} onChange={(v) => setSvc(s, { price: v })} min={0} max={100000} step={50} suffix={" " + cur()} />
               <NumInput value={dur} onChange={(v) => setSvc(s, { duration: v })} min={5} max={1440} step={15} suffix=" хв" />
               {o && <button onClick={() => write({ [`svc/${s.id}`]: null })} style={{ marginLeft: "auto", background: "none", border: "none", color: DIM, fontSize: 12, cursor: "pointer" }}>Скинути</button>}
             </div>

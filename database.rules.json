@@ -61,7 +61,9 @@
           // Тип акаунта: «Один майстер» (solo) або «Салон» (salon) — один акаунт із кількома майстрами всередині
           "accountType": { ".validate": "newData.val() === 'solo' || newData.val() === 'salon'" },
           // Мова майстра (uk|en|pl|de|es|fr) — сервер надсилає йому сповіщення цією мовою. Пише власник (правило $iid)
-          "lang": { ".validate": "newData.val() === null || (newData.isString() && newData.val().matches(/^(uk|en|pl|de|es|fr)$/))" }
+          "lang": { ".validate": "newData.val() === null || (newData.isString() && newData.val().matches(/^(uk|en|pl|de|es|fr)$/))" },
+          // Валюта цін майстра (лише символ, без перерахунку)
+          "currency": { ".validate": "newData.isString() && newData.val().matches(/^(UAH|USD|EUR|PLN)$/)" }
         },
         // Склад робочого простору (салон): { uid: { role: 'owner' | 'master', name, color, joinedAt } }.
         // Власник (uid === iid) — завжди роль owner; майстри — лише master. Читає власник і сам склад; пише лише власник.

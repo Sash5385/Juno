@@ -11,12 +11,13 @@ import { bookingAddonTotals } from "../addons";
 import { hasOwnSchedule } from "../masterSettings";
 import { periodDates, utilization, cancelStats, sources, clientStats, serviceStats, heatmap, quietestSlot, attendance, cohorts, courseStats, packageStats } from "./stats-extra";
 import { normDirection } from "../terms";
+import { cur as curSym } from "../currency";
 
 const UK_MONTHS     = ["Січ","Лют","Бер","Кві","Тра","Чер","Лип","Сер","Вер","Жов","Лис","Гру"];
 const UK_WEEK_LABELS= ["Пн","Вт","Ср","Чт","Пт","Сб"];
 
 // ─── HELPERS ────────────────────────────────────────────────────
-const fmtK = n => n>=1000?`${(n/1000).toFixed(1)}к ₴`:`${n} ₴`;
+const fmtK = n => n>=1000?`${(n/1000).toFixed(1)}к ${curSym()}`:`${n} ${curSym()}`;
 
 function getDateStr(d) {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
@@ -1061,7 +1062,7 @@ export default function StatsView({ onViewStudent, direction } = {}) {
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
               <div style={{fontSize:11,color:FAINT,letterSpacing:1,textTransform:"uppercase",fontWeight:700}}>Топ-5 клієнтів</div>
               <div style={{display:"flex",gap:5}}>
-                {[["paid","₴"],["lessons","год"]].map(([k,l])=>(
+                {[["paid",curSym()],["lessons","год"]].map(([k,l])=>(
                   <button key={k} onClick={()=>setTopBy(k)} style={{
                     minWidth:36, padding:"7px 11px", borderRadius:8, border:"none", cursor:"pointer", fontSize:11, fontWeight:700, fontFamily:"inherit",
                     background:topBy===k?GOLD:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,
@@ -1122,7 +1123,7 @@ export default function StatsView({ onViewStudent, direction } = {}) {
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
               <div style={secTitle}>Послуги</div>
               <div style={{display:"flex",gap:5}}>
-                {[["sum","₴"],["n","к-сть"]].map(([k,l])=>(
+                {[["sum",curSym()],["n","к-сть"]].map(([k,l])=>(
                   <button key={k} onClick={()=>setSvcBy(k)} style={{
                     minWidth:36, padding:"7px 11px", borderRadius:8, border:"none", cursor:"pointer", fontSize:11, fontWeight:700, fontFamily:"inherit",
                     background:svcBy===k?GOLD:`linear-gradient(145deg,${SURF_HI},${SURFACE})`, color:svcBy===k?"#1a1a1a":TEXT, boxShadow:SO,

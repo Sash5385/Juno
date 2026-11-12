@@ -45,6 +45,7 @@ const Loader = () => (
   </ThemeContext.Consumer>
 );
 
+import { setCurrency } from "./currency";
 import { BG, BG_DEEP, SURFACE, SURF_HI, SURF_LO, BORDER, TEXT, DIM, FAINT, ACCENT, ACC_HI, GREEN, BLUE, GOLD, SO } from "./theme.js";
 
 // ─── CSS ────────────────────────────────────────────────────────
@@ -702,6 +703,7 @@ function AdminApp({ adminUser, ws, onWs }) {
   const [tabVisits,  setTabVisits]= useState({});
   const [openInfos,  setOpenInfos]= useState({});
   const [settings,   setSettings] = useState(DEFAULT_SETTINGS);
+  setCurrency(settings.currency); // валюта цін майстра — до рендеру дочірніх компонентів
 
   // Межі розкладу (workStart/workEnd) беремо з тижневого шаблону: найраніший початок і найпізніший кінець увімкнених днів
   useEffect(() => {
@@ -930,6 +932,7 @@ function AdminApp({ adminUser, ws, onWs }) {
     clearTimeout(settingsSyncTimer.current);
     settingsSyncTimer.current = setTimeout(() => {
       update(iRef( 'admin_settings'), {
+        currency:        settings.currency        ?? "UAH",
         lunchEnabled:    settings.lunchEnabled    ?? true,
         lunchStart:      settings.lunchStart      ?? 12,
         lunchEnd:        settings.lunchEnd        ?? 13,

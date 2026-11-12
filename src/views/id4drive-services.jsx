@@ -7,6 +7,7 @@ import { UICss, Modal, Chip, Btn, Toggle, Pill, useFX } from "../ui";
 import { capacityOf, MAX_CAPACITY } from "../groups";
 import ServicesFog from "./ServicesFog";
 import { rawAddons, normAddons, bufferOf, ADDON_MINUTES, BUFFER_OPTIONS, MAX_ADDONS } from "../addons";
+import { cur } from "../currency";
 
 export const makePalette = ({GREEN, GOLD, BLUE, PURPLE, ACCENT, TEAL}) => [
   { id:"green",   name:"Зелений",    color:GREEN  },
@@ -70,7 +71,7 @@ function SlotPreview({ svc, height=80 }) {
       display:"flex",flexDirection:"column",justifyContent:"space-between",
     }}>
       <div style={{fontSize:12,fontWeight:800,color:"#fff",textShadow:`0 1px 2px ${shade(0.5)}`,position:"relative",zIndex:3}}>{svc.name}</div>
-      <div style={{fontSize:11,color:"rgba(255,255,255,0.94)",fontWeight:700,position:"relative",zIndex:3}}>{fmtDur(svc.duration)} · {svc.price||0} ₴</div>
+      <div style={{fontSize:11,color:"rgba(255,255,255,0.94)",fontWeight:700,position:"relative",zIndex:3}}>{fmtDur(svc.duration)} · {svc.price||0} {cur()}</div>
     </div>
   );
 }
@@ -162,11 +163,11 @@ function ServiceFormModal({ svc, onSave, onClose }) {
           </div>
         </div>
         <div>
-          <div style={{fontSize:11,color:theme.LBL||"rgba(255,255,255,0.74)",letterSpacing:1,marginBottom:6}}>ЦІНА (₴)</div>
+          <div style={{fontSize:11,color:theme.LBL||"rgba(255,255,255,0.74)",letterSpacing:1,marginBottom:6}}>{`ЦІНА (${cur()})`}</div>
           <Inset style={{padding:"10px 14px",display:"flex",alignItems:"center",gap:6}}>
             <input type="number" value={form.price} min={0} onChange={e=>upd("price",e.target.value===""?"":+e.target.value)}
               style={{flex:1,background:"transparent",border:"none",outline:"none",color:GOLD,fontSize:18,fontWeight:800,width:80,fontFamily:"inherit"}}/>
-            <span style={{color:GOLD,fontSize:14,fontWeight:700}}>₴</span>
+            <span style={{color:GOLD,fontSize:14,fontWeight:700}}>{cur()}</span>
           </Inset>
         </div>
       </div>
@@ -183,7 +184,7 @@ function ServiceFormModal({ svc, onSave, onClose }) {
             <input type="number" value={form.nextPrice ?? ""} min={0} placeholder="ціна"
               onChange={e=>upd("nextPrice", e.target.value===""?null:+e.target.value)}
               style={{flex:1,background:"transparent",border:"none",outline:"none",color:GOLD,fontSize:15,fontWeight:800,width:70,fontFamily:"inherit"}}/>
-            <span style={{color:GOLD,fontSize:12,fontWeight:700}}>₴</span>
+            <span style={{color:GOLD,fontSize:12,fontWeight:700}}>{cur()}</span>
           </Inset>
           {(form.nextPrice != null || form.nextPriceFrom) && (
             <button onClick={()=>{upd("nextPrice",null);upd("nextPriceFrom",null);}} style={{
@@ -194,7 +195,7 @@ function ServiceFormModal({ svc, onSave, onClose }) {
         </div>
         {form.nextPrice != null && form.nextPriceFrom && (
           <div style={{fontSize:11,color:theme.LBL||"rgba(255,255,255,0.74)",marginTop:6}}>
-            З {form.nextPriceFrom} ціна автоматично стане {form.nextPrice}₴ для записів з цією датою й пізніше.
+            З {form.nextPriceFrom} ціна автоматично стане {form.nextPrice}{cur()} для записів з цією датою й пізніше.
           </div>
         )}
       </div>
@@ -255,7 +256,7 @@ function ServiceFormModal({ svc, onSave, onClose }) {
                   <div style={{display:"flex",alignItems:"center",gap:5}}>
                     <input type="number" value={a.price ?? ""} min={0} onChange={e=>setAddon(i,{price:e.target.value===""?"":+e.target.value})}
                       style={{flex:1,minWidth:0,width:"100%",background:"transparent",border:"none",outline:"none",color:GOLD,fontSize:15,fontWeight:800,fontFamily:"inherit"}}/>
-                    <span style={{color:GOLD,fontSize:12,fontWeight:700}}>₴</span>
+                    <span style={{color:GOLD,fontSize:12,fontWeight:700}}>{cur()}</span>
                   </div>
                 </div>
                 <div>
@@ -386,7 +387,7 @@ function ServiceCard({ svc, isDragging, onEdit, onToggle, onDelete, dragHandlePr
 
       {/* ROW 2: metrics */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",borderTop:`1px solid ${BORDER}`,borderBottom:`1px solid ${BORDER}`}}>
-        {[{val:fmtDur(svc.duration),label:"Тривалість",c:BLUE},{val:`${svc.price} ₴`,label:"Ціна",c:GOLD},{val:svc.lessons,label:"Записів",c:TEXT},{val:`${(svc.income/1000).toFixed(0)}к ₴`,label:"Дохід",c:GREEN}]
+        {[{val:fmtDur(svc.duration),label:"Тривалість",c:BLUE},{val:`${svc.price} ${cur()}`,label:"Ціна",c:GOLD},{val:svc.lessons,label:"Записів",c:TEXT},{val:`${(svc.income/1000).toFixed(0)}к ₴`,label:"Дохід",c:GREEN}]
           .map((m,i,arr)=>(
           <div key={m.label} style={{padding:"10px 0",textAlign:"center",borderRight:i<arr.length-1?`1px solid ${BORDER}`:"none"}}>
             <div style={{fontSize:13,fontWeight:800,color:m.c}}>{m.val}</div>

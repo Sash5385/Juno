@@ -24,6 +24,7 @@ import { LicensePayPanel } from "../LicensePay";
 import { useMosaicSwitch, MosaicOverlay } from "../mosaic";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { cur as curSym, CURRENCIES } from "../currency";
 
 const DAY_NAMES = ["Пн","Вт","Ср","Чт","Пт","Сб","Нд"];
 // Стартові послуги й мітки для напрямків (додаються до наявних, нічого не замінюють)
@@ -1208,7 +1209,7 @@ select{color-scheme:${isKava?"light":"dark"}}
               <NumInput
                 value={amt}
                 onChange={v=>upd("surcharges", (settings.surcharges||[]).map((x,j)=>j===i?v:x))}
-                min={50} max={99999} suffix="₴" step={50}
+                min={50} max={99999} suffix={curSym()} step={50}
               />
               <button onClick={()=>upd("surcharges", (settings.surcharges||[]).filter((_,j)=>j!==i))} style={{
                 background:"none",border:"none",cursor:"pointer",
@@ -1297,7 +1298,7 @@ select{color-scheme:${isKava?"light":"dark"}}
                 <div className="pk-grid">
                   <div><div style={lbl}>Записів</div><input type="number" min={1} max={200} value={pk.count ?? ""} onChange={e=>patchPk(i,{count:e.target.value===""?"":+e.target.value})} style={box}/></div>
                   <div><div style={lbl}>Днів (0 — безстроково)</div><input type="number" min={0} max={1095} value={pk.days ?? ""} onChange={e=>patchPk(i,{days:e.target.value===""?"":+e.target.value})} style={box}/></div>
-                  <div><div style={lbl}>Ціна, ₴</div><input type="number" min={0} value={pk.price ?? ""} onChange={e=>patchPk(i,{price:e.target.value===""?"":+e.target.value})} style={box}/></div>
+                  <div><div style={lbl}>{`Ціна, ${curSym()}`}</div><input type="number" min={0} value={pk.price ?? ""} onChange={e=>patchPk(i,{price:e.target.value===""?"":+e.target.value})} style={box}/></div>
                 </div>
                 <div style={{...lbl,marginTop:9,minHeight:0}}>Діє на послуги {(!pk.serviceIds || !pk.serviceIds.length) && <span style={{textTransform:"none",letterSpacing:0}}>— на всі</span>}</div>
                 <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
@@ -1438,6 +1439,13 @@ select{color-scheme:${isKava?"light":"dark"}}
               <div style={{display:"flex",gap:6}}>
                 {UI_SCALES.map(sc=>(
                   <Chip equal key={sc.id} label={sc.name} active={uiScale===sc.id} onClick={()=>{setUiScale(sc.id);setUiScaleLocal(sc.id);}}/>
+                ))}
+              </div>
+            </RowBlock>
+            <RowBlock color={GOLD} label="Валюта цін" hint="Лише символ біля цін — суми не перераховуються">
+              <div style={{display:"flex",gap:6}}>
+                {CURRENCIES.map(([code,sym])=>(
+                  <Chip equal key={code} label={sym} active={(settings.currency||"UAH")===code} onClick={()=>upd("currency",code)}/>
                 ))}
               </div>
             </RowBlock>

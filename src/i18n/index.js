@@ -1,3 +1,4 @@
+import { cur } from "../currency"
 // Локалізація клієнта: uk (основна), en, pl, de, es, fr.
 // Тексти в коді лишаються українськими; для іншої мови словник (dict.json: { "<uk>": { en, pl, … } }) підвантажується
 // окремим чанком, а DOM перекладається на льоту (текст, placeholder/title/aria-label/alt, alert/confirm).
@@ -50,6 +51,13 @@ function build(dict, l) {
 
 export function tr(text) {
   if (lang === 'uk' || !text || !CY.test(text)) return text
+  // Валюта майстра: словник містить «₴» — шукаємо з ₴ і повертаємо поточний символ
+  const cs = cur()
+  if (cs !== '₴' && text.includes(cs)) return trRaw(text.split(cs).join('₴')).split('₴').join(cs)
+  return trRaw(text)
+}
+
+function trRaw(text) {
   const lead = text.match(/^\s*/)[0], tail = text.match(/\s*$/)[0]
   const core = text.trim().replace(/\s+/g, ' ')
   const e = exact.get(core)

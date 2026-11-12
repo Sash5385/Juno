@@ -1,3 +1,4 @@
+import { cur as curSym } from "./currency";
 // ─── TRANSLATION STRINGS ────────────────────────────────────────
 const S = {
   // NAV
@@ -247,7 +248,8 @@ const S = {
 export const createT = lang => key => {
   const entry = S[key];
   if (!entry) return key;
-  return entry[lang] || entry.uk || key;
+  const v = entry[lang] || entry.uk || key;
+  return typeof v === "string" && curSym() !== "₴" ? v.split("₴").join(curSym()) : v;
 };
 
 // Global language (for components that don't receive lang prop)
