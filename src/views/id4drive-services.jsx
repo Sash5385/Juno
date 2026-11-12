@@ -7,7 +7,7 @@ import { UICss, Modal, Chip, Btn, Toggle, Pill, useFX } from "../ui";
 import { capacityOf, MAX_CAPACITY } from "../groups";
 import ServicesFog from "./ServicesFog";
 import { rawAddons, normAddons, bufferOf, ADDON_MINUTES, BUFFER_OPTIONS, MAX_ADDONS } from "../addons";
-import { cur } from "../currency";
+import { cur, money } from "../currency";
 
 export const makePalette = ({GREEN, GOLD, BLUE, PURPLE, ACCENT, TEAL}) => [
   { id:"green",   name:"Зелений",    color:GREEN  },
@@ -71,7 +71,7 @@ function SlotPreview({ svc, height=80 }) {
       display:"flex",flexDirection:"column",justifyContent:"space-between",
     }}>
       <div style={{fontSize:12,fontWeight:800,color:"#fff",textShadow:`0 1px 2px ${shade(0.5)}`,position:"relative",zIndex:3}}>{svc.name}</div>
-      <div style={{fontSize:11,color:"rgba(255,255,255,0.94)",fontWeight:700,position:"relative",zIndex:3}}>{fmtDur(svc.duration)} · {svc.price||0} {cur()}</div>
+      <div style={{fontSize:11,color:"rgba(255,255,255,0.94)",fontWeight:700,position:"relative",zIndex:3}}>{fmtDur(svc.duration)} · {money(svc.price||0, ' ')}</div>
     </div>
   );
 }
@@ -195,7 +195,7 @@ function ServiceFormModal({ svc, onSave, onClose }) {
         </div>
         {form.nextPrice != null && form.nextPriceFrom && (
           <div style={{fontSize:11,color:theme.LBL||"rgba(255,255,255,0.74)",marginTop:6}}>
-            З {form.nextPriceFrom} ціна автоматично стане {form.nextPrice}{cur()} для записів з цією датою й пізніше.
+            З {form.nextPriceFrom} ціна автоматично стане {money(form.nextPrice)} для записів з цією датою й пізніше.
           </div>
         )}
       </div>
@@ -387,7 +387,7 @@ function ServiceCard({ svc, isDragging, onEdit, onToggle, onDelete, dragHandlePr
 
       {/* ROW 2: metrics */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",borderTop:`1px solid ${BORDER}`,borderBottom:`1px solid ${BORDER}`}}>
-        {[{val:fmtDur(svc.duration),label:"Тривалість",c:BLUE},{val:`${svc.price} ${cur()}`,label:"Ціна",c:GOLD},{val:svc.lessons,label:"Записів",c:TEXT},{val:`${(svc.income/1000).toFixed(0)}к ₴`,label:"Дохід",c:GREEN}]
+        {[{val:fmtDur(svc.duration),label:"Тривалість",c:BLUE},{val:`${money(svc.price, ' ')}`,label:"Ціна",c:GOLD},{val:svc.lessons,label:"Записів",c:TEXT},{val:`${(svc.income/1000).toFixed(0)}к ₴`,label:"Дохід",c:GREEN}]
           .map((m,i,arr)=>(
           <div key={m.label} style={{padding:"10px 0",textAlign:"center",borderRight:i<arr.length-1?`1px solid ${BORDER}`:"none"}}>
             <div style={{fontSize:13,fontWeight:800,color:m.c}}>{m.val}</div>

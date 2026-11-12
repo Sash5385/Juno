@@ -6,7 +6,7 @@ import { ThemeContext } from "../theme.js";
 import { useBackClose, ScrollChips } from "../ui";
 import { normStaff, masterOf } from "../workspace";
 import { MonthCalendarSheet } from "./id4drive-admin-v5";
-import { cur } from "../currency";
+import { cur, money } from "../currency";
 
 export const JOURNAL_READ_KEY = "journal_read_at";
 
@@ -110,7 +110,7 @@ function buildEvents(data, ownerUid) {
       const durStr = durH ? ` · ${durH} год` : "";
       // Послуга, ціна і майстер (салон) — щоб запис у журналі було видно повністю
       const svc = b.serviceName ? ` · ${b.serviceName}` : "";
-      const price = Number(b.price) > 0 ? ` · ${b.price}${cur()}` : "";
+      const price = Number(b.price) > 0 ? ` · ${money(b.price)}` : "";
       const slot = [dateStr, b.time].filter(Boolean).join(" ") + durStr + svc + price;
       const mid = masterOf(b, ownerUid);
       // Клієнт переніс запис: старий запис скасовано (cancelledBy "reschedule"), новий має rescheduledFrom — показуємо ОДНУ подію «Перенос»

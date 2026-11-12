@@ -4,7 +4,7 @@ import { iRef } from "../firebase";
 
 import { ThemeContext } from "../theme.js";
 import { UICss, Modal, Btn, Chip, StatTile, useFX } from "../ui";
-import { cur } from "../currency";
+import { cur, money } from "../currency";
 
 const PALETTE = [
   { id:"green",   color:"#7ed957" }, { id:"yellow",  color:"#f7c948" },
@@ -137,7 +137,7 @@ function BkCard({ b, st }) {
         <div style={{flex:1,minWidth:0}}>
           <div style={{fontSize:13,fontWeight:800,color:"#fff",textShadow:`0 1px 3px ${shade(0.5)}`,overflowWrap:"anywhere"}}>{b.name}</div>
           <div style={{fontSize:11,color:"rgba(255,255,255,0.85)",marginTop:2,overflowWrap:"anywhere"}}>
-            {b.time || "—"}{b.phone ? ` · ${b.phone}` : ""}{b.serviceName ? ` · ${b.serviceName}` : ""}{b.price != null ? ` · ${b.price}${cur()}` : ""}
+            {b.time || "—"}{b.phone ? ` · ${b.phone}` : ""}{b.serviceName ? ` · ${b.serviceName}` : ""}{b.price != null ? ` · ${money(b.price)}` : ""}
           </div>
           {b.studentNote && (
             <div style={{fontSize:11,color:GOLD,marginTop:3,whiteSpace:"pre-wrap",wordBreak:"break-word"}}>💬 {b.studentNote}</div>

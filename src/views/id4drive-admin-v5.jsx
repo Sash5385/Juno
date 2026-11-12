@@ -39,7 +39,7 @@ import { isSalon } from "../workspace.js";
 import { FOG_STYLE } from "../uiStyles";
 import { TAG_PRESETS, AUTO_TAG_IDS } from "../tags";
 import { MANUAL_DEFAULT_COLOR } from "../studentColors";
-import { cur as curSym } from "../currency";
+import { cur as curSym, money } from "../currency";
 // module-level aliases for vars used in ICONS (arrow fns, cannot use hooks)
 const ACCENT_HI  = ACC_HI;
 const SURFACE_HI = SURF_HI;
@@ -4061,9 +4061,9 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                           background:"rgba(74,222,128,0.95)", color:"#062910",
                           fontSize:10, fontWeight:800, lineHeight:1.5,
                           boxShadow:"0 1px 3px rgba(0,0,0,0.3)",
-                        }}>{slot.fixedPrice}{curSym()}</div>
+                        }}>{money(slot.fixedPrice)}</div>
                       </div>
-                    ) : hasSurcharge && <span style={{position:"absolute", top:3, left:4, fontSize:9, fontWeight:800, color:"rgba(247,201,72,0.95)", lineHeight:1}}>+{slot.surcharge}{curSym()}</span>}
+                    ) : hasSurcharge && <span style={{position:"absolute", top:3, left:4, fontSize:9, fontWeight:800, color:"rgba(247,201,72,0.95)", lineHeight:1}}>+{money(slot.surcharge)}</span>}
                     {(isVip || slot.vipOnly) && <span data-help="freeicons" style={{position:"absolute", top:3, right:4, fontSize:10, lineHeight:1}}>👑</span>}
                     {isPrivateOnly && <span data-help="freeicons" style={{position:"absolute", top:3, right:4, fontSize:10, lineHeight:1}}>🚗</span>}
 
@@ -4312,7 +4312,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                       if (!curTag) return null;
                       const tp = TAG_PRESETS.find(t => t.id === curTag);
                       if (!tp) return null;
-                      const label = curTag === "debt" && b.debtAmount > 0 ? `${tp.label} ${b.debtAmount}${curSym()}` : tp.label;
+                      const label = curTag === "debt" && b.debtAmount > 0 ? `${tp.label} ${money(b.debtAmount)}` : tp.label;
                       const tagFs = Math.max(6, Math.min(9, Math.round(COL_W / 11)));
                       const showText = COL_W >= 34;
                       return (
@@ -4452,7 +4452,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                         const lName = lParts.join(' ');
                         const si = a => `rgba(${neonCal && !isLight ? "255,255,255" : INK === "255,255,255" ? "0,0,0" : INK},${a})`;
                         const priceColor = b.surcharge ? GOLD : si(0.9);
-                        const priceText = price > 0 ? `${price}${curSym()}` : null;
+                        const priceText = price > 0 ? `${money(price)}` : null;
                         const typeLabel = b.cardLabel || (salonCard && b.serviceName) || (b.type==="school" ? "Стандарт" : "Індивідуальний"); // cardLabel — лише демо-пресети (назва послуги)
                         const allLines = [
                           { text: fName,     w: 800, c: si(0.95) },
@@ -4696,7 +4696,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                     fontSize:10, fontWeight:800,
                     color:GREEN, letterSpacing:0.2,
                     lineHeight:1.4,
-                  }}>{daySum.toLocaleString("uk")}{curSym()}</div>
+                  }}>{money(daySum.toLocaleString("uk"))}</div>
                 );
               })()}
             </div>
@@ -5288,7 +5288,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                 display:"flex",alignItems:"center",gap:10,
               }}>
                 <span>💰</span> Фіксована ціна
-                {_so.slot?.fixedPrice != null && <span style={{marginLeft:"auto",fontSize:11,color:GREEN,opacity:0.8}}>{_so.slot.fixedPrice}{curSym()}</span>}
+                {_so.slot?.fixedPrice != null && <span style={{marginLeft:"auto",fontSize:11,color:GREEN,opacity:0.8}}>{money(_so.slot.fixedPrice)}</span>}
               </button>
               {fixedPriceEditing && (
                 <div style={{display:"flex",gap:8,padding:"2px 2px 6px"}}>
@@ -5321,7 +5321,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                 display:"flex",alignItems:"center",gap:10,
               }}>
                 <span>⚡</span> Надбавка
-                {_so.slot?.surcharge ? <span style={{marginLeft:"auto",fontSize:11,color:GOLD,opacity:0.8}}>+{_so.slot.surcharge}{curSym()}</span> : null}
+                {_so.slot?.surcharge ? <span style={{marginLeft:"auto",fontSize:11,color:GOLD,opacity:0.8}}>+{money(_so.slot.surcharge)}</span> : null}
               </button>
               {surchargeEditing && (
                 <div style={{display:"flex",gap:6,padding:"2px 2px 6px"}}>
@@ -5335,7 +5335,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                         fontSize:14,fontWeight:700,
                         border: _isActive ? `1px solid rgba(245,158,11,0.5)` : `1px solid ${ink(0.1)}`,
                         textAlign:"center",
-                      }}>+{amt}{curSym()}</button>
+                      }}>+{money(amt)}</button>
                     );
                   })}
                   {_so.slot?.surcharge != null && (
@@ -6221,7 +6221,7 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
             {editOpen && (
               <div style={{marginBottom:12}}>
                 <div style={{textAlign:"center",fontSize:11,fontWeight:700,color:GOLD,marginBottom:10}}>
-                  Разом за день: {otherDayTotal + (parseInt(draftPrice,10)||0)}{curSym()}
+                  Разом за день: {money(otherDayTotal + (parseInt(draftPrice,10)||0))}
                 </div>
                 <div style={{display:"flex",gap:10,marginBottom:8}}>
                   <div style={{flex:1}}>
@@ -6258,7 +6258,7 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
               {[
                 { label:"Дата",  val:`${day.num} ${day.month}`, sub:day.label },
                 { label:"Час",   val:`${fmtTime(booking.startMin)}`, sub:`–${fmtTime(booking.startMin+durMinDisplay)}` },
-                { label:"Ціна",  val:`${price}${curSym()}`, sub: mergeInfo ? `${mergeInfo.count} записи, ${durMinDisplay}хв` : booking.surcharge && discountAmtDisplay ? `+${booking.surcharge}${curSym()} / −${discountAmtDisplay}${curSym()}` : booking.surcharge ? `+${booking.surcharge}${curSym()}` : discountAmtDisplay ? `−${discountAmtDisplay}${curSym()} знижка` : (svc ? `${svc.duration}хв` : "—"), gold: !!booking.surcharge && !mergeInfo },
+                { label:"Ціна",  val:`${money(price)}`, sub: mergeInfo ? `${mergeInfo.count} записи, ${durMinDisplay}хв` : booking.surcharge && discountAmtDisplay ? `+${money(booking.surcharge)} / −${money(discountAmtDisplay)}` : booking.surcharge ? `+${money(booking.surcharge)}` : discountAmtDisplay ? `−${money(discountAmtDisplay)} знижка` : (svc ? `${svc.duration}хв` : "—"), gold: !!booking.surcharge && !mergeInfo },
               ].map(({ label, val, sub, gold }, i) => (
                 <div key={i} style={{
                   padding:"4px 6px",
@@ -6297,7 +6297,7 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
                 const ax = bookingAddonTotals(booking);
                 return (
                   <div>➕ <b>{addonsLabel(normAddons(booking.addons))}</b>
-                    <span style={{color:DIM}}> · +{ax.price}{curSym()}{ax.minutes>0?` · +${ax.minutes} хв`:""}</span>
+                    <span style={{color:DIM}}> · +{money(ax.price)}{ax.minutes>0?` · +${ax.minutes} хв`:""}</span>
                   </div>
                 );
               })()}
@@ -6329,7 +6329,7 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
                 {displayTag && !tagPickerOpen && (() => {
                   const tp = TAG_PRESETS.find(t=>t.id===displayTag);
                   if (!tp) return null;
-                  const label = displayTag === "debt" && booking.debtAmount > 0 ? `${tp.label} ${booking.debtAmount}${curSym()}` : tp.label;
+                  const label = displayTag === "debt" && booking.debtAmount > 0 ? `${tp.label} ${money(booking.debtAmount)}` : tp.label;
                   return (
                     <div onClick={()=>onAction("setTag",{...booking,tag:null})} title="Тап — прибрати" style={{
                       display:"inline-flex",alignItems:"center",gap:5,padding:"5px 9px",borderRadius:20,
@@ -7265,7 +7265,7 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
                       <div style={{fontSize:13,fontWeight:active?800:600,color:active?TEXT:TEXT_DIM,textAlign:"left"}}>{s.name}</div>
                     </div>
                     <div style={{fontSize:12,fontWeight:700,color:active?c:TEXT_FAINT,whiteSpace:"nowrap"}}>
-                      {s.price}{curSym()} · {s.duration}хв
+                      {money(s.price)} · {s.duration}хв
                     </div>
                   </button>
                 );
@@ -7294,7 +7294,7 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
                       color: on ? TEXT : TEXT_DIM, fontSize:12, fontWeight:on?800:600,
                     }}>
                       {on?"✓ ":"+ "}{a.name}
-                      <span style={{opacity:0.75,fontWeight:600}}> · {a.price}{curSym()}{a.minutes>0?` · +${a.minutes}хв`:""}</span>
+                      <span style={{opacity:0.75,fontWeight:600}}> · {money(a.price)}{a.minutes>0?` · +${a.minutes}хв`:""}</span>
                     </button>
                   );
                 })}
@@ -7331,7 +7331,7 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
               background:`${GOLD}14`,border:`1px solid ${GOLD}30`,
             }}>
               <span style={{fontSize:15}}>💰</span>
-              <div style={{fontSize:15,fontWeight:800,color:GOLD}}>{(pkgOn ? 0 : nbPrice) + axTotals.price}{curSym()}</div>
+              <div style={{fontSize:15,fontWeight:800,color:GOLD}}>{money((pkgOn ? 0 : nbPrice) + axTotals.price)}</div>
               <div style={{fontSize:12,color:TEXT_DIM}}>· {dur} хв</div>
               {timeVal!=null && (
                 <div style={{marginLeft:"auto",fontSize:12,color:TEXT_DIM}}>

@@ -239,6 +239,11 @@ await t("student review extra field", X, () => set(R(S1, "instructors/inst1/revi
 await t("other student writes review for stu1", X, () => set(R(SX, "instructors/inst1/reviews/stu1/rvo"), RV));
 await t("instructor hides review", A, () => update(R(I1, "instructors/inst1/reviews/stu1/rvo"), { status: "hidden" }));
 await t("student un-hides hidden review", X, () => set(R(S1, "instructors/inst1/reviews/stu1/rvo"), RV));
+// валюта: майстер зберігає налаштування (як синхронізація в App.jsx), клієнти/гості читають
+await t("instructor saves currency USD", A, () => update(R(I1, "instructors/inst1/admin_settings"), { currency: "USD", workStart: 9, workEnd: 18 }));
+await t("instructor saves unknown currency", X, () => update(R(I1, "instructors/inst1/admin_settings"), { currency: "XYZ" }));
+await t("student changes master currency", X, () => set(R(S1, "instructors/inst1/admin_settings/currency"), "EUR"));
+await t("anonymous reads currency", A, () => get(R(anon, "instructors/inst1/admin_settings/currency")));
 console.log("── WORKSPACE (тип акаунта, склад, masterId)");
 await t("owner sets accountType salon", A, () => set(R(I1, "instructors/inst1/admin_settings/accountType"), "salon"));
 await t("owner sets accountType solo", A, () => set(R(I1, "instructors/inst1/admin_settings/accountType"), "solo"));

@@ -7,6 +7,7 @@ import { tr } from "../i18n";
 
 import { ThemeContext, GOLD, GREEN, RED, TEAL, BLUE, PURPLE } from "../theme.js";
 import { UICss, Modal, Chip, Btn, Toggle, Pill, useFX } from "../ui";
+import { money } from "../currency";
 
 // ─── CSS (template-specific only; base lives in UICss) ───────────
 const makeCSS = () => `
@@ -111,7 +112,10 @@ const catOf = id => CATEGORIES.find(c=>c.id===id)||CATEGORIES[5];
 // підставити {ім'я}/{дата}/{час}/... у тексті (той самий підхід, що й у
 // functions/index.js renderTemplateBody — невідома змінна лишається як є)
 function renderVars(body, vars={}) {
-  return (body||"").replace(/\{[^}]+\}/g, m => {
+  let s = body || "";
+  // «{ціна} ₴» у шаблоні → сума у валюті майстра («$600», «600 €»)
+  if (vars["ціна"] != null && vars["ціна"] !== "") s = s.replace(/\{ціна\}( ?)₴/g, (_, sp) => money(vars["ціна"], sp));
+  return s.replace(/\{[^}]+\}/g, m => {
     const key = m.slice(1,-1);
     return vars[key] != null && vars[key] !== "" ? String(vars[key]) : m;
   });

@@ -11,13 +11,13 @@ import { bookingAddonTotals } from "../addons";
 import { hasOwnSchedule } from "../masterSettings";
 import { periodDates, utilization, cancelStats, sources, clientStats, serviceStats, heatmap, quietestSlot, attendance, cohorts, courseStats, packageStats } from "./stats-extra";
 import { normDirection } from "../terms";
-import { cur as curSym } from "../currency";
+import { cur as curSym, money } from "../currency";
 
 const UK_MONTHS     = ["Січ","Лют","Бер","Кві","Тра","Чер","Лип","Сер","Вер","Жов","Лис","Гру"];
 const UK_WEEK_LABELS= ["Пн","Вт","Ср","Чт","Пт","Сб"];
 
 // ─── HELPERS ────────────────────────────────────────────────────
-const fmtK = n => n>=1000?`${(n/1000).toFixed(1)}к ${curSym()}`:`${n} ${curSym()}`;
+const fmtK = n => n>=1000?money(`${(n/1000).toFixed(1)}к`, ' '):`${money(n, ' ')}`;
 
 function getDateStr(d) {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;

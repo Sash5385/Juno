@@ -10,7 +10,7 @@ import { makePalette } from "./id4drive-services";
 import { STUDENT_COLOR_CHOICES } from "../studentColors";
 import { useConfirm } from "../ConfirmModal";
 import { normPackages, normPackageTemplates, buildClientPackage, expiresLabel } from "../packages";
-import { cur as curSym } from "../currency";
+import { cur as curSym, money } from "../currency";
 
 const M = ["","Січ","Лют","Бер","Кві","Тра","Чер","Лип","Сер","Вер","Жов","Лис","Гру"];
 const fmtS = d => { if(!d) return "—"; const [,m,day]=d.split("-"); return `${parseInt(day)} ${M[parseInt(m)]}`; };
@@ -397,7 +397,7 @@ function StudentDetailSheet({ settings, s, onClose, onUpdate, onDelete, onBlock,
                   </div>
                   <div style={{width:88,background:glow(0.04),borderRadius:10,padding:"9px 12px",border:`1px solid ${BORDER}`,textAlign:"center"}}>
                     <div style={{fontSize:11,color:FAINT,letterSpacing:1,textTransform:"uppercase",marginBottom:3,whiteSpace:"nowrap"}}>Знижка/год</div>
-                    <div style={{fontSize:18,fontWeight:900,color:s.discount>0?GOLD:DIM}}>{s.discount||0}{curSym()}</div>
+                    <div style={{fontSize:18,fontWeight:900,color:s.discount>0?GOLD:DIM}}>{money(s.discount||0)}</div>
                   </div>
                 </div>
 
@@ -457,7 +457,7 @@ function StudentDetailSheet({ settings, s, onClose, onUpdate, onDelete, onBlock,
                 {s.customPrice > 0 && (
                   <div style={{background:"rgba(234,179,8,0.10)",border:"1px solid rgba(234,179,8,0.35)",borderRadius:10,padding:"9px 12px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
                     <div style={{fontSize:11,fontWeight:700,color:"#eab308"}}>💰 Індивідуальна ціна</div>
-                    <div style={{fontSize:14,fontWeight:900,color:"#eab308"}}>{s.customPrice}{`${curSym()}/год`}</div>
+                    <div style={{fontSize:14,fontWeight:900,color:"#eab308"}}>{`${money(s.customPrice)}/год`}</div>
                   </div>
                 )}
 

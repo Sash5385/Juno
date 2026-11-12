@@ -1,7 +1,7 @@
 import { useState, useContext } from "react";
 import { ThemeContext } from "../theme.js";
 import { Btn } from "../ui";
-import { cur } from "../currency";
+import { cur, money } from "../currency";
 
 // Макет «29 · Туман» (темне скло) для сторінки «Послуги»: сегменти → сітка 2×N скляних карток → скляна картка з рядками →
 // чипи → велика кнопка. Розміри/кольори/шрифти взяті 1-в-1 з макета.
@@ -62,7 +62,7 @@ export default function ServicesFog({ services, colorOf, fmt, capOf, isProtected
             }}>
               <div style={{ fontSize: 11, fontWeight: 700, paddingRight: 20, overflowWrap: "anywhere" }}>{svc.name}</div>
               <div style={{ fontSize: 11, fontWeight: 500, opacity: 0.92, marginTop: 1, overflowWrap: "anywhere" }}>
-                {fmt(svc.duration)} · {svc.price || 0} {cur()}{capOf(svc) > 1 ? ` · група ${capOf(svc)}` : ""}
+                {fmt(svc.duration)} · {money(svc.price || 0, ' ')}{capOf(svc) > 1 ? ` · група ${capOf(svc)}` : ""}
               </div>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 6 }} onClick={stop}>
                 {!filter.startsWith("arch") && filter === "all" && !type

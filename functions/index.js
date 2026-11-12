@@ -252,8 +252,19 @@ async function pushToStaffDevices(iid, tokensPath, title, body, data = {}, L = "
 
 // ─── Шаблони повідомлень (admin_data/templates) ───────────────────
 // Хелпер: підставити {ім'я}/{дата}/{час}/... у текст шаблону
-function renderTemplateBody(body, vars = {}) {
-  return (body || "").replace(/\{[^}]+\}/g, (m) => {
+// Валюта майстра (admin_settings/currency): шаблони пишуть «{ціна} ₴» — підставляємо суму з символом майстра
+const CUR_SYM = { UAH: "₴", USD: "$", EUR: "€", PLN: "zł" };
+async function getCurrencySym(iid) {
+  const snap = await iRef(iid, "admin_settings/currency").get().catch(() => null);
+  return CUR_SYM[snap?.val()] || "₴";
+}
+function renderTemplateBody(body, vars = {}, sym = "₴") {
+  let s = body || "";
+  if (vars["ціна"] != null && vars["ціна"] !== "") {
+    const p = String(vars["ціна"]);
+    s = s.replace(/\{ціна\}( ?)₴/g, (_, sp) => (sym === "$" ? `$${p}` : `${p}${sp}${sym}`));
+  }
+  return s.replace(/\{[^}]+\}/g, (m) => {
     const key = m.slice(1, -1);
     return vars[key] != null && vars[key] !== "" ? String(vars[key]) : m;
   });
@@ -292,6 +303,7 @@ async function sendActiveTemplates(iid, uid, triggerId, vars = {}, filterFn = nu
   if (!matches.length) return false;
 
   const masterName = await getInstructorName(iid);
+  const curSym = await getCurrencySym(iid);
   // Мова клієнта: типові (не змінені майстром) шаблони перекладаємо, текст майстра лишається як є
   const L = await studentLang(iid, uid);
   const fullVars = { ...(typeof vars === "function" ? vars(L) : vars), "майстер": masterName, "інструктор": masterName };
@@ -300,7 +312,7 @@ async function sendActiveTemplates(iid, uid, triggerId, vars = {}, filterFn = nu
   const salonWelcome = triggerId === "auto_welcome" && (await iRef(iid, "admin_settings/accountType").get().then((x) => x.val()).catch(() => null)) === "salon";
   for (const tpl of matches) {
     const body = salonWelcome && tpl.body === WELCOME_DEFAULT_UK ? WELCOME_SALON_UK : tpl.body;
-    const text = await tr(iid, renderTemplateBody(t(L, body), fullVars), L);
+    const text = await tr(iid, renderTemplateBody(t(L, body), fullVars, curSym), L);
     const tplTitle = t(L, tpl.title || "Повідомлення");
     const time = new Date().toLocaleTimeString(LOCALE[L], { hour: "2-digit", minute: "2-digit" });
     const ts = Date.now();
