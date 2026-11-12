@@ -1670,7 +1670,7 @@ select{color-scheme:${isKava?"light":"dark"}}
       }}>
 
         {/* SECTION CHIPS — розділи гортаються вбік (замість нижньої рейки іконок) */}
-        <ScrollChips activeKey={active} >
+        <ScrollChips activeKey={active} style={{padding:"12px 16px 24px",margin:"-12px -16px -16px"}}>
           {SECTIONS.map(sec => {
             const isActive = active === sec.id;
             return (
