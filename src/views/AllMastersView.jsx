@@ -10,7 +10,10 @@ const ymd = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate(
 const fmt = (m) => `${pad(Math.floor(m / 60))}:${pad(m % 60)}`;
 const SKIP = new Set(["vip-slot", "personal"]);
 
-export default function AllMastersView({ bookings, staff, settings, onPick }) {
+const COL_KEY = "allMastersCols";
+const readCols = () => { try { const n = parseInt(localStorage.getItem(COL_KEY), 10); return n >= 1 && n <= 5 ? n : null; } catch { return null; } };
+
+export default function AllMastersView({ bookings, staff, settings, onPick, onViewStudent }) {
   const { TEXT, DIM, FAINT, SURFACE, BORDER } = useContext(ThemeContext);
   const [date, setDate] = useState(() => new Date());
   // Розмір вікна: масштаб осі часу й ширина колонок залежать від кнопок «години / діб» зверху
@@ -40,9 +43,12 @@ export default function AllMastersView({ bookings, staff, settings, onPick }) {
   // «N годин» — скільки годин вміщається на екрані (Авто — весь діапазон записів); «N діб» — скільки колонок майстрів на екрані
   const wantHours = settings.autoHourHeight ? Math.max(6, Math.min(16, hours.length)) : Math.max(1, ((Number(settings.workEnd) || 18) - (Number(settings.workStart) || 9)) * 60 / (Number(settings.hourHeightPx) || 60));
   const HOUR_H = Math.max(26, Math.round(Math.max(240, win.h - 330) / wantHours));
-  // Телефон (< 480px): один майстер на екран, гортання свайпом із прилипанням до колонки
+  // Скільки майстрів на екрані: вибір 1–5 (запам'ятовується на пристрої); без вибору — телефон 1, інакше «N діб» зверху.
+  // Гортання вбік прилипає до колонки.
   const phone = win.w < 480;
-  const cols = phone ? 1 : Math.max(1, Math.min(staff.length, Number(settings.daysShown) || 5));
+  const [colPick, setColPick] = useState(readCols);
+  const pickCols = (n) => { setColPick(n); try { localStorage.setItem(COL_KEY, String(n)); } catch { /* ignore */ } };
+  const cols = Math.max(1, Math.min(staff.length, colPick || (phone ? 1 : (Number(settings.daysShown) || 5))));
   const COL_W = Math.max(44, Math.floor((win.w - 36 - AXIS_W) / cols));
   const total = all.length;
   const isToday = day === ymd(new Date());
@@ -61,15 +67,28 @@ export default function AllMastersView({ bookings, staff, settings, onPick }) {
         <button aria-label="Наступний день" onClick={() => shift(1)} style={nav}>›</button>
       </div>
 
+      {staff.length > 1 && (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+          <span style={{ fontSize: 11.5, color: DIM, whiteSpace: "nowrap" }}>На екрані:</span>
+          {[1, 2, 3, 4, 5].filter((n) => n <= staff.length).map((n) => (
+            <button key={n} aria-label={`Майстрів на екрані: ${n}`} onClick={() => pickCols(n)} style={{
+              width: 32, height: 30, borderRadius: 10, cursor: "pointer", fontFamily: "inherit", fontSize: 13, fontWeight: 700,
+              border: `1px solid ${cols === n ? "transparent" : BORDER}`,
+              background: cols === n ? "linear-gradient(145deg,#8fc0ff,#5fa2ff)" : SURFACE, color: cols === n ? "#06182e" : DIM,
+              boxShadow: cols === n ? "0 4px 12px rgba(95,162,255,.35)" : "none",
+            }}>{n}</button>
+          ))}
+        </div>
+      )}
       <div style={{ padding: 8, borderRadius: 26, background: "radial-gradient(circle at 15% 0%, rgba(80,130,230,.45) 0, transparent 55%), radial-gradient(circle at 100% 100%, rgba(170,90,200,.35) 0, transparent 50%)" }}>
-      <div style={{ overflowX: "auto", borderRadius: 20, border: "1px solid rgba(255,255,255,.16)", background: "rgba(255,255,255,.06)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)", WebkitOverflowScrolling: "touch", scrollSnapType: phone ? "x mandatory" : undefined, scrollPaddingLeft: AXIS_W }}>
+      <div style={{ overflowX: "auto", borderRadius: 20, border: "1px solid rgba(255,255,255,.16)", background: "rgba(255,255,255,.06)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)", WebkitOverflowScrolling: "touch", scrollSnapType: "x mandatory", scrollPaddingLeft: AXIS_W }}>
         <div style={{ display: "flex", minWidth: AXIS_W + staff.length * COL_W }}>
           <div style={{ width: AXIS_W, flexShrink: 0, position: "sticky", left: 0, zIndex: 2, background: "rgba(255,255,255,.04)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)" }}>
             <div style={{ height: 38 }} />
             {hours.map((h) => (<div key={h} style={{ height: HOUR_H, fontSize: 11, color: FAINT, textAlign: "right", paddingRight: 6, boxSizing: "border-box" }}>{fmt(h)}</div>))}
           </div>
           {staff.map((m) => (
-            <div key={m.id} style={{ flex: 1, minWidth: COL_W, borderLeft: `1px solid ${BORDER}`, scrollSnapAlign: phone ? "start" : undefined }}>
+            <div key={m.id} style={{ flex: 1, minWidth: COL_W, borderLeft: `1px solid ${BORDER}`, scrollSnapAlign: "start" }}>
               <button onClick={() => onPick(m.id)} style={{ width: "100%", height: 38, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, background: "none", border: "none", borderBottom: `1px solid ${BORDER}`, color: TEXT, fontFamily: "inherit", fontSize: 12.5, fontWeight: 700, cursor: "pointer", padding: "0 6px" }}>
                 <span style={{ width: 9, height: 9, borderRadius: "50%", background: m.color, flexShrink: 0 }} />
                 <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.name}</span>
@@ -80,7 +99,7 @@ export default function AllMastersView({ bookings, staff, settings, onPick }) {
                   const h = Math.max(22, (b.durMin / 60) * HOUR_H - 2);
                   const blocked = b.type === "block";
                   return (
-                    <button key={b.id} onClick={() => onPick(m.id)} title={`${fmt(b.startMin)}–${fmt(b.startMin + b.durMin)}`} style={{
+                    <button key={b.id} onClick={() => (!blocked && b.userId && onViewStudent ? onViewStudent(b.userId) : onPick(m.id))} title={`${fmt(b.startMin)}–${fmt(b.startMin + b.durMin)}`} style={{
                       position: "absolute", left: 3, right: 3, top, height: h, borderRadius: 9, padding: "3px 6px", textAlign: "left", overflow: "hidden", cursor: "pointer", fontFamily: "inherit", color: TEXT, boxSizing: "border-box",
                       background: blocked ? "rgba(148,163,184,.18)" : `color-mix(in srgb,${m.color} 30%,transparent)`, backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", border: `1px solid ${blocked ? BORDER : `color-mix(in srgb,${m.color} 60%,transparent)`}`,
                     }}>
@@ -95,7 +114,7 @@ export default function AllMastersView({ bookings, staff, settings, onPick }) {
         </div>
       </div>
       </div>
-      <div style={{ fontSize: 11.5, color: FAINT, textAlign: "center" }}>Торкніться запису або імені майстра, щоб відкрити його календар</div>
+      <div style={{ fontSize: 11.5, color: FAINT, textAlign: "center" }}>Торкніться запису — картка клієнта; імені майстра — його календар</div>
     </div>
   );
 }

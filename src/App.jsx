@@ -571,7 +571,7 @@ function AllModeAutoSlots({ master, ownerIid, settings, bookings }) {
 }
 
 function ViewRenderer({ allMode, staffList, onPickMaster, ws, onWs, masterKey, scheduleSettings, scheduleBookings, scheduleSetBookings, tab, settings, setSettings, bookings, setBookings, onSlotClick, onEmptySlotClick, openInfos, toggleInfo, activeDragIds, navTo, slotExistsRef, openSlotsRef, jumpTarget, setJumpTarget, onViewStudent, studentJump, onStudentJumpHandled }) {
-  if (tab === "schedule" && allMode) return <FogScope><AllMastersView bookings={bookings} staff={staffList} settings={settings} onPick={onPickMaster}/></FogScope>;
+  if (tab === "schedule" && allMode) return <FogScope><AllMastersView bookings={bookings} staff={staffList} settings={settings} onPick={onPickMaster} onViewStudent={onViewStudent}/></FogScope>;
   if (tab === "schedule")  return <ScheduleView key={masterKey} settings={scheduleSettings || settings} setSettings={setSettings} bookings={scheduleBookings || bookings} setBookings={scheduleSetBookings || setBookings} onSlotClick={onSlotClick} onEmptySlotClick={onEmptySlotClick} activeDragIds={activeDragIds} navTo={navTo} slotExistsRef={slotExistsRef} openSlotsRef={openSlotsRef} jumpTarget={jumpTarget} setJumpTarget={setJumpTarget} onViewStudent={onViewStudent}/>;
   if (tab === "settings")  return ws ? <MasterProfileView ws={ws} onLeft={() => onWs(null)}/> : <SettingsView settings={settings} setSettings={setSettings}/>;
   if (tab === "bookings")  return <BookingsView settings={settings} bookings={bookings}/>;
