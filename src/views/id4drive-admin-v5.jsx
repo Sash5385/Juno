@@ -3178,8 +3178,8 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
     keys.forEach((k, i) => { map[k] = STUDENT_PALETTE[i % STUDENT_PALETTE.length]; });
     return map;
   }, [bookings]);
-  // Ручний режим (тумблер "Автокольори клієнтів" вимкнено): колір бере з картки клієнта
-  // (studentColors/{uid}); без призначеного — нейтральний.
+  // Колір, обраний у картці клієнта (studentColors/{uid}), має пріоритет завжди — і при
+  // автокольорах теж. Без обраного: автоколір, або нейтральний, якщо автокольори вимкнено.
   const [manualStudentColors, setManualStudentColors] = useState({});
   useEffect(() => {
     const r = iRef("studentColors");
@@ -3187,7 +3187,8 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
     return () => off(r, "value", h);
   }, []);
   const studentColor = (b) => {
-    if (settings.autoStudentColors === false) return manualStudentColors[b.userId] || MANUAL_DEFAULT_COLOR;
+    if (b.userId && manualStudentColors[b.userId]) return manualStudentColors[b.userId];
+    if (settings.autoStudentColors === false) return MANUAL_DEFAULT_COLOR;
     const key = b.userId || b.phone || b.name || b.id;
     return studentColorMap[key] || STUDENT_PALETTE[0];
   };

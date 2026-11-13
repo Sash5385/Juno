@@ -399,7 +399,7 @@ function StudentDetailSheet({ settings, s, onClose, onUpdate, onDelete, onBlock,
                   </div>
                 </div>
 
-                {/* Колір слота клієнта (діє, коли автокольори вимкнено в Налаштуваннях → Сітка) */}
+                {/* Колір слота клієнта (має пріоритет над автокольорами) */}
                 <div style={{background:glow(0.04),borderRadius:10,padding:"10px 12px",border:`1px solid ${BORDER}`}}>
                   <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10}}>
                     <div style={{fontSize:11,color:FAINT,letterSpacing:1,textTransform:"uppercase"}}>Колір слота</div>
@@ -414,9 +414,9 @@ function StudentDetailSheet({ settings, s, onClose, onUpdate, onDelete, onBlock,
                       {slotColor?"Змінити":"Обрати"}
                     </button>
                   </div>
-                  {autoColors && (
+                  {autoColors && !slotColor && (
                     <div style={{fontSize:11,color:FAINT,marginTop:8,lineHeight:1.4}}>
-                      Зараз кольори розподіляються автоматично. Обраний колір діятиме після вимкнення «Автокольори клієнтів» в Налаштуваннях → Сітка.
+                      Без вибору колір призначається автоматично.
                     </div>
                   )}
                 </div>
