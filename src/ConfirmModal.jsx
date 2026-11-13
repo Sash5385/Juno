@@ -15,15 +15,14 @@ export function useConfirm() {
 function ConfirmBody({ req, onClose }) {
   const { TEXT, DIM, RED } = useContext(ThemeContext);
   return (
-    <Modal open onClose={() => onClose(false)} sheet size="md">
-      <div style={{textAlign:"center",marginBottom:18}}>
+    <Modal open onClose={() => onClose(false)} sheet size="md" footer={<>
+      <Btn variant="ghost" flex={1} onClick={() => onClose(false)}>Скасувати</Btn>
+      <Btn variant="primary" flex={1} accent={req.danger ? RED : undefined} onClick={() => onClose(true)}>{req.okLabel || "Так"}</Btn>
+    </>}>
+      <div style={{textAlign:"center"}}>
         <div style={{fontSize:30,marginBottom:8}}>{req.icon || (req.danger ? "⚠️" : "❓")}</div>
         <div style={{fontSize:16,fontWeight:800,color:TEXT,marginBottom:6}}>{req.title}</div>
         {req.text && <div style={{fontSize:13,color:DIM,lineHeight:1.5}}>{req.text}</div>}
-      </div>
-      <div style={{display:"flex",gap:10}}>
-        <Btn variant="ghost" flex={1} onClick={() => onClose(false)}>Скасувати</Btn>
-        <Btn variant="primary" flex={1} accent={req.danger ? RED : undefined} onClick={() => onClose(true)}>{req.okLabel || "Так"}</Btn>
       </div>
     </Modal>
   );

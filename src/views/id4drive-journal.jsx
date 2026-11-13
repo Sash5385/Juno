@@ -157,7 +157,7 @@ function EventDetailSheet({ ev, meta, onClose, theme }) {
           onClick={e => e.stopPropagation()}
           onAnimationEnd={closing ? () => { setClosing(false); onClose(); } : undefined}
           style={{
-            width:"100%",maxWidth:480,
+            width:"100%",
             background:theme.BG_DEEP,
             borderRadius:"24px 24px 0 0",
             boxShadow:`0 -2px 0 ${glow(0.08)},0 -16px 60px ${shade(0.8)}`,
@@ -170,7 +170,7 @@ function EventDetailSheet({ ev, meta, onClose, theme }) {
 
           <div style={{
             padding:"16px 20px 14px",
-            display:"flex",alignItems:"center",gap:12,
+            position:"relative",display:"flex",flexDirection:"column",alignItems:"center",gap:8,textAlign:"center",
             borderBottom:`1px solid ${theme.BORDER}`,
           }}>
             <div style={{
@@ -180,13 +180,15 @@ function EventDetailSheet({ ev, meta, onClose, theme }) {
               display:"flex",alignItems:"center",justifyContent:"center",
               fontSize:20,
             }}>{meta.icon}</div>
-            <div style={{flex:1}}>
+            <div style={{minWidth:0}}>
               <div style={{fontSize:11,color:theme.FAINT,marginBottom:2}}>{formatDT(ev.ts)}</div>
               <div style={{fontSize:15,fontWeight:700,color:meta.color}}>{meta.label}</div>
             </div>
             <div
               onClick={_close}
+              role="button" aria-label="Закрити"
               style={{
+                position:"absolute",top:12,right:14,
                 width:28,height:28,borderRadius:8,
                 background:"rgba(239,68,68,0.18)",
                 display:"flex",alignItems:"center",justifyContent:"center",

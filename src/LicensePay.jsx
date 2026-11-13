@@ -57,13 +57,13 @@ function LicensePayModal({ onClose }) {
       display: "flex", alignItems: "flex-end", justifyContent: "center",
     }}>
       <div onClick={e => e.stopPropagation()} style={{
-        width: "100%", maxWidth: 440, padding: "16px 16px calc(20px + env(safe-area-inset-bottom, 0px))",
+        width: "100%", position: "relative", boxSizing: "border-box", padding: "16px 16px calc(20px + env(safe-area-inset-bottom, 0px))",
         borderRadius: "20px 20px 0 0", border: `1px solid ${BORDER}`,
         background: SHEET || `linear-gradient(145deg,${SURF_HI},${SURFACE})`, color: TEXT,
       }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-          <div style={{ fontSize: 15, fontWeight: 800 }}>💳 Оплата підписки</div>
-          <button aria-label="Закрити" onClick={onClose} style={{ background: "none", border: "none", color: DIM, fontSize: 22, lineHeight: 1, cursor: "pointer" }}>×</button>
+        <div style={{ position: "relative", textAlign: "center", padding: "0 40px", marginBottom: 12 }}>
+          <div style={{ fontSize: 16, fontWeight: 800 }}>💳 Оплата підписки</div>
+          <button aria-label="Закрити" onClick={onClose} style={{ position: "absolute", top: -4, right: -2, width: 36, height: 36, background: "none", border: "none", color: DIM, fontSize: 22, lineHeight: 1, cursor: "pointer" }}>✕</button>
         </div>
         <div style={{
           padding: "12px 14px", borderRadius: 14, border: `1px solid ${GOLD}55`,

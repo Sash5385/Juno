@@ -5033,7 +5033,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
             {!ltmClosing && <div style={{marginBottom:16,
               ...(ltmScatter ? {animation:`_ltm-sc-chips 0.25s ease-in forwards`} : {}),
             }}>
-              <div style={{fontSize:11,color:TEXT_DIM,fontWeight:600,marginBottom:8}}>{_ltmLabel}</div>
+              <div style={{fontSize:12,color:TEXT_DIM,fontWeight:700,marginBottom:10,textAlign:"center",padding:"0 36px"}}>{_ltmLabel}</div>
               <div style={{display:"flex",gap:4,alignItems:"stretch"}}>
                 {[-60,-30,0,30,60].map(delta=>{
                   const _cm = _menu.startMin + delta;
@@ -5162,7 +5162,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
             onAnimationEnd={slotClosing ? ()=>{ setSlotClosing(false); setSlotOptions(null); } : undefined}
             style={{
               position:"relative",
-              width:"100%",maxWidth:480,
+              width:"100%",
               background:BG_DEEP,
               borderRadius:"24px 24px 0 0",
               boxShadow:`0 -2px 0 rgba(34,197,94,0.3), 0 -16px 60px ${shade(0.6)}`,
@@ -5188,12 +5188,14 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
               borderRadius:"24px 24px 0 0",
             }}>
               <div style={{width:36,height:4,borderRadius:2,background:"rgba(34,197,94,0.35)",margin:"0 auto 12px"}}/>
+              <div style={{textAlign:"center",padding:"0 36px"}}>
               <div style={{fontSize:18,fontWeight:800,color:"#22c55e"}}>🟢 Вільний слот</div>
-              <div style={{fontSize:12,color:TEXT_FAINT}}>{_so.dateStr} · {fmtTime(_soSelMin)}</div>
+              <div style={{fontSize:12,color:TEXT_FAINT,marginTop:2}}>{_so.dateStr} · {fmtTime(_soSelMin)}</div>
+              </div>
             </div>
             {/* time chips */}
             <div style={{padding:"12px 16px 4px"}}>
-              <div style={{fontSize:11,color:TEXT_FAINT,fontWeight:600,marginBottom:8}}>Оберіть час</div>
+              <div style={{fontSize:11,color:TEXT_FAINT,fontWeight:600,marginBottom:8,textAlign:"center"}}>Оберіть час</div>
               <div style={{display:"flex",gap:4,alignItems:"center"}}>
                 {[-60,-30,0,30,60].map(delta=>{
                   const _cm = _soStartMin + delta;
@@ -5217,7 +5219,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
               </div>
             </div>
             {/* actions */}
-            <div style={{padding:"8px 10px 12px",display:"flex",flexDirection:"column",gap:5}}>
+            <div className="win-cols win-gap" style={{padding:"8px 10px 12px",gap:5}}>
               {/* Додати запис */}
               <button onClick={()=>{
                 const today = new Date(); today.setHours(0,0,0,0);
@@ -5815,7 +5817,7 @@ function CreateSlotSheetBase({ data, settings, onClose }) {
           onAnimationEnd={closing ? ()=>{ setClosing(false); onClose(); } : undefined}
           style={{
             position:"relative",
-            width:"100%",maxWidth:480,background:BG_DEEP,
+            width:"100%",background:BG_DEEP,
             borderRadius:"24px 24px 0 0",
             boxShadow:`0 -2px 0 ${glow(0.12)}, 0 -16px 60px ${shade(0.6)}`,
             overflow:"hidden",
@@ -5835,7 +5837,7 @@ function CreateSlotSheetBase({ data, settings, onClose }) {
             borderBottom:`1px solid ${glow(0.08)}`,
           }}>
             <div style={{width:36,height:4,borderRadius:2,background:glow(0.2),margin:"0 auto 12px"}}/>
-            <div style={{fontSize:15,fontWeight:700,color:TEXT}}>
+            <div style={{fontSize:15,fontWeight:700,color:TEXT,textAlign:"center",padding:"0 36px"}}>
               Вільний слот · {day.fullLabel} {day.num}
             </div>
           </div>
@@ -5850,13 +5852,18 @@ function CreateSlotSheetBase({ data, settings, onClose }) {
                 <DrumRoll items={durItems} currentIdx={durIdx} onChange={setDurIdx} itemH={40} visible={3}/>
               </div>
             </div>
+            <div className="modal-footer" style={{gap:10,marginBottom:16}}>
+            <button onClick={_close} style={{
+              padding:14,borderRadius:14,border:`1.5px solid ${BORDER}`,cursor:"pointer",fontFamily:"inherit",
+              background:"transparent",color:TEXT_DIM,fontSize:14,fontWeight:800,
+            }}>Скасувати</button>
             <button onClick={handleCreate} disabled={saving} style={{
-              width:"100%",padding:14,borderRadius:14,border:"none",cursor:"pointer",fontFamily:"inherit",
+              padding:14,borderRadius:14,border:"none",cursor:"pointer",fontFamily:"inherit",
               background:saving?shade(0.06):`linear-gradient(165deg,${GREEN},#16a34a)`,
               color:saving?TEXT_FAINT:"#fff",fontSize:14,fontWeight:800,
               boxShadow:saving?"none":`0 4px 16px rgba(99,211,120,0.4),inset 1px 1px 0 ${glow(0.25)}`,
-              marginBottom:16,
-            }}>{saving ? "Створюємо..." : "✓ Створити слот"}</button>
+            }}>{saving ? "Створюємо..." : "Створити"}</button>
+            </div>
           </div>
         </div>
       </div>
@@ -7096,7 +7103,7 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
           onAnimationEnd={closing ? ()=>{ setClosing(false); onClose(); } : undefined}
           style={{
             position:"relative",
-            width:"100%",maxWidth:480,background:BG_DEEP,
+            width:"100%",background:BG_DEEP,
             borderRadius:"24px 24px 0 0",
             boxShadow:`0 -2px 0 rgba(34,197,94,0.3), 0 -16px 60px ${shade(0.6)}`,
             maxHeight:"85vh",overflowY:"auto",
@@ -7122,11 +7129,13 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
             borderRadius:"24px 24px 0 0",
           }}>
             <div style={{width:36,height:4,borderRadius:2,background:"rgba(34,197,94,0.35)",margin:"0 auto 12px"}}/>
+            <div style={{padding:"0 36px",textAlign:"center"}}>
             <div style={{fontSize:17,fontWeight:800,color:"#22c55e"}}>➕ Новий запис</div>
-            {activeM && <div style={{marginTop:6,fontSize:12,fontWeight:600,color:TEXT_DIM,display:"flex",alignItems:"center",gap:6}}>Майстер: <span style={{width:9,height:9,borderRadius:"50%",background:activeM.color,flexShrink:0}}/><span style={{color:TEXT,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{activeM.name}</span></div>}
+            {activeM && <div style={{marginTop:6,fontSize:12,fontWeight:600,color:TEXT_DIM,display:"flex",alignItems:"center",justifyContent:"center",gap:6,minWidth:0}}>Майстер: <span style={{width:9,height:9,borderRadius:"50%",background:activeM.color,flexShrink:0}}/><span style={{color:TEXT,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{activeM.name}</span></div>}
+            </div>
           </div>
 
-          <div style={{padding:"16px 16px 0",display:"flex",flexDirection:"column",gap:16}}>
+          <div className="win-cols win-gap" style={{padding:"16px 16px 0",gap:16}}>
 
           {/* КЛІЄНТ */}
           <div>
@@ -7357,7 +7366,7 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
           {/* ПРИМІТКА */}
           <input
             type="text"
-            placeholder="Примітка (необов'язково)..."
+            placeholder="Примітка"
             value={note}
             onChange={e=>setNote(e.target.value)}
             style={{
@@ -7372,7 +7381,7 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
             type="number"
             inputMode="decimal"
             min="0"
-            placeholder={`Сума боргу, ${curSym()} (необов'язково)...`}
+            placeholder={`Сума боргу, ${curSym()}`}
             value={debtAmount}
             onChange={e=>setDebtAmount(e.target.value)}
             style={{
@@ -7405,14 +7414,20 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
           )}
 
           {/* Кнопка підтвердження */}
+          <div className="modal-footer" style={{gap:10,marginBottom:20,breakInside:"avoid"}}>
+          <button onClick={_close} style={{
+            padding:"14px 8px",borderRadius:14,border:`1.5px solid ${BORDER}`,cursor:"pointer",fontFamily:"inherit",
+            background:SURFACE_LO,color:TEXT_DIM,fontSize:15,fontWeight:800,
+          }}>Скасувати</button>
           <button disabled={!canConfirm} onClick={handleConfirm} style={{
-            width:"100%",padding:"14px",borderRadius:14,border:"none",cursor:"pointer",fontFamily:"inherit",
+            padding:"14px 8px",borderRadius:14,border:"none",cursor:"pointer",fontFamily:"inherit",
             background:canConfirm?`linear-gradient(160deg,${GREEN},#4ade80)`:SURFACE_LO,
             color:canConfirm?"#fff":TEXT_FAINT,
             fontSize:15,fontWeight:800,letterSpacing:0.2,
             boxShadow:canConfirm?`0 6px 20px ${GREEN}55`:SHADOW_OUT,
-            transition:"all .2s",marginBottom:20,
-          }}>✓ Записати</button>
+            transition:"all .2s",
+          }}>Створити</button>
+          </div>
 
         </div>
         </div>

@@ -57,7 +57,8 @@ function StudentForm({ initial, onSave, onCancel, saveLabel="Зберегти" }
   const upd = (k,v) => setD(x=>({...x,[k]:v}));
   const valid = (d.name||"").trim();
   return (
-    <div style={{display:"flex",flexDirection:"column",gap:9}}>
+    <div style={{display:"flex",flexDirection:"column",gap:12}}>
+     <div className="win-cols win-gap" style={{gap:9}}>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7}}>
         <Field label="Ім'я"      value={d.name||""}     onChange={v=>upd("name",v)}     placeholder="Ім'я Прізвище" style={{marginBottom:0}}/>
         <Field label="Телефон"   value={d.phone||""}    onChange={v=>upd("phone",v)}    placeholder="+380..." style={{marginBottom:0}}/>
@@ -103,9 +104,10 @@ function StudentForm({ initial, onSave, onCancel, saveLabel="Зберегти" }
         </div>
       </div>
       <Field label="Нотатки" value={d.notes||""} onChange={v=>upd("notes",v)} placeholder="Нотатки…" textarea rows={2} style={{marginBottom:0}}/>
-      <div style={{display:"flex",gap:7}}>
-        <UIBtn variant="primary" flex={1} disabled={!valid} onClick={()=>valid&&onSave(d)}>{saveLabel}</UIBtn>
-        <UIBtn variant="ghost"   flex={1} onClick={onCancel}>Скасувати</UIBtn>
+     </div>
+      <div className="modal-footer" style={{gap:8}}>
+        <UIBtn variant="ghost" onClick={onCancel}>Скасувати</UIBtn>
+        <UIBtn variant="primary" disabled={!valid} onClick={()=>valid&&onSave(d)}>{saveLabel}</UIBtn>
       </div>
     </div>
   );
@@ -352,27 +354,27 @@ function StudentDetailSheet({ settings, s, onClose, onUpdate, onDelete, onBlock,
               </div>
             ) : pushOpen ? (
               <div style={{display:"flex",flexDirection:"column",gap:10}}>
-                <div style={{fontSize:13,fontWeight:800,color:GOLD}}>📢 Повідомлення клієнту: {s.name}</div>
+                <div style={{textAlign:"center"}}><div style={{fontSize:15,fontWeight:800,color:GOLD}}>📢 Повідомлення клієнту</div><div style={{fontSize:12,color:DIM,marginTop:2,overflowWrap:"anywhere"}}>{s.name}</div></div>
                 <input value={pushTitle} onChange={e=>{setPushTitle(e.target.value);setPushSent(false);}} placeholder="Заголовок"
                   style={{background:glow(0.04),border:`1px solid ${BORDER}`,outline:"none",color:TEXT,fontSize:13,padding:"9px 12px",borderRadius:10,boxShadow:SI,width:"100%",boxSizing:"border-box",fontFamily:"inherit"}}/>
                 <textarea value={pushBody} onChange={e=>{setPushBody(e.target.value);setPushSent(false);}} placeholder="Текст сповіщення" rows={3}
                   style={{background:glow(0.04),border:`1px solid ${BORDER}`,outline:"none",color:TEXT,fontSize:13,padding:"9px 12px",borderRadius:10,boxShadow:SI,width:"100%",boxSizing:"border-box",fontFamily:"inherit",resize:"vertical"}}/>
                 {pushError && <div style={{fontSize:12,color:"#fca5a5"}}>{pushError}</div>}
                 {pushSent && <div style={{fontSize:12,fontWeight:700,color:GREEN}}>✓ Надіслано</div>}
-                <div style={{display:"flex",gap:7}}>
-                  <button disabled={!pushBody.trim()||pushSending} onClick={sendPushToStudent}
-                    style={{flex:1,padding:"10px",borderRadius:10,border:"none",cursor:(!pushBody.trim()||pushSending)?"default":"pointer",opacity:(!pushBody.trim()||pushSending)?0.5:1,background:`linear-gradient(145deg,${GOLD}cc,${GOLD}88)`,color:"#1a1a1a",fontSize:13,fontWeight:800,boxShadow:SO,fontFamily:"inherit"}}>{pushSending?"…":"Надіслати"}</button>
+                <div className="modal-footer" style={{gap:8}}>
                   <button onClick={()=>{setPushOpen(false);setPushSent(false);setPushError(null);}}
-                    style={{flex:1,padding:"10px",borderRadius:10,border:"none",cursor:"pointer",background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,color:DIM,fontSize:13,fontWeight:700,boxShadow:SO,fontFamily:"inherit"}}>Назад</button>
+                    style={{padding:"11px",borderRadius:11,border:"none",cursor:"pointer",background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,color:DIM,fontSize:13,fontWeight:700,boxShadow:SO,fontFamily:"inherit"}}>Скасувати</button>
+                  <button disabled={!pushBody.trim()||pushSending} onClick={sendPushToStudent}
+                    style={{padding:"11px",borderRadius:11,border:"none",cursor:(!pushBody.trim()||pushSending)?"default":"pointer",opacity:(!pushBody.trim()||pushSending)?0.5:1,background:`linear-gradient(145deg,${GOLD}cc,${GOLD}88)`,color:"#1a1a1a",fontSize:13,fontWeight:800,boxShadow:SO,fontFamily:"inherit"}}>{pushSending?"…":"Надіслати"}</button>
                 </div>
               </div>
             ) : inviteOpen ? (
               <div style={{display:"flex",flexDirection:"column",gap:10}}>
-                <div style={{fontSize:13,fontWeight:800,color:GOLD}}>🔗 Запросити: {s.name}</div>
-                <div style={{fontSize:11,color:DIM,lineHeight:1.5}}>Клієнт переходить за посиланням, сам реєструється — знижка/фікс.ціна/нотатки з цієї картки автоматично перенесуться на його акаунт.</div>
+                <div style={{textAlign:"center"}}><div style={{fontSize:15,fontWeight:800,color:GOLD}}>🔗 Запросити клієнта</div><div style={{fontSize:12,color:DIM,marginTop:2,overflowWrap:"anywhere"}}>{s.name}</div></div>
+                <div style={{fontSize:12,color:DIM,lineHeight:1.5,textAlign:"center"}}>Клієнт реєструється за посиланням, а знижка, ціна й нотатки з картки переносяться на його акаунт.</div>
                 <div style={{background:glow(0.04),border:`1px solid ${BORDER}`,borderRadius:10,padding:"9px 12px",fontSize:12,color:TEXT,wordBreak:"break-all"}}>{inviteLink}</div>
                 {inviteError && <div style={{fontSize:12,color:"#fca5a5"}}>{inviteError}</div>}
-                <div style={{display:"flex",gap:7}}>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(3, minmax(0,1fr))",gap:7}}>
                   <button onClick={()=>navigator.clipboard?.writeText(inviteLink).catch(()=>{})}
                     style={{flex:1,padding:"10px",borderRadius:10,border:"none",cursor:"pointer",background:`linear-gradient(145deg,${GOLD}cc,${GOLD}88)`,color:"#1a1a1a",fontSize:13,fontWeight:800,boxShadow:SO,fontFamily:"inherit"}}>Копіювати</button>
                   <button onClick={()=>{window.location.href=`viber://forward?text=${encodeURIComponent(inviteLink)}`;}}
@@ -381,7 +383,7 @@ function StudentDetailSheet({ settings, s, onClose, onUpdate, onDelete, onBlock,
                     style={{flex:1,padding:"10px",borderRadius:10,border:"none",cursor:"pointer",background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,color:TEXT,fontSize:13,fontWeight:700,boxShadow:SO,fontFamily:"inherit"}}>Телеграм</button>
                 </div>
                 <button onClick={()=>{setInviteOpen(false);setInviteError(null);}}
-                  style={{padding:"10px",borderRadius:10,border:"none",cursor:"pointer",background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,color:DIM,fontSize:13,fontWeight:700,boxShadow:SO,fontFamily:"inherit"}}>Назад</button>
+                  style={{padding:"10px",borderRadius:10,border:"none",cursor:"pointer",background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,color:DIM,fontSize:13,fontWeight:700,boxShadow:SO,fontFamily:"inherit"}}>Закрити</button>
               </div>
             ) : (
               <div className="win-cols win-gap">
@@ -424,12 +426,12 @@ function StudentDetailSheet({ settings, s, onClose, onUpdate, onDelete, onBlock,
                     display:"flex",alignItems:"center",justifyContent:"center",padding:16,
                   }}>
                     <div onClick={e=>e.stopPropagation()} style={{
-                      width:"100%",maxWidth:340,padding:14,borderRadius:16,
+                      width:"100%",maxWidth:360,padding:16,borderRadius:16,
                       background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,border:`1px solid ${BORDER}`,boxShadow:SO,
                     }}>
-                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-                        <div style={{fontSize:14,fontWeight:800,color:TEXT}}>Колір слота</div>
-                        <button aria-label="Закрити" onClick={()=>setColorOpen(false)} style={{background:"none",border:"none",color:DIM,fontSize:22,lineHeight:1,cursor:"pointer"}}>×</button>
+                      <div style={{position:"relative",textAlign:"center",padding:"0 36px",marginBottom:14}}>
+                        <div style={{fontSize:15,fontWeight:800,color:TEXT}}>Колір слота</div>
+                        <button aria-label="Закрити" onClick={()=>setColorOpen(false)} style={{position:"absolute",top:12,right:14,width:28,height:28,borderRadius:8,border:"none",cursor:"pointer",background:"rgba(239,68,68,0.18)",color:"#ef4444",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,fontWeight:800,lineHeight:1,padding:0}}>✕</button>
                       </div>
                       <div style={{display:"grid",gridTemplateColumns:"repeat(10,1fr)",gap:6}}>
                         {STUDENT_COLOR_CHOICES.map((c,ci)=>(
@@ -570,7 +572,7 @@ function StudentDetailSheet({ settings, s, onClose, onUpdate, onDelete, onBlock,
           display:"flex",alignItems:"flex-end",justifyContent:"center",
         }}>
           <div className="sheet" onClick={e=>e.stopPropagation()} style={{
-            width:"100%",maxWidth:480,
+            position:"relative",width:"100%",
             background:BG_DEEP,
             borderRadius:"24px 24px 0 0",
             boxShadow:`0 -2px 0 ${glow(0.08)},0 -16px 60px ${shade(0.8)}`,
@@ -579,13 +581,10 @@ function StudentDetailSheet({ settings, s, onClose, onUpdate, onDelete, onBlock,
             boxSizing:"border-box",
           }}>
             <div style={{width:36,height:4,borderRadius:2,background:glow(0.15),margin:"0 auto 14px"}}/>
-            <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
-              <div style={{fontSize:14,fontWeight:800,color:TEXT}}>Історія записів</div>
-              <div onClick={()=>setHistoryOpen(false)} style={{
-                width:26,height:26,borderRadius:8,background:"rgba(239,68,68,0.18)",
-                display:"flex",alignItems:"center",justifyContent:"center",
-                cursor:"pointer",color:"#ef4444",fontSize:13,fontWeight:800,flexShrink:0,
-              }}>✕</div>
+            <div style={{position:"relative",textAlign:"center",padding:"0 40px",marginBottom:14}}>
+              <div style={{fontSize:16,fontWeight:800,color:TEXT}}>Історія записів</div>
+              <div style={{fontSize:12,color:DIM,marginTop:2,overflowWrap:"anywhere"}}>{s.name}</div>
+              <button aria-label="Закрити" onClick={()=>setHistoryOpen(false)} style={{position:"absolute",top:12,right:14,width:28,height:28,borderRadius:8,border:"none",cursor:"pointer",background:"rgba(239,68,68,0.18)",color:"#ef4444",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,fontWeight:800,lineHeight:1,padding:0}}>✕</button>
             </div>
 
             {historyLoading ? (
@@ -874,24 +873,18 @@ export default function StudentsView({ studentJump, onStudentJumpHandled, bookin
         }}>
           <div className="sheet" onClick={e=>e.stopPropagation()} style={{
             position:"relative",
-            width:"100%",maxWidth:480,background:SHEET||BG_DEEP,
+            width:"100%",background:SHEET||BG_DEEP,
             borderRadius:"28px 28px 0 0",
             boxShadow:`0 -2px 0 ${BORDER}, 0 -16px 50px rgba(0,0,0,0.6)`,
             padding:"12px 16px calc(20px + env(safe-area-inset-bottom))",
             maxHeight:"88vh",overflowY:"auto",
           }}>
-            <button aria-label="Закрити" onClick={()=>setShowNew(false)} style={{
-              position:"absolute",top:10,right:12,zIndex:5,
-              width:26,height:26,borderRadius:8,border:"none",cursor:"pointer",
-              background:"rgba(239,68,68,0.18)",color:"#ef4444",
-              display:"flex",alignItems:"center",justifyContent:"center",
-              fontSize:13,fontWeight:800,lineHeight:1,
-            }}>✕</button>
+            <button aria-label="Закрити" onClick={()=>setShowNew(false)} style={{position:"absolute",top:12,right:14,width:28,height:28,borderRadius:8,border:"none",cursor:"pointer",background:"rgba(239,68,68,0.18)",color:"#ef4444",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,fontWeight:800,lineHeight:1,padding:0}}>✕</button>
             <div style={{width:38,height:4,borderRadius:2,background:ink(0.12),margin:"0 auto 14px"}}/>
-            <div style={{fontSize:14,fontWeight:800,color:TEXT,marginBottom:12}}>Новий клієнт</div>
+            <div style={{fontSize:16,fontWeight:800,color:TEXT,marginBottom:14,textAlign:"center",padding:"0 40px"}}>Новий клієнт</div>
             <StudentForm
               initial={{name:"",phone:"+380",discount:0,customPrice:"",notes:"",type:"private",isVip:false,noIntervalLimit:false}}
-              onSave={createStudent} onCancel={()=>setShowNew(false)} saveLabel="Додати"
+              onSave={createStudent} onCancel={()=>setShowNew(false)} saveLabel="Створити"
             />
           </div>
         </div>,

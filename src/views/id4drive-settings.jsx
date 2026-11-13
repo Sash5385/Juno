@@ -299,7 +299,7 @@ function TimeListSheet({ loM, hiM, sm, curM, onPick, onClose }) {
   const fm = m => `${String(Math.floor(m / 60)).padStart(2,"0")}:${String(m % 60).padStart(2,"0")}`;
   return createPortal(
     <div onClick={onClose} style={{position:"fixed",inset:0,zIndex:2000,background:"rgba(0,0,0,.55)",backdropFilter:"blur(8px)",WebkitBackdropFilter:"blur(8px)",display:"flex",alignItems:"flex-end",justifyContent:"center"}}>
-      <div onClick={e=>e.stopPropagation()} style={{width:"100%",maxWidth:420,maxHeight:"55vh",overflowY:"auto",background:SHEET||BG_DEEP,borderRadius:"18px 18px 0 0",padding:"8px 10px calc(12px + env(safe-area-inset-bottom))",boxShadow:"0 -8px 30px rgba(0,0,0,.5)"}}>
+      <div onClick={e=>e.stopPropagation()} style={{width:"100%",maxHeight:"55vh",overflowY:"auto",background:SHEET||BG_DEEP,borderRadius:"18px 18px 0 0",padding:"8px 10px calc(12px + env(safe-area-inset-bottom))",boxShadow:"0 -8px 30px rgba(0,0,0,.5)"}}>
         {items.map(m => {
           const on = m === curM;
           return (
@@ -585,7 +585,7 @@ function PhotoCropModal({ file, round, outSize, title, onCancel, onDone }) {
             <button onClick={() => setZ(zoom + 0.25)} aria-label="Збільшити" style={circBtn}>+</button>
           </div>
         )}
-        <div style={{ display:"flex", gap:10 }}>
+        <div className="modal-footer" style={{ gap:10 }}>
           <button onClick={onCancel} disabled={saving} style={{ flex:1, padding:"14px", borderRadius:14, border:`1px solid ${BORDER}`, background:"rgba(255,255,255,0.05)", color:TEXT, fontSize:15, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>Скасувати</button>
           <button onClick={save} disabled={!img || saving || err} style={{ flex:2, padding:"14px", borderRadius:14, border:"none", background:`linear-gradient(145deg,${GOLD}cc,${GOLD}88)`, color:"#1a1a1a", fontSize:15, fontWeight:800, cursor:"pointer", fontFamily:"inherit", opacity:(!img||err)?0.5:1 }}>{saving ? "Зберігаю…" : "Зберегти"}</button>
         </div>

@@ -334,7 +334,7 @@ function DeleteConfirm({ svc, onConfirm, onArchive, onClose }) {
       <div style={{textAlign:"center",marginBottom:20}}>
         <div style={{fontSize:32,marginBottom:8}}>⚠️</div>
         <div style={{fontSize:16,fontWeight:800,color:TEXT,marginBottom:6}}>Видалити «{svc.name}»?</div>
-        <div style={{fontSize:13,color:DIM}}>Послуга має {svc.lessons} проведених записів. Вибери дію:</div>
+        <div style={{fontSize:13,color:DIM}}>Послуга має {svc.lessons} проведених записів. Виберіть дію:</div>
       </div>
       <div style={{display:"flex",flexDirection:"column",gap:10}}>
         <button onClick={()=>{onArchive(svc.id);onClose();}} style={{
