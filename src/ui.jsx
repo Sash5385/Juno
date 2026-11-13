@@ -97,6 +97,7 @@ export function UICss() {
 .modal-sheet-in{animation:modal-sheet-in .38s cubic-bezier(0.34,1.56,0.64,1) both}
 .modal-pop-in{animation:modal-pop-in .18s ease both}
 .modal-footer>*{flex:1}
+
 `}</style>;
 }
 
@@ -239,7 +240,7 @@ export function StatTile({ value, label, color }) {
 // ── Modal: adaptive width, sheet or centered ───────────────────
 // size: "sm"|"md"|"lg" or a number (px). sheet=true → bottom sheet.
 // icon: optional emoji shown in header icon box.
-export function Modal({ open, onClose, children, size = "md", sheet = true, title, icon, grabber = true, pad = true, footer, maxH }) {
+export function Modal({ open, onClose, children, size = "md", sheet = true, title, subtitle, icon, grabber = true, pad = true, footer, maxH, cols = false }) {
   const { SURF_HI, SURFACE, BG, TEXT, FAINT, BORDER, SHEET, MODAL_R, RED } = useContext(ThemeContext);
   const { shade, ink } = useFX();
   useBackClose(open, onClose);
@@ -247,21 +248,22 @@ export function Modal({ open, onClose, children, size = "md", sheet = true, titl
   const W = typeof size === "number" ? size : ({ sm: 380, md: 460, lg: 560 }[size] ?? size);
   const bodyPad = !pad ? 0 : footer ? "14px 20px" : sheet ? "14px 20px 28px" : "14px 20px 16px";
   const containerStyle = sheet
-    ? { maxWidth: W, width: "100%", margin: "0 auto", background: SHEET || `linear-gradient(180deg,${SURFACE},${BG})`, borderRadius: `${MODAL_R ?? RADIUS.modal}px ${MODAL_R ?? RADIUS.modal}px 0 0`, overflow: "hidden", display: "flex", flexDirection: "column", maxHeight: maxH || "min(92vh, calc(100dvh - 48px - env(safe-area-inset-top, 0px)))" }
+    ? { width: "100%", margin: "0 auto", background: SHEET || `linear-gradient(180deg,${SURFACE},${BG})`, borderRadius: `${MODAL_R ?? RADIUS.modal}px ${MODAL_R ?? RADIUS.modal}px 0 0`, overflow: "hidden", display: "flex", flexDirection: "column", maxHeight: maxH || "min(92vh, calc(100dvh - 48px - env(safe-area-inset-top, 0px)))" }
     : { maxWidth: W, width: "100%", margin: "0 16px", background: SHEET || panel(SURF_HI, SURFACE), borderRadius: MODAL_R ?? RADIUS.modal, overflow: "hidden", boxShadow: `0 20px 60px ${shade(0.6)}`, display: "flex", flexDirection: "column", maxHeight: maxH || "88vh" };
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 200, background: shade(SCRIM), backdropFilter: "blur(8px)", display: "flex", alignItems: sheet ? "flex-end" : "center", justifyContent: "center" }}>
       <div onClick={e => e.stopPropagation()} className={sheet ? "modal-sheet-in" : "modal-pop-in"} style={containerStyle}>
         {sheet && grabber && <div style={{ width: 36, height: 4, borderRadius: 2, background: ink(0.18), margin: "10px auto 0", flexShrink: 0 }} />}
         {title && (
-          <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 20px 12px", borderBottom: `1px solid ${BORDER}`, flexShrink: 0 }}>
-            {icon && <div style={{ width: 34, height: 34, borderRadius: 9, background: ink(0.07), display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>{icon}</div>}
-            <div style={{ fontSize: 15, fontWeight: 700, color: TEXT, flex: 1 }}>{title}</div>
-            <div onClick={onClose} role="button" aria-label="Закрити" style={{ width: 40, height: 40, margin: "-6px -8px -6px 0", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0, userSelect: "none" }}><span style={{ width: 28, height: 28, borderRadius: 8, background: "rgba(239,68,68,0.18)", display: "flex", alignItems: "center", justifyContent: "center", color: RED, fontSize: 14, fontWeight: 800 }}>✕</span></div>
+          <div style={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center", gap: 6, padding: "14px 56px 12px", borderBottom: `1px solid ${BORDER}`, flexShrink: 0, textAlign: "center" }}>
+            {icon && <div style={{ width: 38, height: 38, borderRadius: 10, background: ink(0.07), display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>{icon}</div>}
+            <div style={{ fontSize: 16, fontWeight: 700, color: TEXT, textWrap: "balance" }}>{title}</div>
+            {subtitle && <div style={{ fontSize: 12, color: FAINT, marginTop: -3 }}>{subtitle}</div>}
+            <div onClick={onClose} role="button" aria-label="Закрити" style={{ position: "absolute", top: 8, right: 10, width: 40, height: 40, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0, userSelect: "none" }}><span style={{ width: 28, height: 28, borderRadius: 8, background: "rgba(239,68,68,0.18)", display: "flex", alignItems: "center", justifyContent: "center", color: RED, fontSize: 14, fontWeight: 800 }}>✕</span></div>
           </div>
         )}
         <div style={{ flex: 1, overflowY: "auto", padding: bodyPad }}>
-          {children}
+          {cols ? <div className="win-cols">{children}</div> : children}
         </div>
         {footer && (
           <div className="modal-footer" style={{ padding: "10px 20px 16px", borderTop: `1px solid ${BORDER}`, display: "flex", gap: 8, flexShrink: 0 }}>

@@ -150,3 +150,15 @@ code {
   .pc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 8px; }
   .pc-grid > * { margin-bottom: 0 !important; }
 }
+
+/* Вікна (усі шторки й модалки): кнопки внизу однакової ширини, на ПК — пара по центру.
+   .win-cols — вміст вікна на ПК розкладається в колонки (блоки не розриваються). */
+.modal-footer{display:grid!important;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr)}
+.win-cols>*{break-inside:avoid}
+@media (min-width:900px){
+  .modal-footer{grid-auto-columns:minmax(0,240px);justify-content:center}
+  .win-cols{columns:3 260px;column-gap:20px}
+}
+/* Вертикальний список блоків із проміжком; на ПК разом із .win-cols — колонки */
+.win-gap{display:flex;flex-direction:column;gap:10px}
+@media (min-width:900px){ .win-cols.win-gap{display:block} .win-cols.win-gap>*{margin-bottom:10px} }

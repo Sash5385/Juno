@@ -291,7 +291,7 @@ function StudentDetailSheet({ settings, s, onClose, onUpdate, onDelete, onBlock,
             onClose();
           } : undefined}
           style={{
-            width:"100%",maxWidth:480,
+            width:"100%",
             background:`linear-gradient(165deg,color-mix(in srgb,${barColor} 24%,${BG_DEEP}) 0%,${BG_DEEP} 60%)`,
             borderRadius:"24px 24px 0 0",
             boxShadow:`0 -2px 0 ${glow(0.08)},0 -16px 60px ${shade(0.8)}`,
@@ -306,7 +306,7 @@ function StudentDetailSheet({ settings, s, onClose, onUpdate, onDelete, onBlock,
 
           {/* Header */}
           <div style={{
-            display:"flex",alignItems:"center",gap:10,padding:"14px 16px 12px",
+            position:"relative",display:"flex",flexDirection:"column",alignItems:"center",gap:6,padding:"12px 52px 12px",textAlign:"center",
             borderBottom:`1px solid ${BORDER}`,flexShrink:0,
           }}>
             <div className="icon3d" style={{
@@ -314,13 +314,14 @@ function StudentDetailSheet({ settings, s, onClose, onUpdate, onDelete, onBlock,
               background:`linear-gradient(145deg,${barColor}44,${barColor}18)`,
               overflow:"hidden",fontSize:15,fontWeight:900,color:`color-mix(in srgb,${barColor} 55%,#fff)`,
             }}>{s.photo ? <img src={s.photo} alt="" style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}/> : ini}</div>
-            <div style={{flex:1,minWidth:0}}>
-              <div style={{fontSize:15,fontWeight:800,color:s.blocked?DIM:TEXT,overflowWrap:"anywhere"}}>
+            <div style={{minWidth:0,maxWidth:"100%"}}>
+              <div style={{fontSize:16,fontWeight:800,color:s.blocked?DIM:TEXT,overflowWrap:"anywhere"}}>
                 {s.name}{s.blocked && <span style={{fontSize:11,color:RED,marginLeft:6}}>🚫</span>}
               </div>
               <div style={{fontSize:11,color:typeColor,fontWeight:700,marginTop:2}}>{typeLabel}</div>
             </div>
-            <div onClick={_close} style={{
+            <div onClick={_close} role="button" aria-label="Закрити" style={{
+              position:"absolute",top:12,right:14,
               width:28,height:28,borderRadius:8,background:"rgba(239,68,68,0.18)",
               display:"flex",alignItems:"center",justifyContent:"center",
               cursor:"pointer",color:"#ef4444",fontSize:14,fontWeight:800,userSelect:"none",flexShrink:0,
@@ -340,12 +341,13 @@ function StudentDetailSheet({ settings, s, onClose, onUpdate, onDelete, onBlock,
                 onCancel={()=>setEditMode(false)}
               />
             ) : confirmDel ? (
-              <div style={{background:"rgba(239,68,68,0.08)",border:"1px solid rgba(239,68,68,0.25)",borderRadius:12,padding:"14px 14px",display:"flex",flexDirection:"column",gap:9}}>
-                <div style={{fontSize:13,fontWeight:800,color:"#fca5a5"}}>Видалити клієнта назавжди?</div>
-                <div style={{fontSize:12,color:DIM}}>Цю дію не можна скасувати.</div>
-                <div style={{display:"flex",gap:7}}>
-                  <button onClick={()=>{setPendingDelete(true);_close();}} style={{flex:1,padding:"10px",borderRadius:10,border:"none",cursor:"pointer",background:"linear-gradient(145deg,rgba(239,68,68,.5),rgba(185,28,28,.4))",color:"#fff",fontSize:13,fontWeight:700,boxShadow:SO,fontFamily:"inherit"}}>Так, видалити</button>
-                  <button onClick={()=>setConfirmDel(false)} style={{flex:1,padding:"10px",borderRadius:10,border:"none",cursor:"pointer",background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,color:DIM,fontSize:13,fontWeight:700,boxShadow:SO,fontFamily:"inherit"}}>Скасувати</button>
+              <div style={{background:"rgba(239,68,68,0.08)",border:"1px solid rgba(239,68,68,0.25)",borderRadius:14,padding:"18px 14px 14px",display:"flex",flexDirection:"column",alignItems:"center",gap:8,textAlign:"center"}}>
+                <div style={{fontSize:26,lineHeight:1}}>🗑</div>
+                <div style={{fontSize:15,fontWeight:800,color:"#fca5a5"}}>Видалити клієнта?</div>
+                <div style={{fontSize:12.5,color:DIM,maxWidth:420}}>{`${s.name} зникне зі списку разом з історією записів. Цю дію не можна скасувати.`}</div>
+                <div className="modal-footer" style={{gap:8,width:"100%",marginTop:6}}>
+                  <button onClick={()=>setConfirmDel(false)} style={{padding:"11px",borderRadius:12,border:"none",cursor:"pointer",background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,color:TEXT,fontSize:13,fontWeight:700,fontFamily:"inherit"}}>Скасувати</button>
+                  <button onClick={()=>{setPendingDelete(true);_close();}} style={{padding:"11px",borderRadius:12,border:"1px solid rgba(239,68,68,0.45)",cursor:"pointer",background:"linear-gradient(145deg,rgba(239,68,68,.5),rgba(185,28,28,.4))",color:"#fff",fontSize:13,fontWeight:800,fontFamily:"inherit"}}>Видалити</button>
                 </div>
               </div>
             ) : pushOpen ? (
@@ -382,14 +384,14 @@ function StudentDetailSheet({ settings, s, onClose, onUpdate, onDelete, onBlock,
                   style={{padding:"10px",borderRadius:10,border:"none",cursor:"pointer",background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,color:DIM,fontSize:13,fontWeight:700,boxShadow:SO,fontFamily:"inherit"}}>Назад</button>
               </div>
             ) : (
-              <>
+              <div className="win-cols win-gap">
                 {/* Phone + discount */}
                 <div style={{display:"flex",gap:8}}>
                   <div style={{flex:1,background:glow(0.04),borderRadius:10,padding:"9px 12px",border:`1px solid ${BORDER}`}}>
                     <div style={{fontSize:11,color:FAINT,letterSpacing:1,textTransform:"uppercase",marginBottom:3}}>Телефон</div>
                     <div style={{fontSize:14,fontWeight:700,color:TEXT}}>{s.phone||"—"}</div>
                   </div>
-                  <div style={{width:88,background:glow(0.04),borderRadius:10,padding:"9px 12px",border:`1px solid ${BORDER}`,textAlign:"center"}}>
+                  <div style={{minWidth:88,flexShrink:0,background:glow(0.04),borderRadius:10,padding:"9px 10px",border:`1px solid ${BORDER}`,textAlign:"center"}}>
                     <div style={{fontSize:11,color:FAINT,letterSpacing:1,textTransform:"uppercase",marginBottom:3,whiteSpace:"nowrap"}}>Знижка/год</div>
                     <div style={{fontSize:18,fontWeight:900,color:s.discount>0?GOLD:DIM}}>{money(s.discount||0)}</div>
                   </div>
@@ -554,7 +556,7 @@ function StudentDetailSheet({ settings, s, onClose, onUpdate, onDelete, onBlock,
                   cursor:"pointer",background:"rgba(239,68,68,0.08)",color:"#fca5a5",
                   fontSize:13,fontWeight:700,fontFamily:"inherit",marginTop:4,
                 }}>Видалити клієнта</button>
-              </>
+              </div>
             )}
           </div>
         </div>

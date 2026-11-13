@@ -6119,7 +6119,7 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
           onAnimationEnd={closing ? ()=>{ setClosing(false); onClose(); } : undefined}
           style={{
             position:"relative",
-            width:"100%",maxWidth:480,background:BG_DEEP,
+            width:"100%",background:BG_DEEP,
             borderRadius:"24px 24px 0 0",
             boxShadow:`0 -2px 0 ${c}66, 0 -16px 60px ${shade(0.6)}`,
             maxHeight:"85vh",overflowY:"auto",
@@ -6145,7 +6145,7 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
             borderRadius:"24px 24px 0 0",
           }}>
             <div style={{width:36,height:4,borderRadius:2,background:`${c}66`,margin:"0 auto 12px"}}/>
-            <div style={{display:"flex",alignItems:"center",gap:10,paddingRight:30}}>{/* праворуч — місце під кнопку ✕ */}
+            <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:6,padding:"0 36px",textAlign:"center"}}>{/* по центру; праворуч — кнопка ✕ */}
               <div style={{
                 width:40,height:40,borderRadius:12,flexShrink:0,
                 background:`linear-gradient(145deg,${c},color-mix(in srgb,${c} 55%,#000))`,
@@ -6153,9 +6153,9 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
                 display:"flex",alignItems:"center",justifyContent:"center",
                 fontSize:15,fontWeight:900,color:"#fff",
               }}>{ini}</div>
-              <div style={{flex:1,minWidth:0}}>
-                <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
-                  <div style={{fontSize:15,fontWeight:800,color:TEXT,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{booking.name}</div>
+              <div style={{minWidth:0,maxWidth:"100%"}}>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:6,flexWrap:"wrap"}}>
+                  <div style={{fontSize:16,fontWeight:800,color:TEXT,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:"100%"}}>{booking.name}</div>
                   {lessonNumber != null && (
                     <span style={{
                       fontSize:11,fontWeight:800,padding:"2px 7px",borderRadius:99,flexShrink:0,
@@ -6163,34 +6163,33 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
                     }}>{`${isSalon(settings) ? "" : "🚗 "}${lessonNumber}-й запис`}</span>
                   )}
                 </div>
-                <div style={{fontSize:11,color:c,fontWeight:700,marginTop:1}}>{typeLabel}</div>
+                <div style={{fontSize:11.5,color:c,fontWeight:700,marginTop:2}}>{typeLabel}</div>
               </div>
             </div>
           </div>
 
-          {/* Action buttons */}
-          <div style={{padding:"10px 10px 0",display:"flex",gap:8}}>
+          <div className="win-cols" style={{padding:"0 0 4px"}}>
+          {/* Action buttons: 4 однакові кнопки в ряд */}
+          <div style={{padding:"10px 10px 4px",display:"grid",gridTemplateColumns:"repeat(4,minmax(0,1fr))",gap:6}}>
             <button onClick={() => onAction("call", booking)} style={{
-              flex:1,display:"flex",alignItems:"center",justifyContent:"center",gap:7,
-              padding:"11px",borderRadius:14,border:"none",cursor:"pointer",fontFamily:"inherit",
-              background:`${GREEN}1f`,color:GREEN,fontSize:13,fontWeight:800,
+              display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:4,minWidth:0,
+              padding:"9px 2px",borderRadius:14,border:"none",cursor:"pointer",fontFamily:"inherit",
+              background:`${GREEN}1f`,color:GREEN,fontSize:11.5,fontWeight:800,
             }}>{IcoPhone} Дзвонити</button>
             <button onClick={() => onAction("chat", booking)} style={{
-              flex:1,display:"flex",alignItems:"center",justifyContent:"center",gap:7,
-              padding:"11px",borderRadius:14,border:"none",cursor:"pointer",fontFamily:"inherit",
-              background:`rgba(${GLOW},0.1)`,color:BLUE,fontSize:13,fontWeight:800,
+              display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:4,minWidth:0,
+              padding:"9px 2px",borderRadius:14,border:"none",cursor:"pointer",fontFamily:"inherit",
+              background:`rgba(${GLOW},0.1)`,color:BLUE,fontSize:11.5,fontWeight:800,
             }}>{IcoChat} Чат</button>
-          </div>
-          <div style={{padding:"8px 10px 4px",display:"flex",gap:8}}>
             <button onClick={() => onViewStudent?.(booking.userId, false)} style={{
-              flex:1,display:"flex",alignItems:"center",justifyContent:"center",gap:7,
-              padding:"11px",borderRadius:14,border:"none",cursor:"pointer",fontFamily:"inherit",
-              background:`${PURPLE}1f`,color:PURPLE,fontSize:13,fontWeight:800,
+              display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:4,minWidth:0,
+              padding:"9px 2px",borderRadius:14,border:"none",cursor:"pointer",fontFamily:"inherit",
+              background:`${PURPLE}1f`,color:PURPLE,fontSize:11.5,fontWeight:800,
             }}>{IcoProfile} Профіль</button>
             <button onClick={() => onViewStudent?.(booking.userId, true)} style={{
-              flex:1,display:"flex",alignItems:"center",justifyContent:"center",gap:7,
-              padding:"11px",borderRadius:14,border:"none",cursor:"pointer",fontFamily:"inherit",
-              background:`${GOLD}1f`,color:GOLD,fontSize:13,fontWeight:800,
+              display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:4,minWidth:0,
+              padding:"9px 2px",borderRadius:14,border:"none",cursor:"pointer",fontFamily:"inherit",
+              background:`${GOLD}1f`,color:GOLD,fontSize:11.5,fontWeight:800,
             }}>{IcoHistory} Історія</button>
           </div>
 
@@ -6376,7 +6375,7 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
                   </div>
                 )}
                 <div style={{marginTop:8,fontSize:11,lineHeight:1.4,color:"rgba(255,255,255,.55)"}}>
-                  Позначка на картці запису в розкладі (1-й запис, важливо, борг тощо). Перший запис ставиться автоматично, решту — вручну («+ Додати»).
+                  Видно на картці в розкладі. «1-й запис» ставиться сам.
                 </div>
               </div>
             );
@@ -6419,31 +6418,39 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
             </div>
           )}
 
+          </div>{/* /win-cols */}
+
+          {/* Низ: «Не прийшов» і «Скасувати запис» — пара однакових кнопок (на ПК — по центру) */}
+          {!isPastLocked || hasStarted || isNoshow ? (
+          <div className="modal-footer" style={{gap:8,padding:"12px 14px 16px",marginTop:8,borderTop:`1px solid ${ink(0.05)}`}}>
           {/* Неявка: лише для запису, що вже почався; повторний тап повертає «прийшов» */}
           {(hasStarted || isNoshow) && (
             <button onClick={() => { onAction(isNoshow ? "attended" : "noshow", booking); _close(); }} style={{
-              width:"calc(100% - 28px)",margin:"12px 14px 0",padding:"12px 10px",borderRadius:14,cursor:"pointer",fontFamily:"inherit",
+              width:"100%",margin:0,padding:"12px 10px",borderRadius:14,cursor:"pointer",fontFamily:"inherit",
               border:`1px solid ${isNoshow ? `${GREEN}55` : "rgba(239,68,68,0.35)"}`,
               background:isNoshow ? `${GREEN}14` : "rgba(239,68,68,0.10)",
               color:isNoshow ? GREEN : "#fca5a5",fontSize:13,fontWeight:800,
             }}>{isNoshow ? "↺ Клієнт прийшов" : "🚫 Не прийшов"}</button>
           )}
 
-          {/* Cancel link */}
-          {isPastLocked ? (
+          {!isPastLocked && (
+            <button onClick={() => { onAction("cancel", booking); _close(); }} style={{
+              width:"100%",padding:"12px 10px",borderRadius:14,cursor:"pointer",fontFamily:"inherit",
+              border:"1px solid rgba(239,68,68,0.35)",background:"rgba(239,68,68,0.10)",
+              color:"#fca5a5",fontSize:13,fontWeight:800,
+            }}>Скасувати запис</button>
+          )}
+          </div>
+          ) : null}
+
+          {/* Минулий запис: замість скасування — пояснення */}
+          {isPastLocked && (
             <div style={{
               width:"100%",padding:"10px",textAlign:"center",
               borderTop:`1px solid ${ink(0.05)}`,
               color:TEXT_FAINT,fontSize:11,fontWeight:600,
               marginTop:4,marginBottom:20,
-            }}>🔒 Минулий запис — редагування й скасування заблоковано</div>
-          ) : (
-            <button onClick={() => { onAction("cancel", booking); _close(); }} style={{
-              width:"100%",padding:"14px 10px",border:"none",cursor:"pointer",
-              background:"none",borderTop:`1px solid ${ink(0.05)}`,
-              color:"#fca5a5",fontSize:12,fontWeight:700,
-              marginTop:4,marginBottom:12,
-            }}>Скасувати запис</button>
+            }}>🔒 Минулий запис — змінити чи скасувати не можна</div>
           )}
 
         </div>

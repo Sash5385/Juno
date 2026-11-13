@@ -104,20 +104,20 @@ function ServiceFormModal({ svc, onSave, onClose }) {
   const accentColor = PALETTE.find(p=>p.id===form.colorId)?.color || theme.GREEN;
 
   return (
-    <Modal open onClose={onClose} sheet size="lg" title={isNew?"Нова послуга":"Редагування послуги"}
+    <Modal open onClose={onClose} sheet size="lg" title={isNew?"Нова послуга":"Послуга"} subtitle={isNew?null:form.name}
       footer={<>
         <Btn variant="ghost" flex={1} onClick={onClose}>Скасувати</Btn>
         <Btn variant="primary" flex={1} disabled={!valid} onClick={()=>valid&&onSave({...form,price:Number(form.price)||0,addons:capacityOf(form)>1?[]:normAddons(form.addons),bufferMin:bufferOf(form),capacity:capacityOf(form),rebookDays:rebookOf(form)})}>
-          {isNew?"Створити послугу":"Зберегти зміни"}
+          {isNew?"Створити":"Зберегти"}
         </Btn>
       </>}>
-      <div style={{
+      <div className="win-cols" style={{
         margin:"-14px -20px 0",padding:"16px 20px 20px",transition:"background .2s",
         background:`linear-gradient(165deg,color-mix(in srgb,${accentColor} 26%,${BG_DEEP}) 0%,${BG_DEEP} 65%)`,
       }}>
       {/* slot preview */}
       <div style={{marginBottom:16}}>
-        <div style={{fontSize:11,color:theme.LBL||"rgba(255,255,255,0.74)",letterSpacing:1.5,textTransform:"uppercase",marginBottom:8}}>ПОПЕРЕДНІЙ ПЕРЕГЛЯД СЛОТУ</div>
+        <div style={{fontSize:11,color:theme.LBL||"rgba(255,255,255,0.74)",letterSpacing:1.5,textTransform:"uppercase",marginBottom:8}}>ВИГЛЯД У РОЗКЛАДІ</div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
           <SlotPreview svc={form} height={72}/>
           <SlotPreview svc={{...form,duration:form.duration*2}} height={72}/>
@@ -146,7 +146,7 @@ function ServiceFormModal({ svc, onSave, onClose }) {
       {/* duration + price */}
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
         <div>
-          <div style={{fontSize:11,color:theme.LBL||"rgba(255,255,255,0.74)",letterSpacing:1,marginBottom:6}}>ТРИВАЛІСТЬ (хв)</div>
+          <div style={{fontSize:11,color:theme.LBL||"rgba(255,255,255,0.74)",letterSpacing:1,marginBottom:6}}>ТРИВАЛІСТЬ</div>
           <Inset style={{padding:"10px 14px",display:"flex",alignItems:"center",gap:6}}>
             <input type="number" value={form.duration} min={5} max={480} onChange={e=>upd("duration",+e.target.value)}
               style={{flex:1,background:"transparent",border:"none",outline:"none",color:TEXT,fontSize:18,fontWeight:800,width:60,fontFamily:"inherit"}}/>
@@ -174,7 +174,7 @@ function ServiceFormModal({ svc, onSave, onClose }) {
 
       {/* scheduled price change */}
       <div style={{marginBottom:14}}>
-        <div style={{fontSize:11,color:theme.LBL||"rgba(255,255,255,0.74)",letterSpacing:1,marginBottom:6}}>ЗАПЛАНОВАНА ЗМІНА ЦІНИ (опційно)</div>
+        <div style={{fontSize:11,color:theme.LBL||"rgba(255,255,255,0.74)",letterSpacing:1,marginBottom:6}}>НОВА ЦІНА З ДАТИ</div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr auto",gap:10,alignItems:"center"}}>
           <Inset style={{padding:"8px 12px"}}>
             <input type="date" value={form.nextPriceFrom||""} onChange={e=>upd("nextPriceFrom", e.target.value||null)}
@@ -238,7 +238,7 @@ function ServiceFormModal({ svc, onSave, onClose }) {
 
       {/* add-ons */}
       {capacityOf(form)<=1 && <div style={{marginBottom:14}}>
-        <div style={{fontSize:11,color:theme.LBL||"rgba(255,255,255,0.74)",letterSpacing:1,marginBottom:6}}>ДОПУСЛУГИ (опційно)</div>
+        <div style={{fontSize:11,color:theme.LBL||"rgba(255,255,255,0.74)",letterSpacing:1,marginBottom:6}}>ДОПУСЛУГИ</div>
         <div style={{display:"flex",flexDirection:"column",gap:8}}>
           {addons.map((a,i)=>(
             <Inset key={a.id||i} style={{padding:"8px 12px"}}>
