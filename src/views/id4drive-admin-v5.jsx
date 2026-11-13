@@ -603,7 +603,7 @@ function BroadcastModalBase({ initialDate, initialSlot, onClose }) {
           onAnimationEnd={closing ? ()=>{ setClosing(false); onClose(); } : undefined}
           style={{
             position:"relative",
-            width:"100%",maxWidth:480,background:BG_DEEP,
+            width:"100%",background:BG_DEEP,
             borderRadius:"24px 24px 0 0",
             boxShadow:`0 -2px 0 rgba(192,132,252,0.3), 0 -16px 60px ${shade(0.6)}`,
             maxHeight:"85vh",overflowY:"auto",
@@ -629,10 +629,10 @@ function BroadcastModalBase({ initialDate, initialSlot, onClose }) {
             borderRadius:"24px 24px 0 0",
           }}>
             <div style={{width:36,height:4,borderRadius:2,background:"rgba(192,132,252,0.4)",margin:"0 auto 12px"}}/>
-            <div style={{fontSize:17,fontWeight:800,color:"#c084fc"}}>📣 Розсилка клієнтам</div>
+            <div style={{fontSize:17,fontWeight:800,color:"#c084fc",textAlign:"center",padding:"0 36px"}}>📣 Розсилка клієнтам</div>
           </div>
 
-          <div style={{padding:"16px 18px 32px"}}>
+          <div className="win-cols" style={{padding:"16px 18px 32px"}}>
             {sent ? (
               <div style={{ textAlign:"center", padding:"20px 0" }}>
                 <div style={{ fontSize:40, marginBottom:8 }}>✅</div>
@@ -648,16 +648,16 @@ function BroadcastModalBase({ initialDate, initialSlot, onClose }) {
                 </div>
                 <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:10 }}>
                   <div>
-                    <div style={{ fontSize:11, color:DIM, marginBottom:4, fontWeight:600 }}>Слот 1 *</div>
+                    <div style={{ fontSize:11, color:DIM, marginBottom:4, fontWeight:600 }}>Слот 1</div>
                     <input type="time" value={slot1} onChange={e => setSlot1(e.target.value)} style={inp}/>
                   </div>
                   <div>
-                    <div style={{ fontSize:11, color:DIM, marginBottom:4, fontWeight:600 }}>Слот 2 (необов.)</div>
+                    <div style={{ fontSize:11, color:DIM, marginBottom:4, fontWeight:600 }}>Слот 2</div>
                     <input type="time" value={slot2} onChange={e => setSlot2(e.target.value)} style={inp}/>
                   </div>
                 </div>
                 <div style={{ marginBottom:14 }}>
-                  <div style={{ fontSize:11, color:DIM, marginBottom:4, fontWeight:600 }}>Коментар (необов.)</div>
+                  <div style={{ fontSize:11, color:DIM, marginBottom:4, fontWeight:600 }}>Коментар</div>
                   <input value={comment} onChange={e => setComment(e.target.value)} placeholder="напр. «записуйся поки є місце»" style={{ ...inp, fontSize:12 }} maxLength={60}/>
                 </div>
                 {preview && (
@@ -670,10 +670,10 @@ function BroadcastModalBase({ initialDate, initialSlot, onClose }) {
                 {sendError && (
                   <div style={{ fontSize:12, color:"#ef4444", background:"rgba(239,68,68,0.1)", border:"1px solid rgba(239,68,68,0.25)", borderRadius:8, padding:"8px 12px", marginBottom:10 }}>{sendError}</div>
                 )}
-                <div style={{ display:"flex", gap:8 }}>
-                  <button onClick={_close} style={{ flex:1, background:"transparent", color:DIM, border:`1px solid ${BORDER}`, borderRadius:12, padding:"11px 0", fontSize:13, cursor:"pointer" }}>Скасувати</button>
-                  <button onClick={handleSend} disabled={!canSend} style={{ flex:2, background:canSend?"rgba(192,132,252,0.18)":"rgba(192,132,252,0.06)", color:canSend?"#c084fc":DIM, border:"none", borderRadius:12, padding:"11px 0", fontSize:13, fontWeight:700, cursor:canSend?"pointer":"default", transition:"all 0.2s" }}>
-                    {sending ? "Надсилаємо…" : "📣 Надіслати"}
+                <div className="modal-footer" style={{ gap:10, breakInside:"avoid" }}>
+                  <button onClick={_close} style={{ background:"transparent", color:DIM, border:`1px solid ${BORDER}`, borderRadius:12, padding:"12px 8px", fontSize:14, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>Скасувати</button>
+                  <button onClick={handleSend} disabled={!canSend} style={{ fontFamily:"inherit", background:canSend?"rgba(192,132,252,0.18)":"rgba(192,132,252,0.06)", color:canSend?"#c084fc":DIM, border:"none", borderRadius:12, padding:"12px 8px", fontSize:14, fontWeight:700, cursor:canSend?"pointer":"default", transition:"all 0.2s" }}>
+                    {sending ? "Надсилаємо…" : "Надіслати"}
                   </button>
                 </div>
               </>
@@ -824,11 +824,11 @@ function MonthCalendarSheetBase({ bookings, onClose, onPickDate }) {
         <div onClick={e=>e.stopPropagation()}
           onAnimationEnd={closing ? onClose : undefined}
           style={{
-            position:"relative", width:"100%", maxWidth:480,
+            position:"relative", width:"100%",
             background:`radial-gradient(130% 90% at 50% 0%, color-mix(in srgb, ${BLUE} 22%, transparent), transparent 60%), ${BG}`,
             borderRadius:"24px 24px 0 0",
             boxShadow:`0 -2px 0 ${glow(0.08)}, 0 -16px 60px ${shade(0.8)}`,
-            display:"flex", flexDirection:"column", overflow:"hidden",
+            display:"flex", flexDirection:"column", overflowX:"hidden", overflowY:"auto", maxHeight:"92vh",
             pointerEvents: closing ? "none" : undefined,
             animation: closing ? `_mc-down 0.26s ease-in forwards` : `_mc-up 0.38s cubic-bezier(0.34,1.56,0.64,1)`,
             paddingBottom:"env(safe-area-inset-bottom, 0px)",
@@ -858,6 +858,7 @@ function MonthCalendarSheetBase({ bookings, onClose, onPickDate }) {
             </div>
 
             <div key={`${viewY}-${viewM}`} style={{
+              maxWidth:560, margin:"0 auto",
               animation: slideDir > 0 ? `_mc-slide-next 0.22s ease-out` : slideDir < 0 ? `_mc-slide-prev 0.22s ease-out` : "none",
             }}>
               <div style={{display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:4, marginBottom:6}}>
@@ -1023,7 +1024,8 @@ function DayNotesModalBase({ dateStr, dayLabel, dayNum, dayMonth, note, settings
         <div onClick={e=>e.stopPropagation()}
           onAnimationEnd={closing ? ()=>{ setClosing(false); onClose(); } : undefined}
           style={{
-            width:"100%", maxWidth:480, background:BG_DEEP,
+            position:"relative",
+            width:"100%", background:BG_DEEP,
             borderRadius:"24px 24px 0 0",
             boxShadow:`0 -2px 0 ${GOLD}33, 0 -16px 60px ${shade(0.6)}`,
             maxHeight:"85vh", overflowY:"auto",
@@ -1032,19 +1034,21 @@ function DayNotesModalBase({ dateStr, dayLabel, dayNum, dayMonth, note, settings
             animation: closing ? `_dn-down 0.26s ease-in forwards` : `_dn-up 0.38s cubic-bezier(0.34,1.56,0.64,1)`,
           }}>
           <div style={{width:36,height:4,borderRadius:2,background:glow(0.15),margin:"0 auto 12px"}}/>
-          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
+          <button aria-label="Закрити" onClick={_close} style={{
+            position:"absolute", top:12, right:14, zIndex:5,
+            width:26, height:26, borderRadius:8, border:"none", cursor:"pointer",
+            background:"rgba(239,68,68,0.18)", color:"#ef4444",
+            display:"flex", alignItems:"center", justifyContent:"center",
+            fontSize:13, fontWeight:800, lineHeight:1,
+          }}>✕</button>
+          <div style={{textAlign:"center",padding:"0 36px",marginBottom:6}}>
             <div style={{fontSize:16,fontWeight:800,color:TEXT}}>📝 Нотатки — {dayLabel}, {dayNum} {dayMonth}</div>
-            <div onClick={_close} style={{
-              width:40,height:40,borderRadius:12,background:"rgba(239,68,68,0.18)",
-              display:"flex",alignItems:"center",justifyContent:"center",
-              cursor:"pointer",color:"#ef4444",fontSize:18,fontWeight:800,flexShrink:0,
-            }}>✕</div>
           </div>
-          <div style={{fontSize:12.5,color:DIM,marginBottom:14,lineHeight:1.45}}>
-            Тап на час — обрати точний інтервал у межах години. Дзвіночок — увімкнути сповіщення-нагадування.
+          <div style={{fontSize:12.5,color:DIM,marginBottom:14,lineHeight:1.45,textAlign:"center"}}>
+            Натисніть на час, щоб уточнити його. Дзвіночок вмикає нагадування.
           </div>
 
-          <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:18}}>
+          <div className="win-cols win-gap" style={{marginBottom:18}}>
             {hours.map(h=>{
               const r = rows[h];
               const isEditing = editingHour === h;
@@ -1108,20 +1112,26 @@ function DayNotesModalBase({ dateStr, dayLabel, dayNum, dayMonth, note, settings
             })}
           </div>
 
-          <div style={{display:"flex",gap:8}}>
-            {hasAnyNote && (
-              <button onClick={handleDelete} disabled={saving} style={{
-                flex:1, padding:"15px", borderRadius:14, border:"1px solid rgba(239,68,68,0.25)",
-                cursor:"pointer", background:"rgba(239,68,68,0.08)", color:"#fca5a5",
-                fontSize:15, fontWeight:700, fontFamily:"inherit",
-              }}>Видалити всі</button>
-            )}
+          <div className="modal-footer" style={{gap:10}}>
+            <button onClick={_close} style={{
+              padding:"15px 8px", borderRadius:14, border:`1px solid ${BORDER}`, cursor:"pointer",
+              background:"transparent", color:DIM, fontSize:15, fontWeight:800, fontFamily:"inherit",
+            }}>Скасувати</button>
             <button onClick={handleSave} disabled={saving} style={{
-              flex:2, padding:"15px", borderRadius:14, border:"none", cursor:"pointer",
+              padding:"15px 8px", borderRadius:14, border:"none", cursor:"pointer",
               background:`linear-gradient(145deg,${GOLD}cc,${GOLD}88)`, color:"#1a1a1a",
-              fontSize:16, fontWeight:800, fontFamily:"inherit", boxShadow:SO,
+              fontSize:15, fontWeight:800, fontFamily:"inherit", boxShadow:SO,
             }}>{saving ? "Збереження…" : "Зберегти"}</button>
           </div>
+          {hasAnyNote && (
+            <div style={{display:"flex",justifyContent:"center",marginTop:10}}>
+              <button onClick={handleDelete} disabled={saving} style={{
+                padding:"12px 20px", borderRadius:14, border:"1px solid rgba(239,68,68,0.25)",
+                cursor:"pointer", background:"rgba(239,68,68,0.08)", color:"#fca5a5",
+                fontSize:14, fontWeight:700, fontFamily:"inherit",
+              }}>Видалити всі</button>
+            </div>
+          )}
         </div>
       </div>
     </>
@@ -4833,7 +4843,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
               onAnimationEnd={blockModalClosing ? ()=>{ setBlockModalClosing(false); setBlockModal(null); } : undefined}
               style={{
                 position:"relative",
-                width:"100%",maxWidth:480,background:BG_DEEP,
+                width:"100%",background:BG_DEEP,
                 borderRadius:"24px 24px 0 0",
                 boxShadow:`0 -2px 0 ${glow(0.08)}, 0 -16px 60px ${shade(0.8)}`,
                 display:"flex",flexDirection:"column",overflow:"hidden",
@@ -4854,7 +4864,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                 position:"relative",
               }}>
                 <div style={{width:38,height:4,borderRadius:2,background:`${ink(0.1)}`,margin:"0 auto 14px"}}/>
-                <div style={{display:"flex",alignItems:"center",gap:14}}>
+                <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:8,padding:"0 36px",textAlign:"center"}}>
                   <div style={{
                     width:50,height:50,borderRadius:25,flexShrink:0,
                     background:`${ink(0.06)}`,border:`1.5px solid ${ink(0.1)}`,
@@ -4873,24 +4883,21 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                 </div>
               </div>
               {/* Buttons */}
-              <div style={{padding:"14px 16px 28px",display:"flex",flexDirection:"column",gap:10}}>
+              <div className="modal-footer" style={{padding:"14px 16px 28px",gap:10}}>
+                <button onClick={_closeBlock} style={{
+                  padding:"14px 8px",borderRadius:18,border:"none",cursor:"pointer",fontFamily:"inherit",
+                  background:`linear-gradient(135deg,${SURF_HI},${SURFACE})`,
+                  color:DIM,fontSize:14,fontWeight:800,boxShadow:SO,
+                }}>Закрити</button>
                 <button onClick={()=>{
                   setBookings(bs=>bs.filter(x=>x.id!==blockModal.id));
                   _closeBlock();
                 }} style={{
-                  width:"100%",padding:"14px",borderRadius:18,border:"none",cursor:"pointer",
+                  padding:"14px 8px",borderRadius:18,border:"none",cursor:"pointer",fontFamily:"inherit",
                   background:`linear-gradient(160deg,${GREEN},#4ade80)`,
                   color:"#fff",fontSize:14,fontWeight:800,
                   boxShadow:`0 6px 20px ${GREEN}55`,
-                }}>
-                  🔓 Розблокувати
-                </button>
-                <button onClick={_closeBlock} style={{
-                  width:"100%",padding:"13px",borderRadius:18,border:"none",cursor:"pointer",
-                  background:"linear-gradient(145deg,#f87171,#b91c1c)",
-                  color:"#fff",fontSize:13,fontWeight:700,
-                  boxShadow:"0 4px 14px #b91c1c66",
-                }}>Закрити</button>
+                }}>Розблокувати</button>
               </div>
             </div>
           </div>
@@ -5412,7 +5419,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
               onAnimationEnd={vipSlotModalClosing ? ()=>{ setVipSlotModalClosing(false); setVipSlotModal(null); } : undefined}
               style={{
                 position:"relative",
-                width:"100%",maxWidth:480,background:BG_DEEP,
+                width:"100%",background:BG_DEEP,
                 borderRadius:"24px 24px 0 0",
                 boxShadow:`0 -2px 0 rgba(168,85,247,0.4), 0 -16px 60px ${shade(0.8)}`,
                 display:"flex",flexDirection:"column",overflow:"hidden",
@@ -5432,14 +5439,14 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                 borderBottom:"1px solid rgba(168,85,247,0.2)",
               }}>
                 <div style={{width:38,height:4,borderRadius:2,background:`${ink(0.1)}`,margin:"0 auto 14px"}}/>
-                <div style={{display:"flex",alignItems:"center",gap:14}}>
+                <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:8,padding:"0 36px",textAlign:"center"}}>
                   <div style={{
                     width:52,height:52,borderRadius:26,flexShrink:0,
                     background:"linear-gradient(145deg,#a855f7,#7c3aed)",
                     boxShadow:"0 0 0 3px rgba(168,85,247,0.3), 0 6px 20px rgba(168,85,247,0.4)",
                     display:"flex",alignItems:"center",justifyContent:"center",fontSize:24,
                   }}>👑</div>
-                  <div>
+                  <div style={{minWidth:0}}>
                     <div style={{fontSize:18,fontWeight:900,color:PURPLE}}>VIP Слот</div>
                     <div style={{fontSize:12,color:TEXT_DIM,marginTop:3}}>
                       {getDayInfo(vipSlotModal.day).fullLabel} · {fmtTime(vipSlotModal.startMin)} · {fmtDur(vipSlotModal.durMin)}
@@ -5450,7 +5457,12 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                   </div>
                 </div>
               </div>
-              <div style={{padding:"14px 16px 32px",display:"flex",flexDirection:"column",gap:10}}>
+              <div className="modal-footer" style={{padding:"14px 16px 32px",gap:10}}>
+                <button onClick={_closeVip} style={{
+                  padding:"14px 8px",borderRadius:18,border:"none",cursor:"pointer",fontFamily:"inherit",
+                  background:`linear-gradient(135deg,${SURFACE_HI},${SURFACE})`,
+                  color:TEXT_DIM,fontSize:14,fontWeight:800,boxShadow:SHADOW_OUT,
+                }}>Закрити</button>
                 <button onClick={()=>{
                   const v = vipSlotModal;
                   const dateStr = v._dateStr || absDayToDateStr(v.day);
@@ -5459,16 +5471,11 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                   update(iRef( `${slotRoot()}/${dateStr}/slot${hh}${mm}`), { vipOnly: false }).catch(() => {});
                   _closeVip();
                 }} style={{
-                  width:"100%",padding:"14px",borderRadius:18,border:"none",cursor:"pointer",
-                  background:`linear-gradient(160deg,${GREEN},#4ade80)`,
+                  padding:"14px 8px",borderRadius:18,border:"none",cursor:"pointer",fontFamily:"inherit",
+                  background:"linear-gradient(160deg,#ef4444,#dc2626)",
                   color:"#fff",fontSize:14,fontWeight:800,
-                  boxShadow:`0 6px 20px ${GREEN}55`,
-                }}>🗑 Видалити VIP слот</button>
-                <button onClick={_closeVip} style={{
-                  width:"100%",padding:"13px",borderRadius:18,border:"none",cursor:"pointer",
-                  background:`linear-gradient(135deg,${SURFACE_HI},${SURFACE})`,
-                  color:TEXT_DIM,fontSize:13,fontWeight:700,boxShadow:SHADOW_OUT,
-                }}>Закрити</button>
+                  boxShadow:"0 6px 20px rgba(239,68,68,0.35)",
+                }}>Видалити</button>
               </div>
             </div>
           </div>
@@ -5564,18 +5571,26 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
         backdropFilter:"blur(8px)",
       }}>
         <div onClick={e=>e.stopPropagation()} style={{
-          width:300, maxWidth:"calc(100vw - 24px)",background:BG_DEEP,
-          borderRadius:20,overflow:"hidden",
+          position:"relative",width:"calc(100vw - 24px)", maxWidth:720,maxHeight:"92vh",overflowY:"auto",background:BG_DEEP,
+          borderRadius:20,
           boxShadow:`0 8px 40px ${shade(0.7)}, 0 0 0 1.5px rgba(45,212,191,0.3)`,
         }}>
+          <button aria-label="Закрити" onClick={()=>setPersonalEventView(null)} style={{
+            position:"absolute", top:12, right:14, zIndex:5,
+            width:26, height:26, borderRadius:8, border:"none", cursor:"pointer",
+            background:"rgba(239,68,68,0.18)", color:"#ef4444",
+            display:"flex", alignItems:"center", justifyContent:"center",
+            fontSize:13, fontWeight:800, lineHeight:1,
+          }}>✕</button>
           <div style={{
-            padding:"14px 16px 12px",
+            padding:"14px 44px 12px",textAlign:"center",
             background:"rgba(45,212,191,0.1)",
             borderBottom:"1px solid rgba(45,212,191,0.15)",
+            borderRadius:"20px 20px 0 0",
           }}>
-            <div style={{fontSize:13,fontWeight:800,color:"#2dd4bf"}}>📌 Особиста подія</div>
+            <div style={{fontSize:15,fontWeight:800,color:"#2dd4bf"}}>📌 Особиста подія</div>
           </div>
-          <div style={{padding:"14px 16px",display:"flex",flexDirection:"column",gap:12}}>
+          <div className="win-cols win-gap" style={{padding:"14px 16px",gap:12}}>
             <div>
               <div style={{fontSize:10,fontWeight:700,letterSpacing:1.2,color:FAINT,textTransform:"uppercase",marginBottom:6}}>Назва</div>
               <input
@@ -5707,26 +5722,32 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                 <option value="24">За 1 день</option>
               </select>
             </div>
+            <div className="modal-footer" style={{gap:10,breakInside:"avoid"}}>
+            <button onClick={()=>setPersonalEventView(null)} style={{
+                padding:"12px 8px",borderRadius:12,border:`1px solid ${BORDER}`,cursor:"pointer",fontFamily:"inherit",
+                background:"transparent",color:DIM,fontSize:14,fontWeight:800,
+              }}>Скасувати</button>
             <button
               disabled={!peEditTitle.trim()}
               onClick={savePersonalEventEdit}
               style={{
-                width:"100%",padding:"12px",borderRadius:12,border:"none",cursor:"pointer",fontFamily:"inherit",
+                padding:"12px 8px",borderRadius:12,border:"none",cursor:"pointer",fontFamily:"inherit",
                 background: peEditTitle.trim() ? "linear-gradient(145deg,#2dd4bf,#14b8a6)" : ink(0.07),
                 color: peEditTitle.trim() ? "#fff" : FAINT,
                 fontSize:14,fontWeight:800,
               }}
             >Зберегти</button>
+            </div>
           </div>
           <button
             onClick={deletePersonalEvent}
             style={{
               width:"100%",padding:"12px",border:"none",cursor:"pointer",
-              borderTop:`1px solid ${ink(0.06)}`,
+              borderTop:`1px solid ${ink(0.06)}`,borderRadius:"0 0 20px 20px",
               background:"none",color:"#f87171",fontSize:13,fontWeight:700,
             }}
           >
-            Видалити подію
+            Видалити
           </button>
         </div>
       </div>
@@ -6597,7 +6618,7 @@ function PersonalEventModalBase({ data, onClose, onConfirm }) {
           } : undefined}
           style={{
             position:"relative",
-            width:"100%",maxWidth:480,background:BG_DEEP,
+            width:"100%",background:BG_DEEP,
             borderRadius:"24px 24px 0 0",
             boxShadow:`0 -2px 0 rgba(45,212,191,0.3), 0 -16px 60px ${shade(0.6)}`,
             maxHeight:"85vh",overflowY:"auto",
@@ -6619,11 +6640,13 @@ function PersonalEventModalBase({ data, onClose, onConfirm }) {
             borderRadius:"24px 24px 0 0",
           }}>
             <div style={{width:36,height:4,borderRadius:2,background:"rgba(45,212,191,0.35)",margin:"0 auto 12px"}}/>
+            <div style={{textAlign:"center",padding:"0 36px"}}>
             <div style={{fontSize:18,fontWeight:800,color:"#2dd4bf",marginBottom:2}}>📌 Особиста подія</div>
             <div style={{fontSize:12,color:DIM}}>{peDate} · {peTime}</div>
+            </div>
           </div>
 
-          <div style={{padding:"16px 18px 32px",display:"flex",flexDirection:"column",gap:16}}>
+          <div className="win-cols win-gap" style={{padding:"16px 18px 32px",gap:16}}>
             <div style={{display:"flex",alignItems:"flex-start",gap:8}}>
               <div style={{width:26,height:26,borderRadius:8,flexShrink:0,marginTop:18,background:"rgba(45,212,191,0.15)",color:"#2dd4bf",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12}}>✎</div>
               <div style={{flex:1,minWidth:0}}>
@@ -6730,7 +6753,7 @@ function PersonalEventModalBase({ data, onClose, onConfirm }) {
             </div>
 
             <div>
-              <div style={{fontSize:11,fontWeight:700,letterSpacing:1.2,color:FAINT,textTransform:"uppercase",marginBottom:7}}>Нотатка (необов'язково)</div>
+              <div style={{fontSize:11,fontWeight:700,letterSpacing:1.2,color:FAINT,textTransform:"uppercase",marginBottom:7}}>Нотатка</div>
               <textarea
                 value={note}
                 onChange={e=>setNote(e.target.value)}
@@ -6768,6 +6791,11 @@ function PersonalEventModalBase({ data, onClose, onConfirm }) {
               </div>
             </div>
 
+            <div className="modal-footer" style={{gap:10,breakInside:"avoid"}}>
+            <button onClick={_close} style={{
+                padding:"13px 8px",borderRadius:14,border:`1px solid ${BORDER}`,cursor:"pointer",fontFamily:"inherit",
+                background:"transparent",color:DIM,fontSize:14,fontWeight:800,
+              }}>Скасувати</button>
             <button
               disabled={!canSave}
               onClick={()=>{
@@ -6788,13 +6816,14 @@ function PersonalEventModalBase({ data, onClose, onConfirm }) {
                 _close();
               }}
               style={{
-                width:"100%",padding:"13px",borderRadius:14,border:"none",cursor:"pointer",fontFamily:"inherit",
+                padding:"13px 8px",borderRadius:14,border:"none",cursor:"pointer",fontFamily:"inherit",
                 background: canSave ? "linear-gradient(145deg,#2dd4bf,#14b8a6)" : ink(0.07),
                 color: canSave ? "#fff" : FAINT,
                 fontSize:14,fontWeight:800,
                 boxShadow: canSave ? "0 4px 16px rgba(45,212,191,0.35)" : "none",
               }}
             >Зберегти</button>
+            </div>
           </div>
         </div>
       </div>
@@ -6900,15 +6929,15 @@ function ScheduleHelpBase({ onClose, onPick }) {
   return createPortal(
     <div onClick={onClose} style={{ position:"fixed", inset:0, zIndex:9000, background:"rgba(0,0,0,0.62)", display:"flex", alignItems:"flex-end", justifyContent:"center", ...(hv?.ov||{}) }}>
       <div onClick={e => e.stopPropagation()} style={{
-        width:"100%", maxWidth:680, maxHeight:"92dvh", display:"flex", flexDirection:"column",
+        width:"100%", maxHeight:"92dvh", display:"flex", flexDirection:"column",
         borderRadius:"22px 22px 0 0", border:`1px solid ${BORDER}`, borderBottom:"none",
         background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`, color:TEXT,
         ...(hv?.panel||{}),
       }}>
         <div style={{ position:"relative", textAlign:"center", padding:"16px 48px 12px", flexShrink:0 }}>
           <div style={{ fontSize:17, fontWeight:800 }}>❓ Підказки по розкладу</div>
-          <div style={{ fontSize:12, color:"rgba(255,255,255,0.82)", marginTop:3 }}>Що означає кожен значок на екрані «Записи». Натисніть на блок — покажу, де це на екрані</div>
-          <button onClick={onClose} aria-label="Закрити" style={{ position:"absolute", top:10, right:12, width:34, height:34, borderRadius:"50%", border:`1px solid ${BORDER}`, background:"rgba(255,255,255,0.06)", color:DIM, fontSize:22, lineHeight:1, cursor:"pointer", padding:0 }}>×</button>
+          <div style={{ fontSize:12, color:"rgba(255,255,255,0.82)", marginTop:3 }}>Що означає кожен значок на екрані «Записи». Натисніть на блок, щоб побачити його на екрані</div>
+          <button onClick={onClose} aria-label="Закрити" style={{ position:"absolute", top:12, right:14, width:26, height:26, borderRadius:8, border:"none", background:"rgba(239,68,68,0.18)", color:"#ef4444", fontSize:13, fontWeight:800, lineHeight:1, cursor:"pointer", padding:0, display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
         </div>
         <div style={{ overflowY:"auto", WebkitOverflowScrolling:"touch", padding:"2px 14px calc(18px + env(safe-area-inset-bottom, 0px))" }}>
           {SECTIONS.map(sec => (
