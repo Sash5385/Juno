@@ -26,6 +26,11 @@ export const getLang = () => lang
 export function setLang(l) {
   if (!LANGS.includes(l)) return
   try { localStorage.setItem('dp_lang', l) } catch { /* ігноруємо */ }
+  // ?lang= в адресі має пріоритет над збереженим вибором — прибираємо його, інакше після reload мова не зміниться
+  try {
+    const u = new URL(location.href)
+    if (u.searchParams.has('lang')) { u.searchParams.delete('lang'); location.replace(u.href); return }
+  } catch { /* ігноруємо */ }
   location.reload()
 }
 
