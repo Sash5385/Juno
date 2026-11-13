@@ -1,6 +1,8 @@
 import { useState, useEffect, useContext, useMemo } from "react";
 import { ThemeContext } from "../theme.js";
 import { masterOf } from "../workspace";
+import { onValue } from "firebase/database";
+import { iRef } from "../firebase";
 
 // Огляд салону на день: колонка на кожного майстра, записи блоками за часом. Лише перегляд — тап по запису відкриває календар
 // цього майстра (там усе редагується як завжди).
@@ -16,6 +18,9 @@ const readCols = () => { try { const n = parseInt(localStorage.getItem(COL_KEY),
 export default function AllMastersView({ bookings, staff, settings, onPick, onViewStudent }) {
   const { TEXT, DIM, FAINT, SURFACE, BORDER } = useContext(ThemeContext);
   const [date, setDate] = useState(() => new Date());
+  // Колір, обраний у картці клієнта (studentColors/{uid}), має пріоритет над кольором майстра
+  const [clientColors, setClientColors] = useState({});
+  useEffect(() => onValue(iRef("studentColors"), (s) => setClientColors(s.val() || {})), []);
   // Розмір вікна: масштаб осі часу й ширина колонок залежать від кнопок «години / діб» зверху
   const [win, setWin] = useState(() => ({ w: window.innerWidth, h: window.innerHeight }));
   useEffect(() => { const f = () => setWin({ w: window.innerWidth, h: window.innerHeight }); window.addEventListener("resize", f); return () => window.removeEventListener("resize", f); }, []);
@@ -98,10 +103,11 @@ export default function AllMastersView({ bookings, staff, settings, onPick, onVi
                   const top = ((b.startMin - from) / 60) * HOUR_H;
                   const h = Math.max(22, (b.durMin / 60) * HOUR_H - 2);
                   const blocked = b.type === "block";
+                  const bc = (b.userId && clientColors[b.userId]) || m.color;
                   return (
                     <button key={b.id} onClick={() => (!blocked && b.userId && onViewStudent ? onViewStudent(b.userId) : onPick(m.id))} title={`${fmt(b.startMin)}–${fmt(b.startMin + b.durMin)}`} style={{
                       position: "absolute", left: 3, right: 3, top, height: h, borderRadius: 9, padding: "3px 6px", textAlign: "left", overflow: "hidden", cursor: "pointer", fontFamily: "inherit", color: TEXT, boxSizing: "border-box",
-                      background: blocked ? "rgba(148,163,184,.18)" : `color-mix(in srgb,${m.color} 30%,transparent)`, backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", border: `1px solid ${blocked ? BORDER : `color-mix(in srgb,${m.color} 60%,transparent)`}`,
+                      background: blocked ? "rgba(148,163,184,.18)" : `color-mix(in srgb,${bc} 30%,transparent)`, backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)", border: `1px solid ${blocked ? BORDER : `color-mix(in srgb,${bc} 60%,transparent)`}`,
                     }}>
                       <div style={{ fontSize: 11, fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{blocked ? "Блок" : b.name}</div>
                       <div style={{ fontSize: 11, color: DIM, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{fmt(b.startMin)}{b.serviceName ? ` · ${b.serviceName}` : ""}</div>
