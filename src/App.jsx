@@ -570,8 +570,17 @@ function AllModeAutoSlots({ master, ownerIid, settings, bookings }) {
   return <Suspense fallback={null}><AutoSlots masterId={master.id} settings={mSettings} bookings={mBookings}/></Suspense>;
 }
 
+// Огляд «Усі майстри»: тап по запису відкриває картку клієнта поверх розкладу (вкладка не змінюється)
+function AllMastersCards({ bookings, staff, settings, onPick }) {
+  const [cardJump, setCardJump] = useState(null);
+  return (<>
+    <AllMastersView bookings={bookings} staff={staff} settings={settings} onPick={onPick} onViewStudent={(uid) => setCardJump({ uid, ts: Date.now() })}/>
+    <Suspense fallback={null}><StudentsView overlayOnly studentJump={cardJump} onStudentJumpHandled={() => setCardJump(null)} bookings={bookings} settings={settings}/></Suspense>
+  </>);
+}
+
 function ViewRenderer({ allMode, staffList, onPickMaster, ws, onWs, masterKey, scheduleSettings, scheduleBookings, scheduleSetBookings, tab, settings, setSettings, bookings, setBookings, onSlotClick, onEmptySlotClick, openInfos, toggleInfo, activeDragIds, navTo, slotExistsRef, openSlotsRef, jumpTarget, setJumpTarget, onViewStudent, studentJump, onStudentJumpHandled }) {
-  if (tab === "schedule" && allMode) return <FogScope><AllMastersView bookings={bookings} staff={staffList} settings={settings} onPick={onPickMaster} onViewStudent={onViewStudent}/></FogScope>;
+  if (tab === "schedule" && allMode) return <FogScope><AllMastersCards bookings={bookings} staff={staffList} settings={settings} onPick={onPickMaster}/></FogScope>;
   if (tab === "schedule")  return <ScheduleView key={masterKey} settings={scheduleSettings || settings} setSettings={setSettings} bookings={scheduleBookings || bookings} setBookings={scheduleSetBookings || setBookings} onSlotClick={onSlotClick} onEmptySlotClick={onEmptySlotClick} activeDragIds={activeDragIds} navTo={navTo} slotExistsRef={slotExistsRef} openSlotsRef={openSlotsRef} jumpTarget={jumpTarget} setJumpTarget={setJumpTarget} onViewStudent={onViewStudent}/>;
   if (tab === "settings")  return ws ? <MasterProfileView ws={ws} onLeft={() => onWs(null)}/> : <SettingsView settings={settings} setSettings={setSettings}/>;
   if (tab === "bookings")  return <BookingsView settings={settings} bookings={bookings}/>;

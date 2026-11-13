@@ -633,7 +633,8 @@ function StudentDetailSheet({ settings, s, onClose, onUpdate, onDelete, onBlock,
 }
 
 // ─── MAIN ────────────────────────────────────────────────────────
-export default function StudentsView({ studentJump, onStudentJumpHandled, bookings=[], settings } = {}) {
+// overlayOnly — лише картка клієнта поверх поточного екрана (з огляду «Усі майстри»), без списку й без переходу на вкладку
+export default function StudentsView({ studentJump, onStudentJumpHandled, bookings=[], settings, overlayOnly = false } = {}) {
   const { BG_DEEP, SURFACE, SURF_HI, BORDER, TEXT, DIM, FAINT, ACCENT, ACC_HI, GREEN, BLUE, SHEET, BTN_TX } = useContext(ThemeContext);
   const { ink } = useFX();
 
@@ -789,6 +790,28 @@ export default function StudentsView({ studentJump, onStudentJumpHandled, bookin
     });
 
   const liveDetail = detailStudent ? students.find(x=>x.id===detailStudent.id) : null;
+
+  if (overlayOnly) return (
+    <>
+      <style>{css}</style>
+      {/* Student detail sheet */}
+      {liveDetail && createPortal(
+        <StudentDetailSheet
+          settings={settings}
+          s={liveDetail}
+          onClose={()=>setDetailStudent(null)}
+          onUpdate={updateStudent}
+          onDelete={deleteStudent}
+          onBlock={block}
+          autoOpenHistory={autoOpenHistory}
+          slotColor={studentColors[liveDetail.id] || null}
+          autoColors={settings?.autoStudentColors !== false}
+          onColorChange={c=>update(iRef("studentColors"), { [liveDetail.id]: c || null }).catch(()=>{})}
+        />,
+        document.body
+      )}
+    </>
+  );
 
   return (
     <>
