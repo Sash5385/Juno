@@ -881,7 +881,7 @@ export default function StudentsView({ studentJump, onStudentJumpHandled, bookin
           }}>
             <button aria-label="Закрити" onClick={()=>setShowNew(false)} style={{position:"absolute",top:12,right:14,width:28,height:28,borderRadius:8,border:"none",cursor:"pointer",background:"rgba(239,68,68,0.18)",color:"#ef4444",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,fontWeight:800,lineHeight:1,padding:0}}>✕</button>
             <div style={{width:38,height:4,borderRadius:2,background:ink(0.12),margin:"0 auto 14px"}}/>
-            <div style={{fontSize:16,fontWeight:800,color:TEXT,marginBottom:14,textAlign:"center",padding:"0 40px"}}>Новий клієнт</div>
+            <div style={{fontSize:16,fontWeight:800,color:TEXT,margin:"0 40px 14px",textAlign:"center"}}>Новий клієнт</div>
             <StudentForm
               initial={{name:"",phone:"+380",discount:0,customPrice:"",notes:"",type:"private",isVip:false,noIntervalLimit:false}}
               onSave={createStudent} onCancel={()=>setShowNew(false)} saveLabel="Створити"

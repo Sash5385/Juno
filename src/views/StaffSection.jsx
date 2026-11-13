@@ -105,9 +105,9 @@ export default function StaffSection({ settings, upd }) {
                     <button key={c} aria-label={`Колір ${c}`} onClick={() => setEdit({ ...edit, color: c })} style={{ width: 30, height: 30, borderRadius: "50%", cursor: "pointer", background: c, border: edit.color === c ? `3px solid ${TEXT}` : "3px solid transparent" }} />
                   ))}
                 </div>
-                <div style={{ display: "flex", gap: 8 }}>
-                  <button disabled={busy} onClick={saveEdit} style={{ ...btn(true), flex: 1 }}>Зберегти</button>
-                  <button onClick={() => setEdit(null)} style={{ ...btn(false), flex: 1 }}>Скасувати</button>
+                <div className="modal-footer" style={{ gap: 8 }}>
+                  <button onClick={() => setEdit(null)} style={btn(false)}>Скасувати</button>
+                  <button disabled={busy} onClick={saveEdit} style={btn(true)}>Зберегти</button>
                 </div>
               </div>
             ) : (
