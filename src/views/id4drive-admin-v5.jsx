@@ -629,7 +629,7 @@ function BroadcastModalBase({ initialDate, initialSlot, onClose }) {
             borderRadius:"24px 24px 0 0",
           }}>
             <div style={{width:36,height:4,borderRadius:2,background:"rgba(192,132,252,0.4)",margin:"0 auto 12px"}}/>
-            <div style={{fontSize:17,fontWeight:800,color:"#c084fc",textAlign:"center",padding:"0 36px"}}>📣 Розсилка клієнтам</div>
+            <div style={{fontSize:17,fontWeight:800,color:"#c084fc",textAlign:"center",margin:"0 40px"}}>📣 Розсилка клієнтам</div>
           </div>
 
           <div className="win-cols" style={{padding:"16px 18px 32px"}}>
@@ -5040,7 +5040,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
             {!ltmClosing && <div style={{marginBottom:16,
               ...(ltmScatter ? {animation:`_ltm-sc-chips 0.25s ease-in forwards`} : {}),
             }}>
-              <div style={{fontSize:12,color:TEXT_DIM,fontWeight:700,marginBottom:10,textAlign:"center",padding:"0 36px"}}>{_ltmLabel}</div>
+              <div style={{fontSize:12,color:TEXT_DIM,fontWeight:700,marginBottom:10,textAlign:"center",margin:"0 40px 10px"}}>{_ltmLabel}</div>
               <div style={{display:"flex",gap:4,alignItems:"stretch"}}>
                 {[-60,-30,0,30,60].map(delta=>{
                   const _cm = _menu.startMin + delta;

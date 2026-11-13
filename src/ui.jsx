@@ -4,6 +4,7 @@
 // Panel look = gradient SURF_HI→SURFACE. Coffee-correct via glow/shade/ink.
 // ═══════════════════════════════════════════════════════════════
 import { useState, useEffect, useRef, useContext } from "react";
+import { createPortal } from "react-dom";
 import PhoneField from "./PhoneField.jsx";
 import { ThemeContext } from "./theme.js";
 
@@ -240,7 +241,7 @@ export function StatTile({ value, label, color }) {
 // ── Modal: adaptive width, sheet or centered ───────────────────
 // size: "sm"|"md"|"lg" or a number (px). sheet=true → bottom sheet.
 // icon: optional emoji shown in header icon box.
-export function Modal({ open, onClose, children, size = "md", sheet = true, title, subtitle, icon, grabber = true, pad = true, footer, maxH, cols = false }) {
+export function Modal({ open, onClose, children, size = "md", sheet = true, title, subtitle, icon, grabber = true, pad = true, footer, maxH, cols = false, z = 200 }) {
   const { SURF_HI, SURFACE, BG, TEXT, FAINT, BORDER, SHEET, MODAL_R, RED } = useContext(ThemeContext);
   const { shade, ink } = useFX();
   useBackClose(open, onClose);
@@ -250,8 +251,9 @@ export function Modal({ open, onClose, children, size = "md", sheet = true, titl
   const containerStyle = sheet
     ? { width: "100%", margin: "0 auto", background: SHEET || `linear-gradient(180deg,${SURFACE},${BG})`, borderRadius: `${MODAL_R ?? RADIUS.modal}px ${MODAL_R ?? RADIUS.modal}px 0 0`, overflow: "hidden", display: "flex", flexDirection: "column", maxHeight: maxH || "min(92vh, calc(100dvh - 48px - env(safe-area-inset-top, 0px)))" }
     : { maxWidth: W, width: "100%", margin: "0 16px", background: SHEET || panel(SURF_HI, SURFACE), borderRadius: MODAL_R ?? RADIUS.modal, overflow: "hidden", boxShadow: `0 20px 60px ${shade(0.6)}`, display: "flex", flexDirection: "column", maxHeight: maxH || "88vh" };
-  return (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 200, background: shade(SCRIM), backdropFilter: "blur(8px)", display: "flex", alignItems: sheet ? "flex-end" : "center", justifyContent: "center" }}>
+  // Портал у body: вікно не обрізається батьківськими контейнерами (колонки .win-cols, transform, overflow)
+  return createPortal(
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: z, background: shade(SCRIM), backdropFilter: "blur(8px)", display: "flex", alignItems: sheet ? "flex-end" : "center", justifyContent: "center" }}>
       <div onClick={e => e.stopPropagation()} className={sheet ? "modal-sheet-in" : "modal-pop-in"} style={containerStyle}>
         {sheet && grabber && <div style={{ width: 36, height: 4, borderRadius: 2, background: ink(0.18), margin: "10px auto 0", flexShrink: 0 }} />}
         {title && (
@@ -272,7 +274,7 @@ export function Modal({ open, onClose, children, size = "md", sheet = true, titl
         )}
       </div>
     </div>
-  );
+  , document.body);
 }
 
 // ── ModalSection: labelled block inside a Modal ─────────────────

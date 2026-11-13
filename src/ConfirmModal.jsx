@@ -15,7 +15,7 @@ export function useConfirm() {
 function ConfirmBody({ req, onClose }) {
   const { TEXT, DIM, RED } = useContext(ThemeContext);
   return (
-    <Modal open onClose={() => onClose(false)} sheet size="md" footer={<>
+    <Modal open onClose={() => onClose(false)} sheet size="md" z={400} footer={<>
       <Btn variant="ghost" flex={1} onClick={() => onClose(false)}>Скасувати</Btn>
       <Btn variant="primary" flex={1} accent={req.danger ? RED : undefined} onClick={() => onClose(true)}>{req.okLabel || "Так"}</Btn>
     </>}>
