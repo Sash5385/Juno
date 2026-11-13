@@ -282,7 +282,7 @@ function Info({ title, text, color }) {
       borderRadius:10,padding:"10px 12px",marginTop:2,marginBottom:10,
     }}>
       <div style={{fontSize:11,fontWeight:700,color:c,marginBottom:4}}>💡 {title}</div>
-      <div style={{fontSize:11,color:DIM,lineHeight:1.6,whiteSpace:"pre-line"}}>{text}</div>
+      <div style={{fontSize:11,color:DIM,lineHeight:1.6}}>{String(text||"").split("\n").map((ln,i)=>ln ? <div key={i}>{ln}</div> : <div key={i} style={{height:8}}/>)}</div>
     </div>
   );
 }
@@ -1094,7 +1094,7 @@ select{color-scheme:${isKava?"light":"dark"}}
           <div style={{borderRadius:14,padding:"12px 14px",marginTop:5,background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,boxShadow:SO,display:"flex",alignItems:"center",justifyContent:"space-between",gap:10}}>
             <div style={{minWidth:0}}>
               <div style={{fontSize:14,fontWeight:600,color:TEXT}}>Автокольори клієнтів</div>
-              <div style={{fontSize:11.5,color:DIM,marginTop:2}}>Увімкнено — кольори слотів розподіляються автоматично. Вимкнено — колір задається вручну в картці клієнта</div>
+              <div style={{fontSize:11.5,color:DIM,marginTop:2}}>Увімкнено — кольори слотів розподіляються автоматично. Колір, обраний у картці клієнта, завжди має пріоритет.</div>
             </div>
             <Toggle color={svColor(settings.autoStudentColors !== false)} on={settings.autoStudentColors !== false} onChange={v=>upd("autoStudentColors",v)}/>
           </div>
