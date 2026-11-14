@@ -1048,7 +1048,7 @@ select{color-scheme:${isKava?"light":"dark"}}
       case "catalog": return (<div><SubHead first icon="💰">Надбавки</SubHead>{P("surcharges")}<SubHead icon="🎫">Пакети записів</SubHead>{P("packages")}<SubHead icon="🏷️">Мітки записів</SubHead>{P("tags")}</div>);
       case "clients": return (<div><SubHead first icon="📋">Анкета клієнта</SubHead>{P("intake")}<SubHead icon="⭐">Відгуки клієнтів</SubHead>{P("reviews")}</div>);
       case "push": return P("push");
-      case "team": return (<div>{P("staff")}{accountTypeOf(settings) !== ACCOUNT_SALON && <><SubHead icon="🏢">Спільна сторінка майстрів</SubHead>{P("salon")}</>}</div>);
+      case "team": return (<div>{P("staff")}{accountTypeOf(settings) !== ACCOUNT_SALON && <><SubHead icon="🏢">Салон</SubHead>{P("salon")}</>}</div>);
       case "profile": return (<div>{P("profile")}<SubHead icon="🎨">Вигляд і мова</SubHead>{P("appearance")}</div>);
       default: return null;
     }
