@@ -764,7 +764,7 @@ select{color-scheme:${isKava?"light":"dark"}}
   ];
   const updReminder = (idx, patch) => upd("autoReminders", reminders.map((r,i)=>i===idx?{...r,...patch}:r));
 
-  const [active, setActive] = useState("schedule");
+  const [active, setActive] = useState("plan");
   const [showHint, setShowHint] = useState(false);
   const switchSection = (id) => { setActive(id); setShowHint(false); };
   const license = useLicense(auth.currentUser?.uid);
@@ -1027,24 +1027,35 @@ select{color-scheme:${isKava?"light":"dark"}}
   const uk = lang !== "en";
   const [tagIconOpen, setTagIconOpen] = useState(null);
   const SECTIONS = [
-    { id:"schedule",   icon:"🕐", color:BLUE,   title:t('set.schedule.title'), label:uk?"Графік":"Sched." },
-    { id:"snap",       icon:"⏱",  color:TEAL,   title:t('set.snap.title'),     label:uk?"Сітка":"Grid"   },
-    { id:"restr",      icon:"🔒", color:RED,    title:t('set.restr.title'),    label:uk?"Ліміти":"Limits" },
-    { id:"queue",      icon:"✅", color:GREEN,  title:t('set.queue.title'),    label:uk?"Черга":"Queue"  },
-    { id:"sticky",     icon:"📌", color:PURPLE, title:t('set.sticky.title'),   label:uk?"Слоти":"Slots"  },
-    { id:"surcharges", icon:"💰", color:GOLD,   title:"Надбавки",              label:uk?"Збори":"Fees"   },
-    { id:"tags",       icon:"🏷️", color:TEAL,   title:uk?"Мітки записів":"Booking tags", label:uk?"Мітки":"Tags" },
-    { id:"staff",      icon:"👥", color:BLUE,   title:"Майстри",               label:"Майстри"           },
-    { id:"salon",      icon:"🏢", color:BLUE,   title:"Спільна сторінка майстрів", label:"Спільна сторінка"  },
-    { id:"packages",   icon:"🎫", color:GOLD,   title:"Пакети записів",        label:"Пакети"            },
-    { id:"intake",     icon:"📋", color:PURPLE, title:"Анкета клієнта",        label:"Анкета"            },
-    { id:"push",       icon:"🔔", color:GREEN,  title:"Сповіщення",            label:"Сповіщення"        },
-    { id:"reviews",    icon:"⭐", color:GOLD,   title:"Відгуки клієнтів",         label:"Відгуки"           },
-    { id:"profile",    icon:"👤", color:BLUE,   title:"Профіль майстра",   label:"Профіль"           },
-  ].filter(sec => !(sec.id === "salon" && accountTypeOf(settings) === ACCOUNT_SALON)); // акаунт-салон керує майстрами в розділі «Майстри»
+    { id:"plan",    icon:"🕐", color:BLUE,   title:"Розклад",           label:"Розклад"    },
+    { id:"rules",   icon:"🔒", color:RED,    title:"Записи клієнтів",   label:"Записи"     },
+    { id:"catalog", icon:"💰", color:GOLD,   title:"Послуги й ціни",    label:"Ціни"       },
+    { id:"clients", icon:"📋", color:PURPLE, title:"Клієнти",           label:"Клієнти"    },
+    { id:"push",    icon:"🔔", color:GREEN,  title:"Сповіщення",        label:"Сповіщення" },
+    { id:"team",    icon:"👥", color:BLUE,   title:"Команда й салон",   label:"Команда"    },
+    { id:"profile", icon:"👤", color:BLUE,   title:"Профіль і додаток", label:"Профіль"    },
+  ];
 
+  // Верхній рівень: 7 вкладок, кожна збирає потрібні частини
+  const SubHead = ({ icon, children, first }) => (
+    <div style={{fontSize:11.5,fontWeight:800,letterSpacing:1,textTransform:"uppercase",color:DIM,margin:first?"4px 2px 8px":"22px 2px 8px",paddingTop:first?0:14,borderTop:first?"none":`1px solid ${BORDER}`}}>{icon} {children}</div>
+  );
   function renderSection(id) {
-    const secColor = SECTIONS.find(s=>s.id===id)?.color || ACCENT;
+    const P = renderPart;
+    switch (id) {
+      case "plan": return (<div>{P("schedule")}<SubHead icon="⏱">Крок часу</SubHead>{P("snap")}<SubHead icon="📌">Вільні слоти поряд із записом</SubHead>{P("sticky")}</div>);
+      case "rules": return (<div>{P("restr")}<SubHead icon="✅">Черга очікування</SubHead>{P("queue")}</div>);
+      case "catalog": return (<div><SubHead first icon="💰">Надбавки</SubHead>{P("surcharges")}<SubHead icon="🎫">Пакети записів</SubHead>{P("packages")}<SubHead icon="🏷️">Мітки записів</SubHead>{P("tags")}</div>);
+      case "clients": return (<div><SubHead first icon="📋">Анкета клієнта</SubHead>{P("intake")}<SubHead icon="⭐">Відгуки клієнтів</SubHead>{P("reviews")}</div>);
+      case "push": return P("push");
+      case "team": return (<div>{P("staff")}{accountTypeOf(settings) !== ACCOUNT_SALON && <><SubHead icon="🏢">Спільна сторінка майстрів</SubHead>{P("salon")}</>}</div>);
+      case "profile": return (<div>{P("profile")}<SubHead icon="🎨">Вигляд і мова</SubHead>{P("appearance")}</div>);
+      default: return null;
+    }
+  }
+
+  function renderPart(id) {
+    const secColor = ACCENT;
     const svColor = (on) => on ? GREEN : RED;
     switch(id) {
 
@@ -1054,6 +1065,13 @@ select{color-scheme:${isKava?"light":"dark"}}
           <WeekScheduleEditor weekSchedule={weekSchedule} updDay={updDay} setWeek={v=>upd("weekSchedule",v)} step={settings.slotCreateStep ?? 30}/>
           <Row label={t('set.schedule.days')}>
             <NumInput value={settings.daysShown} onChange={v=>upd("daysShown",v)} min={1} max={30} suffix={` ${t('days')}`}/>
+          </Row>
+          <Row compact color={svColor(!!settings.autoSlots)} label="Автовідкриття слотів" hint="Дні без слотів заповнюються за тижневим шаблоном самі. Слоти, видалені вручну, не повертаються">
+            <Toggle color={svColor(!!settings.autoSlots)} on={!!settings.autoSlots} onChange={v=>upd("autoSlots",v)}/>
+          </Row>
+          {!!settings.autoSlots && <AutoSlotsRunButton/>}
+          <Row compact color={svColor(settings.lockPastBookings)} label="Блокувати минулі записи" hint="Заборонити редагувати, переносити й скасовувати записи, що вже минули — вони підсвічуються тьмяніше">
+            <Toggle color={svColor(settings.lockPastBookings)} on={!!settings.lockPastBookings} onChange={v=>upd("lockPastBookings",v)}/>
           </Row>
         </div>
       );
@@ -1083,20 +1101,6 @@ select{color-scheme:${isKava?"light":"dark"}}
                 <Chip key={v} label={`${v} хв`} active={(settings.slotCreateStep??30)===v} onClick={()=>upd("slotCreateStep",v)}/>
               ))}
             </div>
-          </div>
-          <div style={{borderRadius:14,padding:"12px 14px",marginTop:5,background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,boxShadow:SO,display:"flex",alignItems:"center",justifyContent:"space-between",gap:10}}>
-            <div style={{minWidth:0}}>
-              <div style={{fontSize:14,fontWeight:600,color:TEXT}}>Час у слоті</div>
-              <div style={{fontSize:11.5,color:DIM,marginTop:2}}>Показувати "з–до" всередині слотів у графіку</div>
-            </div>
-            <Toggle color={svColor(settings.showSlotTimes !== false)} on={settings.showSlotTimes !== false} onChange={v=>upd("showSlotTimes",v)}/>
-          </div>
-          <div style={{borderRadius:14,padding:"12px 14px",marginTop:5,background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,boxShadow:SO,display:"flex",alignItems:"center",justifyContent:"space-between",gap:10}}>
-            <div style={{minWidth:0}}>
-              <div style={{fontSize:14,fontWeight:600,color:TEXT}}>Автокольори клієнтів</div>
-              <div style={{fontSize:11.5,color:DIM,marginTop:2}}>Увімкнено — кольори слотів розподіляються автоматично. Колір, обраний у картці клієнта, завжди має пріоритет.</div>
-            </div>
-            <Toggle color={svColor(settings.autoStudentColors !== false)} on={settings.autoStudentColors !== false} onChange={v=>upd("autoStudentColors",v)}/>
           </div>
         </div>
       );
@@ -1187,13 +1191,6 @@ select{color-scheme:${isKava?"light":"dark"}}
               ))}
             </div>
           )}
-          <Row compact color={svColor(!!settings.autoSlots)} label="Автовідкриття слотів" hint="Дні без слотів заповнюються за тижневим шаблоном самі. Слоти, видалені вручну, не повертаються">
-            <Toggle color={svColor(!!settings.autoSlots)} on={!!settings.autoSlots} onChange={v=>upd("autoSlots",v)}/>
-          </Row>
-          {!!settings.autoSlots && <AutoSlotsRunButton/>}
-          <Row compact color={svColor(settings.lockPastBookings)} label="Блокувати минулі записи" hint="Заборонити редагувати, переносити й скасовувати записи, що вже минули — вони підсвічуються тьмяніше">
-            <Toggle color={svColor(settings.lockPastBookings)} on={!!settings.lockPastBookings} onChange={v=>upd("lockPastBookings",v)}/>
-          </Row>
           <Row compact last color={svColor(settings.calClip !== false)} label="Слот починається після запису" hint="Запис 10:00–11:30, сітка по годині: вільний слот буде з 11:30, а не з 11:00. Вимкніть — слот піде за сіткою і заповзе під запис.">
             <Toggle color={svColor(settings.calClip !== false)} on={settings.calClip !== false} onChange={v=>upd("calClip",v)}/>
           </Row>
@@ -1465,7 +1462,7 @@ select{color-scheme:${isKava?"light":"dark"}}
         </div>
       );
 
-      case "profile": return (
+      case "appearance": return (
         <div>
           <div style={{marginTop:4}}>
             <RowBlock color={BLUE} label="Розмір інтерфейсу" hint="Усі розділи, крім розкладу">
@@ -1520,11 +1517,30 @@ select{color-scheme:${isKava?"light":"dark"}}
                   const tags = normalizeTags(settings.tags);
                   const newTags = pr.tags.filter(t=>!tags.some(x=>x.label===t.label)).map((t,i)=>({ id:`t${stamp}${i}`, ...t }));
                   upd("tags", [...tags, ...newTags]);
-                  window.alert("Готово: послуги — вкладка «Послуги», мітки — Налаштування → Мітки.");
+                  window.alert("Готово: послуги — вкладка «Послуги», мітки — Налаштування → Послуги й ціни → Мітки.");
                 } catch { window.alert("Не вдалося додати. Спробуйте ще раз."); }
               }} style={{marginTop:10,width:"100%",padding:"10px",borderRadius:12,border:`1px dashed ${GREEN}88`,cursor:"pointer",background:"transparent",color:GREEN,fontSize:13,fontWeight:700}}>+ Додати стартові послуги й мітки</button>
             )}
           </div>
+          <div style={{borderRadius:14,padding:"12px 14px",marginTop:5,background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,boxShadow:SO,display:"flex",alignItems:"center",justifyContent:"space-between",gap:10}}>
+            <div style={{minWidth:0}}>
+              <div style={{fontSize:14,fontWeight:600,color:TEXT}}>Час у слоті</div>
+              <div style={{fontSize:11.5,color:DIM,marginTop:2}}>Показувати "з–до" всередині слотів у графіку</div>
+            </div>
+            <Toggle color={svColor(settings.showSlotTimes !== false)} on={settings.showSlotTimes !== false} onChange={v=>upd("showSlotTimes",v)}/>
+          </div>
+          <div style={{borderRadius:14,padding:"12px 14px",marginTop:5,background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,boxShadow:SO,display:"flex",alignItems:"center",justifyContent:"space-between",gap:10}}>
+            <div style={{minWidth:0}}>
+              <div style={{fontSize:14,fontWeight:600,color:TEXT}}>Автокольори клієнтів</div>
+              <div style={{fontSize:11.5,color:DIM,marginTop:2}}>Увімкнено — кольори слотів розподіляються автоматично. Колір, обраний у картці клієнта, завжди має пріоритет.</div>
+            </div>
+            <Toggle color={svColor(settings.autoStudentColors !== false)} on={settings.autoStudentColors !== false} onChange={v=>upd("autoStudentColors",v)}/>
+          </div>
+        </div>
+      );
+
+      case "profile": return (
+        <div>
           {showHint && <Info color={BLUE} title="Профіль майстра" text={"Це ваша візитка. Усе, що тут заповнено, клієнти бачать на сторінці запису.\n\n• Фото профілю — ваше фото (JPG або PNG, до 5 МБ).\n• Портфоліо — розповідь про себе та свої переваги (до 1500 символів). Показується угорі сторінки запису, довгий текст згортається кнопкою «Читати далі».\n• Фотоколаж — до 9 фото (ваші роботи, результати, робоче місце). На сторінці запису вони змінюються одне за одним у колажі.\n• Телефон — на нього працюють кнопки дзвінка, Viber, WhatsApp і Telegram на сторінці запису. Вводьте номер у форматі +380XXXXXXXXX.\n• Умови відвідування — ваші правила (наприклад, про скасування, запізнення, документи). Порожнє поле — блок на сайті просто не показується.\n• Локація на карті — знайдіть адресу або поставте мітку на карті: клієнти побачать, де вас знайти.\n• Посилання для запису — надішліть його клієнтам, щоб вони записувались самі. Кнопка «Встановити додаток» додає DrivePad на головний екран телефону."}/>}
 
           <ProfileCard color={ACCENT} icon="🧑‍🏫" title="ФОТО ПРОФІЛЮ">
