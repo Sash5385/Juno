@@ -1750,7 +1750,7 @@ select{color-scheme:${isKava?"light":"dark"}}
         {/* PANEL — section content (розтягується на всю висоту) */}
         <div style={{minWidth:0,flex:1,display:"flex",flexDirection:"column"}}>
           <div style={{
-            position:"relative", flex:1,
+            position:"relative", flex:active==="team"?"0 0 auto":1, // «Команда» — коротка картка: без розтягування на весь екран
             borderRadius:18,
             border:`1px solid ${BORDER}`,
             boxShadow:SO,

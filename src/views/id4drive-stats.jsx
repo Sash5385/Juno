@@ -936,7 +936,7 @@ export default function StatsView({ onViewStudent, direction } = {}) {
             {cancels.cancelled + cancels.noshow === 0
               ? <div style={{fontSize:12,color:DIM}}>Скасувань за цей період немає</div>
               : (() => {
-                  const rows = [["Скасував клієнт", cancels.client], ["Скасував салон", cancels.salon], ["Не прийшов", cancels.noshow], ["Система (оплата, ліцензія)", cancels.system]].filter(([, n]) => n > 0);
+                  const rows = [["Скасовано клієнтом", cancels.client], ["Скасовано салоном", cancels.salon], ["Не прийшов", cancels.noshow], ["Система (оплата, ліцензія)", cancels.system]].filter(([, n]) => n > 0);
                   const mx = Math.max(...rows.map(([, n]) => n));
                   return rows.map(([l, n]) => (
                     <div key={l} style={{display:"flex",alignItems:"center",gap:8,padding:"4px 0"}}>
