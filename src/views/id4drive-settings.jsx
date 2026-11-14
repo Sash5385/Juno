@@ -1314,7 +1314,7 @@ select{color-scheme:${isKava?"light":"dark"}}
                   <div><div style={lbl}>Днів (0 — безстроково)</div><input type="number" min={0} max={1095} value={pk.days ?? ""} onChange={e=>patchPk(i,{days:e.target.value===""?"":+e.target.value})} style={box}/></div>
                   <div><div style={lbl}>{`Ціна, ${curSym()}`}</div><input type="number" min={0} value={pk.price ?? ""} onChange={e=>patchPk(i,{price:e.target.value===""?"":+e.target.value})} style={box}/></div>
                 </div>
-                <div style={{...lbl,marginTop:9,minHeight:0}}>Діє на послуги {(!pk.serviceIds || !pk.serviceIds.length) && <span style={{textTransform:"none",letterSpacing:0}}>— на всі</span>}</div>
+                <div style={{...lbl,marginTop:9,minHeight:0}}>Діє на послуги {(!pk.serviceIds || !pk.serviceIds.length) && <span style={{textTransform:"none",letterSpacing:0,marginLeft:5}}>— на всі</span>}</div>
                 <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
                   {svcs.map(sv => { const on = (pk.serviceIds || []).includes(sv.id); return (
                     <button key={sv.id} onClick={()=>patchPk(i,{serviceIds:on?(pk.serviceIds||[]).filter(x=>x!==sv.id):[...(pk.serviceIds||[]),sv.id]})} style={{flex:"1 1 auto",padding:"8px 10px",borderRadius:9,border:"none",cursor:"pointer",fontSize:11,fontWeight:700,fontFamily:"inherit",
