@@ -1043,7 +1043,7 @@ select{color-scheme:${isKava?"light":"dark"}}
   function renderSection(id) {
     const P = renderPart;
     switch (id) {
-      case "plan": return (<div>{P("schedule")}<SubHead icon="⏱">Крок часу</SubHead>{P("snap")}<SubHead icon="📌">Вільні слоти поряд із записом</SubHead>{P("sticky")}</div>);
+      case "plan": return (<div><SubHead first icon="🗓">Тижневий графік</SubHead>{P("schedule")}<SubHead icon="⚙️">Автоматика й захист</SubHead>{P("scheduleAuto")}<SubHead icon="⏱">Крок часу</SubHead>{P("snap")}<SubHead icon="📌">Вільні слоти поряд із записом</SubHead>{P("sticky")}</div>);
       case "rules": return (<div>{P("restr")}<SubHead icon="✅">Черга очікування</SubHead>{P("queue")}</div>);
       case "catalog": return (<div><SubHead first icon="💰">Надбавки</SubHead>{P("surcharges")}<SubHead icon="🎫">Пакети записів</SubHead>{P("packages")}<SubHead icon="🏷️">Мітки записів</SubHead>{P("tags")}</div>);
       case "clients": return (<div><SubHead first icon="📋">Анкета клієнта</SubHead>{P("intake")}<SubHead icon="⭐">Відгуки клієнтів</SubHead>{P("reviews")}</div>);
@@ -1066,6 +1066,11 @@ select{color-scheme:${isKava?"light":"dark"}}
           <Row label={t('set.schedule.days')}>
             <NumInput value={settings.daysShown} onChange={v=>upd("daysShown",v)} min={1} max={30} suffix={` ${t('days')}`}/>
           </Row>
+        </div>
+      );
+
+      case "scheduleAuto": return (
+        <div>
           <Row compact color={svColor(!!settings.autoSlots)} label="Автовідкриття слотів" hint="Дні без слотів заповнюються за тижневим шаблоном самі. Слоти, видалені вручну, не повертаються">
             <Toggle color={svColor(!!settings.autoSlots)} on={!!settings.autoSlots} onChange={v=>upd("autoSlots",v)}/>
           </Row>
