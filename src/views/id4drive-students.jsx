@@ -487,7 +487,7 @@ function StudentDetailSheet({ settings, s, onClose, onUpdate, onDelete, onBlock,
                   <ActBtn icon={ICONS.link}     label="Запросити"  onClick={generateInvite} color={GOLD}/>
                   <ActBtn icon={ICONS.history}  label="Історія"    onClick={toggleHistory} color={BLUE}/>
                   <ActBtn icon={ICONS.edit}     label="Редагувати" onClick={()=>setEditMode(true)}/>
-                  <ActBtn icon={s.blocked?ICONS.unban:ICONS.ban} label={s.blocked?"Розблок.":"Заблок."} onClick={()=>onBlock(s.id)} danger={!s.blocked}/>
+                  <ActBtn icon={s.blocked?ICONS.unban:ICONS.ban} label={s.blocked?"Розблок.":"Заблок."} onClick={async()=>{ if (s.blocked || await confirm({ title:"Заблокувати клієнта?", text:`${s.name} не зможе записуватись, а майбутні записи буде скасовано.`, okLabel:"Заблокувати", danger:true, icon:"🚫" })) onBlock(s.id); }} danger={!s.blocked}/>
                 </div>
 
                 {/* VIP toggle */}

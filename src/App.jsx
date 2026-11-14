@@ -257,6 +257,9 @@ function BottomNav({ active, onChange, settings, chatUnread, journalUnread }) {
   const bdg = isKava ? theme : FOG_STYLE.theme; // бейдж у стилі «Туман» і на вкладці «Розклад»
   const tabIcons = isKava ? makeTabIcons(INACTIVE_KAVA) : TabIcons;
   const visible = TAB_IDS.filter(t => settings?.navTabs?.includes(t.id) ?? true);
+  // На широких екранах (ПК/планшет) показуємо підписи вкладок поруч з іконкою
+  const [wide, setWide] = useState(() => window.innerWidth >= 900);
+  useEffect(() => { const f = () => setWide(window.innerWidth >= 900); window.addEventListener("resize", f); return () => window.removeEventListener("resize", f); }, []);
 
   // «Плитки» (стиль Туман): окрема скляна плитка на кожну вкладку, активна — градієнтна плитка. Підписи сховані (title/aria-label лишаються).
   const tileBg = isKava ? "rgba(255,255,255,0.55)" : "rgba(255,255,255,0.07)";
@@ -291,8 +294,9 @@ function BottomNav({ active, onChange, settings, chatUnread, journalUnread }) {
             display:"flex",alignItems:"center",justifyContent:"center",
             position:"relative",
           }}>
-            <div style={{position:"relative",display:"flex"}}>
+            <div style={{position:"relative",display:"flex",alignItems:"center",gap:8,minWidth:0}}>
               {tabIcons[t.id]?.(28,isActive)}
+              {wide && <span style={{fontSize:13,fontWeight:700,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",color:isActive?"#06182e":(isKava?theme.TEXT:"rgba(255,255,255,0.85)")}}>{tl(t.lk)}</span>}
               {badgeCount > 0 && (
                 <div data-help="navbadge" style={{
                   position:"absolute",top:-6,right:-8,

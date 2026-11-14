@@ -1,4 +1,5 @@
 import { useState, useContext, useEffect, useRef } from "react";
+import { tr } from "../i18n";
 import { TAG_COLORS, TAG_ICONS, DEFAULT_TAGS, AUTO_TAG_IDS, normalizeTags } from "../tags";
 import { FIELD_TYPES, MAX_FIELDS } from "../intake";
 import { MAX_TEMPLATES } from "../packages";
@@ -271,6 +272,9 @@ function Chip({ label, active, onClick, equal, ariaLabel }) {
     }}>{label}</button>
   );
 }
+
+// Слово-підтвердження: приймаємо і українське, і переклад на поточну мову (placeholder перекладається автоматично)
+const okWord = (typed, word) => [word, tr(word).toUpperCase()].includes(String(typed).trim().toUpperCase());
 
 function Info({ title, text, color }) {
   const { BLUE, DIM } = useContext(ThemeContext);
@@ -1892,7 +1896,7 @@ select{color-scheme:${isKava?"light":"dark"}}
                 <input value={rstText} onChange={e=>setRstText(e.target.value)} placeholder="СКИНУТИ"
                   style={{width:"100%",boxSizing:"border-box",padding:"10px 12px",borderRadius:10,border:"1px solid rgba(255,255,255,0.18)",background:"rgba(0,0,0,0.3)",color:"#fff",fontSize:14,outline:"none",marginBottom:10}}/>
                 <div style={{display:"flex",gap:8}}>
-                  <button disabled={rstBusy || rstText.trim().toUpperCase()!=="СКИНУТИ"} onClick={async()=>{
+                  <button disabled={rstBusy || !okWord(rstText,"СКИНУТИ")} onClick={async()=>{
                     setRstBusy(true);
                     try {
                       const wipe = {};
@@ -1900,7 +1904,7 @@ select{color-scheme:${isKava?"light":"dark"}}
                       await update(iRef(""), wipe);
                       window.location.reload();
                     } catch { setRstBusy(false); alert("Не вдалося скинути дані. Спробуйте пізніше."); }
-                  }} style={{flex:1,padding:"10px",borderRadius:10,border:"none",cursor:"pointer",background:(rstBusy||rstText.trim().toUpperCase()!=="СКИНУТИ")?"rgba(239,68,68,0.25)":"#ef4444",color:"#fff",fontWeight:800,fontSize:13}}>{rstBusy?"Скидання…":"Скинути все"}</button>
+                  }} style={{flex:1,padding:"10px",borderRadius:10,border:"none",cursor:"pointer",background:(rstBusy||!okWord(rstText,"СКИНУТИ"))?"rgba(239,68,68,0.25)":"#ef4444",color:"#fff",fontWeight:800,fontSize:13}}>{rstBusy?"Скидання…":"Скинути все"}</button>
                   <button disabled={rstBusy} onClick={()=>{setRstOpen(false);setRstText("");}} style={{padding:"10px 16px",borderRadius:10,border:"1px solid rgba(255,255,255,0.18)",background:"transparent",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer"}}>Скасувати</button>
                 </div>
               </div>
@@ -1919,11 +1923,11 @@ select{color-scheme:${isKava?"light":"dark"}}
                 <input value={delText} onChange={e=>setDelText(e.target.value)} placeholder="ВИДАЛИТИ"
                   style={{width:"100%",boxSizing:"border-box",padding:"10px 12px",borderRadius:10,border:"1px solid rgba(255,255,255,0.18)",background:"rgba(0,0,0,0.3)",color:"#fff",fontSize:14,outline:"none",marginBottom:10}}/>
                 <div style={{display:"flex",gap:8}}>
-                  <button disabled={deleting || delText.trim().toUpperCase()!=="ВИДАЛИТИ"} onClick={async()=>{
+                  <button disabled={deleting || !okWord(delText,"ВИДАЛИТИ")} onClick={async()=>{
                     setDeleting(true);
                     try { await deleteAccountRequest({ type:"instructor", iid:auth.currentUser.uid }); try{localStorage.clear();}catch{/* ignore */} await signOut(auth).catch(()=>{}); window.location.href=import.meta.env.BASE_URL; }
                     catch { setDeleting(false); alert("Не вдалося видалити акаунт. Спробуйте пізніше."); }
-                  }} style={{flex:1,padding:"10px",borderRadius:10,border:"none",cursor:"pointer",background:(deleting||delText.trim().toUpperCase()!=="ВИДАЛИТИ")?"rgba(239,68,68,0.25)":"#ef4444",color:"#fff",fontWeight:800,fontSize:13}}>{deleting?"Видалення…":"Видалити"}</button>
+                  }} style={{flex:1,padding:"10px",borderRadius:10,border:"none",cursor:"pointer",background:(deleting||!okWord(delText,"ВИДАЛИТИ"))?"rgba(239,68,68,0.25)":"#ef4444",color:"#fff",fontWeight:800,fontSize:13}}>{deleting?"Видалення…":"Видалити"}</button>
                   <button disabled={deleting} onClick={()=>{setDelOpen(false);setDelText("");}} style={{padding:"10px 16px",borderRadius:10,border:"1px solid rgba(255,255,255,0.18)",background:"transparent",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer"}}>Скасувати</button>
                 </div>
               </div>
