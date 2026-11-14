@@ -3711,11 +3711,11 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                   color: isWorkDay ? GREEN : RED,
                   letterSpacing:0.3, overflow:"hidden", whiteSpace:"nowrap",
                   maxWidth:"100%", textOverflow:"ellipsis",
-                }}>{day.fullLabel}</div>
+                }}>{COL_W >= 76 ? day.fullLabel : day.label}</div>
                 <div style={{fontSize:10.5, fontWeight:800, lineHeight:1.2, color:TEXT,
                   overflow:"hidden", whiteSpace:"nowrap", maxWidth:"100%", textOverflow:"ellipsis",
                 }}>
-                  {day.num} {day.monthFull}{day.year !== currentYear ? ` ${day.year}` : ""}
+                  {day.num} {COL_W >= 76 ? day.monthFull : day.month}{day.year !== currentYear ? ` ${day.year}` : ""}
                 </div>
                 {!isPastDay && !isClosedDay && !isLoadingCol && (
                   <div data-help="daycorner" style={{
@@ -4770,8 +4770,8 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
           onPointerCancel={()=>{ helpDrag.current = null; }}
           title="Підказки по розкладу. Утримуйте і перетягніть, щоб перемістити" aria-label="Підказки по розкладу" style={{
           position:"fixed", zIndex:60,
-          left:Math.min(Math.max(0, helpPos ? helpPos.x : window.innerWidth*0.9 - 46), window.innerWidth - 46),
-          top:Math.min(Math.max(0, helpPos ? helpPos.y : window.innerHeight*0.3), window.innerHeight - 46),
+          left:Math.min(Math.max(0, helpPos ? helpPos.x : 2), window.innerWidth - 46),
+          top:Math.min(Math.max(0, helpPos ? helpPos.y : window.innerHeight - 150), window.innerHeight - 46),
           touchAction:"none", userSelect:"none", WebkitUserSelect:"none", WebkitTouchCallout:"none",
           width:38, height:38, borderRadius:"50%", cursor:"grab", fontFamily:"inherit", opacity:0.85,
           border:"1.5px solid rgba(255,255,255,0.45)",
