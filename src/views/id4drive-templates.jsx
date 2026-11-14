@@ -344,7 +344,7 @@ function EditModal({ tpl, onSave, onClose }) {
       {/* reminder hours — тільки для auto_reminder: за скільки годин слати */}
       {form.trigger==="auto_reminder" && (
         <div style={{marginBottom:14}}>
-          <div style={{fontSize:11,color:"rgba(255,255,255,0.74)",letterSpacing:1,marginBottom:8}}>ЗА СКІЛЬКИ ГОДИН ДО УРОКУ</div>
+          <div style={{fontSize:11,color:"rgba(255,255,255,0.74)",letterSpacing:1,marginBottom:8}}>ЗА СКІЛЬКИ ГОДИН ДО ЗАПИСУ</div>
           <div style={{display:"flex",gap:6}}>
             {[24,2].map(h=>(
               <button key={h} onClick={()=>upd("reminderHours",h)} style={{
@@ -483,7 +483,7 @@ function SimpleEditModal({ tpl, onSave, onClose }) {
       }}>
         {isReminder && (
           <div style={{marginBottom:14}}>
-            <div style={label}>ЗА СКІЛЬКИ ГОДИН ДО УРОКУ</div>
+            <div style={label}>ЗА СКІЛЬКИ ГОДИН ДО ЗАПИСУ</div>
             <div style={{display:"flex",gap:6}}>
               {[24,2].map(h=>(
                 <button key={h} onClick={()=>setHours(h)} style={{

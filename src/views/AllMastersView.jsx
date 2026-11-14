@@ -65,7 +65,7 @@ export default function AllMastersView({ bookings, staff, settings, onPick, onVi
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <button aria-label="Попередній день" onClick={() => shift(-1)} style={nav}>‹</button>
         <div style={{ flex: 1, textAlign: "center", minWidth: 0 }}>
-          <div style={{ fontSize: 15, fontWeight: 700, textTransform: "capitalize" }}>{label}</div>
+          <div style={{ fontSize: 15, fontWeight: 700 }}>{label.charAt(0).toUpperCase() + label.slice(1)}</div>
           <div style={{ fontSize: 11.5, color: DIM }}>Усі майстри · записів: {total}</div>
         </div>
         <button aria-label="Сьогодні" disabled={isToday} onClick={() => setDate(new Date())} style={{ ...nav, width: "auto", padding: "0 12px", fontSize: 12, fontWeight: 600, opacity: isToday ? 0.4 : 1 }}>Сьогодні</button>

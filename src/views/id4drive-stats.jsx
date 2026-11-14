@@ -567,8 +567,8 @@ export default function StatsView({ onViewStudent, direction } = {}) {
             }}>‹</button>
             <button onClick={calPickMonth} title="Обрати весь місяць" style={{
               border:"none",cursor:"pointer",fontFamily:"inherit",background:"transparent",
-              fontSize:13,fontWeight:800,color:TEXT,textTransform:"capitalize",padding:"0 10px",minHeight:36,borderRadius:8,
-            }}>{calMonthLabel}</button>
+              fontSize:13,fontWeight:800,color:TEXT,padding:"0 10px",minHeight:36,borderRadius:8,
+            }}>{calMonthLabel ? calMonthLabel.charAt(0).toUpperCase() + calMonthLabel.slice(1) : ""}</button>
             <button onClick={()=>calGoMonth(1)} aria-label="Наступний місяць" style={{
               width:36,height:36,borderRadius:99,border:`1px solid ${BORDER}`,cursor:"pointer",fontFamily:"inherit",
               background:SURF_HI,color:DIM,fontSize:18,fontWeight:700,lineHeight:1,
@@ -728,13 +728,13 @@ export default function StatsView({ onViewStudent, direction } = {}) {
               <button aria-label={incomeGoal?"Змінити ціль":undefined} onClick={()=>{setGoalInput(String(incomeGoal||""));setEditingGoal(true);}} style={{
                 padding:"7px 11px",borderRadius:8,border:"none",cursor:"pointer",fontSize:11,fontWeight:700,fontFamily:"inherit",
                 background:`${GOLD}22`,color:GOLD,
-              }}>{incomeGoal?"✏️":"+ Встановити"}</button>
+              }}>{incomeGoal?"✏️":"+ Задати ціль"}</button>
             )}
           </div>
           {editingGoal ? (
             <div style={{display:"flex",gap:7}}>
               <input autoFocus type="number" value={goalInput} onChange={e=>setGoalInput(e.target.value)} placeholder="напр. 30000"
-                style={{flex:1,background:BG_DEEP,border:`1px solid ${BORDER}`,borderRadius:9,padding:"8px 12px",color:TEXT,fontSize:14,fontFamily:"inherit",outline:"none",colorScheme:"dark"}}/>
+                style={{flex:1,minWidth:0,background:BG_DEEP,border:`1px solid ${BORDER}`,borderRadius:9,padding:"8px 12px",color:TEXT,fontSize:14,fontFamily:"inherit",outline:"none",colorScheme:"dark"}}/>
               <button onClick={()=>{
                 const val=Math.max(0,parseInt(goalInput,10)||0);
                 setIncomeGoal(val);

@@ -4340,7 +4340,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                             whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis",
                             maxWidth: Math.max(18, COL_W - 6),
                             transform:"rotate(9deg)", transformOrigin:"top right",
-                          }}>{showText ? `${tp.icon} ${label}` : tp.icon}</div>
+                          }}>{showText ? <>{tp.icon}{" "}{label}</> : tp.icon}</div>
                         </div>
                       );
                     })()}
@@ -5686,7 +5686,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                     flex:1,padding:"5px 0",borderRadius:8,border:"none",cursor:"pointer",fontSize:11,fontWeight:700,fontFamily:"inherit",
                     background: peEditDur===h*60 ? "rgba(45,212,191,0.2)" : SURFACE,
                     color: peEditDur===h*60 ? "#2dd4bf" : DIM,
-                  }}>{h}г</button>
+                  }}>{`${h}г`}</button>
                 ))}
               </div>
             </div>
@@ -6747,7 +6747,7 @@ function PersonalEventModalBase({ data, onClose, onConfirm }) {
                       flex:1,padding:"5px 0",borderRadius:8,border:"none",cursor:"pointer",fontSize:11,fontWeight:700,fontFamily:"inherit",
                       background: durMin===h*60 ? "rgba(45,212,191,0.2)" : SURF_HI,
                       color: durMin===h*60 ? "#2dd4bf" : DIM,
-                    }}>{h}г</button>
+                    }}>{`${h}г`}</button>
                   ))}
                 </div>
               </div>

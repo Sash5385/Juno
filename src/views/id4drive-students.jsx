@@ -66,7 +66,7 @@ function StudentForm({ initial, onSave, onCancel, saveLabel="Зберегти" }
         <div>
           <div style={{fontSize:11,color:FAINT,letterSpacing:1,marginBottom:5}}>ТИП</div>
           <div style={{display:"flex",gap:6}}>
-            {[["private","Приват."],["school","Автошк."]].map(([k,l])=>(
+            {[["private","Індивід."],["school","Стандарт"]].map(([k,l])=>(
               <UIBtn key={k} variant={d.type===k?"primary":"ghost"} flex={1}
                 style={{padding:"7px 4px",borderRadius:8,fontSize:11}}
                 onClick={()=>upd("type",k)}>{l}</UIBtn>
