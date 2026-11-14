@@ -1479,6 +1479,7 @@ const pendingDeletesRef = React.useRef(new Set());
           position:"relative",
           flex:1, minHeight:0,
           overflowY: displayedTab==="schedule" ? "hidden" : "auto",
+          overflowX: "hidden", // 1–2px виступу всередині не мають давати горизонтальну смугу над нижньою панеллю
           padding: displayedTab==="schedule" ? "0 3px 11px" : "14px 14px 14px",
           display: displayedTab==="schedule" ? "flex" : "block",
           flexDirection:"column",
