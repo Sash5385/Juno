@@ -1,4 +1,5 @@
-import { COUNTRIES, getCountry, splitPhone, joinPhone } from './phoneCountries'
+import { getCountry, splitPhone, joinPhone } from './phoneCountries'
+import CountrySelect from './CountrySelect'
 import { useState } from 'react'
 
 // Поле телефону з вибором країни. value — повний рядок "+380...", onChange(повний рядок)
@@ -12,14 +13,11 @@ export default function PhoneField({ value, onChange, style, inputStyle, placeho
   const digits = cur.national
   return (
     <div style={{ display: 'flex', gap: 6, alignItems: 'center', minWidth: 0, ...style }}>
-      <select
+      <CountrySelect
         value={country.iso}
-        onChange={e => { const c = getCountry(e.target.value); setIso(c.iso); onChange(joinPhone(c, digits.slice(0, c.max))) }}
-        aria-label="Країна"
-        style={{ flexShrink: 0, width: 'auto', maxWidth: 110, padding: '0 4px', height: 'auto', alignSelf: 'stretch', border: '1px solid rgba(128,128,128,.35)', borderRadius: 8, background: 'transparent', color: 'inherit', fontFamily: 'inherit', fontSize: 'inherit', ...(inputStyle && inputStyle.fontSize ? { fontSize: inputStyle.fontSize } : {}) }}
-      >
-        {COUNTRIES.map(c => <option key={c.iso} value={c.iso}>{c.flag} {c.code}</option>)}
-      </select>
+        onChange={iso => { const c = getCountry(iso); setIso(c.iso); onChange(joinPhone(c, digits.slice(0, c.max))) }}
+        style={{ alignSelf: 'stretch', padding: '0 8px', border: '1px solid rgba(128,128,128,.35)', borderRadius: 8, ...(inputStyle && inputStyle.fontSize ? { fontSize: inputStyle.fontSize } : {}) }}
+      />
       <input
         type="tel"
         className={inputClassName}
