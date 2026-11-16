@@ -57,6 +57,28 @@ const DIRECTION_PRESETS = {
   },
 };
 
+// ─── Іконки розділів «метал + глянець» (кругла плитка на краю вкладки) ───
+const SEC_GLYPH = {
+  plan:    ["#2563eb", <><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></>],
+  rules:   ["#dc2626", <><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></>],
+  catalog: ["#b7860b", <><circle cx="12" cy="12" r="9"/><path d="M15 9.5c0-1.1-1.3-2-3-2s-3 .9-3 2 1.3 1.6 3 1.9 3 .9 3 2-1.3 2-3 2-3-.9-3-2M12 6v1.5M12 16.5V18"/></>],
+  clients: ["#7c3aed", <><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M9 10h6M9 14h6M9 18h4"/></>],
+  push:    ["#16a34a", <><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></>],
+  team:    ["#2563eb", <><circle cx="9" cy="8" r="3.5"/><path d="M2 20c0-3.5 3-6 7-6s7 2.5 7 6"/><circle cx="17" cy="9" r="2.5"/><path d="M17 14c3 0 5 2 5 5"/></>],
+  profile: ["#2563eb", <><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-7 8-7s8 3 8 7"/></>],
+};
+function MetalIc({ id, size = 28 }) {
+  const [c, g] = SEC_GLYPH[id] || SEC_GLYPH.profile;
+  return (
+    <span style={{ width:size, height:size, flexShrink:0, borderRadius:"50%", position:"relative", overflow:"hidden", display:"inline-flex", alignItems:"center", justifyContent:"center",
+      background:"linear-gradient(145deg,#fbfcfe,#a3abba 45%,#eef1f6 55%,#7a8394)", boxShadow:"0 2px 5px rgba(0,0,0,0.4),inset 0 1px 0 #fff,inset 0 -2px 3px rgba(0,0,0,0.2)" }}>
+      <span style={{ position:"absolute", left:"6%", right:"6%", top:"4%", height:"46%", borderRadius:"40% 40% 60% 60%/60% 60% 40% 40%", background:"linear-gradient(180deg,rgba(255,255,255,0.85),rgba(255,255,255,0.05))" }}/>
+      <svg width={Math.round(size*0.58)} height={Math.round(size*0.58)} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"
+        style={{ position:"relative", filter:"drop-shadow(0 1px 0 rgba(255,255,255,0.9))" }}>{g}</svg>
+    </span>
+  );
+}
+
 // ─── MODULE-LEVEL ATOMS (stable references → no remount on settings change) ───
 
 export function Toggle({ on, onChange, color }) {
@@ -1738,11 +1760,12 @@ select{color-scheme:${isKava?"light":"dark"}}
             const isActive = active === sec.id;
             return (
               <button key={sec.id} data-active={isActive?"1":"0"} onClick={()=>switchSection(sec.id)} style={{
-                flexShrink:0,whiteSpace:"nowrap",fontSize:12,fontWeight:600,fontFamily:"inherit",cursor:"pointer",padding:"8px 12px",borderRadius:99,
+                flexShrink:0,whiteSpace:"nowrap",fontSize:12,fontWeight:600,fontFamily:"inherit",cursor:"pointer",padding:"3px 12px 3px 3px",borderRadius:99,
+                display:"inline-flex",alignItems:"center",gap:7,
                 border:`1px solid ${isActive?"transparent":BORDER}`,backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",
                 background:isActive?`linear-gradient(145deg,${ACC_HI},${ACCENT})`:SURFACE,color:isActive?"#06182e":DIM,
                 boxShadow:isActive?`0 6px 16px ${ACCENT}59`:"none",
-              }}>{sec.icon} {sec.label}</button>
+              }}><MetalIc id={sec.id} size={28}/>{sec.label}</button>
             );
           })}
         </ScrollChips>
@@ -1761,7 +1784,7 @@ select{color-scheme:${isKava?"light":"dark"}}
             <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
               {activeSec && (
                 <div style={{fontSize:16,fontWeight:700,color:TEXT,display:"flex",alignItems:"center",gap:8,minWidth:0,flex:"0 1 auto"}}>
-                  <span style={{flexShrink:0}}>{activeSec.icon}</span>
+                  <MetalIc id={activeSec.id} size={30}/>
                   <span style={{minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{activeSec.title}</span>
                 </div>
               )}
