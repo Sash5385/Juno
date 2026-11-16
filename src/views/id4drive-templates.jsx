@@ -36,6 +36,16 @@ const CATEGORIES = [
   { id:"custom",    label:"Власні",      emoji:"✏️", color:BLUE   },
 ];
 
+// Гліфи категорій для іконок «метал + глянець» (замість емодзі на картці шаблону)
+const CAT_GLYPH = {
+  reminder: <><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></>,
+  confirm:  <polyline points="5 12 10 17 19 8"/>,
+  cancel:   <><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></>,
+  welcome:  <><circle cx="12" cy="12" r="9"/><path d="M8.5 14.5a4.5 4.5 0 0 0 7 0"/><line x1="9" y1="9.5" x2="9" y2="9.6"/><line x1="15" y1="9.5" x2="15" y2="9.6"/></>,
+  queue:    <><path d="M6 3h12M6 21h12"/><path d="M7 3c0 5 10 5 10 9s-10 4-10 9M17 3c0 5-10 5-10 9s10 4 10 9"/></>,
+  custom:   <><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></>,
+};
+
 const CHANNELS = [
   { id:"chat",  label:"Чат",        emoji:"💬", color:BLUE },
   { id:"push",  label:"Сповіщення", emoji:"🔔", color:GOLD },
@@ -382,7 +392,9 @@ function TemplateCard({ tpl, onEdit, onSend, onToggle, onDelete }) {
       </button>
 
       <div style={{position:"relative",zIndex:2,display:"flex",alignItems:"flex-start",gap:7,paddingRight:22}}>
-        <span style={{fontSize:16,flexShrink:0,lineHeight:1}}>{cat.emoji}</span>
+        <span className="metal3d" style={{width:28,height:28,borderRadius:9,"--ic":`color-mix(in srgb,${cat.color} 72%,#000)`}}>
+          <svg width={17} height={17} viewBox="0 0 24 24" fill="none" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">{CAT_GLYPH[cat.id]||CAT_GLYPH.custom}</svg>
+        </span>
         <div style={{flex:1,minWidth:0}}>
           <div style={{fontSize:13,fontWeight:800,color:"#fff",textShadow:`0 1px 3px ${shade(0.5)}`,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{tpl.title}</div>
           <div style={{fontSize:9.5,color:"rgba(255,255,255,0.78)",fontWeight:700,marginTop:1.5,display:"flex",alignItems:"center",gap:5}}>
