@@ -10,6 +10,7 @@ import { setGlobalLang, createT } from "./lang";
 import { ThemeContext, getTheme } from "./theme.js";
 import { useMosaicSwitch, MosaicOverlay } from "./mosaic";
 import { APP_VERSION } from "./version.js";
+import { UICss, metalColor } from "./ui";
 
 export const LangContext = createContext('uk');
 
@@ -133,50 +134,44 @@ function InstallBanner({ theme }) {
 }
 
 // ─── ICONS (3D pillow) ───────────────────────────────────────────
-const I3 = ({children,gr,s=36,r=12})=>(
-  <div style={{
-    width:s,height:s,borderRadius:r,background:gr,
-    display:"inline-flex",alignItems:"center",justifyContent:"center",
-    position:"relative",overflow:"hidden",flexShrink:0,
-    boxShadow:"-2px 3px 8px rgba(0,0,0,0.45),inset 1px 1px 0 rgba(255,255,255,0.22),inset -1px -1px 0 rgba(0,0,0,0.3)"
-  }}>
-    <div style={{position:"absolute",top:0,right:0,width:"60%",height:"50%",background:"radial-gradient(ellipse at top right,rgba(255,255,255,0.38) 0%,transparent 70%)",pointerEvents:"none"}}/>
-    <div style={{position:"relative",zIndex:1}}>{children}</div>
+const I3 = ({children,gr,s=36,r=12,active})=>(
+  <div className={active?"metal3d on":"metal3d dim"} style={{width:s,height:s,borderRadius:r,"--ic":metalColor(gr)}}>
+    {children}
   </div>
 );
 
 const INACTIVE_DARK = "linear-gradient(135deg,#2e3034,#26282c)";
 const INACTIVE_KAVA = "linear-gradient(135deg,#6b3a22,#4a2210)";
 
-const makeTabIcons = (inactiveGr) => ({
-  schedule: (s,active) => <I3 s={s} r={s*0.3} gr={active?"linear-gradient(165deg,#5b9bff,#2563eb)":inactiveGr}>
+const makeTabIcons = () => ({
+  schedule: (s,active) => <I3 s={s} r={s*0.3} gr="linear-gradient(165deg,#5b9bff,#2563eb)" active={active}>
     <svg width={s*.55} height={s*.55} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/></svg>
   </I3>,
-  bookings: (s,active) => <I3 s={s} r={s*0.3} gr={active?"linear-gradient(165deg,#34d399,#059669)":inactiveGr}>
+  bookings: (s,active) => <I3 s={s} r={s*0.3} gr="linear-gradient(165deg,#34d399,#059669)" active={active}>
     <svg width={s*.55} height={s*.55} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></svg>
   </I3>,
-  students: (s,active) => <I3 s={s} r={s*0.3} gr={active?"linear-gradient(165deg,#c084fc,#7c3aed)":inactiveGr}>
+  students: (s,active) => <I3 s={s} r={s*0.3} gr="linear-gradient(165deg,#c084fc,#7c3aed)" active={active}>
     <svg width={s*.55} height={s*.55} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M3 19c0-3 3-5 6-5s6 2 6 5M15 18c0-2 2-4 4-4s3 1 3 3"/></svg>
   </I3>,
-  services: (s,active) => <I3 s={s} r={s*0.3} gr={active?"linear-gradient(165deg,#fb923c,#ea580c)":inactiveGr}>
+  services: (s,active) => <I3 s={s} r={s*0.3} gr="linear-gradient(165deg,#fb923c,#ea580c)" active={active}>
     <svg width={s*.55} height={s*.55} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 17h14M3 17V9l3-5h12l3 5v8M5 17a2 2 0 1 0 4 0M15 17a2 2 0 1 0 4 0M3 9h18"/></svg>
   </I3>,
-  chats: (s,active) => <I3 s={s} r={s*0.3} gr={active?"linear-gradient(165deg,#34d399,#047857)":inactiveGr}>
+  chats: (s,active) => <I3 s={s} r={s*0.3} gr="linear-gradient(165deg,#34d399,#047857)" active={active}>
     <svg width={s*.55} height={s*.55} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12c0 5-4 8-9 8-1.5 0-3-.3-4-.7L3 21l1-4C2.5 15.5 2 13.8 2 12c0-5 4-8 9-8s10 3 10 8z"/></svg>
   </I3>,
-  templates: (s,active) => <I3 s={s} r={s*0.3} gr={active?"linear-gradient(165deg,#fcd34d,#d97706)":inactiveGr}>
+  templates: (s,active) => <I3 s={s} r={s*0.3} gr="linear-gradient(165deg,#fcd34d,#d97706)" active={active}>
     <svg width={s*.55} height={s*.55} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
   </I3>,
-  stats: (s,active) => <I3 s={s} r={s*0.3} gr={active?"linear-gradient(165deg,#a78bfa,#6d28d9)":inactiveGr}>
+  stats: (s,active) => <I3 s={s} r={s*0.3} gr="linear-gradient(165deg,#a78bfa,#6d28d9)" active={active}>
     <svg width={s*.55} height={s*.55} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="20" x2="4" y2="10"/><line x1="10" y1="20" x2="10" y2="4"/><line x1="16" y1="20" x2="16" y2="14"/><line x1="22" y1="20" x2="2" y2="20"/></svg>
   </I3>,
-  settings: (s,active) => <I3 s={s} r={s*0.3} gr={active?"linear-gradient(165deg,#94a3b8,#334155)":inactiveGr}>
+  settings: (s,active) => <I3 s={s} r={s*0.3} gr="linear-gradient(165deg,#94a3b8,#334155)" active={active}>
     <svg width={s*.55} height={s*.55} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
   </I3>,
-  queue: (s,active) => <I3 s={s} r={s*0.3} gr={active?"linear-gradient(165deg,#c084fc,#7c3aed)":inactiveGr}>
+  queue: (s,active) => <I3 s={s} r={s*0.3} gr="linear-gradient(165deg,#c084fc,#7c3aed)" active={active}>
     <svg width={s*.55} height={s*.55} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
   </I3>,
-  journal: (s,active) => <I3 s={s} r={s*0.3} gr={active?"linear-gradient(165deg,#22d3ee,#0891b2)":inactiveGr}>
+  journal: (s,active) => <I3 s={s} r={s*0.3} gr="linear-gradient(165deg,#22d3ee,#0891b2)" active={active}>
     <svg width={s*.55} height={s*.55} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="3" width="13" height="18" rx="2"/><line x1="8" y1="8" x2="13" y2="8"/><line x1="8" y1="12" x2="13" y2="12"/><line x1="8" y1="16" x2="11" y2="16"/><circle cx="18" cy="17" r="3.5"/><path d="M18 15.5V17l1 1"/></svg>
   </I3>,
 });
@@ -1172,6 +1167,7 @@ const pendingDeletesRef = React.useRef(new Set());
     <LangContext.Provider value={lang}>
     <>
       <style>{css}</style>
+      <UICss/>
       {!theme.BG_IMAGE && (
         <div style={{
           position:"fixed", inset:0, zIndex:0, pointerEvents:"none",

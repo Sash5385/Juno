@@ -3,7 +3,7 @@ import { get, set } from "firebase/database";
 import { iRef } from "../firebase";
 
 import { ThemeContext } from "../theme.js";
-import { UICss, Modal, Chip, Btn, Toggle, Pill, useFX } from "../ui";
+import { UICss, Modal, Chip, Btn, Toggle, Pill, useFX, metalColor } from "../ui";
 
 export const makePalette = ({GREEN, GOLD, BLUE, PURPLE, ACCENT, TEAL}) => [
   { id:"green",   name:"Зелений",    color:GREEN  },
@@ -36,7 +36,7 @@ const fmtDur = min => { const h=Math.floor(min/60),m=min%60; return m?`${h}г ${
 
 // ─── ICONS ──────────────────────────────────────────────────────
 const I3 = ({children,gr,s=40,r=14})=>(
-  <div className="icon3d" style={{width:s,height:s,background:gr,borderRadius:r}}>{children}</div>
+  <div className="metal3d" style={{width:s,height:s,"--ic":metalColor(gr),borderRadius:r}}>{children}</div>
 );
 const makeIc = ({ACC_HI, ACCENT, SURF_HI, SURFACE, DIM, TEXT}) => ({
   school: s=><I3 s={s} gr="linear-gradient(165deg,#9ee07a,#5fb83d)"><svg width={s*.6} height={s*.6} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 10l9-5 9 5-9 5-9-5z"/><path d="M7 12v5a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-5"/></svg></I3>,

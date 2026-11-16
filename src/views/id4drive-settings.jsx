@@ -7,7 +7,7 @@ import { deleteAccountRequest } from "../deleteAccountApi";
 import { iRef, iStorageRef, iGalleryStorageRef, auth } from "../firebase";
 import { LangContext } from "../App";
 import { ThemeContext } from "../theme.js";
-import { UICss, useFX } from "../ui";
+import { UICss, useFX, metalColor } from "../ui";
 import { createT } from "../lang";
 import { useLicense, licenseState } from "../hooks/useLicense";
 import { LicensePayPanel } from "../LicensePay";
@@ -20,7 +20,6 @@ const DAY_NAMES = ["Пн","Вт","Ср","Чт","Пт","Сб","Нд"];
 // ─── SECTION RAIL ICONS — той самий "3D pillow" стиль іконок, що й у
 // BottomNav (App.jsx: makeTabIcons/I3): кольоровий градієнт при активній
 // вкладці, темний неактивний фон, глянцевий блік зверху-справа. ───
-const SEC_INACTIVE_GR = { dark:"linear-gradient(135deg,#2e3034,#26282c)", kava:"linear-gradient(135deg,#6b3a22,#4a2210)" };
 const SEC_ICON_SVG = {
   schedule:   <><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></>,
   snap:       <><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></>,
@@ -33,17 +32,10 @@ const SEC_ICON_SVG = {
   reviews:    <><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></>,
   profile:    <><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8"/></>,
 };
-function SecIcon({ id, color, active, isKava, size=34 }) {
-  const gr = active ? color : (isKava ? SEC_INACTIVE_GR.kava : SEC_INACTIVE_GR.dark);
+function SecIcon({ id, color, active, size=34 }) {
   return (
-    <div style={{
-      width:size, height:size, borderRadius:size*0.3, background:gr,
-      display:"inline-flex", alignItems:"center", justifyContent:"center",
-      position:"relative", overflow:"hidden", flexShrink:0,
-      boxShadow:"-2px 3px 8px rgba(0,0,0,0.4),inset 1px 1px 0 rgba(255,255,255,0.2),inset -1px -1px 0 rgba(0,0,0,0.25)",
-    }}>
-      <div style={{position:"absolute",top:0,right:0,width:"60%",height:"50%",background:"radial-gradient(ellipse at top right,rgba(255,255,255,0.35) 0%,transparent 70%)",pointerEvents:"none"}}/>
-      <svg width={size*0.55} height={size*0.55} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{position:"relative",zIndex:1}}>
+    <div className={active?"metal3d on":"metal3d dim"} style={{width:size, height:size, borderRadius:size*0.3, "--ic":metalColor(color)}}>
+      <svg width={size*0.55} height={size*0.55} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         {SEC_ICON_SVG[id]}
       </svg>
     </div>
@@ -1368,7 +1360,7 @@ select{color-scheme:${isKava?"light":"dark"}}
                   display:"flex", flexDirection:"column", alignItems:"center", gap:4,
                   position:"relative", fontFamily:"inherit",
                 }}>
-                  <SecIcon id={sec.id} color={sec.color} active={isActive} isKava={isKava}/>
+                  <SecIcon id={sec.id} color={sec.color} active={isActive}/>
                   <span style={{
                     fontSize:9, fontWeight:700,
                     color: isActive ? GREEN : (isKava ? DIM : FAINT),

@@ -3,7 +3,7 @@ import { onValue, update, push, remove } from "firebase/database";
 import { iRef } from "../firebase";
 
 import { ThemeContext } from "../theme.js";
-import { UICss, Modal, Btn, Chip, StatTile, useFX } from "../ui";
+import { UICss, Modal, Btn, Chip, StatTile, useFX, metalColor } from "../ui";
 
 const PALETTE = [
   { id:"green",   color:"#7ed957" }, { id:"yellow",  color:"#f7c948" },
@@ -232,14 +232,14 @@ function QCard({ q, pos, svc, now, onInvite, onRemove }) {
       <div style={{display:"grid",gridTemplateColumns:waiting?"1fr 1fr":"1fr",borderTop:`1px solid ${BORDER}`}}>
         {waiting && (
           <button onClick={onInvite} style={{...btn,borderRight:`1px solid ${BORDER}`,color:PURPLE}}>
-            <div className="icon3d" style={{width:22,height:22,background:"linear-gradient(165deg,#c084fc,#7c3aed)",borderRadius:7}}>
+            <div className="metal3d" style={{width:22,height:22,"--ic":metalColor("linear-gradient(165deg,#c084fc,#7c3aed)"),borderRadius:7}}>
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" style={{position:"relative",zIndex:1}}><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
             </div>
             Запросити
           </button>
         )}
         <button onClick={onRemove} style={{...btn,color:`${RED}cc`}}>
-          <div className="icon3d" style={{width:22,height:22,background:"linear-gradient(165deg,#f87171,#dc2626)",borderRadius:7}}>
+          <div className="metal3d" style={{width:22,height:22,"--ic":metalColor("linear-gradient(165deg,#f87171,#dc2626)"),borderRadius:7}}>
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" style={{position:"relative",zIndex:1}}><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
           </div>
           Видалити
