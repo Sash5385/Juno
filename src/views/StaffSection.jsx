@@ -1,4 +1,5 @@
 import { useState, useEffect, useContext, lazy, Suspense } from "react";
+import { Hint } from "../ui";
 import { onValue, update, set, remove } from "firebase/database";
 import { iRef, db, auth } from "../firebase";
 import { ref } from "firebase/database";
@@ -80,7 +81,7 @@ export default function StaffSection({ settings, upd }) {
     return (
       <div>
         {confirmNode}
-        <div style={{ fontSize: 14, color: TEXT, lineHeight: 1.5 }}>Зараз ви працюєте самі: один календар, свої клієнти.</div>
+        <Hint>Зараз ви працюєте самі: один календар, свої клієнти.</Hint>
         <div style={{ fontSize: 12.5, color: DIM, lineHeight: 1.5, marginTop: 8 }}>
           Якщо до вас приєднаються інші майстри, перетворіть акаунт на салон: у кожного буде свій календар, а клієнти, послуги й статистика — спільні. Власник бачить усе, майстер — лише своє.
         </div>

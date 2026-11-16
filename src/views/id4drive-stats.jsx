@@ -6,7 +6,7 @@ import { LangContext } from "../App";
 import { createT } from "../lang";
 
 import { ThemeContext } from "../theme.js";
-import { UICss, Card, useFX, ScrollChips } from "../ui";
+import { UICss, Card, useFX, ScrollChips, Hint } from "../ui";
 import { bookingAddonTotals } from "../addons";
 import { hasOwnSchedule } from "../masterSettings";
 import { periodDates, utilization, cancelStats, sources, clientStats, serviceStats, heatmap, quietestSlot, attendance, cohorts, courseStats, packageStats } from "./stats-extra";
@@ -718,7 +718,7 @@ export default function StatsView({ onViewStudent, direction } = {}) {
             </div>
           </Card>
         ))}
-        {secEff === "masters" && <div style={{fontSize:11,color:DIM,textAlign:"center",padding:"0 8px"}}>Зайнятість — заброньовані години від робочих за графіком майстра (або салону).</div>}
+        {secEff === "masters" && <Hint>Зайнятість — заброньовані години від робочих за графіком майстра (або салону).</Hint>}
 
         {/* ── INCOME GOAL ── */}
         {secEff === "overview" && <Card className="fu" style={{padding:"12px 13px"}}>
@@ -1002,7 +1002,7 @@ export default function StatsView({ onViewStudent, direction } = {}) {
         {secEff === "clients" && coh && coh.some(c => c.total > 0) && (
           <Card className="fu" style={{padding:"12px 13px"}}>
             <div style={secTitle}>Утримання</div>
-            <div style={{fontSize:11,color:DIM,margin:"2px 0 8px"}}>Скільки клієнтів, що прийшли вперше в цьому місяці, ходять досі</div>
+            <Hint style={{margin:"2px 0 8px"}}>Скільки клієнтів, що прийшли вперше в цьому місяці, ходять досі</Hint>
             {coh.map(c => (
               <div key={c.month} style={{display:"flex",alignItems:"center",gap:8,padding:"4px 0"}}>
                 <span style={{width:34,fontSize:12,color:DIM,fontWeight:700}}>{UK_MONTHS[c.month]}</span>

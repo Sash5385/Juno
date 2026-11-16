@@ -1,4 +1,5 @@
 import { useState, useEffect, lazy, Suspense } from "react";
+import { Hint } from "./ui";
 const MasterOverrides = lazy(() => import("./views/MasterOverrides"));
 import { ref, get, set, remove } from "firebase/database";
 import { signOut } from "firebase/auth";
@@ -54,7 +55,7 @@ export function JoinSalonScreen({ token, onDone, onCancel }) {
       {info === null && (
         <div style={{ textAlign: "center" }}>
           <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 8 }}>Запрошення недійсне</div>
-          <div style={{ fontSize: 13, color: DIM, lineHeight: 1.5, marginBottom: 18 }}>Воно закінчилось або було скасоване. Попросіть власника салону створити нове.</div>
+          <Hint tone="warn" style={{marginBottom: 18}}>Воно закінчилось або було скасоване. Попросіть власника салону створити нове.</Hint>
           <button onClick={() => { forgetWorkspaceInvite(); onCancel(); }} style={primary(false)}>Налаштувати власний акаунт</button>
         </div>
       )}
@@ -94,7 +95,7 @@ export function MasterProfileView({ ws, onLeft }) {
       <div style={{ fontSize: 13, color: DIM }}>Ви майстер салону</div>
       <div style={{ fontSize: 22, fontWeight: 800, margin: "4px 0 2px" }}>{ws.salonName || "салон"}</div>
       <div style={{ fontSize: 14, color: DIM, marginBottom: 20 }}>{ws.name}</div>
-      <div style={{ fontSize: 13, lineHeight: 1.55, color: DIM, marginBottom: 20 }}>Тут ваш календар і клієнти салону. Налаштування салону, послуги й статистику веде власник.</div>
+      <Hint style={{marginBottom: 20}}>Тут ваш календар і клієнти салону. Налаштування салону, послуги й статистику веде власник.</Hint>
       <button onClick={() => signOut(auth).catch(() => {})} style={primary(false)}>Вийти з акаунта</button>
       {!sure
         ? <button onClick={() => setSure(true)} style={{ ...ghost, marginTop: 14, paddingBottom: 0 }}>Вийти із салону</button>

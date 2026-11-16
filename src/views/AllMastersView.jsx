@@ -1,5 +1,6 @@
 import { useState, useEffect, useContext, useMemo } from "react";
 import { ThemeContext } from "../theme.js";
+import { Hint } from "../ui";
 import { masterOf } from "../workspace";
 import { onValue } from "firebase/database";
 import { iRef } from "../firebase";
@@ -120,7 +121,7 @@ export default function AllMastersView({ bookings, staff, settings, onPick, onVi
         </div>
       </div>
       </div>
-      <div style={{ fontSize: 11.5, color: FAINT, textAlign: "center" }}>Торкніться запису — картка клієнта; імені майстра — його календар</div>
+      <Hint>Торкніться запису — картка клієнта; імені майстра — його календар</Hint>
     </div>
   );
 }

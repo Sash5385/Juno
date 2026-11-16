@@ -3,7 +3,7 @@ import { get, set } from "firebase/database";
 import { iRef } from "../firebase";
 
 import { ThemeContext } from "../theme.js";
-import { UICss, Modal, Chip, Btn, Toggle, Pill, useFX } from "../ui";
+import { UICss, Modal, Chip, Btn, Toggle, Pill, useFX, Hint } from "../ui";
 import { capacityOf, MAX_CAPACITY } from "../groups";
 import ServicesFog from "./ServicesFog";
 import { rawAddons, normAddons, bufferOf, ADDON_MINUTES, BUFFER_OPTIONS, MAX_ADDONS } from "../addons";
@@ -283,9 +283,9 @@ function ServiceFormModal({ svc, onSave, onClose }) {
             <Btn variant="ghost" onClick={addAddon} style={{width:"100%"}}>＋ Додати допуслугу</Btn>
           )}
         </div>
-        <div style={{fontSize:11,color:theme.LBL||"rgba(255,255,255,0.74)",marginTop:6}}>
+        <Hint style={{marginTop:6}}>
           Клієнт відмічає допуслуги при записі: сума додається до ціни, хвилини — до тривалості запису.
-        </div>
+        </Hint>
       </div>}
 
       {/* buffer after booking */}
@@ -300,9 +300,9 @@ function ServiceFormModal({ svc, onSave, onClose }) {
             }}>{v===0?"Без перерви":`${v} хв`}</button>
           ))}
         </div>
-        <div style={{fontSize:11,color:theme.LBL||"rgba(255,255,255,0.74)",marginTop:6}}>
+        <Hint style={{marginTop:6}}>
           Час на прибирання чи відпочинок: слот одразу після запису буде зайнятий, і клієнти не запишуться впритул. У тривалість і ціну перерва не входить.
-        </div>
+        </Hint>
       </div>
 
       {/* color */}

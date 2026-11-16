@@ -5,7 +5,7 @@ import { iRef, auth, getCurrentIid, getUserBookings } from "../firebase";
 import { deleteAccountRequest } from "../deleteAccountApi";
 
 import { ThemeContext } from "../theme.js";
-import { UICss, Field, Btn as UIBtn, useFX, useBackClose } from "../ui";
+import { UICss, Field, Btn as UIBtn, useFX, useBackClose, Hint } from "../ui";
 import { makePalette } from "./id4drive-services";
 import { STUDENT_COLOR_CHOICES } from "../studentColors";
 import { useConfirm } from "../ConfirmModal";
@@ -371,7 +371,7 @@ function StudentDetailSheet({ settings, s, onClose, onUpdate, onDelete, onBlock,
             ) : inviteOpen ? (
               <div style={{display:"flex",flexDirection:"column",gap:10}}>
                 <div style={{textAlign:"center"}}><div style={{fontSize:15,fontWeight:800,color:GOLD}}>🔗 Запросити клієнта</div><div style={{fontSize:12,color:DIM,marginTop:2,overflowWrap:"anywhere"}}>{s.name}</div></div>
-                <div style={{fontSize:12,color:DIM,lineHeight:1.5,textAlign:"center"}}>Клієнт реєструється за посиланням, а знижка, ціна й нотатки з картки переносяться на його акаунт.</div>
+                <Hint>Клієнт реєструється за посиланням, а знижка, ціна й нотатки з картки переносяться на його акаунт.</Hint>
                 <div style={{background:glow(0.04),border:`1px solid ${BORDER}`,borderRadius:10,padding:"9px 12px",fontSize:12,color:TEXT,wordBreak:"break-all"}}>{inviteLink}</div>
                 {inviteError && <div style={{fontSize:12,color:"#fca5a5"}}>{inviteError}</div>}
                 <div style={{display:"grid",gridTemplateColumns:"repeat(3, minmax(0,1fr))",gap:7}}>
@@ -415,9 +415,9 @@ function StudentDetailSheet({ settings, s, onClose, onUpdate, onDelete, onBlock,
                     </button>
                   </div>
                   {autoColors && !slotColor && (
-                    <div style={{fontSize:11,color:FAINT,marginTop:8,lineHeight:1.4}}>
+                    <Hint style={{marginTop:8}}>
                       Без вибору колір призначається автоматично.
-                    </div>
+                    </Hint>
                   )}
                 </div>
                 {colorOpen && createPortal(
@@ -536,7 +536,7 @@ function StudentDetailSheet({ settings, s, onClose, onUpdate, onDelete, onBlock,
                           ))}
                         </div>
                       ) : (
-                        <div style={{color:FAINT,fontSize:11}}>Заготовки пакетів створюються в Налаштування → Пакети.</div>
+                        <Hint>Заготовки пакетів створюються в Налаштування → Пакети.</Hint>
                       )}
                     </div>
                   );

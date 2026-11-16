@@ -18,7 +18,7 @@ import { UI_SCALES, readUiScale, setUiScale } from "../uiScale.js";
 import { iRef, iStorageRef, iGalleryStorageRef, auth } from "../firebase";
 import { LangContext } from "../App";
 import { ThemeContext } from "../theme.js";
-import { UICss, useFX, ScrollChips } from "../ui";
+import { UICss, useFX, ScrollChips, Hint } from "../ui";
 import { createT } from "../lang";
 import { useLicense, licenseState } from "../hooks/useLicense";
 import { LicensePayPanel } from "../LicensePay";
@@ -570,7 +570,7 @@ function PhotoCropModal({ file, round, outSize, title, onCancel, onDone }) {
     <div style={{ position:"fixed", inset:0, zIndex:9700, background:"rgba(0,0,0,0.88)", display:"flex", alignItems:"center", justifyContent:"center", padding:16, boxSizing:"border-box" }}>
       <div style={{ width:"100%", maxWidth:400, background:BG_DEEP, borderRadius:20, border:`1px solid ${BORDER}`, padding:"16px 16px 18px", boxSizing:"border-box", maxHeight:"96dvh", overflowY:"auto" }}>
         <div style={{ fontSize:16, fontWeight:800, color:TEXT, textAlign:"center", marginBottom:4 }}>{title}</div>
-        <div style={{ fontSize:12.5, color:DIM, textAlign:"center", marginBottom:14, lineHeight:1.4 }}>Перетягніть фото і збільште двома пальцями — що в рамці, те й побачать клієнти</div>
+        <Hint style={{ marginBottom:14 }}>Перетягніть фото і збільште двома пальцями — що в рамці, те й побачать клієнти</Hint>
         {err ? (
           <div style={{ color:"#fca5a5", fontSize:13, textAlign:"center", padding:"30px 0" }}>Не вдалося відкрити фото. Спробуйте інший файл.</div>
         ) : (
@@ -1214,9 +1214,9 @@ select{color-scheme:${isKava?"light":"dark"}}
               ? "A surcharge is an extra paid option for a lesson, for example «driving range trip» or «harder route».\n\n• Each surcharge is a fixed amount in UAH. Add as many options as you need; remove one with the «×» button.\n• How to use: open the slot menu in the schedule and add the surcharge to a booking.\n• The client immediately sees the total price including the surcharge."
               : "Надбавка — це додаткова платна опція до запису. Наприклад, «виїзд до клієнта» або «складніше завдання».\n\n• Кожна надбавка — це фіксована сума в обраній валюті. Додайте стільки варіантів, скільки потрібно; зайвий можна видалити кнопкою «×».\n• Як користуватись: у розкладі відкрийте меню слота й додайте потрібну надбавку до запису.\n• Клієнт одразу бачить підсумкову ціну вже з надбавкою."}
           />}
-          <div style={{fontSize:12,color:FAINT,marginBottom:12}}>
+          <Hint style={{marginBottom:12}}>
             Суми відображаються в меню слота при виборі надбавки.
-          </div>
+          </Hint>
           {(settings.surcharges || []).map((amt, i) => (
             <div key={i} style={{
               display:"flex",alignItems:"center",gap:10,marginBottom:5,
@@ -1304,9 +1304,9 @@ select{color-scheme:${isKava?"light":"dark"}}
         const lbl = { fontSize:11, letterSpacing:0.6, color:DIM, textTransform:"uppercase", marginBottom:3, minHeight:"2.6em", display:"flex", alignItems:"flex-end", lineHeight:1.25 };
         return (
           <div>
-            <div style={{fontSize:12,color:FAINT,marginBottom:12,lineHeight:1.5}}>
+            <Hint style={{marginBottom:12}}>
               Заготовки пакетів (абонементів): скільки записів, на скільки днів і на які послуги. Додати пакет клієнту можна в його картці («Клієнти»). Записи за пакетом списуються автоматично, а при скасуванні повертаються.
-            </div>
+            </Hint>
             {pkgs.map((pk, i) => (
               <div key={pk.id || i} style={{marginBottom:8,padding:"10px 12px",borderRadius:12,background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,boxShadow:SO}}>
                 <div style={{display:"flex",alignItems:"center",gap:6}}>
@@ -1495,7 +1495,7 @@ select{color-scheme:${isKava?"light":"dark"}}
           <div style={{height:10}}/>
           <div data-notrans="1" style={{marginBottom:14,padding:"12px 12px 10px",borderRadius:14,background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,boxShadow:SO}}>
             <div style={{fontSize:12,fontWeight:800,letterSpacing:1,color:`color-mix(in srgb,${TEAL} 60%,#fff)`,textTransform:"uppercase",marginBottom:4}}>🧭 Напрямок послуг</div>
-            <div style={{fontSize:11.5,color:DIM,marginBottom:10,lineHeight:1.45}}>Змінює слова в усьому застосунку (і в клієнта): майстер, клієнт, запис. Сторінка перезавантажиться.</div>
+            <Hint style={{marginBottom:10}}>Змінює слова в усьому застосунку (і в клієнта): майстер, клієнт, запис. Сторінка перезавантажиться.</Hint>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
               {DIRECTION_IDS.map(id => {
                 const dir = DIRECTIONS[id]; const on = normDirection(settings.direction) === id;
@@ -1569,7 +1569,7 @@ select{color-scheme:${isKava?"light":"dark"}}
                   background:`linear-gradient(145deg,${ACC_HI},${ACCENT})`,color:BTN_TX||"#fff",boxShadow:SO,opacity:photoUploading?0.6:1,
                 }}>{photoUploading?"Завантаження…":"Завантажити фото"}</button>
                 <input ref={photoInputRef} type="file" accept="image/*" onChange={handlePhotoChange} style={{display:"none"}}/>
-                <div style={{fontSize:11,color:DIM,marginTop:6}}>JPG/PNG, до 5 МБ — покажеться клієнтам на сторінці запису</div>
+                <Hint style={{marginTop:6}}>JPG/PNG, до 5 МБ — покажеться клієнтам на сторінці запису</Hint>
                 {photoError && <div style={{fontSize:11,color:RED,marginTop:4}}>{photoError}</div>}
               </div>
             </div>
@@ -1597,7 +1597,7 @@ select{color-scheme:${isKava?"light":"dark"}}
               )}
               <input ref={galleryInputRef} type="file" accept="image/*" onChange={handleGalleryAdd} style={{display:"none"}}/>
             </div>
-            <div style={{fontSize:11,color:DIM}}>Фото ваших робіт і робочого місця — на сторінці запису вони показуються анімованим колажем.</div>
+            <Hint>Фото ваших робіт і робочого місця — на сторінці запису вони показуються анімованим колажем.</Hint>
             {galleryError && <div style={{fontSize:11,color:RED,marginTop:6}}>{galleryError}</div>}
           </ProfileCard>
 
@@ -1623,7 +1623,7 @@ select{color-scheme:${isKava?"light":"dark"}}
             <PhoneField value={profile?.phone ?? ""} onChange={v=>updProfile("phone", v)}
               inputStyle={{width:"100%",boxSizing:"border-box",background:BG_DEEP,border:"none",outline:"none",color:TEXT,fontSize:13,padding:"10px 12px",borderRadius:10,boxShadow:SI,fontFamily:"inherit",marginBottom:0}} style={{marginBottom:6}}
             />
-            <div style={{fontSize:11,color:DIM}}>Дзвінок, Viber, WhatsApp і Telegram на сторінці запису працюють через цей номер.</div>
+            <Hint>Дзвінок, Viber, WhatsApp і Telegram на сторінці запису працюють через цей номер.</Hint>
           </ProfileCard>
 
           {/* УМОВИ */}
@@ -1635,7 +1635,7 @@ select{color-scheme:${isKava?"light":"dark"}}
               placeholder="Наприклад: скасування пізніше ніж за 24 год оплачується повністю; запізнення не продовжує запис; при собі мати документ, що посвідчує особу…"
               style={{width:"100%",boxSizing:"border-box",background:BG_DEEP,border:"none",outline:"none",color:TEXT,fontSize:12,padding:"10px 12px",borderRadius:10,boxShadow:SI,resize:"vertical",fontFamily:"inherit",lineHeight:1.5,marginBottom:6}}
             />
-            <div style={{fontSize:11,color:DIM}}>Порожнє поле — блок «Умови відвідування» просто не покажеться на сайті.</div>
+            <Hint>Порожнє поле — блок «Умови відвідування» просто не покажеться на сайті.</Hint>
           </ProfileCard>
 
           {/* ЛОКАЦІЯ */}
@@ -1690,7 +1690,7 @@ select{color-scheme:${isKava?"light":"dark"}}
               )}
             </div>
             {addressError && <div style={{fontSize:11,color:RED,marginTop:8}}>{addressError}</div>}
-            <div style={{fontSize:11,color:DIM,marginTop:8}}>Знайдіть адресу нижче, клікніть на карту або перетягніть мітку — клієнти побачать саме цю точку і адресу на сторінці запису.</div>
+            <Hint style={{marginTop:8}}>Знайдіть адресу нижче, клікніть на карту або перетягніть мітку — клієнти побачать саме цю точку і адресу на сторінці запису.</Hint>
           </ProfileCard>
 
           <button onClick={saveProfile} disabled={profileSaving} style={{
@@ -1863,7 +1863,7 @@ select{color-scheme:${isKava?"light":"dark"}}
             </div>
             <div style={{fontSize:14, fontWeight:700, color:statusColor}}>{statusLabel}</div>
             {blocked && (
-              <div style={{fontSize:12, color:DIM, marginTop:2}}>Акаунт у режимі читання. Оплатіть підписку нижче, щоб відновити роботу.</div>
+              <Hint tone="warn" style={{marginTop:2}}>Акаунт у режимі читання. Оплатіть підписку нижче, щоб відновити роботу.</Hint>
             )}
             <div style={{marginTop:10, paddingTop:10, borderTop:"1px solid rgba(255,255,255,0.1)", display:"flex", flexDirection:"column", gap:5}}>
               {rows.map(([label, value]) => (

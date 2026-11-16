@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Hint } from "./ui";
 import PhoneField from "./PhoneField.jsx";
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider, onAuthStateChanged, signOut } from "firebase/auth";
 import { ref, get, onValue, update, set, remove } from "firebase/database";
@@ -346,7 +347,7 @@ export function InstructorSetupScreen({ onDone }) {
         <div style={{ textAlign:"center", marginBottom:28 }}>
           <img src={import.meta.env.BASE_URL + "icon-192.png"} alt="Juno" style={{width:64,height:64,borderRadius:"50%",marginBottom:10,boxShadow:"-3px 5px 14px rgba(0,0,0,0.45)"}}/>
           <div style={{ fontSize:20, fontWeight:800, color:TEXT }}>Налаштування профілю</div>
-          <div style={{ fontSize:13, color:DIM, marginTop:6 }}>Заповніть інформацію про себе — клієнти побачать її при записі</div>
+          <Hint style={{marginTop:6}}>Заповніть інформацію про себе — клієнти побачать її при записі</Hint>
         </div>
 
         <div style={{ marginBottom:14 }}>
@@ -612,7 +613,7 @@ function InstructorDetail({ loading, data, iid, onStudentDeleted }) {
           <div onClick={e => e.stopPropagation()} style={{ width:"100%", maxWidth:360, padding:18, borderRadius:16, background:SURFACE, border:"1px solid rgba(239,68,68,0.4)" }}>
             <div style={{ fontSize:15, fontWeight:800, color:"#f87171", marginBottom:8 }}>Видалити клієнта?</div>
             <div style={{ fontSize:13, color:TEXT, marginBottom:6 }}>{delStudent.name}</div>
-            <div style={{ fontSize:12, color:DIM, lineHeight:1.5, marginBottom:14 }}>Будуть видалені профіль, записи, чат і сповіщення клієнта в цього майстра; майбутні записи скасовуються, слоти звільняються. Неможливо скасувати.</div>
+            <Hint tone="warn" style={{marginBottom:14}}>Будуть видалені профіль, записи, чат і сповіщення клієнта в цього майстра; майбутні записи скасовуються, слоти звільняються. Неможливо скасувати.</Hint>
             <div style={{ display:"flex", gap:8 }}>
               <button disabled={delBusy} onClick={async () => {
                 setDelBusy(true);
@@ -908,7 +909,7 @@ export function SuperAdminScreen() {
                   <div style={{ fontSize:11, color:"rgba(255,255,255,0.6)", marginBottom:6 }}>Усього нових записів: <b style={{ color:TEXT }}>{total30}</b></div>
                   <BarChart data={data} height={70} />
                 </>);
-              })() : <div style={{ fontSize:11, color:"rgba(255,255,255,0.55)", marginTop:6 }}>Завантажує записи всіх майстрів один раз — потрібно для графіка та «Неактивні».</div>}
+              })() : <Hint style={{marginTop:6}}>Завантажує записи всіх майстрів один раз — потрібно для графіка та «Неактивні».</Hint>}
             </>)}
 
             {panel(attentionRows.length ? "#ff5a3c" : "#4caf6b", <>
@@ -1021,7 +1022,7 @@ export function SuperAdminScreen() {
                   </div>
                 </div>
               ))}
-              <div style={{ fontSize:10, color:DIM, marginTop:8 }}>Сума в журналі — тарифна; тестові платежі по 1₴ показані за тарифом.</div>
+              <Hint style={{marginTop:8}}>Сума в журналі — тарифна; тестові платежі по 1₴ показані за тарифом.</Hint>
             </>)}
           </>
         )}
@@ -1087,9 +1088,9 @@ export function SuperAdminScreen() {
               <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12 }}>
                 <div style={{ minWidth:0 }}>
                   <div style={{ fontSize:14, fontWeight:800, color:TEXT }}>💾 Нічна резервна копія</div>
-                  <div style={{ fontSize:11, color:"rgba(255,255,255,0.6)", marginTop:2 }}>
+                  <Hint style={{marginTop:2}}>
                     Щодня о 03:00 — записи, клієнти, налаштування в Cloud Storage, зберігається 30 днів
-                  </div>
+                  </Hint>
                 </div>
                 <button aria-label="Нічна резервна копія" onClick={toggleBackup} disabled={backupOn === null} aria-pressed={!!backupOn}
                   style={{ flexShrink:0, width:46, height:26, borderRadius:13, border:"none", cursor:"pointer", position:"relative",
@@ -1109,7 +1110,7 @@ export function SuperAdminScreen() {
                   background: backupPending ? "rgba(255,255,255,0.08)" : "rgba(192,132,252,0.18)", border:"1px solid rgba(192,132,252,0.5)", color:"#c084fc" }}>
                 {backupPending ? "⏳ Копія створюється…" : "💾 Зробити копію зараз"}
               </button>
-              <div style={{ fontSize:10, color:"rgba(255,255,255,0.45)", marginTop:6 }}>Працює незалежно від тумблера. Файли: Storage → backups/дата/</div>
+              <Hint style={{marginTop:6}}>Працює незалежно від тумблера. Файли: Storage → backups/дата/</Hint>
             </>)}
             {panel("#5b9bff", <>
               <div style={{ fontSize:14, fontWeight:800, color:TEXT, marginBottom:6 }}>ℹ️ Акаунт</div>

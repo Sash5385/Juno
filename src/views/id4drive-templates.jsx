@@ -6,7 +6,7 @@ import { createT } from "../lang";
 import { tr } from "../i18n";
 
 import { ThemeContext, GOLD, GREEN, RED, TEAL, BLUE, PURPLE } from "../theme.js";
-import { UICss, Modal, Chip, Btn, Toggle, Pill, useFX } from "../ui";
+import { UICss, Modal, Chip, Btn, Toggle, Pill, useFX, Hint } from "../ui";
 import { money } from "../currency";
 
 // ─── CSS (template-specific only; base lives in UICss) ───────────
@@ -417,7 +417,7 @@ function EditModal({ tpl, onSave, onClose }) {
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:0,padding:"12px 14px",background:`linear-gradient(155deg,${SURF_HI},${SURFACE})`,borderRadius:12,boxShadow:SI}}>
         <div>
           <div style={{fontSize:13,fontWeight:700,color:TEXT}}>Активний шаблон</div>
-          <div style={{fontSize:11,color:DIM,marginTop:2}}>Вимкнений шаблон не відправляється автоматично</div>
+          <Hint style={{marginTop:2}}>Вимкнений шаблон не відправляється автоматично</Hint>
         </div>
         <Toggle on={form.active} onChange={v=>upd("active",v)}/>
       </div>
@@ -536,7 +536,7 @@ function SimpleEditModal({ tpl, onSave, onClose }) {
             style={{width:"100%",background:"transparent",border:"none",outline:"none",color:TEXT,fontSize:13,resize:"none",fontFamily:"inherit",lineHeight:1.5}}/>
         </Inset>
 
-        <div style={{fontSize:11,color:"rgba(255,255,255,0.74)",marginBottom:6}}>Натисніть, щоб вставити в текст — підставиться автоматично:</div>
+        <Hint style={{marginBottom:6}}>Натисніть, щоб вставити в текст — підставиться автоматично:</Hint>
         <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:16}}>
           {VAR_LABELS.map(x=>(
             <span key={x.v} className="var-chip" onClick={()=>insertVar(x.v)}>{x.label}</span>
@@ -661,9 +661,9 @@ export default function TemplatesView() {
       <div style={{display:"flex",flexDirection:"column",gap:8,fontFamily:"ui-sans-serif,-apple-system,system-ui,sans-serif",color:TEXT}}>
 
         {/* ── ПРОСТИЙ РЕЖИМ: що і коли надсилається ── */}
-        <div style={{fontSize:13,color:FAINT,padding:"0 2px 4px",lineHeight:1.45}}>
+        <Hint>
           Що і коли надсилається клієнтам. Вимкніть непотрібне або натисніть, щоб змінити текст.
-        </div>
+        </Hint>
         <div style={{display:"flex",flexDirection:"column",gap:8}}>
           {reminders.length > 0 && (
             <SimpleRow emoji="🔔" title="Нагадування перед записом" color={GOLD}
@@ -712,7 +712,7 @@ export default function TemplatesView() {
             <span style={{fontSize:18}}>⚙️</span>
             <div style={{flex:1,minWidth:0}}>
               <div style={{fontSize:15,fontWeight:700,color:TEXT}}>Додатково</div>
-              <div style={{fontSize:12,color:FAINT,marginTop:2}}>Свої шаблони, канали, умови відправки</div>
+              <Hint style={{marginTop:2}}>Свої шаблони, канали, умови відправки</Hint>
             </div>
             <span style={{color:FAINT,fontSize:12}}>{advOpen?"▲":"▼"}</span>
           </div>

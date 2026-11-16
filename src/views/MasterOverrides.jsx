@@ -1,4 +1,5 @@
 import { useState, useEffect, useContext } from "react";
+import { Hint } from "../ui";
 import { onValue, update, get } from "firebase/database";
 import { iRef } from "../firebase";
 import { ThemeContext } from "../theme.js";
@@ -58,7 +59,7 @@ export default function MasterOverrides({ mid }) {
       {own && <WeekScheduleEditor weekSchedule={week} updDay={(i, p) => saveWeek(week.map((d, k) => (k === i ? { ...d, ...p } : d)))} setWeek={saveWeek} />}
 
       <div style={{ ...head, marginTop: 12 }}>Послуги та ціни</div>
-      <div style={{ fontSize: 12, color: FAINT, marginTop: -4 }}>Залиште порожнім — діє ціна салону. Змініть число, щоб призначити свою.</div>
+      <Hint style={{marginTop: -4}}>Залиште порожнім — діє ціна салону. Змініть число, щоб призначити свою.</Hint>
       {services.length === 0 && <div style={{ color: DIM, fontSize: 13 }}>Послуг ще немає.</div>}
       {services.map((s) => {
         const o = ms.svc?.[s.id];

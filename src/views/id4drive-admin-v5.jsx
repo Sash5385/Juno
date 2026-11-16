@@ -32,7 +32,7 @@ const resyncDurSlots = async (dateStr, startMin, oldDur, newDur, keepRanges = []
 };
 
 import { ThemeContext, GREEN, BLUE, PURPLE, GOLD, RED, ACCENT, ACC_HI, SURFACE, SURF_HI, TEXT } from "../theme.js";
-import { useFX, useBackClose } from "../ui";
+import { useFX, useBackClose, Hint } from "../ui";
 import FogScope from "../FogScope";
 import { useConfirm } from "../ConfirmModal";
 import { isSalon } from "../workspace.js";
@@ -1044,9 +1044,9 @@ function DayNotesModalBase({ dateStr, dayLabel, dayNum, dayMonth, note, settings
           <div style={{textAlign:"center",padding:"0 36px",marginBottom:6}}>
             <div style={{fontSize:16,fontWeight:800,color:TEXT}}>📝 Нотатки — {dayLabel}, {dayNum} {dayMonth}</div>
           </div>
-          <div style={{fontSize:12.5,color:DIM,marginBottom:14,lineHeight:1.45,textAlign:"center"}}>
+          <Hint style={{marginBottom:14}}>
             Натисніть на час, щоб уточнити його. Дзвіночок вмикає нагадування.
-          </div>
+          </Hint>
 
           <div className="win-cols win-gap" style={{marginBottom:18}}>
             {hours.map(h=>{
@@ -7647,9 +7647,9 @@ function SettingsView({ settings, setSettings }) {
       {/* ── STICKY TIME ── */}
       <Card style={{padding:"20px"}}>
         <SectionTitle>Прилипання вільних слотів</SectionTitle>
-        <div style={{fontSize:12,color:TEXT_DIM,marginBottom:14}}>
+        <Hint style={{marginBottom:14}}>
           Якщо є запис на 12:00–14:00, які слоти показувати клієнтові для 1-годинного запису?
-        </div>
+        </Hint>
         {[
           {k:"before",l:"Тільки попередні (11:00)"},
           {k:"after", l:"Тільки наступні (14:00)"},
@@ -7742,9 +7742,9 @@ function SettingsView({ settings, setSettings }) {
       {/* ── CATEGORIES ── */}
       <Card style={{padding:"20px"}}>
         <SectionTitle>Категорії клієнтів</SectionTitle>
-        <div style={{fontSize:12,color:TEXT_DIM,marginBottom:12}}>
+        <Hint style={{marginBottom:12}}>
           Категорії для індивідуальних клієнтів. Допомагає відкривати спецслоти для VIP, давати знижки тощо.
-        </div>
+        </Hint>
         {settings.categories.map(c=>(
           <div key={c.id} style={{
             display:"flex",alignItems:"center",gap:10,padding:"12px",marginBottom:8,borderRadius:12,
@@ -7783,9 +7783,9 @@ function SettingsView({ settings, setSettings }) {
       {/* ── NAVIGATION ── */}
       <Card style={{padding:"20px"}}>
         <SectionTitle>Нижня навігація</SectionTitle>
-        <div style={{fontSize:12,color:TEXT_DIM,marginBottom:12}}>
+        <Hint style={{marginBottom:12}}>
           Оберіть вкладки, які відображаються в нижньому меню. «Налашт.» завжди активні.
-        </div>
+        </Hint>
         {TABS.map(t=>(
           <Row key={t.id} label={t.label}>
             <Toggle
@@ -7830,9 +7830,9 @@ function SettingsView({ settings, setSettings }) {
       {/* ── QUEUE ── */}
       <Card style={{padding:"20px"}}>
         <SectionTitle>Черга очікування — режим роботи</SectionTitle>
-        <div style={{fontSize:12,color:TEXT_DIM,marginBottom:14}}>
+        <Hint style={{marginBottom:14}}>
           Коли клієнт скасовує запис, як пропонувати слот тим, хто в черзі?
-        </div>
+        </Hint>
         <Row label="FIFO" hint="Автоматично записати першого в черзі (без підтвердження)">
           <Toggle on={settings.queueAutoFifo} onChange={v=>upd("queueAutoFifo",v)}/>
         </Row>
@@ -7876,7 +7876,7 @@ function SettingsView({ settings, setSettings }) {
       {/* ── NOTIFICATIONS ── */}
       <Card style={{padding:"20px"}}>
         <SectionTitle>Нотифікації</SectionTitle>
-        <div style={{fontSize:12,color:TEXT_DIM,marginBottom:14}}>Де показувати нові записи та повідомлення:</div>
+        <Hint style={{marginBottom:14}}>Де показувати нові записи та повідомлення:</Hint>
         {[
           {k:"topbar",l:"У верхньому барі (іконка дзвіночка)"},
           {k:"tab",l:"Окрема вкладка в меню"},
@@ -7896,7 +7896,7 @@ function SettingsView({ settings, setSettings }) {
       {/* ── BROADCAST PUSH ── */}
       <Card style={{padding:"20px"}}>
         <SectionTitle>Сповіщення клієнтам</SectionTitle>
-        <div style={{fontSize:12,color:DIM,marginBottom:14}}>Ручна розсилка повідомлень активним клієнтам про вільний слот</div>
+        <Hint style={{marginBottom:14}}>Ручна розсилка повідомлень активним клієнтам про вільний слот</Hint>
         <button onClick={()=>setBroadcastOpen(true)} style={{width:"100%",background:`linear-gradient(135deg,${ACCENT},${ACC_HI})`,color:"#fff",border:"none",borderRadius:14,padding:"13px 0",fontSize:14,fontWeight:800,cursor:"pointer"}}>
           📣 Надіслати сповіщення клієнтам
         </button>
@@ -8266,7 +8266,6 @@ function StubView({ title }) {
   return (
     <Card style={{padding:30,textAlign:"center"}}>
       <div style={{fontSize:14,color:TEXT_DIM,marginBottom:10}}>{title}</div>
-      <div style={{fontSize:12,color:TEXT_FAINT}}>Допишемо після твого фідбеку на Розклад + Налаштування</div>
     </Card>
   );
 }
