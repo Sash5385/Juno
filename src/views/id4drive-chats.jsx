@@ -16,14 +16,16 @@ const chatPath = (uid, tk) => tk ? `chats_m/${tk}/${uid}` : `chats/${uid}`;
 const metaPath = (uid, tk) => tk ? `chatMeta_m/${tk}/${uid}` : `chatMeta/${uid}`;
 const nowTime = () => new Date().toLocaleTimeString("uk", {hour:"2-digit", minute:"2-digit"});
 
+// Мегафон — гліф для іконок розсилки «метал + глянець»
+const MEGA = <><path d="M3 11v2a1 1 0 0 0 1 1h3l6 4V6L7 10H4a1 1 0 0 0-1 1z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/><path d="M19 6a8.5 8.5 0 0 1 0 12"/></>;
+
 // ─── AVATAR ──────────────────────────────────────────────────────
 const Ava = ({ name, hue, size=36, online, isBroadcast }) => {
   const { GREEN, BG } = useContext(ThemeContext);
   if (isBroadcast) return (
-    <div style={{width:size,height:size,borderRadius:size/2,
-      background:"linear-gradient(145deg,rgba(168,85,247,0.8),rgba(109,40,217,0.9))",
-      display:"flex",alignItems:"center",justifyContent:"center",fontSize:size*.45,flexShrink:0,
-      boxShadow:"0 2px 10px rgba(168,85,247,0.5)"}}>📢</div>
+    <div className="metal3d" style={{width:size,height:size,borderRadius:Math.round(size*0.3),"--ic":"#6d28d9"}}>
+      <svg width={size*0.58} height={size*0.58} viewBox="0 0 24 24" fill="none" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">{MEGA}</svg>
+    </div>
   );
   const ini = (name || "?").split(" ").map(w=>w[0]).slice(0,2).join("");
   return (
@@ -74,7 +76,12 @@ function Conversation({ contact, messages, onSend, isBroadcast }) {
       {isBroadcast && (
         <div style={{padding:"8px 12px",background:"rgba(168,85,247,0.06)",borderBottom:`1px solid ${borderCol}`}}>
           <div style={{fontSize:11,color:"rgba(168,85,247,0.9)",fontWeight:700,letterSpacing:0.3}}>
-            📢 Повідомлення отримають усі клієнти
+            <span style={{display:"inline-flex",alignItems:"center",gap:6}}>
+              <span className="metal3d" style={{width:18,height:18,borderRadius:5,"--ic":"#6d28d9"}}>
+                <svg width={12} height={12} viewBox="0 0 24 24" fill="none" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">{MEGA}</svg>
+              </span>
+              Повідомлення отримають усі клієнти
+            </span>
           </div>
         </div>
       )}
@@ -470,8 +477,7 @@ export default function ChatsView() {
               <Ava name="Розсилка" hue={270} size={36} isBroadcast/>
               <div style={{flex:1,minWidth:0}}>
                 <div style={{display:"flex",alignItems:"center",gap:"2px 6px",flexWrap:"wrap",marginBottom:2}}>
-                  <span style={{fontSize:13,fontWeight:800,color:"#fff",whiteSpace:"nowrap"}}>📢 Розсилка</span>
-                  <span style={{fontSize:11,color:"rgba(255,255,255,0.75)",fontWeight:700,letterSpacing:0.3}}>BROADCAST</span>
+                  <span style={{fontSize:13,fontWeight:800,color:"#fff",whiteSpace:"nowrap"}}>Розсилка</span>
                 </div>
                 <div style={{fontSize:11,color:"rgba(255,255,255,0.8)"}}>Надіслати повідомлення всім клієнтам</div>
               </div>
