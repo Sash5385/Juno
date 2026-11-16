@@ -70,9 +70,9 @@ export function UICss() {
 .metal3d::before{content:'';position:absolute;left:6%;right:6%;top:4%;height:46%;border-radius:40% 40% 60% 60%/60% 60% 40% 40%;background:linear-gradient(180deg,rgba(255,255,255,0.85),rgba(255,255,255,0.05));pointer-events:none}
 .metal3d svg{position:relative;z-index:1;stroke:currentColor;filter:drop-shadow(0 1px 0 rgba(255,255,255,0.9)) drop-shadow(0 2px 2px rgba(0,0,0,0.25))}
 .metal3d svg [fill="white"],.metal3d svg [fill="#fff"]{fill:currentColor}
-.metal3d.dim{color:color-mix(in srgb,var(--ic,#3b73d9) 45%,#6b7280);box-shadow:0 2px 4px rgba(${SHADE},0.3),inset 0 1px 0 #fff,inset 0 -2px 4px rgba(0,0,0,0.15);filter:saturate(.6) brightness(.92)}
+.metal3d.dim{color:color-mix(in srgb,var(--ic,#3b73d9) 30%,#8a8f99);opacity:.8;box-shadow:0 2px 4px rgba(${SHADE},0.3),inset 0 1px 0 #fff,inset 0 -2px 4px rgba(0,0,0,0.15);filter:saturate(.4) brightness(.85)}
 .metal3d.dim svg{filter:none}
-.metal3d.on{box-shadow:0 6px 14px rgba(${SHADE},0.55),0 0 0 2px color-mix(in srgb,var(--ic,#3b73d9) 55%,transparent),inset 0 1px 0 #fff,inset 0 -2px 4px rgba(0,0,0,0.2)}
+.metal3d.on{box-shadow:0 6px 14px rgba(${SHADE},0.55),0 0 0 2px color-mix(in srgb,var(--ic,#3b73d9) 85%,transparent),0 0 12px color-mix(in srgb,var(--ic,#3b73d9) 60%,transparent),inset 0 1px 0 #fff,inset 0 -2px 4px rgba(0,0,0,0.2)}
 .ui-toggle{width:46px;height:26px;border-radius:13px;cursor:pointer;position:relative;transition:background .2s;background:${SURF_LO};box-shadow:inset 2px 2px 5px rgba(${SHADE},0.4);flex-shrink:0}
 .ui-toggle.on{background:linear-gradient(165deg,${GREEN},color-mix(in srgb,${GREEN} 70%,#000))}
 .ui-toggle-thumb{position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:10px;background:linear-gradient(135deg,#fff,#ccc);transition:left .2s;box-shadow:-1px 2px 4px rgba(${SHADE},0.3)}
