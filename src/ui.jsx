@@ -74,6 +74,13 @@ export function useFX() {
 export const panel = (SURF_HI, SURFACE) => `linear-gradient(155deg,${SURF_HI},${SURFACE})`;
 export const softA = (c, a) => `color-mix(in srgb, ${c} ${Math.round(a*100)}%, transparent)`;
 
+// ── «Метал + глянець» іконки: колір гліфа = останній hex/rgb із градієнта ──
+// Використання: <div className="metal3d" style={{"--ic": metalColor(gr), width, height}}>…svg…</div>
+export const metalColor = (gr) => {
+  const m = String(gr || "").match(/#[0-9a-fA-F]{3,8}|rgba?\([^)]*\)/g);
+  return m ? m[m.length - 1] : "#3b73d9";
+};
+
 // ── shared global CSS (icon3d, animations, scrollbar) ──────────
 export function UICss() {
   const { GLOW, SHADE, BORDER, SURF_LO, GREEN, BTN_GRAD } = useContext(ThemeContext);
@@ -85,6 +92,13 @@ export function UICss() {
 .icon3d{display:inline-flex;align-items:center;justify-content:center;border-radius:${RADIUS.avatar}px;position:relative;overflow:hidden;flex-shrink:0;box-shadow:-2px 4px 10px rgba(${SHADE},0.5),inset 1px 1px 0 rgba(${GLOW},0.25),inset -1px -1px 0 rgba(${SHADE},0.3)}
 .icon3d::before{content:'';position:absolute;top:0;right:0;width:60%;height:50%;background:radial-gradient(ellipse at top right,rgba(${GLOW},0.4) 0%,transparent 70%);pointer-events:none}
 .icon3d>svg{position:relative;z-index:1;filter:drop-shadow(0 1px 2px rgba(${SHADE},0.4))}
+.metal3d{display:inline-flex;align-items:center;justify-content:center;position:relative;overflow:hidden;flex-shrink:0;border-radius:${RADIUS.avatar}px;color:var(--ic,#3b73d9);background:linear-gradient(145deg,#fbfcfe,#a3abba 45%,#eef1f6 55%,#7a8394);box-shadow:0 4px 9px rgba(${SHADE},0.45),inset 0 1px 0 #fff,inset 0 -2px 4px rgba(0,0,0,0.2)}
+.metal3d::before{content:'';position:absolute;left:6%;right:6%;top:4%;height:46%;border-radius:40% 40% 60% 60%/60% 60% 40% 40%;background:linear-gradient(180deg,rgba(255,255,255,0.85),rgba(255,255,255,0.05));pointer-events:none}
+.metal3d svg{position:relative;z-index:1;stroke:currentColor;filter:drop-shadow(0 1px 0 rgba(255,255,255,0.9)) drop-shadow(0 2px 2px rgba(0,0,0,0.25))}
+.metal3d svg [fill="white"],.metal3d svg [fill="#fff"]{fill:currentColor}
+.metal3d.dim{color:color-mix(in srgb,var(--ic,#3b73d9) 30%,#8a8f99);opacity:.8;box-shadow:0 2px 4px rgba(${SHADE},0.3),inset 0 1px 0 #fff,inset 0 -2px 4px rgba(0,0,0,0.15);filter:saturate(.4) brightness(.85)}
+.metal3d.dim svg{filter:none}
+.metal3d.on{box-shadow:0 6px 14px rgba(${SHADE},0.55),0 0 0 2px color-mix(in srgb,var(--ic,#3b73d9) 85%,transparent),0 0 12px color-mix(in srgb,var(--ic,#3b73d9) 60%,transparent),inset 0 1px 0 #fff,inset 0 -2px 4px rgba(0,0,0,0.2)}
 .ui-toggle{width:46px;height:26px;border-radius:13px;cursor:pointer;position:relative;transition:background .2s;background:${SURF_LO};box-shadow:inset 2px 2px 5px rgba(${SHADE},0.4);flex-shrink:0}
 .ui-toggle.on{background:${BTN_GRAD || `linear-gradient(165deg,${GREEN},color-mix(in srgb,${GREEN} 70%,#000))`}}
 .ui-toggle-thumb{position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:10px;background:linear-gradient(135deg,#fff,#ccc);transition:left .2s;box-shadow:-1px 2px 4px rgba(${SHADE},0.3)}
