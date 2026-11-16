@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo, useContext } from "react";
 import { onValue, update, push, remove } from "firebase/database";
 import { iRef } from "../firebase";
 import { ThemeContext } from "../theme.js";
-import { UICss, Modal, Field, Chip, Btn, Section, useFX, metalColor } from "../ui";
+import { UICss, Modal, Field, Chip, Btn, Section, useFX } from "../ui";
 
 const SERVICES = {
   sv1:{ name:"Автошкола 1г", color:"#7ed957"  },
@@ -158,7 +158,7 @@ function QueueRow({ item, pos, onInvite, onBooked, onArchive, onDelete, dragHand
         <div style={{display:"grid",gridTemplateColumns:`repeat(${item.status==="waiting"?4:item.status==="offered"?3:2},1fr)`,borderTop:`1px solid ${BORDER}`}}>
           {item.status === "waiting" && (
             <button onClick={onInvite} style={{padding:"8px 0",border:"none",borderRight:`1px solid ${BORDER}`,cursor:"pointer",background:"transparent",color:PURPLE,fontSize:11,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",gap:5}}>
-              <div className="metal3d" style={{width:22,height:22,"--ic":metalColor("linear-gradient(165deg,#c084fc,#7c3aed)"),borderRadius:7}}>
+              <div className="icon3d" style={{width:22,height:22,background:"linear-gradient(165deg,#c084fc,#7c3aed)",borderRadius:7}}>
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" style={{position:"relative",zIndex:1}}><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
               </div>
               Запросити
@@ -166,20 +166,20 @@ function QueueRow({ item, pos, onInvite, onBooked, onArchive, onDelete, dragHand
           )}
           {(item.status === "waiting" || item.status === "offered") && (
             <button onClick={onBooked} style={{padding:"8px 0",border:"none",borderRight:`1px solid ${BORDER}`,cursor:"pointer",background:"transparent",color:GREEN,fontSize:11,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",gap:5}}>
-              <div className="metal3d" style={{width:22,height:22,"--ic":metalColor("linear-gradient(165deg,#9ee07a,#5fb83d)"),borderRadius:7}}>
+              <div className="icon3d" style={{width:22,height:22,background:"linear-gradient(165deg,#9ee07a,#5fb83d)",borderRadius:7}}>
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" style={{position:"relative",zIndex:1}}><polyline points="5 12 10 17 19 8"/></svg>
               </div>
               Записаний
             </button>
           )}
           <button onClick={onArchive} style={{padding:"8px 0",border:"none",borderRight:`1px solid ${BORDER}`,cursor:"pointer",background:"transparent",color:FAINT,fontSize:11,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",gap:5}}>
-            <div className="metal3d" style={{width:22,height:22,"--ic":metalColor(`linear-gradient(165deg,#5a5e66,#3a3e44)`),borderRadius:7}}>
+            <div className="icon3d" style={{width:22,height:22,background:`linear-gradient(165deg,#5a5e66,#3a3e44)`,borderRadius:7}}>
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" style={{position:"relative",zIndex:1}}><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
             </div>
             Архів
           </button>
           <button onClick={onDelete} style={{padding:"8px 0",border:"none",cursor:"pointer",background:"transparent",color:`${RED}cc`,fontSize:11,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center",gap:5}}>
-            <div className="metal3d" style={{width:22,height:22,"--ic":metalColor(`linear-gradient(165deg,#f87171,#dc2626)`),borderRadius:7}}>
+            <div className="icon3d" style={{width:22,height:22,background:`linear-gradient(165deg,#f87171,#dc2626)`,borderRadius:7}}>
               <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" style={{position:"relative",zIndex:1}}><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
             </div>
             Відмінити

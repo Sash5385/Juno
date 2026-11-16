@@ -19,7 +19,7 @@ const blockSlotRange = async (dateStr, startMin, durMin, opts) => {
 };
 
 import { ThemeContext, GREEN, BLUE, PURPLE, GOLD, RED, TEAL, ACCENT, ACC_HI, SURFACE, SURF_HI, TEXT } from "../theme.js";
-import { useFX, metalColor } from "../ui";
+import { useFX } from "../ui";
 import { MANUAL_DEFAULT_COLOR } from "../studentColors";
 // module-level aliases for vars used in ICONS (arrow fns, cannot use hooks)
 const ACCENT_HI  = ACC_HI;
@@ -178,13 +178,6 @@ body, html, #root { margin:0; padding:0; }
   pointer-events: none;
 }
 .icon3d > svg { position: relative; z-index: 1; filter: drop-shadow(0 1px 2px rgba(${SHADE},0.4)); }
-.metal3d{display:inline-flex;align-items:center;justify-content:center;position:relative;overflow:hidden;flex-shrink:0;border-radius:14px;color:var(--ic,#3b73d9);background:linear-gradient(145deg,#fbfcfe,#a3abba 45%,#eef1f6 55%,#7a8394);box-shadow:0 4px 9px rgba(${SHADE},0.45),inset 0 1px 0 #fff,inset 0 -2px 4px rgba(0,0,0,0.2)}
-.metal3d::before{content:'';position:absolute;left:6%;right:6%;top:4%;height:46%;border-radius:40% 40% 60% 60%/60% 60% 40% 40%;background:linear-gradient(180deg,rgba(255,255,255,0.85),rgba(255,255,255,0.05));pointer-events:none}
-.metal3d svg{position:relative;z-index:1;stroke:currentColor;filter:drop-shadow(0 1px 0 rgba(255,255,255,0.9)) drop-shadow(0 2px 2px rgba(0,0,0,0.25))}
-.metal3d svg [fill="white"],.metal3d svg [fill="#fff"]{fill:currentColor}
-.metal3d.dim{color:color-mix(in srgb,var(--ic,#3b73d9) 30%,#8a8f99);opacity:.8;box-shadow:0 2px 4px rgba(${SHADE},0.3),inset 0 1px 0 #fff,inset 0 -2px 4px rgba(0,0,0,0.15);filter:saturate(.4) brightness(.85)}
-.metal3d.dim svg{filter:none}
-.metal3d.on{box-shadow:0 6px 14px rgba(${SHADE},0.55),0 0 0 2px color-mix(in srgb,var(--ic,#3b73d9) 85%,transparent),0 0 12px color-mix(in srgb,var(--ic,#3b73d9) 60%,transparent),inset 0 1px 0 #fff,inset 0 -2px 4px rgba(0,0,0,0.2)}
 
 /* Toggle switch */
 .toggle {
@@ -220,9 +213,9 @@ input[type="range"] { accent-color: ${ACCENT}; }
 // ═══════════════════════════════════════════════════════════════
 function Icon3D({ children, gradient, size=40, radius }) {
   return (
-    <div className="metal3d" style={{
+    <div className="icon3d" style={{
       width: size, height: size,
-      "--ic": metalColor(gradient),
+      background: gradient,
       borderRadius: radius ?? 14,
     }}>{children}</div>
   );
@@ -6556,9 +6549,9 @@ function SettingsView({ settings, setSettings }) {
       <Card style={{padding:"20px"}}>
         <SectionTitle>Профіль інструктора</SectionTitle>
         <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:16}}>
-          <div className="metal3d" style={{
+          <div className="icon3d" style={{
             width:80,height:80,borderRadius:40,
-            "--ic":metalColor(`linear-gradient(165deg,${PURPLE},#6d28d9)`)
+            background:`linear-gradient(165deg,${PURPLE},#6d28d9)`
           }}>
             <svg width={42} height={42} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" style={{position:"relative",zIndex:1}}>
               <circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-7 8-7s8 3 8 7"/>
