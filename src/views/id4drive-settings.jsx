@@ -66,6 +66,10 @@ const SEC_GLYPH = {
   push:    ["#16a34a", <><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></>],
   team:    ["#2563eb", <><circle cx="9" cy="8" r="3.5"/><path d="M2 20c0-3.5 3-6 7-6s7 2.5 7 6"/><circle cx="17" cy="9" r="2.5"/><path d="M17 14c3 0 5 2 5 5"/></>],
   profile: ["#2563eb", <><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-7 8-7s8 3 8 7"/></>],
+  wk_cal:  ["#2563eb", <><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/></>],
+  wk_day:  ["#2563eb", <><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></>],
+  wk_cup:  ["#b45309", <><path d="M4 9h13v5a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5z"/><path d="M17 11h1.5a2.5 2.5 0 0 1 0 5H17"/><path d="M8 3v3M12 3v3"/></>],
+  wk_grid: ["#16a34a", <><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></>],
 };
 function MetalIc({ id, size = 28 }) {
   const [c, g] = SEC_GLYPH[id] || SEC_GLYPH.profile;
@@ -397,8 +401,15 @@ function daySlotStarts(d) {
 }
 
 export function WeekScheduleEditor({ weekSchedule, updDay, setWeek, step = 30, setStep }) {
-  const { BG_DEEP, SURF_HI, SURFACE, TEXT, DIM, FAINT, GREEN, RED, GOLD, ACCENT, SI, SO, BTN_TX } = useContext(ThemeContext);
+  const { BG_DEEP, SURF_HI, SURFACE, TEXT, DIM, FAINT, GREEN, RED, GOLD, ACCENT, SI, SO, BTN_TX, INK } = useContext(ThemeContext);
   const [sel, setSel] = useState(0);
+  // «Скло» (варіант 1): напівпрозорі картки з розмиттям і підписом з металевою іконкою
+  const glass = {borderRadius:18,padding:"12px 10px",background:`rgba(${INK},0.06)`,backdropFilter:"blur(14px)",WebkitBackdropFilter:"blur(14px)",border:`1px solid rgba(${INK},0.12)`};
+  const boxLbl = (icon, text) => (
+    <div style={{display:"flex",alignItems:"center",gap:8,fontSize:11,fontWeight:800,letterSpacing:1.2,color:DIM,textTransform:"uppercase",marginBottom:10,padding:"0 2px"}}>
+      <MetalIc id={icon} size={22}/>{text}
+    </div>
+  );
   const day = weekSchedule[sel];
   const lS = day.lunchStart ?? 12, lE = day.lunchEnd ?? 13;
   const fmt = x => `${String(Math.floor(x)).padStart(2,"0")}:${x % 1 >= 0.5 ? "30" : "00"}`;
@@ -420,12 +431,13 @@ export function WeekScheduleEditor({ weekSchedule, updDay, setWeek, step = 30, s
     ? {...d, start: day.start, end: day.end, lunchEnabled: !!day.lunchEnabled, lunchStart: lS, lunchEnd: lE}
     : d));
   return (
-    <div style={{paddingTop:10}}>
-      <div style={{fontSize:11,color:TEXT,letterSpacing:1.2,textTransform:"uppercase",marginBottom:10,textAlign:"center"}}>Тижневий шаблон</div>
-      <div style={{display:"flex",gap:5,marginBottom:10}}>
+    <div style={{paddingTop:10,display:"flex",flexDirection:"column",gap:10}}>
+      <div style={glass}>
+      {boxLbl("wk_cal","Тижневий шаблон")}
+      <div style={{display:"flex",gap:5}}>
         {DAY_NAMES.map((n, i) => {
           const d = weekSchedule[i];
-          const col = d.enabled ? GREEN : RED;
+          const col = i === sel ? ACCENT : GREEN;
           const on = i === sel;
           return (
             <button key={i} onClick={()=>setSel(i)} style={{
@@ -433,8 +445,9 @@ export function WeekScheduleEditor({ weekSchedule, updDay, setWeek, step = 30, s
               display:"flex",flexDirection:"column",alignItems:"center",gap:2,
               background:on
                 ?`linear-gradient(160deg,color-mix(in srgb,${col} 70%,#fff),${col})`
-                :`linear-gradient(160deg,color-mix(in srgb,${col} ${d.enabled?28:16}%,${BG_DEEP}),${BG_DEEP})`,
-              border:`1px solid color-mix(in srgb,${col} ${on?90:30}%,transparent)`,
+                :d.enabled?`color-mix(in srgb,${col} 18%,transparent)`:`rgba(${INK},0.05)`,
+              border:on?"1px solid transparent":d.enabled?`1px solid color-mix(in srgb,${col} 45%,transparent)`:`1px solid rgba(${INK},0.08)`,
+              opacity:!on&&!d.enabled?0.6:1,
               boxShadow:on?`0 4px 14px color-mix(in srgb,${col} 45%,transparent)`:"none",
               transform:on?"translateY(-2px)":"none",transition:"all .15s",
             }}>
@@ -444,8 +457,9 @@ export function WeekScheduleEditor({ weekSchedule, updDay, setWeek, step = 30, s
           );
         })}
       </div>
-      <div style={{borderRadius:20,padding:"14px 10px 12px",background:`linear-gradient(160deg,${SURF_HI},${SURFACE})`,boxShadow:SO,
-        border:"1px solid rgba(255,255,255,.06)"}}>
+      </div>
+      <div style={glass}>
+        {boxLbl("wk_day",DAY_NAMES[sel])}
         <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 4px"}}>
           <div>
             <div style={{fontSize:day.enabled?28:20,fontWeight:800,color:day.enabled?TEXT:FAINT,letterSpacing:-.5,lineHeight:1.1}}>
@@ -464,7 +478,7 @@ export function WeekScheduleEditor({ weekSchedule, updDay, setWeek, step = 30, s
           </div>
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginTop:14,padding:"11px 12px",borderRadius:14,
             background:`linear-gradient(135deg,color-mix(in srgb,${GOLD} 22%,${BG_DEEP}),${BG_DEEP})`,border:`1px solid color-mix(in srgb,${GOLD} 35%,transparent)`}}>
-            <span style={{fontSize:15,fontWeight:800,color:TEXT}}>🍽 Перерва{day.lunchEnabled?` · ${fmt(lS)}–${fmt(lE)}`:""}</span>
+            <span style={{fontSize:15,fontWeight:800,color:TEXT,display:"inline-flex",alignItems:"center",gap:9}}><MetalIc id="wk_cup" size={28}/>Перерва{day.lunchEnabled?` · ${fmt(lS)}–${fmt(lE)}`:""}</span>
             <Toggle color={day.lunchEnabled?GREEN:RED} on={!!day.lunchEnabled} onChange={v=>updDay(sel,{lunchEnabled:v})}/>
           </div>
           {day.lunchEnabled && (
@@ -473,8 +487,11 @@ export function WeekScheduleEditor({ weekSchedule, updDay, setWeek, step = 30, s
               <Row compact label="Перерва до" color={GOLD}><TimeInput value={lE} onChange={v=>updDay(sel,{lunchEnd:v})} min={lS+step/60} max={24} step={step/60}/></Row>
             </div>
           )}
-          <div style={{marginTop:14,padding:"0 4px"}}>
-            <div style={{fontSize:11,fontWeight:800,letterSpacing:1.2,color:DIM,marginBottom:6}}>СЛОТИ ДНЯ · {slots.length}</div>
+        </>)}
+      </div>
+      {day.enabled && (
+          <div style={glass}>
+            {boxLbl("wk_grid",<>СЛОТИ ДНЯ · {slots.length}</>)}
             {(() => {
               // Рядки по ≤4 слоти, розподілені порівну; кожен рядок на всю ширину
               const rows = Math.max(1, Math.ceil(slots.length / 4));
@@ -496,16 +513,15 @@ export function WeekScheduleEditor({ weekSchedule, updDay, setWeek, step = 30, s
               <div key={i} style={{fontSize:11,color:GOLD,marginTop:6}}>⚠ {fmt(g[0]/60)}–{fmt(g[1]/60)} без слота (не вміщається запис 1 год)</div>
             ))}
           </div>
-        </>)}
-      </div>
+      )}
       {day.enabled && (
-        <button onClick={copyAll} style={{width:"100%",marginTop:10,padding:"13px",borderRadius:14,cursor:"pointer",fontSize:13,fontWeight:800,
+        <button onClick={copyAll} style={{width:"100%",padding:"13px",borderRadius:14,cursor:"pointer",fontSize:13,fontWeight:800,
           color:BTN_TX||"#fff",background:`linear-gradient(135deg,color-mix(in srgb,${ACCENT} 80%,#000),${ACCENT})`,border:"none",
           boxShadow:`0 4px 14px color-mix(in srgb,${ACCENT} 35%,transparent)`}}>
           Копіювати {DAY_NAMES[sel]} на всі робочі дні
         </button>
       )}
-      <div style={{textAlign:"center",fontSize:12,color:DIM,marginTop:10}}>Усього <b style={{color:TEXT}}>{fmtHM(total)}</b> на тиждень</div>
+      <div style={{textAlign:"center",fontSize:12,color:DIM}}>Усього <b style={{color:TEXT}}>{fmtHM(total)}</b> на тиждень</div>
     </div>
   );
 }
