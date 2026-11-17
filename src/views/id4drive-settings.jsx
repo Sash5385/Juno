@@ -442,7 +442,6 @@ export function WeekScheduleEditor({ weekSchedule, updDay, setWeek, step = 30, s
   return (
     <div style={{paddingTop:10,display:"flex",flexDirection:"column",gap:10}}>
       <div style={glass}>
-      {boxLbl("wk_cal","Тижневий шаблон")}
       <div style={{display:"flex",gap:5}}>
         {DAY_NAMES.map((n, i) => {
           const d = weekSchedule[i];
