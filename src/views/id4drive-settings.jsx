@@ -69,6 +69,15 @@ const SEC_GLYPH = {
   wk_cal:  ["#2563eb", <><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/></>],
   wk_day:  ["#2563eb", <><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></>],
   wk_cup:  ["#b45309", <><path d="M4 9h13v5a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5z"/><path d="M17 11h1.5a2.5 2.5 0 0 1 0 5H17"/><path d="M8 3v3M12 3v3"/></>],
+  sh_gear: ["#475569", <><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></>],
+  sh_timer:["#0891b2", <><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M9 2h6"/></>],
+  sh_pin:  ["#dc2626", <><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.3"/></>],
+  sh_check:["#16a34a", <><circle cx="12" cy="12" r="9"/><path d="M7.5 12.5l3 3 6-6.5"/></>],
+  sh_star: ["#b7860b", <polygon points="12 2 15.1 8.3 22 9.3 17 14.1 18.2 21 12 17.8 5.8 21 7 14.1 2 9.3 8.9 8.3 12 2"/>],
+  sh_ticket:["#7c3aed", <><path d="M3 8a2 2 0 0 0 2-2h14a2 2 0 0 0 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 0-2 2H5a2 2 0 0 0-2-2v-2a2 2 0 0 0 0-4z"/><path d="M13 6v12" strokeDasharray="2 2"/></>],
+  sh_tag:  ["#db2777", <><path d="M20.6 13.4l-7.2 7.2a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.5"/></>],
+  sh_paint:["#7c3aed", <><circle cx="12" cy="12" r="9"/><circle cx="8" cy="10" r="1.2"/><circle cx="12" cy="7.5" r="1.2"/><circle cx="16" cy="10" r="1.2"/><path d="M12 21a3 3 0 0 1 0-6h2"/></>],
+  sh_build:["#2563eb", <><rect x="4" y="3" width="16" height="18" rx="1.5"/><path d="M9 7h1M14 7h1M9 11h1M14 11h1M9 15h1M14 15h1M10 21v-3h4v3"/></>],
   wk_grid: ["#16a34a", <><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></>],
 };
 function MetalIc({ id, size = 28 }) {
@@ -478,7 +487,12 @@ export function WeekScheduleEditor({ weekSchedule, updDay, setWeek, step = 30, s
           </div>
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginTop:14,padding:"11px 12px",borderRadius:14,
             background:`linear-gradient(135deg,color-mix(in srgb,${GOLD} 22%,${BG_DEEP}),${BG_DEEP})`,border:`1px solid color-mix(in srgb,${GOLD} 35%,transparent)`}}>
-            <span style={{fontSize:15,fontWeight:800,color:TEXT,display:"inline-flex",alignItems:"center",gap:9}}><MetalIc id="wk_cup" size={28}/>Перерва{day.lunchEnabled?` · ${fmt(lS)}–${fmt(lE)}`:""}</span>
+            <span style={{fontSize:15,fontWeight:800,color:TEXT,display:"inline-flex",alignItems:"center",gap:9,minWidth:0}}><MetalIc id="wk_cup" size={28}/>
+              <span style={{display:"flex",flexDirection:"column",lineHeight:1.2}}>
+                <span>Перерва</span>
+                {day.lunchEnabled && <span style={{fontSize:12,fontWeight:700,color:DIM,fontVariantNumeric:"tabular-nums"}}>{fmt(lS)}–{fmt(lE)}</span>}
+              </span>
+            </span>
             <Toggle color={day.lunchEnabled?GREEN:RED} on={!!day.lunchEnabled} onChange={v=>updDay(sel,{lunchEnabled:v})}/>
           </div>
           {day.lunchEnabled && (
@@ -1079,8 +1093,10 @@ select{color-scheme:${isKava?"light":"dark"}}
   ];
 
   // Верхній рівень: 7 вкладок, кожна збирає потрібні частини
+  // емодзі підзаголовків → металеві іконки
+  const SUB_IC = { "🗓":"wk_cal", "⚙️":"sh_gear", "⏱":"sh_timer", "📌":"sh_pin", "✅":"sh_check", "💰":"catalog", "🎫":"sh_ticket", "🏷️":"sh_tag", "📋":"clients", "⭐":"sh_star", "🎨":"sh_paint", "🏢":"sh_build" };
   const SubHead = ({ icon, children, first }) => (
-    <div style={{fontSize:11.5,fontWeight:800,letterSpacing:1,textTransform:"uppercase",color:DIM,margin:first?"4px 2px 8px":"22px 2px 8px",paddingTop:first?0:14,borderTop:first?"none":`1px solid ${BORDER}`}}>{icon} {children}</div>
+    <div style={{fontSize:11.5,fontWeight:800,letterSpacing:1,textTransform:"uppercase",color:DIM,margin:first?"4px 2px 8px":"22px 2px 8px",paddingTop:first?0:14,borderTop:first?"none":`1px solid ${BORDER}`,display:"flex",alignItems:"center",gap:8}}>{SUB_IC[icon] ? <MetalIc id={SUB_IC[icon]} size={24}/> : icon}<span>{children}</span></div>
   );
   function renderSection(id) {
     const P = renderPart;
