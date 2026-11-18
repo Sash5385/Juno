@@ -1,4 +1,5 @@
 import { useState, useEffect, useContext } from "react";
+import { MetalIcon } from "../MetalIcon";
 import { onValue, update, remove } from "firebase/database";
 import { iRef } from "../firebase";
 
@@ -30,12 +31,12 @@ function QueueOfferModal({ cancelledBk, waiting, queueMode, onInvite, onClose, s
   );
   const toggle = id => setSelected(s=>s.includes(id)?s.filter(x=>x!==id):[...s,id]);
   return (
-    <Modal open onClose={onClose} sheet size="md" title="⏳ Слот вільний!"
+    <Modal open onClose={onClose} sheet size="md" title={<span style={{display:"inline-flex",alignItems:"center",gap:8}}><MetalIcon name="hourglass" size={28}/>Слот вільний!</span>}
       footer={<>
         <Btn variant="ghost" flex={1} onClick={onClose}>Пізніше</Btn>
         <Btn variant="primary" accent={PURPLE} flex={1} disabled={selected.length===0}
           onClick={()=>selected.length>0&&onInvite(waiting.filter(q=>selected.includes(q.id)))}>
-          👑 Запросити ({selected.length})
+          <span style={{display:"inline-flex",alignItems:"center",gap:6}}><MetalIcon name="crown" size={20}/>Запросити ({selected.length})</span>
         </Btn>
       </>}>
       <div style={{fontSize:12,color:DIM,marginTop:-12,marginBottom:16}}>
@@ -140,7 +141,7 @@ function BkCard({ b, st }) {
             {b.time || "—"}{b.phone ? ` · ${b.phone}` : ""}{b.serviceName ? ` · ${b.serviceName}` : ""}{b.price != null ? ` · ${money(b.price)}` : ""}
           </div>
           {b.studentNote && (
-            <div style={{fontSize:11,color:GOLD,marginTop:3,whiteSpace:"pre-wrap",wordBreak:"break-word"}}>💬 {b.studentNote}</div>
+            <div style={{fontSize:11,color:GOLD,marginTop:3,whiteSpace:"pre-wrap",wordBreak:"break-word",display:"flex",alignItems:"flex-start",gap:5}}><MetalIcon name="chat" size={16}/><span>{b.studentNote}</span></div>
           )}
         </div>
         <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4,flexShrink:0}}>
@@ -184,7 +185,7 @@ function QCard({ q, pos, svc, now, onInvite, onRemove }) {
           </div>
           {(q.slotKey || hrs) && (
             <div style={{display:"flex",gap:5,flexWrap:"wrap",marginTop:5}}>
-              {q.slotKey && <span style={{padding:"2px 8px",borderRadius:7,background:shade(0.3),fontSize:11,fontWeight:800,color:"#fff",whiteSpace:"nowrap"}}>📅 {slotLabel(q.slotKey)}</span>}
+              {q.slotKey && <span style={{padding:"2px 8px",borderRadius:7,background:shade(0.3),fontSize:11,fontWeight:800,color:"#fff",whiteSpace:"nowrap",display:"inline-flex",alignItems:"center",gap:4}}><MetalIcon name="calendar" size={16}/>{slotLabel(q.slotKey)}</span>}
               <HoursChip h={hrs}/>
             </div>
           )}
@@ -197,16 +198,12 @@ function QCard({ q, pos, svc, now, onInvite, onRemove }) {
       <div style={{display:"grid",gridTemplateColumns:waiting?"1fr 1fr":"1fr",borderTop:`1px solid ${BORDER}`}}>
         {waiting && (
           <button onClick={onInvite} style={{...btn,borderRight:`1px solid ${BORDER}`}}>
-            <div className="icon3d" style={{width:22,height:22,background:"linear-gradient(165deg,#c084fc,#7c3aed)",borderRadius:7}}>
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" style={{position:"relative",zIndex:1}}><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-            </div>
+            <MetalIcon name="mail" size={22}/>
             Запросити
           </button>
         )}
         <button onClick={onRemove} style={btn}>
-          <div className="icon3d" style={{width:22,height:22,background:"linear-gradient(165deg,#f87171,#dc2626)",borderRadius:7}}>
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" style={{position:"relative",zIndex:1}}><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
-          </div>
+          <MetalIcon name="trash" size={22}/>
           Видалити
         </button>
       </div>
@@ -297,7 +294,7 @@ textarea{color-scheme:dark}
         {/* ── ЗАПИСИ (спойлер, за замовчуванням згорнуто) ── */}
         <div style={{background:`linear-gradient(155deg,${SURF_HI},${SURFACE})`,borderRadius:14,overflow:"hidden",boxShadow:SO,border:`1px solid ${BORDER}`}}>
           <div onClick={()=>setBookingsOpen(v=>!v)} style={{display:"flex",alignItems:"center",gap:10,padding:"12px 14px",cursor:"pointer",userSelect:"none"}}>
-            <div style={{width:32,height:32,borderRadius:10,flexShrink:0,background:"linear-gradient(165deg,#5b9bff,#2563eb)",boxShadow:SO,display:"flex",alignItems:"center",justifyContent:"center",fontSize:15}}>📋</div>
+            <MetalIcon name="clipboard" size={32}/>
             <span style={{flex:1,fontSize:13,fontWeight:800,color:TEXT}}>Записи</span>
             <span style={{fontSize:11,color:DIM,fontWeight:700}}>{(bookings||[]).length}</span>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={FAINT} strokeWidth="2.2" strokeLinecap="round" style={{transform:bookingsOpen?"rotate(180deg)":"none",transition:"transform .2s",flexShrink:0}}>
@@ -333,7 +330,7 @@ textarea{color-scheme:dark}
         {/* ── ЧЕРГА ── */}
         <div style={{background:`linear-gradient(155deg,${SURF_HI},${SURFACE})`,borderRadius:14,overflow:"hidden",boxShadow:SO,border:`1px solid ${BORDER}`}}>
           <div onClick={()=>setQueueOpen(v=>!v)} style={{display:"flex",alignItems:"center",gap:10,padding:"12px 14px",cursor:"pointer",userSelect:"none"}}>
-            <div style={{width:32,height:32,borderRadius:10,flexShrink:0,background:"linear-gradient(165deg,#c084fc,#7c3aed)",boxShadow:SO,display:"flex",alignItems:"center",justifyContent:"center",fontSize:15}}>⏳</div>
+            <MetalIcon name="hourglass" size={32}/>
             <span style={{flex:1,fontSize:13,fontWeight:800,color:TEXT}}>Черга очікування</span>
             {waitingCount>0 && (
               <span style={{background:"linear-gradient(145deg,#9333ea,#6d28d9)",color:"#fff",borderRadius:8,padding:"1px 8px",fontSize:11,fontWeight:700,boxShadow:"0 0 8px rgba(192,132,252,0.5)"}}>
@@ -353,7 +350,7 @@ textarea{color-scheme:dark}
               </div>
               {activeQueue.length===0 ? (
                 <div style={{textAlign:"center",padding:"22px 0 12px",color:FAINT}}>
-                  <div style={{fontSize:30,marginBottom:6}}>⏳</div>
+                  <div style={{marginBottom:6,display:"flex",justifyContent:"center"}}><MetalIcon name="hourglass" size={36}/></div>
                   <div style={{fontSize:14,fontWeight:700,color:DIM}}>Черга порожня</div>
                   <div style={{fontSize:12,marginTop:4}}>Клієнти стають у чергу самі в застосунку</div>
                 </div>

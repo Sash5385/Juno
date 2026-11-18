@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useContext } from "react";
+import { MetalIcon } from "../MetalIcon";
 import { createPortal } from "react-dom";
 import { onValue } from "firebase/database";
 import { iRef, auth } from "../firebase";
@@ -173,13 +174,7 @@ function EventDetailSheet({ ev, meta, onClose, theme }) {
             position:"relative",display:"flex",flexDirection:"column",alignItems:"center",gap:8,textAlign:"center",
             borderBottom:`1px solid ${theme.BORDER}`,
           }}>
-            <div style={{
-              width:42,height:42,borderRadius:13,flexShrink:0,
-              background:`${meta.color}22`,
-              border:`1.5px solid ${meta.color}55`,
-              display:"flex",alignItems:"center",justifyContent:"center",
-              fontSize:20,
-            }}>{meta.icon}</div>
+            <MetalIcon name={meta.icon} size={42}/>
             <div style={{minWidth:0}}>
               <div style={{fontSize:11,color:theme.FAINT,marginBottom:2}}>{formatDT(ev.ts)}</div>
               <div style={{fontSize:15,fontWeight:700,color:meta.color}}>{meta.label}</div>
@@ -229,10 +224,10 @@ export default function JournalView() {
   const glow  = a => `rgba(${theme.GLOW},${a})`;
 
   const EVENT_TYPES = {
-    new:         { label: "Новий запис", color: theme.GREEN, icon: "📅" },
-    cancel:      { label: "Скасовано",   color: theme.RED,   icon: "✗"  },
-    reschedule:  { label: "Перенос",     color: theme.GOLD,  icon: "↔"  },
-    new_student: { label: "Новий клієнт", color: theme.BLUE,  icon: "🆕" },
+    new:         { label: "Новий запис", color: theme.GREEN, icon: "calendar" },
+    cancel:      { label: "Скасовано",   color: theme.RED,   icon: "cross" },
+    reschedule:  { label: "Перенос",     color: theme.GOLD,  icon: "swap" },
+    new_student: { label: "Новий клієнт", color: theme.BLUE,  icon: "userPlus" },
   };
 
   const [bookingsRaw, setBookingsRaw] = useState(null);
@@ -455,7 +450,7 @@ export default function JournalView() {
                       <span style={{overflowWrap:"anywhere"}}>{mm.name}</span>
                     </div>) : null; })()}
                   <div style={{fontSize:11.5,marginTop:2,fontWeight:500,color:"rgba(255,255,255,0.88)",overflowWrap:"anywhere"}}>
-                    {prefix} {meta.label}
+                    {ev.type==="new_student" ? <MetalIcon name="userPlus" size={16} style={{marginRight:4}}/> : <>{prefix} </>}{meta.label}
                     {ev.slot && <span> · {ev.slot}</span>}
                     {byLabel && <span> · {byLabel}</span>}
                   </div>

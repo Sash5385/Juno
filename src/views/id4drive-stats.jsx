@@ -1,4 +1,5 @@
 import { useState, useEffect, useContext, useRef } from "react";
+import { MetalIcon } from "../MetalIcon";
 import { onValue, get, update } from "firebase/database";
 import { iRef, auth } from "../firebase";
 import { normStaff, masterOf } from "../workspace";
@@ -723,12 +724,12 @@ export default function StatsView({ onViewStudent, direction } = {}) {
         {/* ── INCOME GOAL ── */}
         {secEff === "overview" && <Card className="fu" style={{padding:"12px 13px"}}>
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:editingGoal?10:incomeGoal?9:4}}>
-            <div style={{fontSize:11,color:DIM,letterSpacing:1,textTransform:"uppercase",fontWeight:700}}>🎯 Ціль місяця</div>
+            <div style={{fontSize:11,color:DIM,letterSpacing:1,textTransform:"uppercase",fontWeight:700,display:"flex",alignItems:"center",gap:6}}><MetalIcon name="star" size={18}/>Ціль місяця</div>
             {!editingGoal && (
               <button aria-label={incomeGoal?"Змінити ціль":undefined} onClick={()=>{setGoalInput(String(incomeGoal||""));setEditingGoal(true);}} style={{
                 padding:"7px 11px",borderRadius:8,border:"none",cursor:"pointer",fontSize:11,fontWeight:700,fontFamily:"inherit",
                 background:`${GOLD}22`,color:GOLD,
-              }}>{incomeGoal?"✏️":"+ Задати ціль"}</button>
+              }}>{incomeGoal?<MetalIcon name="edit" size={18}/>:"+ Задати ціль"}</button>
             )}
           </div>
           {editingGoal ? (
@@ -788,7 +789,7 @@ export default function StatsView({ onViewStudent, direction } = {}) {
                 </span>
                 {curMonthCurrent<incomeGoal
                   ? <span style={{fontSize:11,color:FAINT}}>залишилось {fmtK(incomeGoal-curMonthCurrent)}</span>
-                  : <span style={{fontSize:11,color:GREEN,fontWeight:700}}>🎉 Ціль досягнута!</span>
+                  : <span style={{fontSize:11,color:GREEN,fontWeight:700,display:"inline-flex",alignItems:"center",gap:5}}><MetalIcon name="medal" size={16}/>Ціль досягнута!</span>
                 }
               </div>
             </>

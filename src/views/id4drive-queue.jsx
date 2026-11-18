@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useContext } from "react";
+import { MetalIcon } from "../MetalIcon";
 import { onValue, update, remove } from "firebase/database";
 import { iRef, auth } from "../firebase";
 import { ThemeContext } from "../theme.js";
@@ -140,37 +141,29 @@ function QueueRow({ item, pos, onInvite, onBooked, onArchive, onDelete, dragHand
         <div style={{display:"grid",gridTemplateColumns:`repeat(${item.status==="waiting"?4:item.status==="offered"?3:2},1fr)`,borderTop:`1px solid ${BORDER}`}}>
           {item.status === "waiting" && (
             <button onClick={onInvite} style={ACT_BTN({borderRight:`1px solid ${BORDER}`})}>
-              <div className="icon3d" style={{width:22,height:22,background:"linear-gradient(165deg,#c084fc,#7c3aed)",borderRadius:7}}>
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" style={{position:"relative",zIndex:1}}><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-              </div>
+              <MetalIcon name="mail" size={22}/>
               Запросити
             </button>
           )}
           {(item.status === "waiting" || item.status === "offered") && (
             <button onClick={onBooked} style={ACT_BTN({borderRight:`1px solid ${BORDER}`})}>
-              <div className="icon3d" style={{width:22,height:22,background:"linear-gradient(165deg,#9ee07a,#5fb83d)",borderRadius:7}}>
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" style={{position:"relative",zIndex:1}}><polyline points="5 12 10 17 19 8"/></svg>
-              </div>
+              <MetalIcon name="checkCircle" size={22}/>
               Записаний
             </button>
           )}
           <button onClick={onArchive} style={ACT_BTN({borderRight:`1px solid ${BORDER}`})}>
-            <div className="icon3d" style={{width:22,height:22,background:`linear-gradient(165deg,#5a5e66,#3a3e44)`,borderRadius:7}}>
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" style={{position:"relative",zIndex:1}}><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
-            </div>
+            <MetalIcon name="list" size={22}/>
             Архів
           </button>
           <button onClick={onDelete} style={ACT_BTN({})}>
-            <div className="icon3d" style={{width:22,height:22,background:`linear-gradient(165deg,#f87171,#dc2626)`,borderRadius:7}}>
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" style={{position:"relative",zIndex:1}}><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
-            </div>
+            <MetalIcon name="trash" size={22}/>
             Відмінити
           </button>
         </div>
       )}
       {item.status === "archived" && (
         <div style={{display:"flex",justifyContent:"flex-end",padding:"4px 10px 7px",borderTop:`1px solid ${BORDER}`}}>
-          <button onClick={onDelete} style={{background:"none",border:"none",cursor:"pointer",color:"#f87171",fontSize:12,fontWeight:700,padding:"8px 6px",fontFamily:"inherit"}}>🗑 Видалити</button>
+          <button onClick={onDelete} style={{background:"none",border:"none",cursor:"pointer",color:"#f87171",fontSize:12,fontWeight:700,padding:"8px 6px",fontFamily:"inherit"}}><span style={{display:"inline-flex",alignItems:"center",gap:5}}><MetalIcon name="trash" size={20}/>Видалити</span></button>
         </div>
       )}
     </div>
@@ -301,7 +294,7 @@ export default function QueueView({ settings }) {
 
         {/* ── MODE BADGE ── */}
         <div style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",background:`linear-gradient(145deg,${PURPLE}1a,${PURPLE}0d)`,borderRadius:10,border:`1px solid ${PURPLE}30`}}>
-          <span style={{fontSize:13}}>⚙️</span>
+          <MetalIcon name="gear" size={18}/>
           <span style={{fontSize:12,color:DIM}}>Режим черги:</span>
           <span style={{fontSize:12,fontWeight:800,color:`color-mix(in srgb,${PURPLE} 55%,#fff)`}}>
             {queueMode==="fifo"?"FIFO — перший автоматично":queueMode==="broadcast"?"Broadcast — всім одразу":"Ручний — вибір вручну"}
@@ -315,7 +308,7 @@ export default function QueueView({ settings }) {
         >
           {active.length === 0 ? (
             <div style={{textAlign:"center",padding:"32px 20px",color:FAINT}}>
-              <div style={{fontSize:32,marginBottom:8}}>⏳</div>
+              <div style={{marginBottom:8,display:"flex",justifyContent:"center"}}><MetalIcon name="hourglass" size={36}/></div>
               <div style={{fontSize:14,fontWeight:700,color:DIM}}>Черга порожня</div>
               <div style={{fontSize:12,marginTop:4}}>Додайте клієнтів нижче</div>
             </div>
@@ -339,7 +332,7 @@ export default function QueueView({ settings }) {
 
         {/* ── МИНУЛІ (час слота вже пройшов) ── */}
         {expired.length > 0 && (
-          <Section title={`⏱ Минулі (${expired.length})`}>
+          <Section title={<span style={{display:"inline-flex",alignItems:"center",gap:7}}><MetalIcon name="timer" size={18}/>{`Минулі (${expired.length})`}</span>}>
             {expired.map(item=>(
               <QueueRow
                 key={item.id} item={item} pos="—" isDragging={false}
@@ -356,7 +349,7 @@ export default function QueueView({ settings }) {
 
         {/* ── ARCHIVE ── */}
         {archived.length > 0 && (
-          <Section title={`📦 Архів (${archived.length})`}>
+          <Section title={<span style={{display:"inline-flex",alignItems:"center",gap:7}}><MetalIcon name="list" size={18}/>{`Архів (${archived.length})`}</span>}>
             {archived.map(item=>(
               <QueueRow
                 key={item.id} item={item} pos="—" isDragging={false}

@@ -1,4 +1,5 @@
 import { useState, useContext, useEffect, useRef } from "react";
+import { MetalIcon } from "../MetalIcon";
 import { tr } from "../i18n";
 import { TAG_COLORS, TAG_ICONS, DEFAULT_TAGS, AUTO_TAG_IDS, normalizeTags } from "../tags";
 import { FIELD_TYPES, MAX_FIELDS } from "../intake";
@@ -86,7 +87,7 @@ function MetalIc({ id, size = 28 }) {
     <span style={{ width:size, height:size, flexShrink:0, borderRadius:"50%", position:"relative", overflow:"hidden", display:"inline-flex", alignItems:"center", justifyContent:"center",
       background:"linear-gradient(145deg,#fbfcfe,#a3abba 45%,#eef1f6 55%,#7a8394)", boxShadow:"0 2px 5px rgba(0,0,0,0.4),inset 0 1px 0 #fff,inset 0 -2px 3px rgba(0,0,0,0.2)" }}>
       <span style={{ position:"absolute", left:"6%", right:"6%", top:"4%", height:"46%", borderRadius:"40% 40% 60% 60%/60% 60% 40% 40%", background:"linear-gradient(180deg,rgba(255,255,255,0.85),rgba(255,255,255,0.05))" }}/>
-      <svg width={Math.round(size*0.58)} height={Math.round(size*0.58)} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"
+      <svg width={Math.round(size*0.72)} height={Math.round(size*0.72)} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"
         style={{ position:"relative", filter:"drop-shadow(0 1px 0 rgba(255,255,255,0.9))" }}>{g}</svg>
     </span>
   );
@@ -221,12 +222,13 @@ function Row({ label, hint, children, last, color, compact }) {
 
 // Кольорова картка-групувальник для «Профілю» — той самий градієнт-тінт
 // і бордер, що в Row (Сповіщення/Ліміти), тільки як контейнер на кілька полів.
+const DIR_GLYPH = { "🧩":"grid", "💅":"sparkle", "🎓":"school", "💬":"chat" };
 function ProfileCard({ color, icon, title, children }) {
   const { BG_DEEP, FOG, SURFACE, BORDER, TEXT } = useContext(ThemeContext);
   if (FOG) return (
     <div style={{borderRadius:18,padding:"12px 14px",marginBottom:12,background:SURFACE,border:`1px solid ${BORDER}`}}>
       <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
-        <span style={{fontSize:16}}>{icon}</span>
+        <MetalIcon name={icon} size={28}/>
         <span style={{fontSize:13,fontWeight:700,color:TEXT}}>{title}</span>
       </div>
       {children}
@@ -239,7 +241,7 @@ function ProfileCard({ color, icon, title, children }) {
       border:`1px solid color-mix(in srgb,${color} 35%,transparent)`,
     }}>
       <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
-        <span style={{fontSize:15}}>{icon}</span>
+        <MetalIcon name={icon} size={28}/>
         <span style={{fontSize:12,fontWeight:800,color:TEXT}}>{title}</span>
       </div>
       {children}
@@ -267,7 +269,7 @@ function AutoSlotsRunButton() {
   return (
     <div style={{marginBottom:6}}>
       <button onClick={run} disabled={state==="busy"} style={{width:"100%",minHeight:44,padding:"10px",borderRadius:12,cursor:state==="busy"?"default":"pointer",background:"transparent",border:`1px solid ${BORDER}`,color:TEXT,fontSize:13,fontWeight:700,fontFamily:"inherit",opacity:state==="busy"?0.6:1}}>
-        {state==="busy" ? "Заповнюю…" : "⚡ Заповнити зараз"}
+        {state==="busy" ? "Заповнюю…" : <span style={{display:"inline-flex",alignItems:"center",gap:6}}><MetalIcon name="bolt" size={20}/>Заповнити зараз</span>}
       </button>
       {state==="msg" && <div style={{fontSize:11,color:DIM,marginTop:4,textAlign:"center"}}>{msg}</div>}
     </div>
@@ -320,7 +322,7 @@ function Info({ title, text, color }) {
       border:`1px solid ${c}30`,
       borderRadius:10,padding:"10px 12px",marginTop:2,marginBottom:10,
     }}>
-      <div style={{fontSize:11,fontWeight:700,color:c,marginBottom:4}}>💡 {title}</div>
+      <div style={{fontSize:11,fontWeight:700,color:c,marginBottom:4,display:"flex",alignItems:"center",gap:6}}><MetalIcon name="info" size={16}/>{title}</div>
       <div style={{fontSize:11,color:DIM,lineHeight:1.6}}>{String(text||"").split("\n").map((ln,i)=>ln ? <div key={i}>{ln}</div> : <div key={i} style={{height:8}}/>)}</div>
     </div>
   );
@@ -523,7 +525,7 @@ export function WeekScheduleEditor({ weekSchedule, updDay, setWeek, step = 30, s
               ));
             })()}
             {gaps.map((g, i) => (
-              <div key={i} style={{fontSize:11,color:GOLD,marginTop:6}}>⚠ {fmt(g[0]/60)}–{fmt(g[1]/60)} без слота (не вміщається запис 1 год)</div>
+              <div key={i} style={{fontSize:11,color:GOLD,marginTop:6,display:"flex",alignItems:"flex-start",gap:5}}><MetalIcon name="warn" size={16}/><span>{fmt(g[0]/60)}–{fmt(g[1]/60)} без слота (не вміщається запис 1 год)</span></div>
             ))}
           </div>
       )}
@@ -1547,7 +1549,7 @@ select{color-scheme:${isKava?"light":"dark"}}
           </Row>
           <div style={{height:10}}/>
           <div data-notrans="1" style={{marginBottom:14,padding:"12px 12px 10px",borderRadius:14,background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,boxShadow:SO}}>
-            <div style={{fontSize:12,fontWeight:800,letterSpacing:1,color:`color-mix(in srgb,${TEAL} 60%,#fff)`,textTransform:"uppercase",marginBottom:4}}>🧭 Напрямок послуг</div>
+            <div style={{fontSize:12,fontWeight:800,letterSpacing:1,color:`color-mix(in srgb,${TEAL} 60%,#fff)`,textTransform:"uppercase",marginBottom:4,display:"flex",alignItems:"center",gap:7}}><MetalIcon name="globe" size={20}/>Напрямок послуг</div>
             <Hint style={{marginBottom:10}}>Змінює слова в усьому застосунку (і в клієнта): майстер, клієнт, запис. Сторінка перезавантажиться.</Hint>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
               {DIRECTION_IDS.map(id => {
@@ -1560,7 +1562,7 @@ select{color-scheme:${isKava?"light":"dark"}}
                     setTimeout(()=>window.location.reload(), 300);
                   }} style={{textAlign:"left",padding:"10px",borderRadius:12,cursor:"pointer",fontFamily:"inherit",
                     border:on?`1.5px solid ${TEAL}`:`1px solid ${BORDER}`,background:on?"rgba(45,212,191,0.12)":"rgba(0,0,0,0.15)",color:TEXT}}>
-                    <div style={{fontSize:14,fontWeight:800}}>{dir.icon} {dir.name}</div>
+                    <div style={{fontSize:14,fontWeight:800,display:"flex",alignItems:"center",gap:7}}><MetalIcon name={DIR_GLYPH[dir.icon]||"globe"} size={22}/>{dir.name}</div>
                     <div style={{fontSize:11,color:DIM,marginTop:3,lineHeight:1.35}}>{dir.desc}</div>
                   </button>
                 );
@@ -1605,7 +1607,7 @@ select{color-scheme:${isKava?"light":"dark"}}
         <div>
           {showHint && <Info color={BLUE} title="Профіль майстра" text={"Це ваша візитка. Усе, що тут заповнено, клієнти бачать на сторінці запису.\n\n• Фото профілю — ваше фото (JPG або PNG, до 5 МБ).\n• Портфоліо — розповідь про себе та свої переваги (до 1500 символів). Показується угорі сторінки запису, довгий текст згортається кнопкою «Читати далі».\n• Фотоколаж — до 9 фото (ваші роботи, результати, робоче місце). На сторінці запису вони змінюються одне за одним у колажі.\n• Телефон — на нього працюють кнопки дзвінка, Viber, WhatsApp і Telegram на сторінці запису. Вводьте номер у форматі +380XXXXXXXXX.\n• Умови відвідування — ваші правила (наприклад, про скасування, запізнення, документи). Порожнє поле — блок на сайті просто не показується.\n• Локація на карті — знайдіть адресу або поставте мітку на карті: клієнти побачать, де вас знайти.\n• Посилання для запису — надішліть його клієнтам, щоб вони записувались самі. Кнопка «Встановити додаток» додає Juno на головний екран телефону."}/>}
 
-          <ProfileCard color={ACCENT} icon="🧑‍🏫" title="ФОТО ПРОФІЛЮ">
+          <ProfileCard color={ACCENT} icon="user" title="ФОТО ПРОФІЛЮ">
             {/* PHOTO */}
             <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:14}}>
               <div
@@ -1614,7 +1616,7 @@ select{color-scheme:${isKava?"light":"dark"}}
               >
                 {profile?.photoUrl
                   ? <img src={profile.photoUrl} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>
-                  : <span style={{fontSize:26}}>🧑‍🏫</span>}
+                  : <MetalIcon name="user" size={40}/>}
               </div>
               <div style={{flex:1,minWidth:0}}>
                 <button onClick={()=>photoInputRef.current?.click()} disabled={photoUploading} style={{
@@ -1655,7 +1657,7 @@ select{color-scheme:${isKava?"light":"dark"}}
           </ProfileCard>
 
           {/* ПОРТФОЛІО — текст про себе й переваги, показується на сторінці запису угорі */}
-          <ProfileCard color={GOLD} icon="⭐" title="ПОРТФОЛІО">
+          <ProfileCard color={GOLD} icon="star" title="ПОРТФОЛІО">
             <textarea
               value={profile?.about ?? ""}
               onChange={e=>updProfile("about", e.target.value.slice(0, 1500))}
@@ -1671,7 +1673,7 @@ select{color-scheme:${isKava?"light":"dark"}}
           </ProfileCard>
 
           {/* КОНТАКТИ — телефон, джерело для кнопок дзвінка/Viber/WhatsApp/Telegram на лендингу */}
-          <ProfileCard color={BLUE} icon="📞" title="КОНТАКТИ">
+          <ProfileCard color={BLUE} icon="phone" title="КОНТАКТИ">
             <div style={{fontSize:11,fontWeight:800,color:DIM,letterSpacing:0.5,marginBottom:5}}>ТЕЛЕФОН</div>
             <PhoneField value={profile?.phone ?? ""} onChange={v=>updProfile("phone", v)}
               inputStyle={{width:"100%",boxSizing:"border-box",background:BG_DEEP,border:"none",outline:"none",color:TEXT,fontSize:13,padding:"10px 12px",borderRadius:10,boxShadow:SI,fontFamily:"inherit",marginBottom:0}} style={{marginBottom:6}}
@@ -1680,7 +1682,7 @@ select{color-scheme:${isKava?"light":"dark"}}
           </ProfileCard>
 
           {/* УМОВИ */}
-          <ProfileCard color={PURPLE} icon="📄" title="УМОВИ ВІДВІДУВАННЯ">
+          <ProfileCard color={PURPLE} icon="note" title="УМОВИ ВІДВІДУВАННЯ">
             <textarea
               value={profile?.terms ?? ""}
               onChange={e=>updProfile("terms", e.target.value)}
@@ -1692,7 +1694,7 @@ select{color-scheme:${isKava?"light":"dark"}}
           </ProfileCard>
 
           {/* ЛОКАЦІЯ */}
-          <ProfileCard color={TEAL} icon="📍" title="ЛОКАЦІЯ НА КАРТІ">
+          <ProfileCard color={TEAL} icon="pin" title="ЛОКАЦІЯ НА КАРТІ">
             <LocationMap
               lat={profile?.meetLat}
               lng={profile?.meetLng}
@@ -1824,7 +1826,7 @@ select{color-scheme:${isKava?"light":"dark"}}
                 background:showHint?`${GOLD}33`:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,
                 fontSize:15,display:"flex",alignItems:"center",justifyContent:"center",
                 boxShadow:SO,transition:"all .15s",
-              }}>💡</button>
+              }}><MetalIcon name="info" size={24}/></button>
             </div>
             {renderSection(displayedSection)}
             <MosaicOverlay phase={mosaicPhase} tileColor={SURFACE}/>
@@ -1838,7 +1840,7 @@ select{color-scheme:${isKava?"light":"dark"}}
           display:"block", margin:"12px auto 0", background:"rgba(255,255,255,0.05)",
           border:`1px solid ${BORDER}`, color:TEXT, cursor:"pointer",
           padding:"10px 24px", borderRadius:14, fontSize:13, fontWeight:700,
-        }}>📲 Встановити додаток</button>
+        }}><span style={{display:"inline-flex",alignItems:"center",gap:6}}><MetalIcon name="download" size={20}/>Встановити додаток</span></button>
       )}
       {active === "profile" && bookingSlug && (
         <div style={{
@@ -1847,7 +1849,7 @@ select{color-scheme:${isKava?"light":"dark"}}
           border:`1px solid color-mix(in srgb,${ACCENT} 35%,transparent)`,
         }}>
           <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
-            <span style={{fontSize:15}}>🔗</span>
+            <MetalIcon name="link" size={24}/>
             <span style={{fontSize:12, fontWeight:800, color:"#fff"}}>ПОСИЛАННЯ ДЛЯ ЗАПИСУ КЛІЄНТІВ</span>
           </div>
           <div style={{background:BG_DEEP, border:`1px solid ${BORDER}`, borderRadius:10, padding:"9px 12px", fontSize:12, color:TEXT, wordBreak:"break-all"}}>{bookingLink}</div>
@@ -1857,7 +1859,7 @@ select{color-scheme:${isKava?"light":"dark"}}
             color: slugCopied ? "#0a2e1a" : (BTN_TX||"#fff"), fontSize:13, fontWeight:800,
           }}>{slugCopied ? "✓ Скопійовано" : "Копіювати"}</button>
           {typeof navigator !== "undefined" && navigator.share && (
-            <button onClick={shareBookingLink} style={{marginTop:6,width:"100%",padding:"10px",borderRadius:10,cursor:"pointer",background:"transparent",border:`1px solid ${BORDER}`,color:TEXT,fontSize:13,fontWeight:700,fontFamily:"inherit"}}>📤 Поділитись</button>
+            <button onClick={shareBookingLink} style={{marginTop:6,width:"100%",padding:"10px",borderRadius:10,cursor:"pointer",background:"transparent",border:`1px solid ${BORDER}`,color:TEXT,fontSize:13,fontWeight:700,fontFamily:"inherit"}}><span style={{display:"inline-flex",alignItems:"center",gap:6}}><MetalIcon name="share" size={20}/>Поділитись</span></button>
           )}
           {qrUrl && (
             <div style={{display:"flex",justifyContent:"center",marginTop:10}}>
@@ -1873,7 +1875,7 @@ select{color-scheme:${isKava?"light":"dark"}}
         border:`1px solid color-mix(in srgb,${GOLD} 35%,transparent)`,
       }}>
         <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
-          <span style={{fontSize:15}}>💳</span>
+          <MetalIcon name="card" size={24}/>
           <span style={{fontSize:12, fontWeight:800, color:"#fff"}}>ОПЛАТА ПІДПИСКИ</span>
         </div>
         <LicensePayPanel/>
@@ -1912,7 +1914,7 @@ select{color-scheme:${isKava?"light":"dark"}}
             border:`1px solid color-mix(in srgb,${GREEN} 35%,transparent)`,
           }}>
             <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
-              <span style={{fontSize:15}}>🔔</span>
+              <MetalIcon name="bell" size={24}/>
               <span style={{fontSize:12, fontWeight:800, color:"#fff"}}>ПІДПИСКА</span>
             </div>
             <div style={{fontSize:14, fontWeight:700, color:statusColor}}>{statusLabel}</div>

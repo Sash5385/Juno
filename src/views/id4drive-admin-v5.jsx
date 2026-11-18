@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useLayoutEffect, useMemo, useContext } from "react";
 import PhoneField from "../PhoneField.jsx";
+import { MetalIcon } from "../MetalIcon";
 import { createPortal } from "react-dom";
 import { update, get, onValue, off, remove, push as fbPush } from "firebase/database";
 import { iRef, auth, slotRoot, slotBookingsRoot, newBookingMasterFields, getActiveMaster, setActiveMaster, getCurrentIid, watchBookings } from "../firebase";
@@ -253,136 +254,28 @@ div[style*="position: fixed"][style*="align-items: flex-end"] { padding-bottom: 
 // ═══════════════════════════════════════════════════════════════
 // 3D ICONS
 // ═══════════════════════════════════════════════════════════════
-function Icon3D({ children, gradient, size=40, radius }) {
-  return (
-    <div className="icon3d" style={{
-      width: size, height: size,
-      background: gradient,
-      borderRadius: radius ?? 14,
-    }}>{children}</div>
-  );
+function Icon3D({ name, size=40, color }) {
+  return <MetalIcon name={name} size={size} square color={color}/>;
 }
+const _I3 = (name, color) => (s=40) => <Icon3D name={name} size={s} color={color}/>;
 const ICONS = {
-  calendar: (s=40) => (
-    <Icon3D size={s} gradient="linear-gradient(165deg,#5b9bff,#3b73d9)">
-      <svg width={s*0.55} height={s*0.55} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round">
-        <rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/>
-      </svg>
-    </Icon3D>
-  ),
-  check: (s=40) => (
-    <Icon3D size={s} gradient="linear-gradient(165deg,#9ee07a,#5fb83d)">
-      <svg width={s*0.55} height={s*0.55} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-        <polyline points="5 12 10 17 19 8"/>
-      </svg>
-    </Icon3D>
-  ),
-  cross: (s=40) => (
-    <Icon3D size={s} gradient="linear-gradient(165deg,#7a7e85,#3f4248)">
-      <svg width={s*0.45} height={s*0.45} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round">
-        <line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/>
-      </svg>
-    </Icon3D>
-  ),
-  car: (s=40) => (
-    <Icon3D size={s} gradient="linear-gradient(165deg,#c084fc,#8b5cf6)">
-      <svg width={s*0.6} height={s*0.6} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M5 17h14M3 17V9l3-5h12l3 5v8M5 17a2 2 0 1 0 4 0 2 2 0 1 0 -4 0M15 17a2 2 0 1 0 4 0 2 2 0 1 0 -4 0M3 9h18"/>
-      </svg>
-    </Icon3D>
-  ),
-  school: (s=40) => (
-    <Icon3D size={s} gradient="linear-gradient(165deg,#9ee07a,#5fb83d)">
-      <svg width={s*0.6} height={s*0.6} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M3 10l9-5 9 5-9 5-9-5z"/><path d="M7 12v5a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-5"/>
-      </svg>
-    </Icon3D>
-  ),
-  money: (s=40) => (
-    <Icon3D size={s} gradient="linear-gradient(165deg,#fcd34d,#d97706)">
-      <svg width={s*0.55} height={s*0.55} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.4" strokeLinecap="round">
-        <path d="M12 2v20M16 6h-6a3 3 0 0 0 0 6h4a3 3 0 0 1 0 6H8"/>
-      </svg>
-    </Icon3D>
-  ),
-  user: (s=40) => (
-    <Icon3D size={s} gradient="linear-gradient(165deg,#94a3b8,#475569)">
-      <svg width={s*0.55} height={s*0.55} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round">
-        <circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-7 8-7s8 3 8 7"/>
-      </svg>
-    </Icon3D>
-  ),
-  users: (s=40) => (
-    <Icon3D size={s} gradient="linear-gradient(165deg,#c084fc,#7c3aed)">
-      <svg width={s*0.6} height={s*0.6} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round">
-        <circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M3 19c0-3 3-5 6-5s6 2 6 5M15 18c0-2 2-4 4-4s3 1 3 3"/>
-      </svg>
-    </Icon3D>
-  ),
-  clock: (s=40) => (
-    <Icon3D size={s} gradient="linear-gradient(165deg,#fb923c,#ea580c)">
-      <svg width={s*0.55} height={s*0.55} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round">
-        <circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 16 14"/>
-      </svg>
-    </Icon3D>
-  ),
-  chat: (s=40) => (
-    <Icon3D size={s} gradient="linear-gradient(165deg,#34d399,#059669)">
-      <svg width={s*0.55} height={s*0.55} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M21 12c0 5-4 8-9 8-1.5 0-3-.3-4-.7L3 21l1-4c-1-1.5-1.5-3.2-1.5-5 0-5 4-8 9-8s9.5 3 9.5 8z"/>
-      </svg>
-    </Icon3D>
-  ),
-  bell: (s=40) => (
-    <Icon3D size={s} gradient="linear-gradient(165deg,#fcd34d,#f59e0b)">
-      <svg width={s*0.55} height={s*0.55} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10 21a2 2 0 0 0 4 0"/>
-      </svg>
-    </Icon3D>
-  ),
-  settings: (s=40) => (
-    <Icon3D size={s} gradient="linear-gradient(165deg,#94a3b8,#334155)">
-      <svg width={s*0.6} height={s*0.6} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-      </svg>
-    </Icon3D>
-  ),
-  list: (s=40) => (
-    <Icon3D size={s} gradient="linear-gradient(165deg,#34d399,#047857)">
-      <svg width={s*0.6} height={s*0.6} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round">
-        <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/>
-        <circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/>
-      </svg>
-    </Icon3D>
-  ),
-  chart: (s=40) => (
-    <Icon3D size={s} gradient="linear-gradient(165deg,#a78bfa,#6d28d9)">
-      <svg width={s*0.6} height={s*0.6} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-        <line x1="4" y1="20" x2="4" y2="10"/><line x1="10" y1="20" x2="10" y2="4"/><line x1="16" y1="20" x2="16" y2="14"/><line x1="22" y1="20" x2="2" y2="20"/>
-      </svg>
-    </Icon3D>
-  ),
-  plus: (s=40) => (
-    <Icon3D size={s} gradient={`linear-gradient(165deg,${ACCENT_HI},${ACCENT})`}>
-      <svg width={s*0.5} height={s*0.5} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round">
-        <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-      </svg>
-    </Icon3D>
-  ),
-  menu: (s=40) => (
-    <Icon3D size={s} gradient={`linear-gradient(135deg,${SURFACE_HI},${SURFACE})`}>
-      <svg width={s*0.5} height={s*0.5} viewBox="0 0 24 24" fill="none" stroke={TEXT} strokeWidth="2.4" strokeLinecap="round">
-        <line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/>
-      </svg>
-    </Icon3D>
-  ),
-  refresh: (s=40) => (
-    <Icon3D size={s} gradient={`linear-gradient(135deg,${SURFACE_HI},${SURFACE})`}>
-      <svg width={s*0.5} height={s*0.5} viewBox="0 0 24 24" fill="none" stroke={TEXT} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-        <polyline points="23 4 23 10 17 10"/><path d="M20.49 15A9 9 0 1 1 5.64 5.64L23 10"/>
-      </svg>
-    </Icon3D>
-  ),
+  calendar: _I3("calendar","#3b73d9"),
+  check: _I3("check","#3f8f27"),
+  cross: _I3("cross","#3f4248"),
+  car: _I3("car","#6d3fd0"),
+  school: _I3("school","#3f8f27"),
+  money: _I3("coin","#b45309"),
+  user: _I3("user","#334155"),
+  users: _I3("users","#5b21b6"),
+  clock: _I3("clock","#c2410c"),
+  chat: _I3("chat","#047857"),
+  bell: _I3("bell","#b45309"),
+  settings: _I3("gear","#334155"),
+  list: _I3("list","#047857"),
+  chart: _I3("chart","#5b21b6"),
+  plus: _I3("plus"),
+  menu: _I3("list","#475569"),
+  refresh: _I3("refresh","#475569"),
 };
 
 // ═══════════════════════════════════════════════════════════════
@@ -629,13 +522,13 @@ function BroadcastModalBase({ initialDate, initialSlot, onClose }) {
             borderRadius:"24px 24px 0 0",
           }}>
             <div style={{width:36,height:4,borderRadius:2,background:"rgba(192,132,252,0.4)",margin:"0 auto 12px"}}/>
-            <div style={{fontSize:17,fontWeight:800,color:"#c084fc",textAlign:"center",margin:"0 40px"}}>📣 Розсилка клієнтам</div>
+            <div style={{fontSize:17,fontWeight:800,color:"#c084fc",textAlign:"center",margin:"0 40px"}}><span style={{display:"inline-flex",alignItems:"center",gap:7}}><MetalIcon name="mega" size={30}/>Розсилка клієнтам</span></div>
           </div>
 
           <div className="win-cols" style={{padding:"16px 18px 32px"}}>
             {sent ? (
               <div style={{ textAlign:"center", padding:"20px 0" }}>
-                <div style={{ fontSize:40, marginBottom:8 }}>✅</div>
+                <div style={{ marginBottom:8 }}><MetalIcon name="checkCircle" size={40}/></div>
                 <div style={{ fontSize:16, fontWeight:800, color:TEXT }}>Надіслано!</div>
                 <div style={{ fontSize:12, color:DIM, marginTop:6 }}>Сповіщення отримають активні клієнти</div>
                 <button onClick={_close} style={{ marginTop:20, background:"rgba(192,132,252,0.15)", color:"#c084fc", border:"none", borderRadius:12, padding:"10px 28px", fontSize:13, fontWeight:700, cursor:"pointer" }}>Закрити</button>
@@ -663,7 +556,7 @@ function BroadcastModalBase({ initialDate, initialSlot, onClose }) {
                 {preview && (
                   <div style={{ background:"rgba(192,132,252,0.07)", border:"1px solid rgba(192,132,252,0.2)", borderRadius:10, padding:"10px 12px", marginBottom:14 }}>
                     <div style={{ fontSize:11, color:DIM, marginBottom:4, fontWeight:700, letterSpacing:0.5 }}>ПРЕВ'Ю ПУШУ</div>
-                    <div style={{ fontSize:12, color:TEXT, fontWeight:700 }}>🚗 Є вільний слот!</div>
+                    <div style={{ fontSize:12, color:TEXT, fontWeight:700 }}><span style={{display:"inline-flex",alignItems:"center",gap:7}}><MetalIcon name="car" size={18}/>Є вільний слот!</span></div>
                     <div style={{ fontSize:11, color:DIM, marginTop:3 }}>{preview}</div>
                   </div>
                 )}
@@ -1042,7 +935,7 @@ function DayNotesModalBase({ dateStr, dayLabel, dayNum, dayMonth, note, settings
             fontSize:13, fontWeight:800, lineHeight:1,
           }}>✕</button>
           <div style={{textAlign:"center",padding:"0 36px",marginBottom:6}}>
-            <div style={{fontSize:16,fontWeight:800,color:TEXT}}>📝 Нотатки — {dayLabel}, {dayNum} {dayMonth}</div>
+            <div style={{fontSize:16,fontWeight:800,color:TEXT}}><span style={{display:"inline-flex",alignItems:"center",gap:7}}><MetalIcon name="note" size={28}/>Нотатки — {dayLabel}, {dayNum} {dayMonth}</span></div>
           </div>
           <Hint style={{marginBottom:14}}>
             Натисніть на час, щоб уточнити його. Дзвіночок вмикає нагадування.
@@ -1106,7 +999,7 @@ function DayNotesModalBase({ dateStr, dayLabel, dayNum, dayMonth, note, settings
                     background: r.notify ? `${GOLD}2a` : `linear-gradient(145deg,${SURF_HI},${SURFACE})`,
                     display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,
                     boxShadow: r.notify ? "none" : SO,
-                  }}>{r.notify ? "🔔" : "🔕"}</div>
+                  }}>{r.notify ? <MetalIcon name="bell" size={28}/> : <MetalIcon name="bell" size={28} style={{opacity:0.45}}/>}</div>
                 </div>
               );
             })}
@@ -2425,18 +2318,18 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
     const d = phoneDigits(b.phone);
     const go = (url) => () => { done(); window.location.href = url; };
     if (side === "r") return [
-      { k:"call",  icon:"📞", label:"Подзвонити",   on:!!d, bg:"linear-gradient(145deg,#4ade80,#15803d)", run:go(`tel:+${d}`) },
-      { k:"chat",  icon:"💬", label:"Чат у застосунку", on:!!b.userId, bg:"linear-gradient(145deg,#60a5fa,#1d4ed8)",
+      { k:"call",  icon:<MetalIcon name="phone" size={30}/>, label:"Подзвонити",   on:!!d, bg:"linear-gradient(145deg,#4ade80,#15803d)", run:go(`tel:+${d}`) },
+      { k:"chat",  icon:<MetalIcon name="chat" size={30}/>, label:"Чат у застосунку", on:!!b.userId, bg:"linear-gradient(145deg,#60a5fa,#1d4ed8)",
         run:() => { done(); window.__openChatUid = b.userId; navTo?.("chats"); } },
       { k:"viber", icon:ICON_VIBER, label:"Viber",     on:!!d, bg:"#7360F2", run:go(`viber://chat?number=%2B${d}`) },
       { k:"tg",    icon:ICON_TG, label:"Telegram",  on:!!d, bg:"#2AABEE", run:go(`https://t.me/+${d}`) },
     ];
     return [
-      { k:"note", icon:"📝", label:"Нотатка до уроку", on:true, bg:"linear-gradient(145deg,#c084fc,#7e22ce)",
+      { k:"note", icon:<MetalIcon name="note" size={30}/>, label:"Нотатка до уроку", on:true, bg:"linear-gradient(145deg,#c084fc,#7e22ce)",
         run:() => { setFan(null); setRatePanel({ b, cx, cy }); } },
-      { k:"rate",  icon:"⭐", label:"Оцінка уроку", on:true, bg:"linear-gradient(145deg,#fbbf24,#d97706)",
+      { k:"rate",  icon:<MetalIcon name="star" size={30}/>, label:"Оцінка уроку", on:true, bg:"linear-gradient(145deg,#fbbf24,#d97706)",
         run:() => { setFan(null); setRatePanel({ b, cx, cy }); } },
-      { k:"rev",   icon:"📣", label:"Попросити відгук", on:canReview, bg:"linear-gradient(145deg,#fb923c,#c2410c)",
+      { k:"rev",   icon:<MetalIcon name="mega" size={30}/>, label:"Попросити відгук", on:canReview, bg:"linear-gradient(145deg,#fb923c,#c2410c)",
         run:() => { done(); requestReview(b); } },
     ];
   };
@@ -3436,7 +3329,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
             background:"linear-gradient(145deg,#60a5fa,#1d4ed8)", color:"#fff",
             fontSize:12, fontWeight:800, boxShadow:"0 4px 14px rgba(29,78,216,0.55)",
           }}>
-            <span style={{overflow:"hidden", textOverflow:"ellipsis"}}>📋 {"Оберіть місце для копії"}</span>
+            <span style={{overflow:"hidden", textOverflow:"ellipsis"}}><span style={{display:"inline-flex",alignItems:"center",gap:7}}><MetalIcon name="clipboard" size={18}/>{"Оберіть місце для копії"}</span></span>
             <span style={{opacity:0.7}}>·</span>
             <button onClick={()=>{ setCopySource(null); copyTapRef.current = null; }} style={{
               border:"none", background:"rgba(255,255,255,0.22)", color:"#fff", cursor:"pointer",
@@ -4075,8 +3968,8 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                         }}>{money(slot.fixedPrice)}</div>
                       </div>
                     ) : hasSurcharge && <span style={{position:"absolute", top:3, left:4, fontSize:9, fontWeight:800, color:"rgba(247,201,72,0.95)", lineHeight:1}}>+{money(slot.surcharge)}</span>}
-                    {(isVip || slot.vipOnly) && <span data-help="freeicons" style={{position:"absolute", top:3, right:4, fontSize:10, lineHeight:1}}>👑</span>}
-                    {isPrivateOnly && <span data-help="freeicons" style={{position:"absolute", top:3, right:4, fontSize:10, lineHeight:1}}>🚗</span>}
+                    {(isVip || slot.vipOnly) && <span data-help="freeicons" style={{position:"absolute", top:3, right:4, fontSize:10, lineHeight:1}}><MetalIcon name="crown" size={14}/></span>}
+                    {isPrivateOnly && <span data-help="freeicons" style={{position:"absolute", top:3, right:4, fontSize:10, lineHeight:1}}><MetalIcon name="car" size={14}/></span>}
 
                     {settings.showSlotTimes !== false && (slot.available || isVip || isBlocked || isPrivateOnly) && (() => {
                       // Час початку/кінця вільного слота — великий, білий і напівпрозорий
@@ -4096,7 +3989,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                         </div>
                       );
                     })()}
-                    {hasViewer && <span data-help="eye" style={{position:"absolute", bottom:3, right:4, fontSize:8, lineHeight:1, opacity:0.8}}>👁</span>}
+                    {hasViewer && <span data-help="eye" style={{position:"absolute", bottom:3, right:4, fontSize:8, lineHeight:1, opacity:0.8}}><MetalIcon name="eye" size={12}/></span>}
                     {isBlocked && (() => { const qc = queueMap[`${dateStrCol}_${time}`]; return qc > 0 ? (
                       <div data-help="queue" style={{position:"absolute", bottom:2, right:4, display:"flex", alignItems:"center", gap:1}}>
                         <svg width="8" height="8" viewBox="0 0 24 24" fill={GOLD}><circle cx="12" cy="7" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
@@ -4232,7 +4125,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                     display:"flex", alignItems:"center", paddingLeft:5,
                     gap:3,
                   }}>
-                    <span style={{fontSize:10, color:"rgba(247,201,72,0.7)", fontWeight:700, letterSpacing:0.5}}>👁 {time}</span>
+                    <span style={{fontSize:10, color:"rgba(247,201,72,0.7)", fontWeight:700, letterSpacing:0.5}}><span style={{display:"inline-flex",alignItems:"center",gap:4}}><MetalIcon name="eye" size={14}/>{time}</span></span>
                   </div>
                 );
               })}
@@ -4424,7 +4317,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                       {!b._mergedIds && !isLockedPast && <div className="slot-handle top" style={{height:handleH}} onPointerDown={e=>onPointerDown(e,b,"top")}/>}
                       {!isBlock && !isVipSlot && !isPersonal && <div className="shine-layer"/>}
                       {isVipSlot && height >= 14 && (
-                        <span style={{fontSize:11, lineHeight:1}}>👑</span>
+                        <span style={{fontSize:11, lineHeight:1}}><MetalIcon name="crown" size={16}/></span>
                       )}
                       {isPersonal && height >= 14 && (() => {
                         const maxFs = Math.min(11, Math.floor(COL_W / 5.5));
@@ -4436,7 +4329,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                             display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center",
                             gap:1, overflow:"hidden", textAlign:"center",
                           }}>
-                            <span style={{fontSize:Math.min(fs+1,11), lineHeight:1}}>📌</span>
+                            <span style={{fontSize:Math.min(fs+1,11), lineHeight:1}}><MetalIcon name="pushpin" size={Math.max(12,Math.min(fs+5,16))}/></span>
                             {nameLines.slice(0,2).map((word,i)=>(
                               <div key={i} style={{
                                 fontSize:fs, fontWeight:700, color:"#2dd4bf",
@@ -4537,7 +4430,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                           fontSize:Math.min(11, Math.max(7, height/7)),
                           lineHeight:1, pointerEvents:"none",
                           filter:`drop-shadow(0 1px 3px ${shade(0.7)})`,
-                        }}>👑</div>
+                        }}><MetalIcon name="crown" size={14}/></div>
                       )}
                       {/* Бейдж будильника — показує, що на подію виставлено нагадування */}
                       {isPersonal && b.reminderHours && height >= 14 && (
@@ -4546,7 +4439,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                           fontSize:10, lineHeight:1,
                           filter:`drop-shadow(0 1px 2px ${shade(0.6)})`,
                           pointerEvents:"none",
-                        }}>🔔</div>
+                        }}><MetalIcon name="bell" size={14}/></div>
                       )}
                       {/* Queue badge */}
                       {queueCount > 0 && !isBlock && !isVipSlot && height >= 14 && (
@@ -4611,8 +4504,8 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
 
                     {/* ── Нижні кружки-віяла: праве 💬 (зв'язок), ліве ⭐ (урок) ── */}
                     {quickCancelId===b.id && !isBlock && !isVipSlot && !isPersonal && b.userId && !b._mergedIds && [
-                      { side:"r", pos:{ bottom:-11, right:-11 }, bg:"linear-gradient(145deg,#4ade80,#15803d)", sh:"#15803d99", icon:"💬" },
-                      { side:"l", pos:{ bottom:-11, left:-11 },  bg:"linear-gradient(145deg,#fbbf24,#b45309)", sh:"#b4530999", icon:"⭐" },
+                      { side:"r", pos:{ bottom:-11, right:-11 }, bg:"linear-gradient(145deg,#4ade80,#15803d)", sh:"#15803d99", icon:<MetalIcon name="chat" size={26}/> },
+                      { side:"l", pos:{ bottom:-11, left:-11 },  bg:"linear-gradient(145deg,#fbbf24,#b45309)", sh:"#b4530999", icon:<MetalIcon name="star" size={26}/> },
                     ].map(c => (
                       <div key={c.side} data-fan="1"
                         onPointerDown={e=>e.stopPropagation()}
@@ -4961,7 +4854,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
             background:`linear-gradient(165deg,#f59e0b,#d97706)`,
             color:"#fff",fontSize:12,fontWeight:800,
             boxShadow:`0 4px 12px rgba(245,158,11,0.4)`,
-          }}>👤 Записати клієнта</button>
+          }}><span style={{display:"inline-flex",alignItems:"center",gap:7}}><MetalIcon name="user" size={20}/>Записати клієнта</span></button>
           <button onClick={()=>{
             const sh = String(Math.floor(bubbleData.startMin/60)).padStart(2,'0');
             const sn = String(bubbleData.startMin%60).padStart(2,'0');
@@ -4972,7 +4865,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
             background:"rgba(45,212,191,0.12)",
             color:"#2dd4bf",fontSize:12,fontWeight:800,
             border:"1px solid rgba(45,212,191,0.3)",
-          }}>📌 Особиста подія</button>
+          }}><span style={{display:"inline-flex",alignItems:"center",gap:7}}><MetalIcon name="pushpin" size={20}/>Особиста подія</span></button>
         </div>
       </div>
     ))(FOG_STYLE.theme)}
@@ -5088,7 +4981,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                   border:`1px solid rgba(99,211,120,0.28)`,
                   ...(ltmScatter ? {animation:`_ltm-sc-l 0.32s ease-in forwards`} : {}),
                 }}>
-                  <span style={{fontSize:24}}>🕐</span>
+                  <span style={{display:"inline-flex"}}><MetalIcon name="clock" size={28}/></span>
                   Вільний слот
                 </button>
               <button onClick={()=>{
@@ -5102,7 +4995,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                 border:"1px solid rgba(45,212,191,0.22)",
                 ...(ltmScatter ? {animation:`_ltm-sc-c 0.28s ease-in forwards`} : {}),
               }}>
-                <span style={{fontSize:24}}>📌</span>
+                <span style={{display:"inline-flex"}}><MetalIcon name="pushpin" size={28}/></span>
                 Особиста подія
               </button>
               <button onClick={()=>{
@@ -5119,7 +5012,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                 border:"1px solid rgba(99,102,241,0.22)",
                 ...(ltmScatter ? {animation:`_ltm-sc-c 0.28s ease-in forwards`} : {}),
               }}>
-                <span style={{fontSize:24}}>📝</span>
+                <span style={{display:"inline-flex"}}><MetalIcon name="note" size={28}/></span>
                 Додати запис
               </button>
               <button onClick={()=>{
@@ -5133,7 +5026,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                 border:"1px solid rgba(239,68,68,0.2)",
                 ...(ltmScatter ? {animation:`_ltm-sc-r 0.32s ease-in forwards`} : {}),
               }}>
-                <span style={{fontSize:24}}>{_menu.isClosedDay ? "🔓" : "🔒"}</span>
+                <span style={{display:"inline-flex"}}><MetalIcon name="lock" size={28}/></span>
                 {_menu.isClosedDay ? "Відкрити" : "Закрити"} день
               </button>
             </div>}
@@ -5197,7 +5090,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
             }}>
               <div style={{width:36,height:4,borderRadius:2,background:"rgba(34,197,94,0.35)",margin:"0 auto 12px"}}/>
               <div style={{textAlign:"center",padding:"0 36px"}}>
-              <div style={{fontSize:18,fontWeight:800,color:"#22c55e"}}>🟢 Вільний слот</div>
+              <div style={{fontSize:18,fontWeight:800,color:"#22c55e"}}><span style={{display:"inline-flex",alignItems:"center",gap:7}}><MetalIcon name="plusCircle" size={28}/>Вільний слот</span></div>
               <div style={{fontSize:12,color:TEXT_FAINT,marginTop:2}}>{_so.dateStr} · {fmtTime(_soSelMin)}</div>
               </div>
             </div>
@@ -5241,7 +5134,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                 color:"#f59e0b",fontSize:15,fontWeight:700,
                 display:"flex",alignItems:"center",gap:10,
               }}>
-                <span>👤</span> Додати запис
+                <span style={{display:"inline-flex"}}><MetalIcon name="user" size={26}/></span> Додати запис
               </button>
               {/* Особиста подія */}
               <button onClick={()=>{
@@ -5253,7 +5146,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                 color:"#2dd4bf",fontSize:15,fontWeight:700,
                 display:"flex",alignItems:"center",gap:10,
               }}>
-                <span>📌</span> Особиста подія
+                <span style={{display:"inline-flex"}}><MetalIcon name="pushpin" size={26}/></span> Особиста подія
               </button>
               {/* Розіслати клієнтам */}
               <button onClick={()=>{
@@ -5265,7 +5158,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                 color:"#818cf8",fontSize:15,fontWeight:700,
                 display:"flex",alignItems:"center",gap:10,
               }}>
-                <span>📣</span> Розіслати клієнтам
+                <span style={{display:"inline-flex"}}><MetalIcon name="mega" size={26}/></span> Розіслати клієнтам
               </button>
               {/* VIP слот */}
               <button onClick={()=>applySlotOption(_so.dateStr, fmtTime(_soSelMin), "vip")} style={{
@@ -5274,7 +5167,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                 color:"#c084fc",fontSize:15,fontWeight:700,
                 display:"flex",alignItems:"center",gap:10,
               }}>
-                <span>👑</span> VIP слот
+                <span style={{display:"inline-flex"}}><MetalIcon name="crown" size={26}/></span> VIP слот
                 {_so.slot?.vipOnly && <span style={{marginLeft:"auto",fontSize:11,color:"#c084fc",opacity:0.7}}>✓ активний</span>}
               </button>
               {/* Індивідуальний слот */}
@@ -5284,7 +5177,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                 color:"#eab308",fontSize:15,fontWeight:700,
                 display:"flex",alignItems:"center",gap:10,
               }}>
-                <span>🚗</span> Індивідуальний слот
+                <span style={{display:"inline-flex"}}><MetalIcon name="car" size={26}/></span> Індивідуальний слот
                 {_so.slot?.privateOnly && <span style={{marginLeft:"auto",fontSize:11,color:"#eab308",opacity:0.7}}>✓ активний</span>}
               </button>
               {/* Фіксована ціна — повністю замінює тарифну ціну послуги для цього слота */}
@@ -5297,7 +5190,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                 color:GREEN,fontSize:15,fontWeight:700,
                 display:"flex",alignItems:"center",gap:10,
               }}>
-                <span>💰</span> Фіксована ціна
+                <span style={{display:"inline-flex"}}><MetalIcon name="coin" size={26}/></span> Фіксована ціна
                 {_so.slot?.fixedPrice != null && <span style={{marginLeft:"auto",fontSize:11,color:GREEN,opacity:0.8}}>{money(_so.slot.fixedPrice)}</span>}
               </button>
               {fixedPriceEditing && (
@@ -5330,7 +5223,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                 color:GOLD,fontSize:15,fontWeight:700,
                 display:"flex",alignItems:"center",gap:10,
               }}>
-                <span>⚡</span> Надбавка
+                <span style={{display:"inline-flex"}}><MetalIcon name="bolt" size={26}/></span> Надбавка
                 {_so.slot?.surcharge ? <span style={{marginLeft:"auto",fontSize:11,color:GOLD,opacity:0.8}}>+{money(_so.slot.surcharge)}</span> : null}
               </button>
               {surchargeEditing && (
@@ -5368,7 +5261,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                 fontSize:15,fontWeight:700,
                 display:"flex",alignItems:"center",gap:10,
               }}>
-                <span>{_so.slot?.adminBlocked ? "🔓" : "🚫"}</span>
+                <span style={{display:"inline-flex"}}>{<MetalIcon name="ban" size={26}/>}</span>
                 {_so.slot?.adminBlocked ? "Розблокувати слот" : "Заблокувати слот"}
               </button>
               {/* Видалити слот повністю */}
@@ -5381,7 +5274,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                 color:"#f87171",fontSize:15,fontWeight:700,
                 display:"flex",alignItems:"center",gap:10,
               }}>
-                <span>🗑️</span> Видалити слот
+                <span style={{display:"inline-flex"}}><MetalIcon name="trash" size={26}/></span> Видалити слот
               </button>
             </div>
             {/* Скинути — тільки якщо є що скидати */}
@@ -5446,7 +5339,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                     background:"linear-gradient(145deg,#a855f7,#7c3aed)",
                     boxShadow:"0 0 0 3px rgba(168,85,247,0.3), 0 6px 20px rgba(168,85,247,0.4)",
                     display:"flex",alignItems:"center",justifyContent:"center",fontSize:24,
-                  }}>👑</div>
+                  }}><MetalIcon name="crown" size={34}/></div>
                   <div style={{minWidth:0}}>
                     <div style={{fontSize:18,fontWeight:900,color:PURPLE}}>VIP Слот</div>
                     <div style={{fontSize:12,color:TEXT_DIM,marginTop:3}}>
@@ -5589,7 +5482,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
             borderBottom:"1px solid rgba(45,212,191,0.15)",
             borderRadius:"20px 20px 0 0",
           }}>
-            <div style={{fontSize:15,fontWeight:800,color:"#2dd4bf"}}>📌 Особиста подія</div>
+            <div style={{fontSize:15,fontWeight:800,color:"#2dd4bf"}}><span style={{display:"inline-flex",alignItems:"center",gap:7}}><MetalIcon name="pushpin" size={28}/>Особиста подія</span></div>
           </div>
           <div className="win-cols win-gap" style={{padding:"14px 16px",gap:12}}>
             <div>
@@ -5704,7 +5597,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
               />
             </div>
             <div>
-              <div style={{fontSize:10,fontWeight:700,letterSpacing:1.2,color:FAINT,textTransform:"uppercase",marginBottom:6}}>⏰ Нагадування з будильником</div>
+              <div style={{fontSize:10,fontWeight:700,letterSpacing:1.2,color:FAINT,textTransform:"uppercase",marginBottom:6}}><span style={{display:"inline-flex",alignItems:"center",gap:7}}><MetalIcon name="clock" size={16}/>Нагадування з будильником</span></div>
               <select
                 value={peEditReminderHours ?? ""}
                 onChange={e=>setPeEditReminderHours(e.target.value === "" ? null : Number(e.target.value))}
@@ -6077,7 +5970,7 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
     const idx = studentLessons.findIndex(x => x.id === booking.id);
     return idx >= 0 ? idx + 1 : studentLessons.length + 1;
   })();
-  const typeLabel = (isSalon(settings) && booking.serviceName) ? `💈 ${booking.serviceName}` : booking.type === "school" ? "📋 Стандарт" : "👤 Індивідуальний"; // салон: назва послуги замість типу
+  const typeLabel = (isSalon(settings) && booking.serviceName) ? <span style={{display:"inline-flex",alignItems:"center",gap:5}}><MetalIcon name="tag" size={16}/>{booking.serviceName}</span> : booking.type === "school" ? <span style={{display:"inline-flex",alignItems:"center",gap:5}}><MetalIcon name="clipboard" size={16}/>Стандарт</span> : <span style={{display:"inline-flex",alignItems:"center",gap:5}}><MetalIcon name="user" size={16}/>Індивідуальний</span>; // салон: назва послуги замість типу
 
   const sameDayBookings = (bookings || []).filter(x =>
     x.id !== booking.id && x.status !== "cancelled" &&
@@ -6189,7 +6082,7 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
                     <span style={{
                       fontSize:11,fontWeight:800,padding:"2px 7px",borderRadius:99,flexShrink:0,
                       background:`${BLUE}1f`,color:BLUE,
-                    }}>{`${isSalon(settings) ? "" : "🚗 "}${lessonNumber}-й запис`}</span>
+                    }}>{isSalon(settings) ? null : <MetalIcon name="car" size={16} style={{marginRight:4}}/>}{`${lessonNumber}-й запис`}</span>
                   )}
                 </div>
                 <div style={{fontSize:11.5,color:c,fontWeight:700,marginTop:2}}>{typeLabel}</div>
@@ -6228,7 +6121,7 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
               margin:"12px 14px 0",padding:"10px 14px",borderRadius:14,
               background:`${GOLD}14`,border:`1px solid ${GOLD}4d`,
             }}>
-              <div style={{fontSize:11,fontWeight:700,letterSpacing:.5,color:GOLD,marginBottom:3}}>💬 Коментар клієнта</div>
+              <div style={{fontSize:11,fontWeight:700,letterSpacing:.5,color:GOLD,marginBottom:3}}><span style={{display:"inline-flex",alignItems:"center",gap:7}}><MetalIcon name="chat" size={18}/>Коментар клієнта</span></div>
               <div style={{fontSize:13,color:TEXT,lineHeight:1.4,whiteSpace:"pre-wrap",wordBreak:"break-word"}}>{booking.studentNote}</div>
             </div>
           )}
@@ -6306,7 +6199,7 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
             const members = (bookings || []).filter(x => x.groupKey === booking.groupKey && x.status !== "cancelled");
             return (
               <div style={{margin:"10px 14px 0",padding:"10px 14px",borderRadius:14,background:`rgba(${GLOW},0.06)`,border:`1px solid ${BORDER}`,fontSize:12,color:TEXT}}>
-                <div style={{fontSize:11,fontWeight:700,letterSpacing:1,color:FAINT,textTransform:"uppercase",marginBottom:5}}>👥 Група: {members.length}{booking.groupCap ? ` з ${booking.groupCap}` : ""}</div>
+                <div style={{fontSize:11,fontWeight:700,letterSpacing:1,color:FAINT,textTransform:"uppercase",marginBottom:5}}><MetalIcon name="users" size={16} style={{marginRight:5}}/>Група: {members.length}{booking.groupCap ? ` з ${booking.groupCap}` : ""}</div>
                 {members.map(m => (
                   <div key={m.id} onClick={() => m.id !== booking.id && onAction("openMember", m)} style={{display:"flex",alignItems:"center",gap:8,padding:"4px 0",cursor:m.id===booking.id?"default":"pointer"}}>
                     <span style={{flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontWeight:m.id===booking.id?800:600}}>{m.name}</span>
@@ -6324,13 +6217,13 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
               {normAddons(booking.addons).length > 0 && (() => {
                 const ax = bookingAddonTotals(booking);
                 return (
-                  <div>➕ <b>{addonsLabel(normAddons(booking.addons))}</b>
+                  <div><MetalIcon name="plus" size={16} style={{marginRight:5}}/><b>{addonsLabel(normAddons(booking.addons))}</b>
                     <span style={{color:DIM}}> · +{money(ax.price)}{ax.minutes>0?` · +${ax.minutes} хв`:""}</span>
                   </div>
                 );
               })()}
-              {bufferOf(booking) > 0 && <div style={{color:DIM}}>⏸ Перерва після запису: {bufferOf(booking)} хв</div>}
-              {booking.packageId && <div>🎫 {booking.packageError ? <span style={{color:ACCENT}}>Пакет «{booking.packageName}» не списано: {booking.packageError}</span> : <>З пакета «{booking.packageName}»</>}</div>}
+              {bufferOf(booking) > 0 && <div style={{color:DIM}}><MetalIcon name="timer" size={16} style={{marginRight:5}}/>Перерва після запису: {bufferOf(booking)} хв</div>}
+              {booking.packageId && <div><MetalIcon name="ticket" size={16} style={{marginRight:5}}/>{booking.packageError ? <span style={{color:ACCENT}}>Пакет «{booking.packageName}» не списано: {booking.packageError}</span> : <>З пакета «{booking.packageName}»</>}</div>}
             </div>
           )}
 
@@ -6347,7 +6240,7 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
               }}>
                 <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:6}}>
                   <div style={{fontSize:11,fontWeight:700,letterSpacing:1,color:"rgba(255,255,255,.8)",textTransform:"uppercase"}}>
-                    🏷️ Мітка {isAuto && <span style={{color:"rgba(255,255,255,.6)",textTransform:"none",letterSpacing:0}}>(авто)</span>}
+                    <MetalIcon name="tag" size={16} style={{marginRight:5}}/>Мітка {isAuto && <span style={{color:"rgba(255,255,255,.6)",textTransform:"none",letterSpacing:0}}>(авто)</span>}
                   </div>
                   <div onClick={() => setTagPickerOpen(o => !o)} style={{
                     fontSize:11,fontWeight:800,color:"#fff",cursor:"pointer",padding:"2px 8px",
@@ -6414,7 +6307,7 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
           {queueEntries.length > 0 && (
             <div style={{padding:"10px 14px",borderBottom:`1px solid ${ink(0.06)}`}}>
               <div style={{fontSize:11,fontWeight:700,letterSpacing:1,color:GOLD,textTransform:"uppercase",marginBottom:6}}>
-                ⏳ Черга ({queueEntries.length})
+                <MetalIcon name="hourglass" size={16} style={{marginRight:5}}/>Черга ({queueEntries.length})
               </div>
               {queueEntries.map((e, i) => (
                 <div key={e.uid||i} style={{display:"flex",alignItems:"center",gap:8,padding:"4px 0",borderBottom: i < queueEntries.length-1 ? `1px solid ${ink(0.04)}` : "none"}}>
@@ -6459,7 +6352,7 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
               border:`1px solid ${isNoshow ? `${GREEN}55` : "rgba(239,68,68,0.35)"}`,
               background:isNoshow ? `${GREEN}14` : "rgba(239,68,68,0.10)",
               color:isNoshow ? GREEN : "#fca5a5",fontSize:13,fontWeight:800,
-            }}>{isNoshow ? "↺ Клієнт прийшов" : "🚫 Не прийшов"}</button>
+            }}>{isNoshow ? "↺ Клієнт прийшов" : <span style={{display:"inline-flex",alignItems:"center",gap:7}}><MetalIcon name="ban" size={20}/>Не прийшов</span>}</button>
           )}
 
           {!isPastLocked && (
@@ -6479,7 +6372,7 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
               borderTop:`1px solid ${ink(0.05)}`,
               color:TEXT_FAINT,fontSize:11,fontWeight:600,
               marginTop:4,marginBottom:20,
-            }}>🔒 Минулий запис — змінити чи скасувати не можна</div>
+            }}><span style={{display:"inline-flex",alignItems:"center",gap:7}}><MetalIcon name="lock" size={18}/>Минулий запис — змінити чи скасувати не можна</span></div>
           )}
 
         </div>
@@ -6642,7 +6535,7 @@ function PersonalEventModalBase({ data, onClose, onConfirm }) {
           }}>
             <div style={{width:36,height:4,borderRadius:2,background:"rgba(45,212,191,0.35)",margin:"0 auto 12px"}}/>
             <div style={{textAlign:"center",padding:"0 36px"}}>
-            <div style={{fontSize:18,fontWeight:800,color:"#2dd4bf",marginBottom:2}}>📌 Особиста подія</div>
+            <div style={{fontSize:18,fontWeight:800,color:"#2dd4bf",marginBottom:2}}><span style={{display:"inline-flex",alignItems:"center",gap:7}}><MetalIcon name="pushpin" size={28}/>Особиста подія</span></div>
             <div style={{fontSize:12,color:DIM}}>{peDate} · {peTime}</div>
             </div>
           </div>
@@ -6893,28 +6786,28 @@ function ScheduleHelpBase({ onClose, onPick }) {
   const SECTIONS = [
     { title: "Панель угорі", items: [
       { ico: <HelpChip bg="linear-gradient(165deg,#5b9bff,#2563eb)">Авто</HelpChip>, h: "hours", t: "Авто · 8 · 10 · 12 · 14 годин", d: "Скільки годин робочого дня видно на екрані одночасно. «Авто» сама підбирає висоту під ваш екран." },
-      { ico: <span style={{ fontSize:20 }}>📅</span>, h: "monthcal", t: "Місячний календар", d: "Швидкий перехід на будь-яку дату." },
+      { ico: <MetalIcon name="calendar" size={24}/>, h: "monthcal", t: "Місячний календар", d: "Швидкий перехід на будь-яку дату." },
       { ico: <HelpChip bg={`linear-gradient(165deg,${GOLD},#e6a800)`} color="#1a1200">5</HelpChip>, h: "days", t: "3 · 4 · 5 · 6 · 7 діб", d: "Скільки днів показувати поряд." },
     ] },
     { title: "Шапка дня", items: [
       { ico: <HelpChip bg="rgba(126,217,87,0.18)" color={GREEN} w={34}>Пн</HelpChip>, h: "daycolor", t: "Колір дня", d: "Зелений — робочий день, червоний зі штриховкою — вихідний. Золота рамка — сьогодні." },
       { ico: <div style={{ display:"flex", gap:4 }}><HelpDot bg={`linear-gradient(155deg,#a6e888,${GREEN})`}>✓</HelpDot><HelpDot bg={`linear-gradient(145deg,${SURF_HI},${SURFACE})`} color={DIM}>+</HelpDot></div>, h: "daycorner", t: "✓ або + у куті дня", d: "✓ — у дні є вільні слоти для запису. «+» — слотів немає. Тап по дню створює слоти за графіком (або прибирає їх, якщо вони вже є), подвійний тап — закриває чи відкриває день." },
-      { ico: <HelpDot bg={`linear-gradient(155deg,#ffe28a,${GOLD})`} color="#3a2800">📄</HelpDot>, h: "daynote", t: "Нотатка дня", d: "До цього дня є нотатка. Утримайте шапку дня 0,6 с — відкрити або додати нотатку." },
+      { ico: <MetalIcon name="note" size={24}/>, h: "daynote", t: "Нотатка дня", d: "До цього дня є нотатка. Утримайте шапку дня 0,6 с — відкрити або додати нотатку." },
     ] },
     { title: "Сітка розкладу", items: [
       { ico: <HelpChip bg="#ef4444" w={34}>14:51</HelpChip>, h: "nowline", t: "Червона мітка з часом", d: "Поточний час." },
-      { ico: <span style={{ fontSize:18 }}>👆</span>, t: "Утримати порожнє місце", d: "Меню: додати запис, особиста подія, вільний слот, закрити день." },
-      { ico: <div style={{ display:"flex", gap:3, fontSize:16 }}><span>🚗</span><span>👑</span></div>, h: "freeicons", t: "Вільний слот: 🚗 · 👑", d: "🚗 — слот лише для приватних клієнтів, 👑 — лише для VIP. Стрічка «900₴» — фіксована ціна слота, «+100₴» — надбавка." },
+      { ico: <MetalIcon name="pushpin" size={24}/>, t: "Утримати порожнє місце", d: "Меню: додати запис, особиста подія, вільний слот, закрити день." },
+      { ico: <div style={{ display:"flex", gap:3 }}><MetalIcon name="car" size={22}/><MetalIcon name="crown" size={22}/></div>, h: "freeicons", t: "Вільний слот: 🚗 · 👑", d: "🚗 — слот лише для приватних клієнтів, 👑 — лише для VIP. Стрічка «900₴» — фіксована ціна слота, «+100₴» — надбавка." },
       { ico: <HelpChip bg="rgba(91,155,255,0.18)" color="#93c5fd" w={44}>ОБІД</HelpChip>, t: "ОБІД", d: "Перерва за налаштуваннями графіка — записів на цей час немає." },
-      { ico: <span style={{ fontSize:20 }}>👁</span>, h: "eye", t: "👁 Слот зараз переглядають", d: "Клієнт саме відкрив цей вільний слот у своєму застосунку й обирає час. Позначка зникає, коли він закриє слот або запишеться." },
+      { ico: <MetalIcon name="eye" size={24}/>, h: "eye", t: "👁 Слот зараз переглядають", d: "Клієнт саме відкрив цей вільний слот у своєму застосунку й обирає час. Позначка зникає, коли він закриє слот або запишеться." },
       { ico: <div style={{ width:36, height:11, borderRadius:7, background:"rgba(126,217,87,0.45)", border:"1px solid rgba(126,217,87,0.75)" }}/>, t: "Зелена ручка внизу слота", d: "Змінює тривалість вільного слота: утримайте ручку 0,6 с і потягніть вгору або вниз. Є лише на вільних слотах майбутніх днів." },
     ] },
     { title: "Картка запису", items: [
       { ico: <div style={{ display:"flex", gap:3 }}><div style={{ width:11, height:20, borderRadius:4, background:"hsl(140,68%,50%)" }}/><div style={{ width:11, height:20, borderRadius:4, background:"hsl(45,68%,52%)" }}/><div style={{ width:11, height:20, borderRadius:4, background:"hsl(5,68%,56%)" }}/></div>, t: "Колір картки = колір клієнта", d: "Кожен клієнт має свій колір, тож розклад читається з одного погляду. У налаштуваннях можна вимкнути «Автокольори» й призначити кольори вручну в картці клієнта." },
       { ico: <HelpDot bg="rgba(0,0,0,0.55)" color="#fff">16</HelpDot>, t: "Число в кружку", d: "Порядковий номер запису цього клієнта." },
-      { ico: <div style={{ display:"grid", gridTemplateColumns:"auto auto", gap:"2px 6px", fontSize:16, lineHeight:1.2 }}><span>⭐</span><span>🔍</span><span>🚨</span><span>💸</span></div>, t: "Мітки запису: ⭐ 🔍 🚨 💸", d: "⭐ «1-й запис» ставиться автоматично. 🔍 «Перевірка», 🚨 «Іспит» і 💸 «Борг» — вручну: деталі запису → «Мітка» або під час створення запису. Для боргу можна вписати суму." },
-      { ico: <span style={{ fontSize:20 }}>👑</span>, h: "crown", t: "Корона", d: "VIP-клієнт." },
-      { ico: <div style={{ display:"flex", alignItems:"center", gap:2, fontSize:12, fontWeight:800, color:GOLD }}>👤<span>2</span></div>, h: "queue", t: "👤 + число", d: "Скільки клієнтів стоять у черзі на цей час. Якщо запис скасують, слот автоматично запропонують наступному." },
+      { ico: <div style={{ display:"grid", gridTemplateColumns:"auto auto", gap:"2px 6px" }}><MetalIcon name="star" size={20}/><MetalIcon name="search" size={20}/><MetalIcon name="warn" size={20}/><MetalIcon name="coin" size={20}/></div>, t: "Мітки запису: ⭐ 🔍 🚨 💸", d: "⭐ «1-й запис» ставиться автоматично. 🔍 «Перевірка», 🚨 «Іспит» і 💸 «Борг» — вручну: деталі запису → «Мітка» або під час створення запису. Для боргу можна вписати суму." },
+      { ico: <MetalIcon name="crown" size={24}/>, h: "crown", t: "Корона", d: "VIP-клієнт." },
+      { ico: <div style={{ display:"flex", alignItems:"center", gap:2, fontSize:12, fontWeight:800, color:GOLD }}><MetalIcon name="user" size={18}/><span>2</span></div>, h: "queue", t: "👤 + число", d: "Скільки клієнтів стоять у черзі на цей час. Якщо запис скасують, слот автоматично запропонують наступному." },
       { ico: <div style={{ width:22, height:22, borderRadius:5, background:"rgba(255,255,255,0.12)", position:"relative", overflow:"hidden", flexShrink:0 }}><div style={{ position:"absolute", right:0, bottom:0, width:0, height:0, borderLeft:"10px solid transparent", borderBottom:`10px solid ${GOLD}` }}/></div>, t: "Жовтий куточок", d: "Клієнт залишив нотатку до запису для майстра. Відкрийте картку, щоб прочитати." },
     ] },
     { title: "Кнопки по краях", items: [
@@ -6924,7 +6817,7 @@ function ScheduleHelpBase({ onClose, onPick }) {
       { ico: <HelpChip bg="rgba(126,217,87,0.15)" color={GREEN} w={44}>{`6 000${curSym()}`}</HelpChip>, h: "daysum", t: "Сума внизу колонки", d: "Скільки заробляєте за цей день за записами." },
     ] },
     { title: "Нижнє меню", items: [
-      { ico: <div style={{ position:"relative", width:24, height:24, fontSize:18, lineHeight:"24px", textAlign:"center" }}>📒<span style={{ position:"absolute", top:-4, right:-8, background:ACCENT, color:"#fff", borderRadius:10, padding:"0 5px", fontSize:9, fontWeight:800, lineHeight:"14px" }}>14</span></div>, h: "navbadge", t: "Червоне число на «Журнал» / «Чати»", d: "Журнал — непрочитані події (нові записи, скасування, перенесення). Чати — непрочитані повідомлення від клієнтів." },
+      { ico: <div style={{ position:"relative", width:24, height:24, fontSize:18, lineHeight:"24px", textAlign:"center" }}><MetalIcon name="list" size={24}/><span style={{ position:"absolute", top:-4, right:-8, background:ACCENT, color:"#fff", borderRadius:10, padding:"0 5px", fontSize:9, fontWeight:800, lineHeight:"14px" }}>14</span></div>, h: "navbadge", t: "Червоне число на «Журнал» / «Чати»", d: "Журнал — непрочитані події (нові записи, скасування, перенесення). Чати — непрочитані повідомлення від клієнтів." },
     ] },
   ];
   return createPortal(
@@ -6936,7 +6829,7 @@ function ScheduleHelpBase({ onClose, onPick }) {
         ...(hv?.panel||{}),
       }}>
         <div style={{ position:"relative", textAlign:"center", padding:"16px 48px 12px", flexShrink:0 }}>
-          <div style={{ fontSize:17, fontWeight:800 }}>❓ Підказки по розкладу</div>
+          <div style={{ fontSize:17, fontWeight:800 }}><span style={{display:"inline-flex",alignItems:"center",gap:7}}><MetalIcon name="info" size={28}/>Підказки по розкладу</span></div>
           <div style={{ fontSize:12, color:"rgba(255,255,255,0.82)", marginTop:3 }}>Що означає кожен значок на екрані «Записи». Натисніть на блок, щоб побачити його на екрані</div>
           <button onClick={onClose} aria-label="Закрити" style={{ position:"absolute", top:12, right:14, width:26, height:26, borderRadius:8, border:"none", background:"rgba(239,68,68,0.18)", color:"#ef4444", fontSize:13, fontWeight:800, lineHeight:1, cursor:"pointer", padding:0, display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
         </div>
@@ -7160,7 +7053,7 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
           }}>
             <div style={{width:36,height:4,borderRadius:2,background:"rgba(34,197,94,0.35)",margin:"0 auto 12px"}}/>
             <div style={{padding:"0 36px",textAlign:"center"}}>
-            <div style={{fontSize:17,fontWeight:800,color:"#22c55e"}}>➕ Новий запис</div>
+            <div style={{fontSize:17,fontWeight:800,color:"#22c55e"}}><span style={{display:"inline-flex",alignItems:"center",gap:7}}><MetalIcon name="plusCircle" size={28}/>Новий запис</span></div>
             {activeM && <div style={{marginTop:6,fontSize:12,fontWeight:600,color:TEXT_DIM,display:"flex",alignItems:"center",justifyContent:"center",gap:6,minWidth:0}}>Майстер: <span style={{width:9,height:9,borderRadius:"50%",background:activeM.color,flexShrink:0}}/><span style={{color:TEXT,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{activeM.name}</span></div>}
             </div>
           </div>
@@ -7321,7 +7214,7 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
 
           {selSvc && isGroupService(selSvc) && (
             <div style={{padding:"9px 13px",borderRadius:12,background:`${BLUE}14`,border:`1px solid ${BLUE}30`,fontSize:12,color:TEXT_DIM,lineHeight:1.5}}>
-              👥 Групова послуга, до {capacityOf(selSvc)} місць. Запис приєднається до наявної групи на цей час або створить нову; якщо місць немає — його буде відхилено.
+              <MetalIcon name="users" size={18} style={{marginRight:5}}/>Групова послуга, до {capacityOf(selSvc)} місць. Запис приєднається до наявної групи на цей час або створить нову; якщо місць немає — його буде відхилено.
             </div>
           )}
 
@@ -7355,7 +7248,7 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
               border: pkgOn ? `1.5px solid ${GREEN}` : `1.5px solid ${BORDER}`,
               background: pkgOn ? `${GREEN}1a` : SURFACE_LO, color:TEXT,fontSize:13,fontWeight:700,
             }}>
-              <span style={{fontSize:16}}>🎫</span>
+              <span style={{display:"inline-flex"}}><MetalIcon name="ticket" size={22}/></span>
               <span style={{flex:1}}>Списати з пакета «{availPkg.name}» <span style={{color:TEXT_DIM,fontWeight:600}}>(лишилось {availPkg.left})</span></span>
               <span style={{color:pkgOn?GREEN:TEXT_FAINT}}>{pkgOn?"✓":"○"}</span>
             </button>
@@ -7376,7 +7269,7 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
               padding:"10px 13px",borderRadius:12,
               background:`${GOLD}14`,border:`1px solid ${GOLD}30`,
             }}>
-              <span style={{fontSize:15}}>💰</span>
+              <span style={{display:"inline-flex"}}><MetalIcon name="coin" size={22}/></span>
               <div style={{fontSize:15,fontWeight:800,color:GOLD}}>{money((pkgOn ? 0 : nbPrice) + axTotals.price)}</div>
               <div style={{fontSize:12,color:TEXT_DIM}}>· {dur} хв</div>
               {timeVal!=null && (
@@ -7535,14 +7428,7 @@ function SettingsView({ settings, setSettings }) {
       <Card style={{padding:"20px"}}>
         <SectionTitle>Профіль майстра</SectionTitle>
         <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:16}}>
-          <div className="icon3d" style={{
-            width:80,height:80,borderRadius:40,
-            background:`linear-gradient(165deg,${PURPLE},#6d28d9)`
-          }}>
-            <svg width={42} height={42} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" style={{position:"relative",zIndex:1}}>
-              <circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-7 8-7s8 3 8 7"/>
-            </svg>
-          </div>
+          <MetalIcon name="user" size={80} color="#6d28d9"/>
           <div style={{flex:1}}>
             <input value={settings.profile.name} onChange={e=>updNested("profile","name",e.target.value)}
               style={{background:"transparent",border:"none",outline:"none",color:TEXT,fontSize:17,fontWeight:800,width:"100%",marginBottom:4}}/>
@@ -7898,7 +7784,7 @@ function SettingsView({ settings, setSettings }) {
         <SectionTitle>Сповіщення клієнтам</SectionTitle>
         <Hint style={{marginBottom:14}}>Ручна розсилка повідомлень активним клієнтам про вільний слот</Hint>
         <button onClick={()=>setBroadcastOpen(true)} style={{width:"100%",background:`linear-gradient(135deg,${ACCENT},${ACC_HI})`,color:"#fff",border:"none",borderRadius:14,padding:"13px 0",fontSize:14,fontWeight:800,cursor:"pointer"}}>
-          📣 Надіслати сповіщення клієнтам
+          <span style={{display:"inline-flex",alignItems:"center",gap:7}}><MetalIcon name="mega" size={20}/>Надіслати сповіщення клієнтам</span>
         </button>
         {broadcastOpen && <BroadcastModal onClose={()=>setBroadcastOpen(false)}/>}
       </Card>
@@ -8001,7 +7887,7 @@ function StudentsView() {
         background:`linear-gradient(135deg,${BG_DEEP},${SLO})`,
         boxShadow:SI2, marginBottom:2,
       }}>
-        <span style={{fontSize:15}}>🔍</span>
+        <span style={{display:"inline-flex"}}><MetalIcon name="search" size={22}/></span>
         <input placeholder="Пошук за ім'ям або телефоном..."
           value={search} onChange={e=>setSearch(e.target.value)}
           style={{flex:1,background:"none",border:"none",outline:"none",color:TEXT,fontSize:14}}/>
@@ -8051,7 +7937,7 @@ function StudentsView() {
                 {isSaved && <div style={{fontSize:12,color:GREEN,fontWeight:700,flexShrink:0}}>✓</div>}
                 <button onClick={()=>setEditing({uid:s.uid,name:s.name,phone:s.phone})}
                   style={{...btnBase,padding:"7px 12px",fontSize:12,background:`linear-gradient(135deg,${SURF_HI},${SURFACE})`,color:DM,boxShadow:SO2}}>
-                  ✏️ Ред.
+                  <span style={{display:"inline-flex",alignItems:"center",gap:4}}><MetalIcon name="edit" size={16}/>Ред.</span>
                 </button>
               </div>
             )}
@@ -8225,7 +8111,7 @@ function TemplatesView() {
                 : `linear-gradient(165deg,${ACCENT},${AH})`,
               color:"#fff",
               boxShadow: testSent[meta.type] ? "none" : `inset 1px 1px 0 ${glow(0.25)},0 2px 8px ${ACCENT}44`,
-            }}>{testSent[meta.type] ? "✓ Повідомлення надіслано" : "📲 Надіслати тестове повідомлення"}</button>
+            }}>{testSent[meta.type] ? "✓ Повідомлення надіслано" : <span style={{display:"inline-flex",alignItems:"center",gap:7}}><MetalIcon name="phone" size={20}/>Надіслати тестове повідомлення</span>}</button>
           </Card>
         );
       })}

@@ -1,4 +1,5 @@
 import { useState, useEffect, useContext, useMemo } from "react";
+import { MetalIcon } from "../MetalIcon";
 import { createPortal } from "react-dom";
 import { onValue, update, push, remove, get } from "firebase/database";
 import { iRef, auth, getCurrentIid, getUserBookings } from "../firebase";
@@ -146,7 +147,7 @@ function StudentCard({ s, onSelect, settings }) {
 
       <div style={{position:"relative",zIndex:2,flex:1,minWidth:0}}>
         <div style={{fontSize:14,fontWeight:700,color:"#fff",overflowWrap:"anywhere"}}>
-          {s.isVip && "👑 "}{s.name}{s.blocked && <span style={{fontSize:11,marginLeft:6}}>🚫</span>}
+          {s.isVip && <MetalIcon name="crown" size={16} style={{marginRight:5}}/>}{s.name}{s.blocked && <MetalIcon name="ban" size={16} style={{marginLeft:6}}/>}
         </div>
         <div style={{fontSize:11.5,color:"rgba(255,255,255,0.8)",fontWeight:500,marginTop:2}}>{typeLabel}</div>
       </div>
@@ -311,14 +312,12 @@ function StudentDetailSheet({ settings, s, onClose, onUpdate, onDelete, onBlock,
             position:"relative",display:"flex",flexDirection:"column",alignItems:"center",gap:6,padding:"12px 52px 12px",textAlign:"center",
             borderBottom:`1px solid ${BORDER}`,flexShrink:0,
           }}>
-            <div className="icon3d" style={{
-              width:42,height:42,borderRadius:13,flexShrink:0,
-              background:`linear-gradient(145deg,${barColor}44,${barColor}18)`,
-              overflow:"hidden",fontSize:15,fontWeight:900,color:`color-mix(in srgb,${barColor} 55%,#fff)`,
-            }}>{s.photo ? <img src={s.photo} alt="" style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}/> : ini}</div>
+            {s.photo
+              ? <div style={{width:42,height:42,borderRadius:13,flexShrink:0,overflow:"hidden"}}><img src={s.photo} alt="" style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}/></div>
+              : <MetalIcon square size={42} color={barColor}>{ini}</MetalIcon>}
             <div style={{minWidth:0,maxWidth:"100%"}}>
               <div style={{fontSize:16,fontWeight:800,color:s.blocked?DIM:TEXT,overflowWrap:"anywhere"}}>
-                {s.name}{s.blocked && <span style={{fontSize:11,color:RED,marginLeft:6}}>🚫</span>}
+                {s.name}{s.blocked && <MetalIcon name="ban" size={16} style={{marginLeft:6}}/>}
               </div>
               <div style={{fontSize:11,color:typeColor,fontWeight:700,marginTop:2}}>{typeLabel}</div>
             </div>
@@ -344,7 +343,7 @@ function StudentDetailSheet({ settings, s, onClose, onUpdate, onDelete, onBlock,
               />
             ) : confirmDel ? (
               <div style={{background:"rgba(239,68,68,0.08)",border:"1px solid rgba(239,68,68,0.25)",borderRadius:14,padding:"18px 14px 14px",display:"flex",flexDirection:"column",alignItems:"center",gap:8,textAlign:"center"}}>
-                <div style={{fontSize:26,lineHeight:1}}>🗑</div>
+                <MetalIcon name="trash" size={30}/>
                 <div style={{fontSize:15,fontWeight:800,color:"#fca5a5"}}>Видалити клієнта?</div>
                 <div style={{fontSize:12.5,color:DIM,maxWidth:420}}>{`${s.name} зникне зі списку разом з історією записів. Цю дію не можна скасувати.`}</div>
                 <div className="modal-footer" style={{gap:8,width:"100%",marginTop:6}}>
@@ -354,7 +353,7 @@ function StudentDetailSheet({ settings, s, onClose, onUpdate, onDelete, onBlock,
               </div>
             ) : pushOpen ? (
               <div style={{display:"flex",flexDirection:"column",gap:10}}>
-                <div style={{textAlign:"center"}}><div style={{fontSize:15,fontWeight:800,color:GOLD}}>📢 Повідомлення клієнту</div><div style={{fontSize:12,color:DIM,marginTop:2,overflowWrap:"anywhere"}}>{s.name}</div></div>
+                <div style={{textAlign:"center"}}><div style={{fontSize:15,fontWeight:800,color:GOLD}}><span style={{display:"inline-flex",alignItems:"center",gap:7}}><MetalIcon name="mega" size={20}/>Повідомлення клієнту</span></div><div style={{fontSize:12,color:DIM,marginTop:2,overflowWrap:"anywhere"}}>{s.name}</div></div>
                 <input value={pushTitle} onChange={e=>{setPushTitle(e.target.value);setPushSent(false);}} placeholder="Заголовок"
                   style={{background:glow(0.04),border:`1px solid ${BORDER}`,outline:"none",color:TEXT,fontSize:13,padding:"9px 12px",borderRadius:10,boxShadow:SI,width:"100%",boxSizing:"border-box",fontFamily:"inherit"}}/>
                 <textarea value={pushBody} onChange={e=>{setPushBody(e.target.value);setPushSent(false);}} placeholder="Текст сповіщення" rows={3}
@@ -370,7 +369,7 @@ function StudentDetailSheet({ settings, s, onClose, onUpdate, onDelete, onBlock,
               </div>
             ) : inviteOpen ? (
               <div style={{display:"flex",flexDirection:"column",gap:10}}>
-                <div style={{textAlign:"center"}}><div style={{fontSize:15,fontWeight:800,color:GOLD}}>🔗 Запросити клієнта</div><div style={{fontSize:12,color:DIM,marginTop:2,overflowWrap:"anywhere"}}>{s.name}</div></div>
+                <div style={{textAlign:"center"}}><div style={{fontSize:15,fontWeight:800,color:GOLD}}><span style={{display:"inline-flex",alignItems:"center",gap:7}}><MetalIcon name="link" size={20}/>Запросити клієнта</span></div><div style={{fontSize:12,color:DIM,marginTop:2,overflowWrap:"anywhere"}}>{s.name}</div></div>
                 <Hint>Клієнт реєструється за посиланням, а знижка, ціна й нотатки з картки переносяться на його акаунт.</Hint>
                 <div style={{background:glow(0.04),border:`1px solid ${BORDER}`,borderRadius:10,padding:"9px 12px",fontSize:12,color:TEXT,wordBreak:"break-all"}}>{inviteLink}</div>
                 {inviteError && <div style={{fontSize:12,color:"#fca5a5"}}>{inviteError}</div>}
@@ -454,7 +453,7 @@ function StudentDetailSheet({ settings, s, onClose, onUpdate, onDelete, onBlock,
                 {/* Individual fixed price — показуємо тільки якщо задана */}
                 {s.customPrice > 0 && (
                   <div style={{background:"rgba(234,179,8,0.10)",border:"1px solid rgba(234,179,8,0.35)",borderRadius:10,padding:"9px 12px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-                    <div style={{fontSize:11,fontWeight:700,color:"#eab308"}}>💰 Індивідуальна ціна</div>
+                    <div style={{fontSize:11,fontWeight:700,color:"#eab308"}}><span style={{display:"inline-flex",alignItems:"center",gap:7}}><MetalIcon name="coin" size={18}/>Індивідуальна ціна</span></div>
                     <div style={{fontSize:14,fontWeight:900,color:"#eab308"}}>{`${money(s.customPrice)}/год`}</div>
                   </div>
                 )}
@@ -464,7 +463,7 @@ function StudentDetailSheet({ settings, s, onClose, onUpdate, onDelete, onBlock,
                   const d = new Date(s.createdAt);
                   return (
                     <div style={{fontSize:11,color:"rgba(255,255,255,0.74)",display:"flex",alignItems:"center",gap:5,padding:"0 2px"}}>
-                      <span>📅</span>
+                      <MetalIcon name="calendar" size={16}/>
                       <span>Реєстрація: {d.getDate()} {M[d.getMonth()+1]} {d.getFullYear()}</span>
                     </div>
                   );
@@ -496,7 +495,7 @@ function StudentDetailSheet({ settings, s, onClose, onUpdate, onDelete, onBlock,
                   background:s.isVip?"rgba(168,85,247,0.12)":glow(0.04),
                   border:s.isVip?"1px solid rgba(168,85,247,0.35)":`1px solid ${BORDER}`,
                 }}>
-                  <span style={{fontSize:16,lineHeight:1}}>👑</span>
+                  <MetalIcon name="crown" size={26}/>
                   <div style={{flex:1}}>
                     <div style={{fontSize:12,fontWeight:700,color:s.isVip?"#c084fc":TEXT}}>VIP клієнт</div>
                     <div style={{fontSize:11,color:FAINT,marginTop:2}}>{s.isVip?"Має доступ до VIP слотів":"Без доступу до VIP слотів"}</div>
@@ -508,7 +507,7 @@ function StudentDetailSheet({ settings, s, onClose, onUpdate, onDelete, onBlock,
 
                 {/* Notes */}
                 {s.notes && (
-                  <div style={{background:glow(0.04),borderRadius:10,padding:"9px 12px",border:`1px solid ${BORDER}`,fontSize:12,color:DIM,lineHeight:1.5}}>📝 {s.notes}</div>
+                  <div style={{background:glow(0.04),borderRadius:10,padding:"9px 12px",border:`1px solid ${BORDER}`,fontSize:12,color:DIM,lineHeight:1.5,display:"flex",alignItems:"flex-start",gap:7}}><MetalIcon name="note" size={18}/><span>{s.notes}</span></div>
                 )}
 
                 {confirmNode}
@@ -518,7 +517,7 @@ function StudentDetailSheet({ settings, s, onClose, onUpdate, onDelete, onBlock,
                   const tpls = normPackageTemplates(settings?.packages);
                   return (
                     <div style={{background:glow(0.04),borderRadius:10,padding:"9px 12px",border:`1px solid ${BORDER}`,fontSize:12,color:DIM,lineHeight:1.6}}>
-                      <div style={{fontSize:11,fontWeight:700,letterSpacing:1,textTransform:"uppercase",color:FAINT,marginBottom:3}}>🎫 Пакети</div>
+                      <div style={{fontSize:11,fontWeight:700,letterSpacing:1,textTransform:"uppercase",color:FAINT,marginBottom:3}}><span style={{display:"inline-flex",alignItems:"center",gap:7}}><MetalIcon name="ticket" size={18}/>Пакети</span></div>
                       {pkgs.length === 0 && <div style={{color:FAINT}}>Немає пакетів</div>}
                       {pkgs.map(p => (
                         <div key={p.id} style={{display:"flex",alignItems:"center",gap:8,padding:"3px 0"}}>
@@ -545,7 +544,7 @@ function StudentDetailSheet({ settings, s, onClose, onUpdate, onDelete, onBlock,
                 {/* Анкета клієнта (відповіді з Налаштування → Анкета) */}
                 {s.intake?.length > 0 && (
                   <div style={{background:glow(0.04),borderRadius:10,padding:"9px 12px",border:`1px solid ${BORDER}`,fontSize:12,color:DIM,lineHeight:1.6}}>
-                    <div style={{fontSize:11,fontWeight:700,letterSpacing:1,textTransform:"uppercase",color:FAINT,marginBottom:3}}>📋 Анкета</div>
+                    <div style={{fontSize:11,fontWeight:700,letterSpacing:1,textTransform:"uppercase",color:FAINT,marginBottom:3}}><span style={{display:"inline-flex",alignItems:"center",gap:7}}><MetalIcon name="clipboard" size={18}/>Анкета</span></div>
                     {s.intake.map((it,i)=>(
                       <div key={it.id||i}><span style={{color:FAINT}}>{it.label}:</span> <b style={{color:TEXT,fontWeight:700}}>{it.value}</b></div>
                     ))}
@@ -864,7 +863,7 @@ export default function StudentsView({ studentJump, onStudentJumpHandled, bookin
         )}
         {!loading && list.length===0 && (
           <div style={{textAlign:"center",padding:"40px 20px"}}>
-            <div style={{fontSize:36,opacity:.3,marginBottom:8}}>👥</div>
+            <div style={{opacity:.5,marginBottom:8,display:"flex",justifyContent:"center"}}><MetalIcon name="users" size={44}/></div>
             <div style={{fontSize:14,fontWeight:700,color:DIM}}>{search?"Нікого не знайдено":"Ще немає клієнтів"}</div>
           </div>
         )}

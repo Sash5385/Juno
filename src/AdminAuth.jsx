@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { MetalIcon } from "./MetalIcon";
 import { Hint } from "./ui";
 import PhoneField from "./PhoneField.jsx";
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider, onAuthStateChanged, signOut } from "firebase/auth";
@@ -213,7 +214,7 @@ export function LoginScreen() {
             </button>
           </div>
           {installPrompt && !installed && (
-            <button className="lg-install" onClick={handleInstallClick}>📲 Встановити застосунок</button>
+            <button className="lg-install" onClick={handleInstallClick}><span style={{display:"inline-flex",alignItems:"center",gap:6}}><MetalIcon name="download" size={20}/>Встановити застосунок</span></button>
           )}
         </div>
       </div>
@@ -223,7 +224,7 @@ export function LoginScreen() {
           background:`linear-gradient(135deg,${SURF_HI},${SURFACE})`, border:`1px solid ${BORDER}`, borderRadius:16,
           padding:"12px 14px", boxShadow:SO, display:"flex", alignItems:"center", gap:10,
         }}>
-          <div style={{fontSize:24, flexShrink:0}}>📲</div>
+          <MetalIcon name="download" size={32}/>
           <div style={{flex:1, minWidth:0}}>
             <div style={{fontSize:13, fontWeight:800, color:TEXT}}>Встановіть застосунок</div>
             <div style={{fontSize:11, color:DIM, marginTop:2}}>
@@ -567,7 +568,7 @@ function InstructorDetail({ loading, data, iid, onStudentDeleted }) {
                 <div style={{ minWidth:0 }}>
                   <div style={{ fontSize:13, color:TEXT, fontWeight:600 }}>{b.studentName || "Клієнт"} <span style={{ color:DIM, fontWeight:400 }}>· {b.serviceName || b.serviceType || ""}</span></div>
                   <div style={{ fontSize:11, color:DIM, marginTop:2 }}>{b.date || "—"} о {b.time || "—"}{b.phone ? ` · ${b.phone}` : ""}</div>
-                  {b.studentNote && <div style={{ fontSize:11, color:"#e8c547", marginTop:2 }}>💬 {b.studentNote}</div>}
+                  {b.studentNote && <div style={{ fontSize:11, color:"#e8c547", marginTop:2, display:"flex", alignItems:"flex-start", gap:5 }}><MetalIcon name="chat" size={16}/><span>{b.studentNote}</span></div>}
                 </div>
                 <div style={{ textAlign:"right", flexShrink:0 }}>
                   <div style={{ fontSize:13, fontWeight:800, color:TEXT }}>{price.value == null ? "—" : `${price.estimated ? "≈" : ""}${fmtMoney(price.value)}`}</div>
@@ -602,7 +603,7 @@ function InstructorDetail({ loading, data, iid, onStudentDeleted }) {
               </div>
               {st.uid && (
                 <button title="Видалити клієнта" onClick={e => { e.stopPropagation(); setDelStudent({ uid: st.uid, name: st.name }); }}
-                  style={{ flexShrink:0, width:32, height:32, borderRadius:8, border:"1px solid rgba(239,68,68,0.4)", background:"rgba(239,68,68,0.1)", color:"#f87171", cursor:"pointer", fontSize:14 }}>🗑</button>
+                  style={{ flexShrink:0, width:32, height:32, borderRadius:8, border:"1px solid rgba(239,68,68,0.4)", background:"rgba(239,68,68,0.1)", color:"#f87171", cursor:"pointer", fontSize:14 }}><MetalIcon name="trash" size={22}/></button>
               )}
             </div>
           ))}
@@ -816,12 +817,12 @@ export function SuperAdminScreen() {
     : r.li.key === filter);
 
   const TABS = [
-    ["overview", "🏠", "Огляд", "#5b9bff"],
-    ["instructors", "👥", "Майстри", "#4caf6b"],
-    ["payments", "💳", "Платежі", "#f7c948"],
-    ["messages", "📨", "Звернення", "#2dd4bf"],
-    ["errors", "🐞", "Помилки", "#ff5a3c"],
-    ["service", "⚙️", "Сервіс", "#c084fc"],
+    ["overview", "home", "Огляд", "#5b9bff"],
+    ["instructors", "users", "Майстри", "#4caf6b"],
+    ["payments", "card", "Платежі", "#f7c948"],
+    ["messages", "mail", "Звернення", "#2dd4bf"],
+    ["errors", "warn", "Помилки", "#ff5a3c"],
+    ["service", "gear", "Сервіс", "#c084fc"],
   ];
   const [section, setSection] = useState(() => { try { return sessionStorage.getItem("sa_tab") || "overview"; } catch { return "overview"; } });
   const go = (id, f) => {
@@ -854,7 +855,7 @@ export function SuperAdminScreen() {
       <div style={{ position:"sticky", top:0, zIndex:30, background:"rgba(10,11,13,0.55)", backdropFilter:"blur(16px)", WebkitBackdropFilter:"blur(16px)", padding:"calc(12px + env(safe-area-inset-top, 0px)) 16px 10px", borderBottom:`1px solid ${BORDER}` }}>
         <div style={{ maxWidth:640, margin:"0 auto" }}>
           <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:10 }}>
-            <div style={{ fontSize:18, fontWeight:800, color:TEXT }}>🛰️ Суперадмінка</div>
+            <div style={{ fontSize:18, fontWeight:800, color:TEXT, display:"flex", alignItems:"center", gap:8 }}><MetalIcon name="globe" size={30}/>Суперадмінка</div>
             <button onClick={() => signOut(auth)} style={{ background:"none", border:`1px solid ${BORDER}`, borderRadius:8, color:DIM, padding:"5px 11px", fontSize:12, cursor:"pointer" }}>Вийти</button>
           </div>
           <div style={{ display:"flex", gap:6, overflowX:"auto", WebkitOverflowScrolling:"touch" }}>
@@ -869,7 +870,7 @@ export function SuperAdminScreen() {
                   background: on ? `color-mix(in srgb,${color} 22%,${BG_DEEP})` : "rgba(255,255,255,0.04)",
                   color: on ? color : DIM,
                 }}>
-                  <span>{icon}</span>{label}
+                  <MetalIcon name={icon} size={20}/>{label}
                   {badge != null && <span style={{ fontSize:10, padding:"1px 6px", borderRadius:9, background: on ? color : "rgba(255,255,255,0.12)", color: on ? "#0b0b0d" : TEXT }}>{badge}</span>}
                 </button>
               );
@@ -894,7 +895,7 @@ export function SuperAdminScreen() {
 
             {panel("#4caf6b", <>
               <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, marginBottom: statsReady ? 10 : 0 }}>
-                <div style={{ fontSize:14, fontWeight:800, color:TEXT }}>📊 Нові записи за 30 днів</div>
+                <div style={{ fontSize:14, fontWeight:800, color:TEXT, display:"flex", alignItems:"center", gap:7 }}><MetalIcon name="chart" size={22}/>Нові записи за 30 днів</div>
                 {!statsReady && (
                   <button onClick={loadAllStats} disabled={statsLoading || !allRows.length}
                     style={{ padding:"6px 12px", borderRadius:8, background:"rgba(76,175,107,0.2)", border:"1px solid rgba(76,175,107,0.45)", color:"#4caf6b", fontSize:12, fontWeight:700, cursor: statsLoading ? "default" : "pointer" }}>
@@ -913,7 +914,7 @@ export function SuperAdminScreen() {
             </>)}
 
             {panel(attentionRows.length ? "#ff5a3c" : "#4caf6b", <>
-              <div style={{ fontSize:14, fontWeight:800, color:TEXT, marginBottom:8 }}>{attentionRows.length ? "⚠️ Потребують уваги" : "✅ Усе гаразд — нема прострочених підписок"}</div>
+              <div style={{ fontSize:14, fontWeight:800, color:TEXT, marginBottom:8, display:"flex", alignItems:"center", gap:7 }}>{attentionRows.length ? <span style={{display:"inline-flex",alignItems:"center",gap:7}}><MetalIcon name="warn" size={22}/>Потребують уваги</span> : <span style={{display:"inline-flex",alignItems:"center",gap:7}}><MetalIcon name="checkCircle" size={22}/>Усе гаразд — нема прострочених підписок</span>}</div>
               {attentionRows.slice(0, 8).map(({ iid, info, li: st }) => (
                 <div key={iid} onClick={() => go("instructors", "attention")} style={{ display:"flex", justifyContent:"space-between", gap:8, padding:"7px 0", borderTop:`1px solid ${BORDER}`, cursor:"pointer" }}>
                   <div style={{ fontSize:13, fontWeight:600, color:TEXT }}>{info.name || "—"}</div>
@@ -955,7 +956,7 @@ export function SuperAdminScreen() {
                 </div>
                 <div style={{ textAlign:"right" }}>
                   <div style={{ fontSize:12, fontWeight:700, color:st.color }}>{st.text}</div>
-                  {isInactive(iid, info) && <div style={{ fontSize:10, color:"#e8c547", marginTop:2 }}>💤 без нових записів {INACTIVE_DAYS}+ дн.</div>}
+                  {isInactive(iid, info) && <div style={{ fontSize:10, color:"#e8c547", marginTop:2, display:"flex", alignItems:"center", gap:4 }}><MetalIcon name="moon" size={16}/>без нових записів {INACTIVE_DAYS}+ дн.</div>}
                 </div>
               </div>
               {lic && (
@@ -984,11 +985,11 @@ export function SuperAdminScreen() {
                 </button>
                 <button onClick={() => { setDelInst({ iid, name: info.name || "—" }); setDelInstText(""); }}
                   style={{ flex:"1 1 70px", padding:"8px", borderRadius:8, background:"rgba(239,68,68,0.1)", border:"1px solid rgba(239,68,68,0.4)", color:"#f87171", fontSize:12, fontWeight:700, cursor:"pointer" }}>
-                  🗑 Видалити
+                  <span style={{display:"inline-flex",alignItems:"center",gap:6}}><MetalIcon name="trash" size={20}/>Видалити</span>
                 </button>
                 <button onClick={() => toggleBookings(iid)}
                   style={{ flex:"1 1 70px", padding:"8px", borderRadius:8, background:"rgba(91,155,255,0.15)", border:"1px solid rgba(91,155,255,0.35)", color:"#5b9bff", fontSize:12, fontWeight:700, cursor:"pointer" }}>
-                  {expandedIid === iid ? "Сховати записи" : "📋 Записи"}
+                  {expandedIid === iid ? "Сховати записи" : <span style={{display:"inline-flex",alignItems:"center",gap:6}}><MetalIcon name="clipboard" size={20}/>Записи</span>}
                 </button>
               </div>
 
@@ -1087,7 +1088,7 @@ export function SuperAdminScreen() {
             {panel("#c084fc", <>
               <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", gap:12 }}>
                 <div style={{ minWidth:0 }}>
-                  <div style={{ fontSize:14, fontWeight:800, color:TEXT }}>💾 Нічна резервна копія</div>
+                  <div style={{ fontSize:14, fontWeight:800, color:TEXT, display:"flex", alignItems:"center", gap:7 }}><MetalIcon name="download" size={22}/>Нічна резервна копія</div>
                   <Hint style={{marginTop:2}}>
                     Щодня о 03:00 — записи, клієнти, налаштування в Cloud Storage, зберігається 30 днів
                   </Hint>
@@ -1108,7 +1109,7 @@ export function SuperAdminScreen() {
               <button onClick={backupNow} disabled={backupPending}
                 style={{ marginTop:12, width:"100%", padding:"11px", borderRadius:12, cursor: backupPending ? "default" : "pointer", fontSize:13, fontWeight:800,
                   background: backupPending ? "rgba(255,255,255,0.08)" : "rgba(192,132,252,0.18)", border:"1px solid rgba(192,132,252,0.5)", color:"#c084fc" }}>
-                {backupPending ? "⏳ Копія створюється…" : "💾 Зробити копію зараз"}
+                {backupPending ? <span style={{display:"inline-flex",alignItems:"center",gap:6}}><MetalIcon name="hourglass" size={20}/>Копія створюється…</span> : <span style={{display:"inline-flex",alignItems:"center",gap:6}}><MetalIcon name="download" size={20}/>Зробити копію зараз</span>}
               </button>
               <Hint style={{marginTop:6}}>Працює незалежно від тумблера. Файли: Storage → backups/дата/</Hint>
             </>)}

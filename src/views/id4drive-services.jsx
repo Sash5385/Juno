@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useContext } from "react";
+import { MetalIcon } from "../MetalIcon";
 import { get, set } from "firebase/database";
 import { iRef } from "../firebase";
 
@@ -43,17 +44,14 @@ const rebookOf = svc => { const d = Math.round(Number(svc?.rebookDays)); return 
 const fmtDur = min => { const h=Math.floor(min/60),m=min%60; return m?`${h}г ${m}хв`:`${h} год`; };
 
 // ─── ICONS ──────────────────────────────────────────────────────
-const I3 = ({children,gr,s=40,r=14})=>(
-  <div className="icon3d" style={{width:s,height:s,background:gr,borderRadius:r}}>{children}</div>
-);
-const makeIc = ({ACC_HI, ACCENT, SURF_HI, SURFACE, DIM, TEXT}) => ({
-  school: s=><I3 s={s} gr="linear-gradient(165deg,#9ee07a,#5fb83d)"><svg width={s*.6} height={s*.6} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 10l9-5 9 5-9 5-9-5z"/><path d="M7 12v5a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-5"/></svg></I3>,
-  car:    s=><I3 s={s} gr="linear-gradient(165deg,#c084fc,#8b5cf6)"><svg width={s*.6} height={s*.6} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 17h14M3 17V9l3-5h12l3 5v8M5 17a2 2 0 1 0 4 0 2 2 0 1 0-4 0M15 17a2 2 0 1 0 4 0 2 2 0 1 0-4 0M3 9h18"/></svg></I3>,
-  plus:   s=><I3 s={s} gr={`linear-gradient(165deg,${ACC_HI},${ACCENT})`}><svg width={s*.5} height={s*.5} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></I3>,
-  edit:   s=><I3 s={s} gr="linear-gradient(165deg,#a78bfa,#6d28d9)"><svg width={s*.55} height={s*.55} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></I3>,
-  archive:s=><I3 s={s} gr="linear-gradient(165deg,#fb923c,#ea580c)"><svg width={s*.55} height={s*.55} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="21 8 21 21 3 21 3 8"/><rect x="1" y="3" width="22" height="5"/><line x1="10" y1="12" x2="14" y2="12"/></svg></I3>,
-  trash:  s=><I3 s={s} gr="linear-gradient(165deg,#f87171,#dc2626)"><svg width={s*.55} height={s*.55} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></I3>,
-  drag:   s=><I3 s={s} gr={`linear-gradient(135deg,${SURF_HI},${SURFACE})`}><svg width={s*.5} height={s*.5} viewBox="0 0 24 24" fill="none" stroke={DIM} strokeWidth="2.5" strokeLinecap="round"><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="18" x2="16" y2="18"/></svg></I3>,
+const makeIc = () => ({
+  school:  s=><MetalIcon name="school" size={s}/>,
+  car:     s=><MetalIcon name="car" size={s}/>,
+  plus:    s=><MetalIcon name="plus" size={s}/>,
+  edit:    s=><MetalIcon name="edit" size={s}/>,
+  archive: s=><MetalIcon name="download" size={s}/>,
+  trash:   s=><MetalIcon name="trash" size={s}/>,
+  drag:    s=><MetalIcon name="list" size={s}/>,
 });
 
 // ─── SLOT PREVIEW ────────────────────────────────────────────────
@@ -138,8 +136,8 @@ function ServiceFormModal({ svc, onSave, onClose }) {
       <div style={{marginBottom:14}}>
         <div style={{fontSize:11,color:theme.LBL||"rgba(255,255,255,0.74)",letterSpacing:1,marginBottom:8}}>ТИП</div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-          <Chip active={form.type==="school"}  color={theme.GREEN} onClick={()=>upd("type","school")}>📋 Стандарт</Chip>
-          <Chip active={form.type==="private"} color={GOLD}        onClick={()=>upd("type","private")}>👤 Індивідуальний</Chip>
+          <Chip active={form.type==="school"}  color={theme.GREEN} onClick={()=>upd("type","school")}><span style={{display:"inline-flex",alignItems:"center",gap:6}}><MetalIcon name="clipboard" size={18}/>Стандарт</span></Chip>
+          <Chip active={form.type==="private"} color={GOLD}        onClick={()=>upd("type","private")}><span style={{display:"inline-flex",alignItems:"center",gap:6}}><MetalIcon name="user" size={18}/>Індивідуальний</span></Chip>
         </div>
       </div>
 
@@ -332,7 +330,7 @@ function DeleteConfirm({ svc, onConfirm, onArchive, onClose }) {
   return (
     <Modal open onClose={onClose} sheet size="md">
       <div style={{textAlign:"center",marginBottom:20}}>
-        <div style={{fontSize:32,marginBottom:8}}>⚠️</div>
+        <div style={{marginBottom:8,display:"flex",justifyContent:"center"}}><MetalIcon name="warn" size={36}/></div>
         <div style={{fontSize:16,fontWeight:800,color:TEXT,marginBottom:6}}>Видалити «{svc.name}»?</div>
         <div style={{fontSize:13,color:DIM}}>Послуга має {svc.lessons} проведених записів. Виберіть дію:</div>
       </div>
@@ -341,12 +339,12 @@ function DeleteConfirm({ svc, onConfirm, onArchive, onClose }) {
           padding:"14px",borderRadius:theme.BTN_R??14,border:"none",cursor:"pointer",fontFamily:"inherit",
           background:`linear-gradient(165deg,#c2570c,#9a3f06)`,color:"#fff",fontSize:13,fontWeight:700,
           boxShadow:`-2px 5px 14px rgba(251,146,60,0.4),inset 1px 1px 0 rgba(255,255,255,0.3)`,
-        }}>📦 Архівувати (зберегти статистику)</button>
+        }}><span style={{display:"inline-flex",alignItems:"center",gap:6}}><MetalIcon name="download" size={20}/>Архівувати (зберегти статистику)</span></button>
         <button onClick={()=>{onConfirm(svc.id);onClose();}} style={{
           padding:"14px",borderRadius:theme.BTN_R??14,border:"none",cursor:"pointer",fontFamily:"inherit",
           background:`linear-gradient(165deg,#dc2626,#b91c1c)`,color:"#fff",fontSize:13,fontWeight:700,
           boxShadow:`-2px 5px 14px rgba(239,68,68,0.4),inset 1px 1px 0 rgba(255,255,255,0.3)`,
-        }}>🗑 Видалити назавжди</button>
+        }}><span style={{display:"inline-flex",alignItems:"center",gap:6}}><MetalIcon name="trash" size={20}/>Видалити назавжди</span></button>
         <Btn variant="ghost" onClick={onClose}>Скасувати</Btn>
       </div>
     </Modal>

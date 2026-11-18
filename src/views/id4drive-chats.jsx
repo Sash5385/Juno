@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useContext } from "react";
+import { MetalIcon } from "../MetalIcon";
 import { onValue, push, update, set, increment, remove, get } from "firebase/database";
 import { iRef, auth, isMasterSession, watchChatMeta, watchChatMetaM } from "../firebase";
 import { LangContext } from "../App";
@@ -24,7 +25,7 @@ const Ava = ({ name, hue, size=36, online, isBroadcast }) => {
   const { GREEN, BG } = useContext(ThemeContext);
   if (isBroadcast) return (
     <div className="metal3d" style={{width:size,height:size,borderRadius:Math.round(size*0.3),"--ic":"#6d28d9"}}>
-      <svg width={size*0.58} height={size*0.58} viewBox="0 0 24 24" fill="none" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">{MEGA}</svg>
+      <svg width={size*0.72} height={size*0.72} viewBox="0 0 24 24" fill="none" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">{MEGA}</svg>
     </div>
   );
   const ini = (name || "?").split(" ").map(w=>w[0]).slice(0,2).join("");
@@ -78,7 +79,7 @@ function Conversation({ contact, messages, onSend, isBroadcast }) {
           <div style={{fontSize:11,color:"rgba(168,85,247,0.9)",fontWeight:700,letterSpacing:0.3}}>
             <span style={{display:"inline-flex",alignItems:"center",gap:6}}>
               <span className="metal3d" style={{width:18,height:18,borderRadius:5,"--ic":"#6d28d9"}}>
-                <svg width={12} height={12} viewBox="0 0 24 24" fill="none" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">{MEGA}</svg>
+                <svg width={13} height={13} viewBox="0 0 24 24" fill="none" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">{MEGA}</svg>
               </span>
               Повідомлення отримають усі клієнти
             </span>
@@ -122,7 +123,7 @@ function Conversation({ contact, messages, onSend, isBroadcast }) {
       )}
 
       <div style={{padding:"8px 10px",borderTop:`1px solid ${borderCol}`,background:SURF_LO,display:"flex",alignItems:"flex-end",gap:7}}>
-        <button onClick={()=>setQuick(v=>!v)} aria-label="Швидкі відповіді" style={{background:"none",border:"none",cursor:"pointer",color:quick?GOLD:FAINT,fontSize:16,width:32,height:32,padding:0,flexShrink:0}}>⚡</button>
+        <button onClick={()=>setQuick(v=>!v)} aria-label="Швидкі відповіді" style={{background:"none",border:"none",cursor:"pointer",color:quick?GOLD:FAINT,fontSize:16,width:32,height:32,padding:0,flexShrink:0}}><MetalIcon name="bolt" size={24}/></button>
         <div style={{flex:1,background:BG_DEEP,borderRadius:11,boxShadow:SI,padding:"8px 12px",display:"flex",alignItems:"flex-end",gap:8}}>
           <textarea ref={taRef} className="msg-input" value={text} onChange={e=>setText(e.target.value)}
             onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send();}}}
@@ -584,7 +585,7 @@ export default function ChatsView() {
 
           {!loading && filtered.length===0 && (
             <div style={{textAlign:"center",padding:"40px 20px"}}>
-              <div style={{fontSize:36,opacity:.3,marginBottom:8}}>💬</div>
+              <div style={{opacity:.5,marginBottom:8,display:"flex",justifyContent:"center"}}><MetalIcon name="chat" size={44}/></div>
               <div style={{fontSize:14,fontWeight:700,color:DIM}}>
                 {search ? "Нікого не знайдено" : "Немає клієнтів в системі"}
               </div>

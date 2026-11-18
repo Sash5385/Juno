@@ -1,4 +1,5 @@
 import { useState, useRef, useContext, useEffect } from "react";
+import { MetalIcon } from "../MetalIcon";
 import { get, set, push, update, increment } from "firebase/database";
 import { iRef } from "../firebase";
 import { LangContext } from "../App";
@@ -65,7 +66,7 @@ const TRIG_GLYPH = {
 // Міні-іконка «метал + глянець» для рядків/чипів (замість емодзі)
 const MIcon = ({ g, c, s=16 }) => (
   <span className="metal3d" style={{width:s,height:s,borderRadius:Math.round(s*0.3),verticalAlign:"middle","--ic":`color-mix(in srgb,${c} 72%,#000)`}}>
-    <svg width={Math.round(s*0.64)} height={Math.round(s*0.64)} viewBox="0 0 24 24" fill="none" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">{g}</svg>
+    <svg width={Math.round(s*0.72)} height={Math.round(s*0.72)} viewBox="0 0 24 24" fill="none" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">{g}</svg>
   </span>
 );
 const IL = { display:"inline-flex", alignItems:"center", gap:5 };
@@ -455,7 +456,7 @@ function TemplateCard({ tpl, onEdit, onSend, onToggle, onDelete }) {
 
       <div style={{position:"relative",zIndex:2,display:"flex",alignItems:"flex-start",gap:7,paddingRight:26}}>
         <span className="metal3d" style={{width:28,height:28,borderRadius:9,"--ic":`color-mix(in srgb,${cat.color} 72%,#000)`}}>
-          <svg width={17} height={17} viewBox="0 0 24 24" fill="none" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">{CAT_GLYPH[cat.id]||CAT_GLYPH.custom}</svg>
+          <svg width={20} height={20} viewBox="0 0 24 24" fill="none" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">{CAT_GLYPH[cat.id]||CAT_GLYPH.custom}</svg>
         </span>
         <div style={{flex:1,minWidth:0}}>
           <div style={{fontSize:13,fontWeight:800,color:"#fff",textShadow:`0 1px 3px ${shade(0.5)}`,overflowWrap:"anywhere"}}>{tpl.title}</div>
@@ -574,7 +575,7 @@ function SimpleRow({ emoji, title, hint, color, active, onToggle, onEdit, snippe
       <div style={{display:"flex",alignItems:"center",gap:9}}>
         {EMOJI_GLYPH[emoji]
           ? <span className="metal3d" style={{width:34,height:34,borderRadius:10,"--ic":`color-mix(in srgb,${color} 72%,#000)`}}>
-              <svg width={20} height={20} viewBox="0 0 24 24" fill="none" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">{EMOJI_GLYPH[emoji]}</svg>
+              <svg width={24} height={24} viewBox="0 0 24 24" fill="none" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">{EMOJI_GLYPH[emoji]}</svg>
             </span>
           : <span style={{fontSize:20,flexShrink:0,lineHeight:1}}>{emoji}</span>}
         <div style={{flex:1,minWidth:0}}>
@@ -709,7 +710,7 @@ export default function TemplatesView() {
             display:"flex",alignItems:"center",gap:9,padding:"14px 14px",borderRadius:16,cursor:"pointer",
             background:"rgba(255,255,255,0.07)",border:"1px solid rgba(255,255,255,0.14)",backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",
           }}>
-            <span style={{fontSize:18}}>⚙️</span>
+            <MetalIcon name="gear" size={28}/>
             <div style={{flex:1,minWidth:0}}>
               <div style={{fontSize:15,fontWeight:700,color:TEXT}}>Додатково</div>
               <Hint style={{marginTop:2}}>Свої шаблони, канали, умови відправки</Hint>
@@ -730,9 +731,7 @@ export default function TemplatesView() {
                 <div style={{textAlign:"center",padding:"14px 10px",color:FAINT,fontSize:12}}>Своїх шаблонів ще немає</div>
               )}
               <Btn variant="primary" onClick={()=>setEditTpl(false)} style={{width:"100%",marginTop:4}}>
-                <div className="icon3d" style={{width:28,height:28,background:"rgba(255,255,255,0.2)",borderRadius:8}}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" style={{position:"relative",zIndex:1}}><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                </div>
+                <MetalIcon name="plus" size={22}/>
                 Новий шаблон
               </Btn>
               {missingStd.length > 0 && (

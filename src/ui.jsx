@@ -360,7 +360,7 @@ export function Hint({ children, style = {}, tone }) {
       <span style={{ width: 22, height: 22, flexShrink: 0, borderRadius: 7, position: "relative", overflow: "hidden", display: "inline-flex", alignItems: "center", justifyContent: "center",
         background: "linear-gradient(145deg,#fbfcfe,#a3abba 45%,#eef1f6 55%,#7a8394)", boxShadow: "0 2px 5px rgba(0,0,0,0.4),inset 0 1px 0 #fff,inset 0 -2px 3px rgba(0,0,0,0.2)" }}>
         <span style={{ position: "absolute", left: "6%", right: "6%", top: "4%", height: "46%", borderRadius: "40% 40% 60% 60%/60% 60% 40% 40%", background: "linear-gradient(180deg,rgba(255,255,255,0.85),rgba(255,255,255,0.05))" }}/>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={warn ? "#b45309" : "#2563eb"} strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" style={{ position: "relative" }}>{warn ? HINT_W : HINT_I}</svg>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={warn ? "#b45309" : "#2563eb"} strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" style={{ position: "relative" }}>{warn ? HINT_W : HINT_I}</svg>
       </span>
       <div style={{ flex: 1, minWidth: 0, paddingTop: 2 }}>{children}</div>
     </div>
