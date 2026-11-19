@@ -3,7 +3,7 @@ name: Deploy to Firebase
 on:
   push:
     branches:
-      - ccr-0afc4178-9t5dvx
+      - main
   workflow_dispatch:
 
 jobs:
