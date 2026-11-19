@@ -26,6 +26,7 @@ const GLYPHS = {
   smile:    ["#0d9488", <><circle cx="12" cy="12" r="9"/><path d="M8.5 14.5a4.5 4.5 0 0 0 7 0"/><line x1="9" y1="9.5" x2="9" y2="9.6"/><line x1="15" y1="9.5" x2="15" y2="9.6"/></>],
   sparkle:  ["#7c3aed", <path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8z"/>],
   plus:     ["#16a34a", <path d="M12 5v14M5 12h14"/>],
+  more:     ["#475569", <><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></>],
   plusCircle:["#16a34a", <><circle cx="12" cy="12" r="9"/><path d="M8 12h8M12 8v8"/></>],
   minus:    ["#dc2626", <path d="M5 12h14"/>],
   edit:     ["#2563eb", <><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></>],

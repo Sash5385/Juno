@@ -1897,6 +1897,20 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   const [bubbleData, setBubbleData] = useState(null);
   const [addSlotPos, setAddSlotPos] = useState(null); // { dateStr, startMin, clientX, clientY }
   const [formData, setFormData] = useState(null);
+  // Кнопка «+» у нижньому меню: відкрити форму запису на найближчий час (сьогодні або завтра зранку)
+  useEffect(() => {
+    const open = () => {
+      window.__junoPendingNew = 0;
+      const ws = Math.round((settings.workStart ?? 9) * 60), we = Math.round((settings.workEnd ?? 18) * 60);
+      const n = new Date(); let m = Math.ceil((n.getHours() * 60 + n.getMinutes()) / 30) * 30, day = 0;
+      if (m < ws) m = ws;
+      if (m > we - 30) { day = 1; m = ws; }
+      setFormData({ day, startMin: m });
+    };
+    if (window.__junoPendingNew && Date.now() - window.__junoPendingNew < 4000) open();
+    window.addEventListener("juno:newBooking", open);
+    return () => window.removeEventListener("juno:newBooking", open);
+  }, [settings.workStart, settings.workEnd]);
   const [createSlotData, setCreateSlotData] = useState(null); // {day, startMin}
   const [localSelectedBooking, setLocalSelectedBooking] = useState(null);
   const [todayDir, setTodayDir] = useState(null);

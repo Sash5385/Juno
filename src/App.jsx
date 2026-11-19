@@ -227,6 +227,72 @@ function BottomNav({ active, onChange, settings, chatUnread, journalUnread }) {
   const tileBorder = "rgba(255,255,255,0.14)";
   const activeGrad = "linear-gradient(145deg,#93c5fd,#60a5fa)";
 
+  // Телефон (варіант C): Записи · Клієнти · [+] · Чати · Ще. Решта видимих вкладок — у шторці «Ще».
+  const [moreOpen, setMoreOpen] = useState(false);
+  if (!wide) {
+    const PRIMARY = ["schedule", "students", "chats"];
+    const prim = PRIMARY.map(id => visible.find(t => t.id === id)).filter(Boolean);
+    const rest = visible.filter(t => !PRIMARY.includes(t.id));
+    const badgeOf = id => id === 'chats' ? chatUnread : id === 'journal' ? journalUnread : 0;
+    const restBadge = rest.reduce((n, t) => n + (badgeOf(t.id) || 0), 0);
+    const restActive = rest.some(t => t.id === active);
+    const Badge = ({ n }) => n > 0 ? (
+      <div data-help="navbadge" style={{position:"absolute",top:-4,right:"calc(50% - 26px)",background:bdg.ACCENT,color:bdg.BTN_TX||"#fff",borderRadius:10,
+        padding:"1px 5px",fontSize:10,fontWeight:800,boxShadow:`0 0 8px ${bdg.ACCENT}88`,lineHeight:1.4,zIndex:2}}>{n}</div>) : null;
+    const Item = ({ id, label, on, onClick, icon, badge }) => (
+      <button onClick={onClick} aria-label={label} aria-current={on ? "page" : undefined} style={{
+        flex:"1 1 0",minWidth:0,background:"transparent",border:"none",padding:"2px 0 0",cursor:"pointer",position:"relative",
+        display:"flex",flexDirection:"column",alignItems:"center",gap:3,fontFamily:"inherit"}}>
+        <Badge n={badge}/>
+        {icon}
+        <span style={{fontSize:11,fontWeight:700,whiteSpace:"nowrap",maxWidth:"100%",overflow:"hidden",textOverflow:"ellipsis",color:on?"#7fb2ff":"rgba(255,255,255,0.6)"}}>{label}</span>
+      </button>
+    );
+    const newBooking = () => {
+      setMoreOpen(false);
+      window.__junoPendingNew = Date.now();
+      if (active !== "schedule") onChange("schedule");
+      window.dispatchEvent(new CustomEvent("juno:newBooking"));
+    };
+    return (
+      <div id="app-bottomnav" style={{flexShrink:0,padding:`6px 8px calc(6px + env(safe-area-inset-bottom, 0px))`,zIndex:moreOpen?2000:50,position:"relative"}}>
+        {moreOpen && (<>
+          <div onClick={()=>setMoreOpen(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.45)",zIndex:1}}/>
+          <div role="dialog" aria-label={tl("nav.more") === "nav.more" ? "Ще" : tl("nav.more")} style={{position:"absolute",left:0,right:0,bottom:"100%",zIndex:2,
+            padding:"14px 14px 12px",borderRadius:"22px 22px 0 0",background:"rgba(22,26,40,0.97)",borderTop:"1px solid rgba(255,255,255,0.14)",
+            boxShadow:"0 -12px 30px rgba(0,0,0,0.5)",backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)"}}>
+            <div style={{fontSize:12,fontWeight:800,letterSpacing:1,color:"rgba(255,255,255,0.55)",textTransform:"uppercase",marginBottom:10}}>Ще</div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8}}>
+              {rest.map(t => (
+                <button key={t.id} onClick={()=>{ setMoreOpen(false); onChange(t.id); }} style={{position:"relative",display:"flex",flexDirection:"column",alignItems:"center",gap:6,
+                  padding:"10px 4px",borderRadius:14,cursor:"pointer",fontFamily:"inherit",fontSize:12,fontWeight:700,color:"#eef0f7",
+                  background: t.id===active ? "rgba(96,165,250,0.18)" : "rgba(255,255,255,0.05)",
+                  border:`1px solid ${t.id===active ? "rgba(96,165,250,0.55)" : "rgba(255,255,255,0.08)"}`}}>
+                  <Badge n={badgeOf(t.id)}/>
+                  {TabIcons[t.id]?.(40, t.id===active)}
+                  <span style={{maxWidth:"100%",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{tl(t.lk)}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </>)}
+        <div style={{position:"relative",zIndex:3,display:"flex",alignItems:"flex-end",padding:"8px 4px 6px",borderRadius:20,
+          background:"rgba(20,23,36,0.85)",border:"1px solid rgba(255,255,255,0.12)",backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)"}}>
+          {prim.slice(0,2).map(t => <Item key={t.id} label={tl(t.lk)} on={active===t.id} badge={badgeOf(t.id)}
+            onClick={()=>{ setMoreOpen(false); onChange(t.id); }} icon={TabIcons[t.id]?.(36, active===t.id)}/>)}
+          <button onClick={newBooking} aria-label="Новий запис" style={{flex:"1 1 0",minWidth:0,background:"transparent",border:"none",cursor:"pointer",display:"flex",justifyContent:"center",padding:0,marginTop:-18}}>
+            <MetalIcon name="plus" size={54} color="#2563eb" style={{boxShadow:"0 6px 16px rgba(0,0,0,0.5),0 0 0 3px rgba(20,23,36,0.9),inset 0 1px 0 #fff,inset 0 -2px 3px rgba(0,0,0,0.2)"}}/>
+          </button>
+          {prim.slice(2).map(t => <Item key={t.id} label={tl(t.lk)} on={active===t.id} badge={badgeOf(t.id)}
+            onClick={()=>{ setMoreOpen(false); onChange(t.id); }} icon={TabIcons[t.id]?.(36, active===t.id)}/>)}
+          {rest.length > 0 && <Item label="Ще" on={restActive || moreOpen} badge={restBadge} onClick={()=>setMoreOpen(o=>!o)}
+            icon={<MetalIcon name="more" size={36} color={restActive||moreOpen ? "#2563eb" : "color-mix(in srgb,#475569 60%,#6b7280)"}
+              style={restActive||moreOpen ? {boxShadow:"0 0 0 2px #2563eb,0 0 12px #2563eb99,0 3px 7px rgba(0,0,0,0.45),inset 0 1px 0 #fff"} : undefined}/>}/>}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div id="app-bottomnav" style={{
       flexShrink:0,
