@@ -216,13 +216,13 @@ const Chip = ({label, active, onClick, color}) => {
   const { ACC_HI, ACCENT, SURF_HI, SURFACE, DIM, SO, FOG, TEXT } = useContext(ThemeContext);
   if (FOG && !color) return (
     <button onClick={onClick} style={{
-      flex:"1 1 0", minWidth:0, padding:"9px 0", borderRadius:11, border:"none", cursor:"pointer", fontSize:11, fontWeight:600, fontFamily:"inherit", textAlign:"center", whiteSpace:"nowrap",
+      flex:"1 1 0", minWidth:0, padding:"9px 0", borderRadius:10, border:"none", cursor:"pointer", fontSize:11, fontWeight:600, fontFamily:"inherit", textAlign:"center", whiteSpace:"nowrap",
       background: active ? SURF_HI : "transparent", color: active ? TEXT : DIM, boxShadow: active ? "0 2px 8px rgba(0,0,0,.12)" : "none",
     }}>{label}</button>
   );
   return (
     <button onClick={onClick} style={{
-      flex:1, padding:"7px 4px", borderRadius:9, border:"none", cursor:"pointer", fontSize:11, fontWeight:700, fontFamily:"inherit", textAlign:"center",
+      flex:1, padding:"7px 4px", borderRadius:8, border:"none", cursor:"pointer", fontSize:11, fontWeight:700, fontFamily:"inherit", textAlign:"center",
       background: active ? `linear-gradient(145deg,${color||ACC_HI},${color?color+"bb":ACCENT})` : `linear-gradient(145deg,${SURF_HI},${SURFACE})`,
       color: active ? "#fff" : DIM, boxShadow: active ? "none" : SO,
     }}>{label}</button>
@@ -735,18 +735,18 @@ export default function StatsView({ onViewStudent, direction } = {}) {
           {editingGoal ? (
             <div style={{display:"flex",gap:7}}>
               <input autoFocus type="number" value={goalInput} onChange={e=>setGoalInput(e.target.value)} placeholder="напр. 30000"
-                style={{flex:1,minWidth:0,background:BG_DEEP,border:`1px solid ${BORDER}`,borderRadius:9,padding:"8px 12px",color:TEXT,fontSize:14,fontFamily:"inherit",outline:"none",colorScheme:"dark"}}/>
+                style={{flex:1,minWidth:0,background:BG_DEEP,border:`1px solid ${BORDER}`,borderRadius:8,padding:"8px 12px",color:TEXT,fontSize:14,fontFamily:"inherit",outline:"none",colorScheme:"dark"}}/>
               <button onClick={()=>{
                 const val=Math.max(0,parseInt(goalInput,10)||0);
                 setIncomeGoal(val);
                 update(iRef( "admin_settings"),{incomeGoal:val}).catch(()=>{});
                 setEditingGoal(false);
               }} style={{
-                padding:"8px 14px",borderRadius:9,border:"none",cursor:"pointer",fontFamily:"inherit",fontSize:13,fontWeight:700,
+                padding:"8px 14px",borderRadius:8,border:"none",cursor:"pointer",fontFamily:"inherit",fontSize:13,fontWeight:700,
                 background:`linear-gradient(145deg,${GOLD}44,${GOLD}22)`,color:GOLD,
               }}>OK</button>
               <button aria-label="Скасувати" onClick={()=>setEditingGoal(false)} style={{
-                padding:"8px 10px",borderRadius:9,border:"none",cursor:"pointer",fontFamily:"inherit",fontSize:13,
+                padding:"8px 10px",borderRadius:8,border:"none",cursor:"pointer",fontFamily:"inherit",fontSize:13,
                 background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,color:FAINT,
               }}>✕</button>
             </div>
@@ -1081,7 +1081,7 @@ export default function StatsView({ onViewStudent, direction } = {}) {
                   display:"flex", alignItems:"center", gap:9,
                   padding:"9px 8px",
                   marginBottom: i < topStudents.length-1 ? 4 : 0,
-                  borderRadius:11,
+                  borderRadius:10,
                   background: i<3 ? `linear-gradient(155deg,color-mix(in srgb,${medals[i]} 22%,${BG_DEEP}),color-mix(in srgb,${medals[i]} 5%,${BG_DEEP}))` : "transparent",
                   border: i<3 ? `1px solid color-mix(in srgb,${medals[i]} 30%,transparent)` : "none",
                 }}>

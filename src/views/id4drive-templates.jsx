@@ -40,35 +40,11 @@ const CATEGORIES = [
   { id:"custom",    label:"Власні",      emoji:"✏️", color:BLUE   },
 ];
 
-// Гліфи категорій для іконок «метал + глянець» (замість емодзі на картці шаблону)
-const CAT_GLYPH = {
-  reminder: <><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></>,
-  confirm:  <polyline points="5 12 10 17 19 8"/>,
-  cancel:   <><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></>,
-  welcome:  <><circle cx="12" cy="12" r="9"/><path d="M8.5 14.5a4.5 4.5 0 0 0 7 0"/><line x1="9" y1="9.5" x2="9" y2="9.6"/><line x1="15" y1="9.5" x2="15" y2="9.6"/></>,
-  queue:    <><path d="M6 3h12M6 21h12"/><path d="M7 3c0 5 10 5 10 9s-10 4-10 9M17 3c0 5-10 5-10 9s10 4 10 9"/></>,
-  custom:   <><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></>,
-};
-// емодзі «ситуацій» простого режиму → гліф
-const EMOJI_GLYPH = {
-  "🔔": CAT_GLYPH.reminder, "✅": CAT_GLYPH.confirm, "❌": CAT_GLYPH.cancel,
-  "👋": CAT_GLYPH.welcome, "⏳": CAT_GLYPH.queue,
-  "⭐": <polygon points="12 2 15.1 8.3 22 9.3 17 14.1 18.2 21 12 17.8 5.8 21 7 14.1 2 9.3 8.9 8.3 12 2"/>,
-};
-const CH_GLYPH = {
-  chat: <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>,
-  push: CAT_GLYPH.reminder,
-};
-const TRIG_GLYPH = {
-  manual: <path d="M4 3l7 17 2.2-7.2L20.5 10.5z"/>,
-  auto:   <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>,
-};
-// Міні-іконка «метал + глянець» для рядків/чипів (замість емодзі)
-const MIcon = ({ g, c, s=16 }) => (
-  <span className="metal3d" style={{width:s,height:s,borderRadius:Math.round(s*0.3),verticalAlign:"middle","--ic":`color-mix(in srgb,${c} 72%,#000)`}}>
-    <svg width={Math.round(s*0.72)} height={Math.round(s*0.72)} viewBox="0 0 24 24" fill="none" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">{g}</svg>
-  </span>
-);
+// Імена гліфів MetalIcon для категорій / емодзі / каналів / тригерів
+const CAT_ICON = { reminder:"bell", confirm:"check", cancel:"cross", welcome:"smile", queue:"hourglass", custom:"edit" };
+const EMOJI_ICON = { "🔔":"bell", "✅":"check", "❌":"cross", "👋":"smile", "⏳":"hourglass", "⭐":"star" };
+const CH_ICON = { chat:"chat", push:"bell" };
+const TRIG_ICON = { manual:"pointer", auto:"bolt" };
 const IL = { display:"inline-flex", alignItems:"center", gap:5 };
 
 const CHANNELS = [
@@ -136,7 +112,7 @@ const renderSample = body => renderVars(trBody(body), sampleVars());
 // ─── HELPERS ────────────────────────────────────────────────────
 function Inset({ children, style={} }) {
   const { SURF_HI, SURFACE, SI } = useContext(ThemeContext);
-  return <div style={{background:`linear-gradient(155deg,${SURF_HI},${SURFACE})`,borderRadius:12,boxShadow:SI,padding:"10px 14px",...style}}>{children}</div>;
+  return <div style={{background:`linear-gradient(155deg,${SURF_HI},${SURFACE})`,borderRadius:14,boxShadow:SI,padding:"10px 14px",...style}}>{children}</div>;
 }
 const chOf  = id => CHANNELS.find(c=>c.id===id)||CHANNELS[0];
 const catOf = id => CATEGORIES.find(c=>c.id===id)||CATEGORIES[5];
@@ -230,7 +206,7 @@ function SendModal({ tpl, onClose }) {
   const allIds   = students.map(s => s.uid);
   const toggleSel = uid => setSelected(sel => sel.includes(uid) ? sel.filter(x=>x!==uid) : [...sel,uid]);
   const selBtn = (active, color) => ({
-    padding:"7px 12px",borderRadius:12,border:"none",cursor:"pointer",fontSize:11,fontWeight:700,fontFamily:"inherit",
+    padding:"7px 12px",borderRadius:14,border:"none",cursor:"pointer",fontSize:11,fontWeight:700,fontFamily:"inherit",
     background:active?`linear-gradient(165deg,${color}99,${color}44)`:`linear-gradient(135deg,${SURF_HI},${SURFACE})`,
     color:active?color:DIM,boxShadow:SO,
   });
@@ -263,7 +239,7 @@ function SendModal({ tpl, onClose }) {
         <Btn variant="ghost" flex={1} onClick={onClose}>Скасувати</Btn>
         <Btn variant="primary" flex={1} disabled={selected.length===0||sending||sent}
           onClick={handleSend}>
-          {sent ? <span style={IL}><MIcon g={CAT_GLYPH.confirm} c={GREEN}/>Надіслано!</span> : sending ? "Надсилаємо…" : <span style={IL}><MIcon g={CH_GLYPH[ch.id]} c={ch.color}/>{`Надіслати${selected.length>0?` (${selected.length})`:""}`}</span>}
+          {sent ? <span style={IL}><MetalIcon name={CAT_ICON.confirm} color={GREEN} square size={16}/>Надіслано!</span> : sending ? "Надсилаємо…" : <span style={IL}><MetalIcon name={CH_ICON[ch.id]} color={ch.color} square size={16}/>{`Надіслати${selected.length>0?` (${selected.length})`:""}`}</span>}
         </Btn>
       </>}>
       <div style={{fontSize:12,color:DIM,marginTop:-12,marginBottom:18}}>«{tpl.title}»</div>
@@ -285,7 +261,7 @@ function SendModal({ tpl, onClose }) {
       {/* preview bubble */}
       <div style={{fontSize:11,color:FAINT,letterSpacing:1,marginBottom:8}}>ПОПЕРЕДНІЙ ПЕРЕГЛЯД</div>
       <div style={{marginBottom:6}}>
-        <div style={{fontSize:11,color:ch.color,marginBottom:6,fontWeight:700,...IL}}><MIcon g={CH_GLYPH[ch.id]} c={ch.color} s={14}/>{ch.label}</div>
+        <div style={{fontSize:11,color:ch.color,marginBottom:6,fontWeight:700,...IL}}><MetalIcon name={CH_ICON[ch.id]} color={ch.color} square size={14}/>{ch.label}</div>
         <div className="bubble-preview">
           <BodyPreview body={preview}/>
         </div>
@@ -338,7 +314,7 @@ function EditModal({ tpl, onSave, onClose }) {
         <div style={{fontSize:11,color:"rgba(255,255,255,0.74)",letterSpacing:1,marginBottom:8}}>КАТЕГОРІЯ</div>
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(118px,1fr))",gap:6}}>
           {CATEGORIES.map(c=>(
-            <Chip key={c.id} active={form.catId===c.id} color={c.color} onClick={()=>upd("catId",c.id)}><span style={IL}><MIcon g={CAT_GLYPH[c.id]} c={c.color}/>{c.label}</span></Chip>
+            <Chip key={c.id} active={form.catId===c.id} color={c.color} onClick={()=>upd("catId",c.id)}><span style={IL}><MetalIcon name={CAT_ICON[c.id]} color={c.color} square size={16}/>{c.label}</span></Chip>
           ))}
         </div>
       </div>
@@ -348,7 +324,7 @@ function EditModal({ tpl, onSave, onClose }) {
         <div style={{fontSize:11,color:"rgba(255,255,255,0.74)",letterSpacing:1,marginBottom:8}}>КАНАЛ ВІДПРАВКИ</div>
         <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:6}}>
           {CHANNELS.map(c=>(
-            <Chip key={c.id} active={(form.channel||"chat")===c.id} color={c.color} onClick={()=>upd("channel",c.id)}><span style={IL}><MIcon g={CH_GLYPH[c.id]} c={c.color}/>{c.label}</span></Chip>
+            <Chip key={c.id} active={(form.channel||"chat")===c.id} color={c.color} onClick={()=>upd("channel",c.id)}><span style={IL}><MetalIcon name={CH_ICON[c.id]} color={c.color} square size={16}/>{c.label}</span></Chip>
           ))}
         </div>
         <div style={{fontSize:11,color:"rgba(255,255,255,0.74)",marginTop:6}}>
@@ -362,12 +338,12 @@ function EditModal({ tpl, onSave, onClose }) {
         <div style={{display:"flex",flexDirection:"column",gap:6}}>
           {TRIGGERS.map(t=>(
             <button key={t.id} onClick={()=>upd("trigger",t.id)} style={{
-              padding:"10px 14px",borderRadius:12,border:"none",cursor:"pointer",textAlign:"left",fontFamily:"inherit",
+              padding:"10px 14px",borderRadius:14,border:"none",cursor:"pointer",textAlign:"left",fontFamily:"inherit",
               background:form.trigger===t.id?`linear-gradient(135deg,${BLUE}33,${BLUE}14)`:`linear-gradient(135deg,${SURF_HI},${SURFACE})`,
               color:form.trigger===t.id?BLUE:DIM,fontSize:12,fontWeight:700,
               borderLeft:form.trigger===t.id?`3px solid ${BLUE}`:"3px solid transparent"
             }}>
-              <span style={IL}><MIcon g={TRIG_GLYPH[t.id==="manual"?"manual":"auto"]} c={t.id==="manual"?BLUE:GOLD}/>{t.label}</span>
+              <span style={IL}><MetalIcon name={TRIG_ICON[t.id==="manual"?"manual":"auto"]} color={t.id==="manual"?BLUE:GOLD} square size={16}/>{t.label}</span>
             </button>
           ))}
         </div>
@@ -380,7 +356,7 @@ function EditModal({ tpl, onSave, onClose }) {
           <div style={{display:"flex",gap:6}}>
             {[24,2].map(h=>(
               <button key={h} onClick={()=>upd("reminderHours",h)} style={{
-                padding:"10px 14px",borderRadius:12,border:"none",cursor:"pointer",fontFamily:"inherit",flex:1,
+                padding:"10px 14px",borderRadius:14,border:"none",cursor:"pointer",fontFamily:"inherit",flex:1,
                 background:(form.reminderHours??24)===h?`linear-gradient(135deg,${BLUE}33,${BLUE}14)`:`linear-gradient(135deg,${SURF_HI},${SURFACE})`,
                 color:(form.reminderHours??24)===h?BLUE:DIM,fontSize:12,fontWeight:700,
                 borderLeft:(form.reminderHours??24)===h?`3px solid ${BLUE}`:"3px solid transparent"
@@ -415,7 +391,7 @@ function EditModal({ tpl, onSave, onClose }) {
       )}
 
       {/* active */}
-      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:0,padding:"12px 14px",background:`linear-gradient(155deg,${SURF_HI},${SURFACE})`,borderRadius:12,boxShadow:SI}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:0,padding:"12px 14px",background:`linear-gradient(155deg,${SURF_HI},${SURFACE})`,borderRadius:14,boxShadow:SI}}>
         <div>
           <div style={{fontSize:13,fontWeight:700,color:TEXT}}>Активний шаблон</div>
           <Hint style={{marginTop:2}}>Вимкнений шаблон не відправляється автоматично</Hint>
@@ -455,15 +431,13 @@ function TemplateCard({ tpl, onEdit, onSend, onToggle, onDelete }) {
       </button>
 
       <div style={{position:"relative",zIndex:2,display:"flex",alignItems:"flex-start",gap:7,paddingRight:26}}>
-        <span className="metal3d" style={{width:28,height:28,borderRadius:9,"--ic":`color-mix(in srgb,${cat.color} 72%,#000)`}}>
-          <svg width={20} height={20} viewBox="0 0 24 24" fill="none" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">{CAT_GLYPH[cat.id]||CAT_GLYPH.custom}</svg>
-        </span>
+        <MetalIcon name={CAT_ICON[cat.id]||"edit"} color={cat.color} square size={28}/>
         <div style={{flex:1,minWidth:0}}>
           <div style={{fontSize:13,fontWeight:800,color:"#fff",textShadow:`0 1px 3px ${shade(0.5)}`,overflowWrap:"anywhere"}}>{tpl.title}</div>
           <div style={{fontSize:11,color:"rgba(255,255,255,0.78)",fontWeight:700,marginTop:1.5,display:"flex",alignItems:"center",gap:5}}>
-            <span style={{...IL,gap:4}}><MIcon g={CH_GLYPH[ch.id]} c={ch.color} s={13}/>{ch.label}</span>
+            <span style={{...IL,gap:4}}><MetalIcon name={CH_ICON[ch.id]} color={ch.color} square size={13}/>{ch.label}</span>
             <span>·</span>
-            <span style={{...IL,gap:4}}><MIcon g={TRIG_GLYPH[tpl.trigger==="manual"?"manual":"auto"]} c={tpl.trigger==="manual"?BLUE:GOLD} s={13}/>{tpl.trigger==="manual"?"Вручну":"Авто"}</span>
+            <span style={{...IL,gap:4}}><MetalIcon name={TRIG_ICON[tpl.trigger==="manual"?"manual":"auto"]} color={tpl.trigger==="manual"?BLUE:GOLD} square size={13}/>{tpl.trigger==="manual"?"Вручну":"Авто"}</span>
           </div>
         </div>
       </div>
@@ -521,7 +495,7 @@ function SimpleEditModal({ tpl, onSave, onClose }) {
             <div style={{display:"flex",gap:6}}>
               {[24,2].map(h=>(
                 <button key={h} onClick={()=>setHours(h)} style={{
-                  padding:"10px 14px",borderRadius:12,border:"none",cursor:"pointer",fontFamily:"inherit",flex:1,
+                  padding:"10px 14px",borderRadius:14,border:"none",cursor:"pointer",fontFamily:"inherit",flex:1,
                   background:hours===h?`linear-gradient(135deg,${BLUE}33,${BLUE}14)`:`linear-gradient(135deg,${SURF_HI},${SURFACE})`,
                   color:hours===h?BLUE:DIM,fontSize:12,fontWeight:700,
                   borderLeft:hours===h?`3px solid ${BLUE}`:"3px solid transparent"
@@ -573,10 +547,8 @@ function SimpleRow({ emoji, title, hint, color, active, onToggle, onEdit, snippe
       opacity:active===false?0.6:1,
     }}>
       <div style={{display:"flex",alignItems:"center",gap:9}}>
-        {EMOJI_GLYPH[emoji]
-          ? <span className="metal3d" style={{width:34,height:34,borderRadius:10,"--ic":`color-mix(in srgb,${color} 72%,#000)`}}>
-              <svg width={24} height={24} viewBox="0 0 24 24" fill="none" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">{EMOJI_GLYPH[emoji]}</svg>
-            </span>
+        {EMOJI_ICON[emoji]
+          ? <MetalIcon name={EMOJI_ICON[emoji]} color={color} square size={34}/>
           : <span style={{fontSize:20,flexShrink:0,lineHeight:1}}>{emoji}</span>}
         <div style={{flex:1,minWidth:0}}>
           <div style={{fontSize:15,fontWeight:700,color:"#fff"}}>{title}</div>

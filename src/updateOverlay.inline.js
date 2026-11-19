@@ -46,7 +46,7 @@
     try {
       var l = localStorage.getItem('id4lang') || document.documentElement.lang || '';
       return /^en/i.test(l) ? 'en' : 'uk';
-    } catch (e) { // eslint-disable-line no-unused-vars -- старі WebView без optional catch binding
+    } catch (e) {// старі WebView без optional catch binding
       return 'uk';
     }
   }
@@ -69,7 +69,7 @@
           .then(function (r) { return r.json(); })
           .then(function (d) { clearTimeout(timer); resolve((d && d.version) || ''); })
           .catch(function () { clearTimeout(timer); resolve(''); });
-      } catch (e) { // eslint-disable-line no-unused-vars
+      } catch (e) {
         clearTimeout(timer);
         resolve('');
       }

@@ -349,8 +349,8 @@ function StudentDetailSheet({ settings, s, onClose, onUpdate, onDelete, onBlock,
                 <div style={{fontSize:15,fontWeight:800,color:"#fca5a5"}}>Видалити клієнта?</div>
                 <div style={{fontSize:12.5,color:DIM,maxWidth:420}}>{`${s.name} зникне зі списку разом з історією записів. Цю дію не можна скасувати.`}</div>
                 <div className="modal-footer" style={{gap:8,width:"100%",marginTop:6}}>
-                  <button onClick={()=>setConfirmDel(false)} style={{padding:"11px",borderRadius:12,border:"none",cursor:"pointer",background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,color:TEXT,fontSize:13,fontWeight:700,fontFamily:"inherit"}}>Скасувати</button>
-                  <button onClick={()=>{setPendingDelete(true);_close();}} style={{padding:"11px",borderRadius:12,border:"1px solid rgba(239,68,68,0.45)",cursor:"pointer",background:"linear-gradient(145deg,rgba(239,68,68,.5),rgba(185,28,28,.4))",color:"#fff",fontSize:13,fontWeight:800,fontFamily:"inherit"}}>Видалити</button>
+                  <button onClick={()=>setConfirmDel(false)} style={{padding:"11px",borderRadius:14,border:"none",cursor:"pointer",background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,color:TEXT,fontSize:13,fontWeight:700,fontFamily:"inherit"}}>Скасувати</button>
+                  <button onClick={()=>{setPendingDelete(true);_close();}} style={{padding:"11px",borderRadius:14,border:"1px solid rgba(239,68,68,0.45)",cursor:"pointer",background:"linear-gradient(145deg,rgba(239,68,68,.5),rgba(185,28,28,.4))",color:"#fff",fontSize:13,fontWeight:800,fontFamily:"inherit"}}>Видалити</button>
                 </div>
               </div>
             ) : pushOpen ? (
@@ -364,9 +364,9 @@ function StudentDetailSheet({ settings, s, onClose, onUpdate, onDelete, onBlock,
                 {pushSent && <div style={{fontSize:12,fontWeight:700,color:GREEN}}>✓ Надіслано</div>}
                 <div className="modal-footer" style={{gap:8}}>
                   <button onClick={()=>{setPushOpen(false);setPushSent(false);setPushError(null);}}
-                    style={{padding:"11px",borderRadius:11,border:"none",cursor:"pointer",background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,color:DIM,fontSize:13,fontWeight:700,boxShadow:SO,fontFamily:"inherit"}}>Скасувати</button>
+                    style={{padding:"11px",borderRadius:10,border:"none",cursor:"pointer",background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,color:DIM,fontSize:13,fontWeight:700,boxShadow:SO,fontFamily:"inherit"}}>Скасувати</button>
                   <button disabled={!pushBody.trim()||pushSending} onClick={sendPushToStudent}
-                    style={{padding:"11px",borderRadius:11,border:"none",cursor:(!pushBody.trim()||pushSending)?"default":"pointer",opacity:(!pushBody.trim()||pushSending)?0.5:1,background:`linear-gradient(145deg,${GOLD}cc,${GOLD}88)`,color:"#1a1a1a",fontSize:13,fontWeight:800,boxShadow:SO,fontFamily:"inherit"}}>{pushSending?"…":"Надіслати"}</button>
+                    style={{padding:"11px",borderRadius:10,border:"none",cursor:(!pushBody.trim()||pushSending)?"default":"pointer",opacity:(!pushBody.trim()||pushSending)?0.5:1,background:`linear-gradient(145deg,${GOLD}cc,${GOLD}88)`,color:"#1a1a1a",fontSize:13,fontWeight:800,boxShadow:SO,fontFamily:"inherit"}}>{pushSending?"…":"Надіслати"}</button>
                 </div>
               </div>
             ) : inviteOpen ? (
@@ -533,7 +533,7 @@ function StudentDetailSheet({ settings, s, onClose, onUpdate, onDelete, onBlock,
                       {tpls.length > 0 ? (
                         <div style={{display:"flex",flexWrap:"wrap",gap:6,marginTop:6}}>
                           {tpls.map(t => (
-                            <button key={t.id} onClick={()=>{ const pk = buildClientPackage(t); update(iRef(`users/${s.id}/packages/${pk.id}`), pk).catch(()=>{}); }} style={{padding:"6px 10px",borderRadius:9,border:`1px dashed ${GREEN}`,background:"transparent",color:GREEN,fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>+ {t.name}</button>
+                            <button key={t.id} onClick={()=>{ const pk = buildClientPackage(t); update(iRef(`users/${s.id}/packages/${pk.id}`), pk).catch(()=>{}); }} style={{padding:"6px 10px",borderRadius:8,border:`1px dashed ${GREEN}`,background:"transparent",color:GREEN,fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>+ {t.name}</button>
                           ))}
                         </div>
                       ) : (
@@ -555,7 +555,7 @@ function StudentDetailSheet({ settings, s, onClose, onUpdate, onDelete, onBlock,
 
                 {/* Delete */}
                 <button onClick={()=>setConfirmDel(true)} style={{
-                  width:"100%",padding:"11px",borderRadius:11,border:"1px solid rgba(239,68,68,0.25)",
+                  width:"100%",padding:"11px",borderRadius:10,border:"1px solid rgba(239,68,68,0.25)",
                   cursor:"pointer",background:"rgba(239,68,68,0.08)",color:"#fca5a5",
                   fontSize:13,fontWeight:700,fontFamily:"inherit",marginTop:4,
                 }}>Видалити клієнта</button>
@@ -593,11 +593,11 @@ function StudentDetailSheet({ settings, s, onClose, onUpdate, onDelete, onBlock,
             ) : (history||[]).length > 0 ? (
               <>
                 <div style={{display:"flex",gap:8,marginBottom:16}}>
-                  <div style={{flex:1,borderRadius:12,padding:"10px 8px",textAlign:"center",background:`linear-gradient(155deg,color-mix(in srgb,${GREEN} 30%,${BG_DEEP}),${BG_DEEP})`}}>
+                  <div style={{flex:1,borderRadius:14,padding:"10px 8px",textAlign:"center",background:`linear-gradient(155deg,color-mix(in srgb,${GREEN} 30%,${BG_DEEP}),${BG_DEEP})`}}>
                     <div style={{fontSize:19,fontWeight:900,color:GREEN}}>{Number.isInteger(historyStats.hours)?historyStats.hours:historyStats.hours.toFixed(1)}</div>
                     <div style={{fontSize:11,color:DIM,fontWeight:700,marginTop:2}}>годин пройдено</div>
                   </div>
-                  <div style={{flex:1,borderRadius:12,padding:"10px 8px",textAlign:"center",background:`linear-gradient(155deg,color-mix(in srgb,${BLUE} 30%,${BG_DEEP}),${BG_DEEP})`}}>
+                  <div style={{flex:1,borderRadius:14,padding:"10px 8px",textAlign:"center",background:`linear-gradient(155deg,color-mix(in srgb,${BLUE} 30%,${BG_DEEP}),${BG_DEEP})`}}>
                     <div style={{fontSize:19,fontWeight:900,color:BLUE}}>{historyStats.count}</div>
                     <div style={{fontSize:11,color:DIM,fontWeight:700,marginTop:2}}>записів відвідано</div>
                   </div>
@@ -835,7 +835,7 @@ export default function StudentsView({ studentJump, onStudentJumpHandled, bookin
         <div style={{display:"flex",background:SURFACE,padding:3,borderRadius:14,border:`1px solid ${BORDER}`,backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)"}}>
           {[["all","Всі","Всі"],["school","Стандарт","Стандарт"],["private","Індивідуальний","Індивід."]].map(([k,l,ls])=>(
             <button key={k} onClick={()=>setFilterType(k)} style={{
-              flex:"1 1 0",minWidth:0,padding:"10px 2px",borderRadius:11,border:"none",cursor:"pointer",fontSize:12,fontWeight:600,fontFamily:"inherit",whiteSpace:"nowrap",
+              flex:"1 1 0",minWidth:0,padding:"10px 2px",borderRadius:10,border:"none",cursor:"pointer",fontSize:12,fontWeight:600,fontFamily:"inherit",whiteSpace:"nowrap",
               background:filterType===k?SURF_HI:"transparent",color:filterType===k?TEXT:DIM,boxShadow:filterType===k?"0 2px 8px rgba(0,0,0,.12)":"none",
             }}><span className="lbl-long">{l}</span><span className="lbl-short">{ls}</span></button>
           ))}

@@ -46,7 +46,7 @@ function QueueOfferModal({ cancelledBk, waiting, queueMode, onInvite, onClose, s
       <div style={{display:"flex",flexDirection:"column",gap:6}}>
         {waiting.map(q=>(
           <div key={q.id} onClick={()=>queueMode==="manual"&&toggle(q.id)} style={{
-            display:"flex",alignItems:"center",gap:10,padding:"10px 12px",borderRadius:11,cursor:queueMode==="manual"?"pointer":"default",boxShadow:SO,
+            display:"flex",alignItems:"center",gap:10,padding:"10px 12px",borderRadius:10,cursor:queueMode==="manual"?"pointer":"default",boxShadow:SO,
             background:selected.includes(q.id)?`linear-gradient(145deg,rgba(192,132,252,0.2),rgba(124,58,237,0.1))`:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,
             border:selected.includes(q.id)?`1px solid ${PURPLE}44`:"1px solid transparent",
           }}>
@@ -298,7 +298,7 @@ textarea{color-scheme:dark}
           </div>
           {bookingsOpen && (
             <div className="expand-body" style={{borderTop:`1px solid ${BORDER}`,padding:"12px 12px 12px",display:"flex",flexDirection:"column",gap:10}}>
-              <div style={{background:BG_DEEP,borderRadius:11,boxShadow:SI,padding:"3px 11px",display:"flex",alignItems:"center",gap:7}}>
+              <div style={{background:BG_DEEP,borderRadius:10,boxShadow:SI,padding:"3px 11px",display:"flex",alignItems:"center",gap:7}}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={FAINT} strokeWidth="2.2" strokeLinecap="round" style={{flexShrink:0}}><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
                 <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Пошук за ім'ям або телефоном…"
                   style={{flex:1,background:"transparent",border:"none",outline:"none",color:TEXT,padding:"9px 0",fontSize:13,minWidth:0,fontFamily:"inherit"}}/>

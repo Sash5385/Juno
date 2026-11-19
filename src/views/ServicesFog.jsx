@@ -37,11 +37,11 @@ export default function ServicesFog({ services, colorOf, fmt, capOf, isProtected
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
       {/* сегменти */}
-      <div style={{ display: "flex", background: SURFACE, padding: 3, borderRadius: 12, border: `1px solid ${BORDER}`, backdropFilter: GL, WebkitBackdropFilter: GL }}>
+      <div style={{ display: "flex", background: SURFACE, padding: 3, borderRadius: 14, border: `1px solid ${BORDER}`, backdropFilter: GL, WebkitBackdropFilter: GL }}>
         {FILTERS.map(f => {
           const on = filter === f.id;
           return (
-            <button key={f.id} onClick={() => setFilter(f.id)} style={{ flex: 1, textAlign: "center", fontSize: 12, fontWeight: 600, padding: "9px 0", borderRadius: 9, border: "none", cursor: "pointer", fontFamily: "inherit",
+            <button key={f.id} onClick={() => setFilter(f.id)} style={{ flex: 1, textAlign: "center", fontSize: 12, fontWeight: 600, padding: "9px 0", borderRadius: 8, border: "none", cursor: "pointer", fontFamily: "inherit",
               background: on ? SURF_HI : "transparent", color: on ? TEXT : DIM, boxShadow: on ? "0 2px 8px rgba(0,0,0,.12)" : "none" }}>
               {f.label}{f.id === "arch" && archCount ? ` · ${archCount}` : ""}
             </button>
@@ -56,7 +56,7 @@ export default function ServicesFog({ services, colorOf, fmt, capOf, isProtected
           const dimmed = !svc.active || svc.archived;
           return (
             <div key={svc.id} data-drag-idx={idx} onClick={() => onEdit(svc)} style={{
-              position: "relative", borderRadius: 12, padding: "8px 8px", minWidth: 0, cursor: "pointer", opacity: dimmed ? 0.55 : 1,
+              position: "relative", borderRadius: 14, padding: "8px 8px", minWidth: 0, cursor: "pointer", opacity: dimmed ? 0.55 : 1,
               background: `color-mix(in srgb,${c} 26%,transparent)`, border: `1px solid color-mix(in srgb,${c} 55%,transparent)`,
               backdropFilter: GL, WebkitBackdropFilter: GL, color: TEXT, overflow: "hidden",
             }}>

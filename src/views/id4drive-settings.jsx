@@ -59,39 +59,15 @@ const DIRECTION_PRESETS = {
   },
 };
 
-// ─── Іконки розділів «метал + глянець» (кругла плитка на краю вкладки) ───
-const SEC_GLYPH = {
-  plan:    ["#2563eb", <><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></>],
-  rules:   ["#dc2626", <><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></>],
-  catalog: ["#b7860b", <><circle cx="12" cy="12" r="9"/><path d="M15 9.5c0-1.1-1.3-2-3-2s-3 .9-3 2 1.3 1.6 3 1.9 3 .9 3 2-1.3 2-3 2-3-.9-3-2M12 6v1.5M12 16.5V18"/></>],
-  clients: ["#7c3aed", <><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M9 10h6M9 14h6M9 18h4"/></>],
-  push:    ["#16a34a", <><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></>],
-  team:    ["#2563eb", <><circle cx="9" cy="8" r="3.5"/><path d="M2 20c0-3.5 3-6 7-6s7 2.5 7 6"/><circle cx="17" cy="9" r="2.5"/><path d="M17 14c3 0 5 2 5 5"/></>],
-  profile: ["#2563eb", <><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-7 8-7s8 3 8 7"/></>],
-  wk_cal:  ["#2563eb", <><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/></>],
-  wk_day:  ["#2563eb", <><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></>],
-  wk_cup:  ["#b45309", <><path d="M4 9h13v5a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5z"/><path d="M17 11h1.5a2.5 2.5 0 0 1 0 5H17"/><path d="M8 3v3M12 3v3"/></>],
-  sh_gear: ["#475569", <><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></>],
-  sh_timer:["#0891b2", <><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M9 2h6"/></>],
-  sh_pin:  ["#dc2626", <><path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z"/><circle cx="12" cy="10" r="2.3"/></>],
-  sh_check:["#16a34a", <><circle cx="12" cy="12" r="9"/><path d="M7.5 12.5l3 3 6-6.5"/></>],
-  sh_star: ["#b7860b", <polygon points="12 2 15.1 8.3 22 9.3 17 14.1 18.2 21 12 17.8 5.8 21 7 14.1 2 9.3 8.9 8.3 12 2"/>],
-  sh_ticket:["#7c3aed", <><path d="M3 8a2 2 0 0 0 2-2h14a2 2 0 0 0 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 0-2 2H5a2 2 0 0 0-2-2v-2a2 2 0 0 0 0-4z"/><path d="M13 6v12" strokeDasharray="2 2"/></>],
-  sh_tag:  ["#db2777", <><path d="M20.6 13.4l-7.2 7.2a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.5"/></>],
-  sh_paint:["#7c3aed", <><circle cx="12" cy="12" r="9"/><circle cx="8" cy="10" r="1.2"/><circle cx="12" cy="7.5" r="1.2"/><circle cx="16" cy="10" r="1.2"/><path d="M12 21a3 3 0 0 1 0-6h2"/></>],
-  sh_build:["#2563eb", <><rect x="4" y="3" width="16" height="18" rx="1.5"/><path d="M9 7h1M14 7h1M9 11h1M14 11h1M9 15h1M14 15h1M10 21v-3h4v3"/></>],
-  wk_grid: ["#16a34a", <><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></>],
+// ─── Іконки розділів: id → ім'я в MetalIcon (+ свій колір, якщо відрізняється) ───
+const SEC_ICON = {
+  plan:"clock", rules:"lock", catalog:"coin", clients:"clipboard", push:["bell","#16a34a"], team:["users","#2563eb"], profile:"user",
+  wk_cal:"calendar", wk_day:"clock", wk_cup:"cup", sh_gear:"gear", sh_timer:"timer", sh_pin:"pin", sh_check:"checkCircle", sh_star:"star",
+  sh_ticket:"ticketDash", sh_tag:"tag", sh_paint:"paint", sh_build:"building", wk_grid:"grid",
 };
 function MetalIc({ id, size = 28 }) {
-  const [c, g] = SEC_GLYPH[id] || SEC_GLYPH.profile;
-  return (
-    <span style={{ width:size, height:size, flexShrink:0, borderRadius:"50%", position:"relative", overflow:"hidden", display:"inline-flex", alignItems:"center", justifyContent:"center",
-      background:"linear-gradient(145deg,#fbfcfe,#a3abba 45%,#eef1f6 55%,#7a8394)", boxShadow:"0 2px 5px rgba(0,0,0,0.4),inset 0 1px 0 #fff,inset 0 -2px 3px rgba(0,0,0,0.2)" }}>
-      <span style={{ position:"absolute", left:"6%", right:"6%", top:"4%", height:"46%", borderRadius:"40% 40% 60% 60%/60% 60% 40% 40%", background:"linear-gradient(180deg,rgba(255,255,255,0.85),rgba(255,255,255,0.05))" }}/>
-      <svg width={Math.round(size*0.72)} height={Math.round(size*0.72)} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"
-        style={{ position:"relative", filter:"drop-shadow(0 1px 0 rgba(255,255,255,0.9))" }}>{g}</svg>
-    </span>
-  );
+  const m = SEC_ICON[id] || SEC_ICON.profile;
+  return Array.isArray(m) ? <MetalIcon name={m[0]} color={m[1]} size={size}/> : <MetalIcon name={m} size={size}/>;
 }
 
 // ─── MODULE-LEVEL ATOMS (stable references → no remount on settings change) ───
@@ -152,7 +128,7 @@ export function NumInput({ value, onChange, min=0, max=999, suffix="", step=1, c
   if (FOG) {
     const fb = { width:36,height:36,border:"none",cursor:"pointer",background:"transparent",color:ACC_HI,fontSize:18,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,padding:0 };
     return (
-      <div style={{display:"flex",alignItems:"center",background:SURF_HI,borderRadius:12}}>
+      <div style={{display:"flex",alignItems:"center",background:SURF_HI,borderRadius:14}}>
         <button onClick={()=>onChange(Math.max(min,value-step))} aria-label="Зменшити" style={fb}>−</button>
         <span style={{fontSize:14,fontWeight:700,color:TEXT,minWidth:54,textAlign:"center"}}>{value}{suffix}</span>
         <button onClick={()=>onChange(Math.min(max,value+step))} aria-label="Збільшити" style={fb}>+</button>
@@ -269,7 +245,7 @@ function AutoSlotsRunButton() {
   };
   return (
     <div style={{marginBottom:6}}>
-      <button onClick={run} disabled={state==="busy"} style={{width:"100%",minHeight:44,padding:"10px",borderRadius:12,cursor:state==="busy"?"default":"pointer",background:"transparent",border:`1px solid ${BORDER}`,color:TEXT,fontSize:13,fontWeight:700,fontFamily:"inherit",opacity:state==="busy"?0.6:1}}>
+      <button onClick={run} disabled={state==="busy"} style={{width:"100%",minHeight:44,padding:"10px",borderRadius:14,cursor:state==="busy"?"default":"pointer",background:"transparent",border:`1px solid ${BORDER}`,color:TEXT,fontSize:13,fontWeight:700,fontFamily:"inherit",opacity:state==="busy"?0.6:1}}>
         {state==="busy" ? "Заповнюю…" : <span style={{display:"inline-flex",alignItems:"center",gap:6}}><MetalIcon name="bolt" size={20}/>Заповнити зараз</span>}
       </button>
       {state==="msg" && <div style={{fontSize:11,color:DIM,marginTop:4,textAlign:"center"}}>{msg}</div>}
@@ -282,7 +258,7 @@ function RowBlock({ label, hint, children, last, color }) {
   const c = color || ACCENT;
   return (
     <div style={{
-      padding:"9px 12px", borderRadius:11,
+      padding:"9px 12px", borderRadius:10,
       background:`linear-gradient(135deg,color-mix(in srgb,${c} 42%,${BG_DEEP}) 0%,${BG_DEEP} 100%)`,
       border:`1px solid color-mix(in srgb,${c} 55%,transparent)`,
       backgroundClip:"padding-box",
@@ -304,7 +280,7 @@ function Chip({ label, active, onClick, equal, ariaLabel }) {
   );
   return (
     <button onClick={onClick} aria-label={ariaLabel} style={{
-      ...eq,padding:"6px 12px",borderRadius:9,border:"none",cursor:"pointer",fontSize:11,fontWeight:700,
+      ...eq,padding:"6px 12px",borderRadius:8,border:"none",cursor:"pointer",fontSize:11,fontWeight:700,
       background:active?`linear-gradient(145deg,${ACC_HI},${ACCENT})`:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,
       color:active?"#fff":DIM,boxShadow:active?"none":SO,
     }}>{label}</button>
@@ -789,12 +765,11 @@ export default function SettingsView({ settings, setSettings }) {
   const { BG_DEEP, SURF_HI, SURFACE, SURF_LO, BORDER, TEXT, DIM, FAINT, ACCENT, ACC_HI, GREEN, BLUE, PURPLE, GOLD, RED, TEAL, SO, SI, BTN_TX } = useContext(ThemeContext);
   const lang = useContext(LangContext);
   const t = createT(lang);
-  const isKava = false; // «Туман» — завжди темне скло
 
   const css = `
 input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:4px;border-radius:2px;background:${BG_DEEP};outline:none;box-shadow:${SI}}
 input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:9px;background:linear-gradient(145deg,${ACC_HI},${ACCENT});cursor:pointer;box-shadow:0 2px 6px rgba(255,90,60,0.5)}
-select{color-scheme:${isKava?"light":"dark"}}
+select{color-scheme:dark}
 .fog-row + .fog-row{border-top:1px solid ${BORDER}}
 .pk-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:8px}
 @media (max-width:479px){.pk-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.pk-grid>:last-child{grid-column:1/-1}}
@@ -1218,7 +1193,7 @@ select{color-scheme:${isKava?"light":"dark"}}
               return (<>
                 <div style={{display:"flex",background:SURF_HI,padding:3,borderRadius:14,border:`1px solid ${BORDER}`}}>
                   {modes.map(o=>(
-                    <button key={o.k} onClick={()=>setQueueMode(o.k)} style={{flex:"1 1 0",minWidth:0,padding:"11px 0",borderRadius:11,border:"none",cursor:"pointer",fontFamily:"inherit",fontSize:12,fontWeight:600,
+                    <button key={o.k} onClick={()=>setQueueMode(o.k)} style={{flex:"1 1 0",minWidth:0,padding:"11px 0",borderRadius:10,border:"none",cursor:"pointer",fontFamily:"inherit",fontSize:12,fontWeight:600,
                       background:queueMode===o.k?`linear-gradient(145deg,${ACC_HI},${ACCENT})`:"transparent",color:queueMode===o.k?"#06182e":DIM}}>{o.label}</button>
                   ))}
                 </div>
@@ -1285,7 +1260,7 @@ select{color-scheme:${isKava?"light":"dark"}}
           ))}
           {(settings.surcharges||[]).length < 5 ? (
             <button onClick={()=>upd("surcharges", [...(settings.surcharges||[]), 0])} style={{
-              width:"100%",padding:"11px",borderRadius:12,border:`1px dashed ${GREEN}88`,cursor:"pointer",
+              width:"100%",padding:"11px",borderRadius:14,border:`1px dashed ${GREEN}88`,cursor:"pointer",
               background:"transparent",color:GREEN,fontSize:13,fontWeight:700,marginTop:2,
             }}>+ Додати надбавку</button>
           ) : (
@@ -1306,7 +1281,7 @@ select{color-scheme:${isKava?"light":"dark"}}
               {uk ? "Мітки показуються на картках записів у розкладі. Оберіть значок, напишіть текст і колір. «1-й запис» і «Борг» ставляться автоматично — їх можна лише перейменувати." : "Tags appear on booking cards. Pick an icon, text and colour. “1st booking” and “Debt” are automatic — you can only rename them."}
             </div>
             {tags.map(t => (
-              <div key={t.id} style={{marginBottom:7,padding:"10px 12px",borderRadius:12,background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,boxShadow:SO}}>
+              <div key={t.id} style={{marginBottom:7,padding:"10px 12px",borderRadius:14,background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,boxShadow:SO}}>
                 <div style={{display:"flex",alignItems:"center",gap:8}}>
                   <button onClick={()=>setTagIconOpen(tagIconOpen===t.id?null:t.id)} aria-label="Змінити іконку" style={{width:40,height:40,borderRadius:11,border:`1.5px solid ${TAG_COLORS[t.colorId]}`,background:"rgba(0,0,0,0.2)",fontSize:20,cursor:"pointer",flexShrink:0}}>{t.icon}</button>
                   <input value={t.label} maxLength={20} onChange={e=>patch(t.id,{label:e.target.value})} onBlur={e=>{ if(!e.target.value.trim()) patch(t.id,{label:"Мітка"}); }}
@@ -1330,11 +1305,11 @@ select{color-scheme:${isKava?"light":"dark"}}
               </div>
             ))}
             {tags.length < 12 ? (
-              <button onClick={()=>setTagList([...tags,{id:"t"+Date.now().toString(36),icon:"🏷️",label:uk?"Нова мітка":"New tag",colorId:"purple"}])} style={{width:"100%",padding:"11px",borderRadius:12,border:`1px dashed ${GREEN}88`,cursor:"pointer",background:"transparent",color:GREEN,fontSize:13,fontWeight:700,marginTop:2}}>+ {uk?"Додати мітку":"Add tag"}</button>
+              <button onClick={()=>setTagList([...tags,{id:"t"+Date.now().toString(36),icon:"🏷️",label:uk?"Нова мітка":"New tag",colorId:"purple"}])} style={{width:"100%",padding:"11px",borderRadius:14,border:`1px dashed ${GREEN}88`,cursor:"pointer",background:"transparent",color:GREEN,fontSize:13,fontWeight:700,marginTop:2}}>+ {uk?"Додати мітку":"Add tag"}</button>
             ) : (
               <div style={{textAlign:"center",fontSize:12,color:FAINT,padding:"6px 0"}}>{uk?"Максимум 12 міток":"Max 12 tags"}</div>
             )}
-            <button onClick={()=>setTagList(DEFAULT_TAGS)} style={{width:"100%",padding:"9px",borderRadius:12,border:"none",cursor:"pointer",background:"transparent",color:FAINT,fontSize:12,marginTop:6,textDecoration:"underline"}}>{uk?"Скинути до стандартних":"Reset to defaults"}</button>
+            <button onClick={()=>setTagList(DEFAULT_TAGS)} style={{width:"100%",padding:"9px",borderRadius:14,border:"none",cursor:"pointer",background:"transparent",color:FAINT,fontSize:12,marginTop:6,textDecoration:"underline"}}>{uk?"Скинути до стандартних":"Reset to defaults"}</button>
           </div>
         );
       }
@@ -1356,7 +1331,7 @@ select{color-scheme:${isKava?"light":"dark"}}
               Заготовки пакетів (абонементів): скільки записів, на скільки днів і на які послуги. Додати пакет клієнту можна в його картці («Клієнти»). Записи за пакетом списуються автоматично, а при скасуванні повертаються.
             </Hint>
             {pkgs.map((pk, i) => (
-              <div key={pk.id || i} style={{marginBottom:8,padding:"10px 12px",borderRadius:12,background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,boxShadow:SO}}>
+              <div key={pk.id || i} style={{marginBottom:8,padding:"10px 12px",borderRadius:14,background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,boxShadow:SO}}>
                 <div style={{display:"flex",alignItems:"center",gap:6}}>
                   <input value={pk.name || ""} maxLength={40} placeholder="Назва, напр. «5 записів»" onChange={e=>patchPk(i,{name:e.target.value})} style={{...box,flex:1,width:"auto",minWidth:0,alignSelf:"stretch"}}/>
                   <button onClick={()=>setPk(pkgs.filter((_, j) => j !== i))} aria-label="Видалити" style={{background:"none",border:"none",cursor:"pointer",color:"#f87171",padding:0,minWidth:32,minHeight:32,alignSelf:"stretch",display:"flex",alignItems:"center",justifyContent:"center"}}><MetalIcon name="cross" size={28}/></button>
@@ -1369,14 +1344,14 @@ select{color-scheme:${isKava?"light":"dark"}}
                 <div style={{...lbl,marginTop:9,minHeight:0}}>Діє на послуги {(!pk.serviceIds || !pk.serviceIds.length) && <span style={{textTransform:"none",letterSpacing:0,marginLeft:5}}>— на всі</span>}</div>
                 <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
                   {svcs.map(sv => { const on = (pk.serviceIds || []).includes(sv.id); return (
-                    <button key={sv.id} onClick={()=>patchPk(i,{serviceIds:on?(pk.serviceIds||[]).filter(x=>x!==sv.id):[...(pk.serviceIds||[]),sv.id]})} style={{flex:"1 1 auto",padding:"8px 10px",borderRadius:9,border:"none",cursor:"pointer",fontSize:11,fontWeight:700,fontFamily:"inherit",
-                      background:on?`linear-gradient(165deg,${ACC_HI},${ACCENT})`:`linear-gradient(135deg,${SURF_HI},${SURFACE})`,color:on?(BTN_TX||"#fff"):TEXT,boxShadow:SO}}>{on?"✓ ":""}{sv.name}</button>
+                    <button key={sv.id} onClick={()=>patchPk(i,{serviceIds:on?(pk.serviceIds||[]).filter(x=>x!==sv.id):[...(pk.serviceIds||[]),sv.id]})} style={{flex:"1 1 auto",padding:"8px 10px",borderRadius:8,border:"none",cursor:"pointer",fontSize:11,fontWeight:700,fontFamily:"inherit",
+                      background:on?`linear-gradient(145deg,${ACC_HI},${ACCENT})`:`linear-gradient(135deg,${SURF_HI},${SURFACE})`,color:on?(BTN_TX||"#fff"):TEXT,boxShadow:SO}}>{on?"✓ ":""}{sv.name}</button>
                   ); })}
                 </div>
               </div>
             ))}
             {pkgs.length < MAX_TEMPLATES ? (
-              <button onClick={()=>setPk([...pkgs,{id:"pk"+Date.now().toString(36),name:"",count:5,days:90,price:0,serviceIds:[]}])} style={{width:"100%",padding:"11px",borderRadius:12,border:`1px dashed ${GREEN}`,background:"transparent",color:GREEN,fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>+ Додати пакет</button>
+              <button onClick={()=>setPk([...pkgs,{id:"pk"+Date.now().toString(36),name:"",count:5,days:90,price:0,serviceIds:[]}])} style={{width:"100%",padding:"11px",borderRadius:14,border:`1px dashed ${GREEN}`,background:"transparent",color:GREEN,fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>+ Додати пакет</button>
             ) : (
               <div style={{textAlign:"center",fontSize:12,color:FAINT,padding:"6px 0"}}>Максимум {MAX_TEMPLATES} пакетів</div>
             )}
@@ -1401,7 +1376,7 @@ select{color-scheme:${isKava?"light":"dark"}}
               <Toggle color={intake.enabled !== false ? GREEN : RED} on={intake.enabled !== false} onChange={v=>setIntake({ enabled: v })}/>
             </Row>
             {fields.map((f, i) => (
-              <div key={f.id || i} style={{marginTop:8,padding:"10px 12px",borderRadius:12,background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,boxShadow:SO}}>
+              <div key={f.id || i} style={{marginTop:8,padding:"10px 12px",borderRadius:14,background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,boxShadow:SO}}>
                 <div style={{display:"flex",alignItems:"center",gap:6}}>
                   <input value={f.label || ""} maxLength={80} placeholder={uk ? "Питання, напр. «Алергії»" : "Question"} onChange={e=>patchField(i,{label:e.target.value})} style={{...box,flex:1,width:"auto",minWidth:0,alignSelf:"stretch"}}/>
                   <button onClick={()=>move(i,-1)} disabled={i===0} aria-label="Вгору" style={{background:"none",border:"none",color:i===0?FAINT:DIM,cursor:"pointer",fontSize:15,padding:0,minWidth:32,minHeight:32,alignSelf:"stretch"}}>▲</button>
@@ -1410,8 +1385,8 @@ select{color-scheme:${isKava?"light":"dark"}}
                 </div>
                 <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:8}}>
                   {FIELD_TYPES.map(ft => (
-                    <button key={ft.id} onClick={()=>patchField(i,{type:ft.id})} style={{flex:"1 1 auto",padding:"8px 10px",borderRadius:9,border:"none",cursor:"pointer",fontSize:11,fontWeight:700,fontFamily:"inherit",
-                      background:f.type===ft.id?`linear-gradient(165deg,${ACC_HI},${ACCENT})`:`linear-gradient(135deg,${SURF_HI},${SURFACE})`,color:f.type===ft.id?(BTN_TX||"#fff"):TEXT,boxShadow:SO}}>{ft.label}</button>
+                    <button key={ft.id} onClick={()=>patchField(i,{type:ft.id})} style={{flex:"1 1 auto",padding:"8px 10px",borderRadius:8,border:"none",cursor:"pointer",fontSize:11,fontWeight:700,fontFamily:"inherit",
+                      background:f.type===ft.id?`linear-gradient(145deg,${ACC_HI},${ACCENT})`:`linear-gradient(135deg,${SURF_HI},${SURFACE})`,color:f.type===ft.id?(BTN_TX||"#fff"):TEXT,boxShadow:SO}}>{ft.label}</button>
                   ))}
                 </div>
                 {f.type === "select" && (
@@ -1425,7 +1400,7 @@ select{color-scheme:${isKava?"light":"dark"}}
               </div>
             ))}
             {fields.length < MAX_FIELDS ? (
-              <button onClick={()=>setIntake({ fields: [...fields, { id:"f"+Date.now().toString(36), label:"", type:"text", required:false }] })} style={{width:"100%",padding:"11px",marginTop:8,borderRadius:12,border:`1px dashed ${GREEN}`,background:"transparent",color:GREEN,fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>{uk ? "+ Додати питання" : "+ Add question"}</button>
+              <button onClick={()=>setIntake({ fields: [...fields, { id:"f"+Date.now().toString(36), label:"", type:"text", required:false }] })} style={{width:"100%",padding:"11px",marginTop:8,borderRadius:14,border:`1px dashed ${GREEN}`,background:"transparent",color:GREEN,fontSize:13,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>{uk ? "+ Додати питання" : "+ Add question"}</button>
             ) : (
               <div style={{textAlign:"center",fontSize:12,color:FAINT,padding:"6px 0"}}>{uk ? "Максимум 12 питань" : "Max 12 questions"}</div>
             )}
@@ -1492,7 +1467,7 @@ select{color-scheme:${isKava?"light":"dark"}}
             <div style={{textAlign:"center",padding:"24px 12px",color:DIM,fontSize:12}}>Поки що немає відгуків</div>
           ) : shownReviews.map(rv => (
             <div key={`${rv.uid}_${rv.id}`} style={{
-              padding:"10px 12px",borderRadius:11,marginBottom:6,
+              padding:"10px 12px",borderRadius:10,marginBottom:6,
               background:SURF_LO,boxShadow:SI,opacity:rv.status==="hidden"?0.5:1,
             }}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
@@ -1553,7 +1528,7 @@ select{color-scheme:${isKava?"light":"dark"}}
                     upd("direction", id);
                     try { await update(iRef("admin_settings"), { direction: id }); } catch { /* ignore */ }
                     setTimeout(()=>window.location.reload(), 300);
-                  }} style={{textAlign:"left",padding:"10px",borderRadius:12,cursor:"pointer",fontFamily:"inherit",
+                  }} style={{textAlign:"left",padding:"10px",borderRadius:14,cursor:"pointer",fontFamily:"inherit",
                     border:on?`1.5px solid ${TEAL}`:`1px solid ${BORDER}`,background:on?"rgba(45,212,191,0.12)":"rgba(0,0,0,0.15)",color:TEXT}}>
                     <div style={{fontSize:14,fontWeight:800,display:"flex",alignItems:"center",gap:7}}><MetalIcon name={DIR_GLYPH[dir.icon]||"globe"} size={22}/>{dir.name}</div>
                     <div style={{fontSize:11,color:DIM,marginTop:3,lineHeight:1.35}}>{dir.desc}</div>
@@ -1576,7 +1551,7 @@ select{color-scheme:${isKava?"light":"dark"}}
                   upd("tags", [...tags, ...newTags]);
                   toast("Готово: послуги — вкладка «Послуги», мітки — Налаштування → Послуги й ціни → Мітки.");
                 } catch { toast("Не вдалося додати. Спробуйте ще раз.", true); }
-              }} style={{marginTop:10,width:"100%",padding:"10px",borderRadius:12,border:`1px dashed ${GREEN}88`,cursor:"pointer",background:"transparent",color:GREEN,fontSize:13,fontWeight:700}}>+ Додати стартові послуги й мітки</button>
+              }} style={{marginTop:10,width:"100%",padding:"10px",borderRadius:14,border:`1px dashed ${GREEN}88`,cursor:"pointer",background:"transparent",color:GREEN,fontSize:13,fontWeight:700}}>+ Додати стартові послуги й мітки</button>
             )}
           </div>
           <div style={{borderRadius:14,padding:"12px 14px",marginTop:5,background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,boxShadow:SO,display:"flex",alignItems:"center",justifyContent:"space-between",gap:10}}>
@@ -1742,7 +1717,7 @@ select{color-scheme:${isKava?"light":"dark"}}
           </ProfileCard>
 
           <button onClick={saveProfile} disabled={profileSaving} style={{
-            width:"100%",padding:"12px",borderRadius:12,border:"none",cursor:profileSaving?"default":"pointer",fontSize:14,fontWeight:800,
+            width:"100%",padding:"12px",borderRadius:14,border:"none",cursor:profileSaving?"default":"pointer",fontSize:14,fontWeight:800,
             background:profileSaved?`linear-gradient(145deg,${GREEN},${GREEN})`:`linear-gradient(145deg,${ACC_HI},${ACCENT})`,color:profileSaved?"#06220f":(BTN_TX||"#fff"),boxShadow:SO,
           }}>{profileSaved?"✓ Збережено":profileSaving?"Зберігаємо…":"Зберегти профіль"}</button>
 
@@ -1848,7 +1823,7 @@ select{color-scheme:${isKava?"light":"dark"}}
           <div style={{background:BG_DEEP, border:`1px solid ${BORDER}`, borderRadius:10, padding:"9px 12px", fontSize:12, color:TEXT, wordBreak:"break-all"}}>{bookingLink}</div>
           <button onClick={copyBookingLink} style={{
             marginTop:8, width:"100%", padding:"10px", borderRadius:10, border:"none", cursor:"pointer",
-            background: slugCopied ? "linear-gradient(135deg,#4ade80,#34d399)" : `linear-gradient(135deg,${ACC_HI},${ACCENT})`,
+            background: slugCopied ? "linear-gradient(135deg,#4ade80,#34d399)" : `linear-gradient(145deg,${ACC_HI},${ACCENT})`,
             color: slugCopied ? "#0a2e1a" : (BTN_TX||"#fff"), fontSize:13, fontWeight:800,
           }}>{slugCopied ? "✓ Скопійовано" : "Копіювати"}</button>
           {typeof navigator !== "undefined" && navigator.share && (
@@ -1928,7 +1903,7 @@ select{color-scheme:${isKava?"light":"dark"}}
       {active === "profile" && (
         <div style={{margin:"10px 14px 0"}}>
           <button onClick={async () => { if (await confirm({ title: "Вийти з акаунта?", okLabel: "Вийти", danger: true, icon: "logout" })) signOut(auth).catch(() => {}); }} style={{
-            width:"100%", padding:"12px", borderRadius:12, cursor:"pointer", fontFamily:"inherit",
+            width:"100%", padding:"12px", borderRadius:14, cursor:"pointer", fontFamily:"inherit",
             background:"rgba(239,68,68,0.10)", border:"1px solid rgba(239,68,68,0.35)",
             color:"#f87171", fontSize:13, fontWeight:800,
           }}>Вийти з акаунта</button>

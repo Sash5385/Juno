@@ -276,7 +276,7 @@ export default function QueueView({ settings }) {
             {value:booked_c, label:"Записані",  color:GREEN},
           ].map((s,i)=>(
             <div key={i} style={{
-              borderRadius:11, padding:"10px 6px", textAlign:"center",
+              borderRadius:10, padding:"10px 6px", textAlign:"center",
               background:`color-mix(in srgb,${s.color} 18%,transparent)`,backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",
               border:`1px solid color-mix(in srgb,${s.color} 32%,transparent)`,
             }}>

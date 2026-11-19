@@ -77,7 +77,7 @@ function SlotPreview({ svc, height=80 }) {
 // ─── INSET ───────────────────────────────────────────────────────
 function Inset({ children, style={} }) {
   const { BG_DEEP, SURF_LO, SI } = useContext(ThemeContext);
-  return <div style={{background:`linear-gradient(135deg,${BG_DEEP},${SURF_LO})`,borderRadius:12,boxShadow:SI,padding:"10px 14px",...style}}>{children}</div>;
+  return <div style={{background:`linear-gradient(135deg,${BG_DEEP},${SURF_LO})`,borderRadius:14,boxShadow:SI,padding:"10px 14px",...style}}>{children}</div>;
 }
 
 // ─── SERVICE FORM MODAL ──────────────────────────────────────────
@@ -154,7 +154,7 @@ function ServiceFormModal({ svc, onSave, onClose }) {
             {[30,60,90,120,180].map(v=>(
               <button key={v} onClick={()=>upd("duration",v)} style={{
                 flex:"1 1 auto",padding:"7px 8px",borderRadius:theme.CHIP_R??8,border:"none",cursor:"pointer",fontSize:11,fontWeight:700,fontFamily:"inherit",
-                background:form.duration===v?`linear-gradient(165deg,${ACC_HI},${ACCENT})`:`linear-gradient(135deg,${SURF_HI},${SURFACE})`,
+                background:form.duration===v?`linear-gradient(145deg,${ACC_HI},${ACCENT})`:`linear-gradient(135deg,${SURF_HI},${SURFACE})`,
                 color:form.duration===v?(BTN_TX||"#fff"):TEXT,boxShadow:SO,
               }}>{v}</button>
             ))}
@@ -205,7 +205,7 @@ function ServiceFormModal({ svc, onSave, onClose }) {
           {REBOOK_OPTIONS.map(v=>(
             <button key={v} onClick={()=>upd("rebookDays",v)} style={{
               flex:"1 1 auto",padding:"8px 11px",borderRadius:theme.CHIP_R??9,border:"none",cursor:"pointer",fontSize:12,fontWeight:700,fontFamily:"inherit",
-              background:rebookOf(form)===v?`linear-gradient(165deg,${ACC_HI},${ACCENT})`:`linear-gradient(135deg,${SURF_HI},${SURFACE})`,
+              background:rebookOf(form)===v?`linear-gradient(145deg,${ACC_HI},${ACCENT})`:`linear-gradient(135deg,${SURF_HI},${SURFACE})`,
               color:rebookOf(form)===v?(BTN_TX||"#fff"):TEXT,boxShadow:SO,
             }}>{v===0?"Вимкнено":`${v} дн.`}</button>
           ))}
@@ -222,7 +222,7 @@ function ServiceFormModal({ svc, onSave, onClose }) {
           {[1,2,3,4,6,8,10,12,20].map(v=>(
             <button key={v} onClick={()=>upd("capacity",v)} style={{
               flex:"1 1 auto",padding:"8px 11px",borderRadius:theme.CHIP_R??9,border:"none",cursor:"pointer",fontSize:12,fontWeight:700,fontFamily:"inherit",
-              background:capacityOf(form)===v?`linear-gradient(165deg,${ACC_HI},${ACCENT})`:`linear-gradient(135deg,${SURF_HI},${SURFACE})`,
+              background:capacityOf(form)===v?`linear-gradient(145deg,${ACC_HI},${ACCENT})`:`linear-gradient(135deg,${SURF_HI},${SURFACE})`,
               color:capacityOf(form)===v?(BTN_TX||"#fff"):TEXT,boxShadow:SO,
             }}>{v===1?"Індивідуально":v}</button>
           ))}
@@ -270,7 +270,7 @@ function ServiceFormModal({ svc, onSave, onClose }) {
                 {[0,...ADDON_MINUTES.filter(v=>v>0&&v<=60)].map(v=>(
                   <button key={v} onClick={()=>setAddon(i,{minutes:v})} style={{
                     flex:"1 1 auto",padding:"6px 8px",borderRadius:theme.CHIP_R??7,border:"none",cursor:"pointer",fontSize:11,fontWeight:700,fontFamily:"inherit",
-                    background:Number(a.minutes||0)===v?`linear-gradient(165deg,${ACC_HI},${ACCENT})`:`linear-gradient(135deg,${SURF_HI},${SURFACE})`,
+                    background:Number(a.minutes||0)===v?`linear-gradient(145deg,${ACC_HI},${ACCENT})`:`linear-gradient(135deg,${SURF_HI},${SURFACE})`,
                     color:Number(a.minutes||0)===v?(BTN_TX||"#fff"):TEXT,boxShadow:SO,
                   }}>{v===0?"без часу":`+${v}`}</button>
                 ))}
@@ -293,7 +293,7 @@ function ServiceFormModal({ svc, onSave, onClose }) {
           {BUFFER_OPTIONS.map(v=>(
             <button key={v} onClick={()=>upd("bufferMin",v)} style={{
               flex:"1 1 auto",padding:"8px 11px",borderRadius:theme.CHIP_R??9,border:"none",cursor:"pointer",fontSize:12,fontWeight:700,fontFamily:"inherit",
-              background:bufferOf(form)===v?`linear-gradient(165deg,${ACC_HI},${ACCENT})`:`linear-gradient(135deg,${SURF_HI},${SURFACE})`,
+              background:bufferOf(form)===v?`linear-gradient(145deg,${ACC_HI},${ACCENT})`:`linear-gradient(135deg,${SURF_HI},${SURFACE})`,
               color:bufferOf(form)===v?(BTN_TX||"#fff"):TEXT,boxShadow:SO,
             }}>{v===0?"Без перерви":`${v} хв`}</button>
           ))}

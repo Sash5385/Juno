@@ -17,16 +17,11 @@ const chatPath = (uid, tk) => tk ? `chats_m/${tk}/${uid}` : `chats/${uid}`;
 const metaPath = (uid, tk) => tk ? `chatMeta_m/${tk}/${uid}` : `chatMeta/${uid}`;
 const nowTime = () => new Date().toLocaleTimeString("uk", {hour:"2-digit", minute:"2-digit"});
 
-// Мегафон — гліф для іконок розсилки «метал + глянець»
-const MEGA = <><path d="M3 11v2a1 1 0 0 0 1 1h3l6 4V6L7 10H4a1 1 0 0 0-1 1z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/><path d="M19 6a8.5 8.5 0 0 1 0 12"/></>;
-
 // ─── AVATAR ──────────────────────────────────────────────────────
 const Ava = ({ name, hue, size=36, online, isBroadcast }) => {
   const { GREEN, BG } = useContext(ThemeContext);
   if (isBroadcast) return (
-    <div className="metal3d" style={{width:size,height:size,borderRadius:Math.round(size*0.3),"--ic":"#6d28d9"}}>
-      <svg width={size*0.72} height={size*0.72} viewBox="0 0 24 24" fill="none" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">{MEGA}</svg>
-    </div>
+    <MetalIcon name="mega" color="#6d28d9" square size={size}/>
   );
   const ini = (name || "?").split(" ").map(w=>w[0]).slice(0,2).join("");
   return (
@@ -74,9 +69,7 @@ function Conversation({ contact, messages, onSend, isBroadcast }) {
         <div style={{padding:"8px 12px",background:"rgba(168,85,247,0.06)",borderBottom:`1px solid ${borderCol}`}}>
           <div style={{fontSize:11,color:"rgba(168,85,247,0.9)",fontWeight:700,letterSpacing:0.3}}>
             <span style={{display:"inline-flex",alignItems:"center",gap:6}}>
-              <span className="metal3d" style={{width:18,height:18,borderRadius:5,"--ic":"#6d28d9"}}>
-                <svg width={13} height={13} viewBox="0 0 24 24" fill="none" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">{MEGA}</svg>
-              </span>
+              <MetalIcon name="mega" color="#6d28d9" square size={18}/>
               Повідомлення отримають усі клієнти
             </span>
           </div>
@@ -120,7 +113,7 @@ function Conversation({ contact, messages, onSend, isBroadcast }) {
 
       <div style={{padding:"8px 10px",borderTop:`1px solid ${borderCol}`,background:SURF_LO,display:"flex",alignItems:"flex-end",gap:7}}>
         <button onClick={()=>setQuick(v=>!v)} aria-label="Швидкі відповіді" style={{background:"none",border:"none",cursor:"pointer",color:quick?GOLD:FAINT,fontSize:16,width:32,height:32,padding:0,flexShrink:0}}><MetalIcon name="bolt" size={24}/></button>
-        <div style={{flex:1,background:BG_DEEP,borderRadius:11,boxShadow:SI,padding:"8px 12px",display:"flex",alignItems:"flex-end",gap:8}}>
+        <div style={{flex:1,background:BG_DEEP,borderRadius:10,boxShadow:SI,padding:"8px 12px",display:"flex",alignItems:"flex-end",gap:8}}>
           <textarea ref={taRef} className="msg-input" value={text} onChange={e=>setText(e.target.value)}
             onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send();}}}
             placeholder={isBroadcast?"Повідомлення всім клієнтам…":"Повідомлення…"} rows={1}/>
@@ -426,7 +419,7 @@ export default function ChatsView() {
       <div style={{fontFamily:"ui-sans-serif,-apple-system,system-ui,sans-serif",color:TEXT}}>
 
         {err && (
-          <div role="alert" style={{marginBottom:9,padding:"9px 12px",borderRadius:12,fontSize:12,fontWeight:600,color:"#fca5a5",background:"rgba(239,68,68,0.12)",border:"1px solid rgba(239,68,68,0.35)",overflowWrap:"anywhere"}}>{err}</div>
+          <div role="alert" style={{marginBottom:9,padding:"9px 12px",borderRadius:14,fontSize:12,fontWeight:600,color:"#fca5a5",background:"rgba(239,68,68,0.12)",border:"1px solid rgba(239,68,68,0.35)",overflowWrap:"anywhere"}}>{err}</div>
         )}
 
         {/* ── SEARCH ── */}
@@ -534,7 +527,7 @@ export default function ChatsView() {
                   <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4,flexShrink:0}}>
                     <span style={{fontSize:11,color:"rgba(255,255,255,0.8)"}}>{c.lastTime}</span>
                     {cUnread > 0
-                      ? <span style={{background:ACCENT,color:BTN_TX||"#fff",borderRadius:9,padding:"1px 6px",fontSize:11,fontWeight:800}}>{cUnread}</span>
+                      ? <span style={{background:ACCENT,color:BTN_TX||"#fff",borderRadius:8,padding:"1px 6px",fontSize:11,fontWeight:800}}>{cUnread}</span>
                       : <span style={{width:8,height:8,borderRadius:4,background:"rgba(255,255,255,0.25)",display:"inline-block"}}/>
                     }
                   </div>

@@ -332,7 +332,7 @@ export default function JournalView() {
           ["admin", "Дії майстра"],
         ].map(([id, lbl]) => (
           <button key={id} onClick={() => setSection(id)} style={{
-            flex:1,padding:"10px 10px",borderRadius:11,border:"none",
+            flex:1,padding:"10px 10px",borderRadius:10,border:"none",
             cursor:"pointer",fontSize:12,fontWeight:600,fontFamily:"inherit",
             background: section === id ? SURF_HI : "transparent",
             color: section === id ? theme.TEXT : DIM,

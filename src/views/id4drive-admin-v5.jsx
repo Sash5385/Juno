@@ -202,25 +202,6 @@ body, html, #root { margin:0; padding:0; }
   animation: hold-charge 1s ease-out forwards;
 }
 
-/* 3D icons (from v4) */
-.icon3d {
-  display: inline-flex; align-items: center; justify-content: center;
-  border-radius: 14px;
-  position: relative; overflow: hidden;
-  flex-shrink: 0;
-  box-shadow:
-    -2px 4px 10px rgba(${SHADE},0.5),
-    inset 1px 1px 0 rgba(${GLOW},0.25),
-    inset -1px -1px 0 rgba(${SHADE},0.3);
-}
-.icon3d::before {
-  content:''; position:absolute; top:0; right:0;
-  width:60%; height:50%;
-  background: radial-gradient(ellipse at top right, rgba(${GLOW},0.4) 0%, transparent 70%);
-  pointer-events: none;
-}
-.icon3d > svg { position: relative; z-index: 1; filter: drop-shadow(0 1px 2px rgba(${SHADE},0.4)); }
-
 /* Toggle switch */
 .toggle {
   width: 46px; height: 26px; border-radius: 13px; cursor: pointer;
@@ -532,7 +513,7 @@ function BroadcastModalBase({ initialDate, initialSlot, onClose }) {
                 <div style={{ marginBottom:8 }}><MetalIcon name="checkCircle" size={40}/></div>
                 <div style={{ fontSize:16, fontWeight:800, color:TEXT }}>Надіслано!</div>
                 <div style={{ fontSize:12, color:DIM, marginTop:6 }}>Сповіщення отримають активні клієнти</div>
-                <button onClick={_close} style={{ marginTop:20, background:"rgba(192,132,252,0.15)", color:"#c084fc", border:"none", borderRadius:12, padding:"10px 28px", fontSize:13, fontWeight:700, cursor:"pointer" }}>Закрити</button>
+                <button onClick={_close} style={{ marginTop:20, background:"rgba(192,132,252,0.15)", color:"#c084fc", border:"none", borderRadius:14, padding:"10px 28px", fontSize:13, fontWeight:700, cursor:"pointer" }}>Закрити</button>
               </div>
             ) : (
               <>
@@ -565,8 +546,8 @@ function BroadcastModalBase({ initialDate, initialSlot, onClose }) {
                   <div style={{ fontSize:12, color:"#ef4444", background:"rgba(239,68,68,0.1)", border:"1px solid rgba(239,68,68,0.25)", borderRadius:8, padding:"8px 12px", marginBottom:10 }}>{sendError}</div>
                 )}
                 <div className="modal-footer" style={{ gap:10, breakInside:"avoid" }}>
-                  <button onClick={_close} style={{ background:"transparent", color:DIM, border:`1px solid ${BORDER}`, borderRadius:12, padding:"12px 8px", fontSize:14, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>Скасувати</button>
-                  <button onClick={handleSend} disabled={!canSend} style={{ fontFamily:"inherit", background:canSend?"rgba(192,132,252,0.18)":"rgba(192,132,252,0.06)", color:canSend?"#c084fc":DIM, border:"none", borderRadius:12, padding:"12px 8px", fontSize:14, fontWeight:700, cursor:canSend?"pointer":"default", transition:"all 0.2s" }}>
+                  <button onClick={_close} style={{ background:"transparent", color:DIM, border:`1px solid ${BORDER}`, borderRadius:14, padding:"12px 8px", fontSize:14, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>Скасувати</button>
+                  <button onClick={handleSend} disabled={!canSend} style={{ fontFamily:"inherit", background:canSend?"rgba(192,132,252,0.18)":"rgba(192,132,252,0.06)", color:canSend?"#c084fc":DIM, border:"none", borderRadius:14, padding:"12px 8px", fontSize:14, fontWeight:700, cursor:canSend?"pointer":"default", transition:"all 0.2s" }}>
                     {sending ? "Надсилаємо…" : "Надіслати"}
                   </button>
                 </div>
@@ -993,7 +974,7 @@ function DayNotesModalBase({ dateStr, dayLabel, dayNum, dayMonth, note, settings
                       flex:1, minWidth:0, minHeight:44, boxSizing:"border-box",
                       background:`linear-gradient(135deg,${BG_DEEP},${SURF_LO})`,
                       border:`1px solid ${BORDER}`, outline:"none", color:TEXT, fontSize:16,
-                      padding:"10px 12px", borderRadius:12, boxShadow:SI, fontFamily:"inherit",
+                      padding:"10px 12px", borderRadius:14, boxShadow:SI, fontFamily:"inherit",
                     }}/>
                   <div onClick={()=>setRow(h,{notify:!r.notify})} title={r.notify?"Нагадування увімкнено":"Нагадування вимкнено"} style={{
                     width:44, height:44, borderRadius:12, flexShrink:0, cursor:"pointer",
@@ -1910,9 +1891,9 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
     gridRef.current.scrollLeft = left;
     if (headersInnerRef.current) headersInnerRef.current.style.transform = `translateX(-${left}px)`;
     computeVRange();
-  }, [settings.daysShown]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [settings.daysShown]);
 
-  useLayoutEffect(() => { computeVRange(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useLayoutEffect(() => { computeVRange(); }, []);
   const [bubbleData, setBubbleData] = useState(null);
   const [addSlotPos, setAddSlotPos] = useState(null); // { dateStr, startMin, clientX, clientY }
   const [formData, setFormData] = useState(null);
@@ -2062,7 +2043,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
     if (headersInnerRef.current) headersInnerRef.current.style.transform = `translateX(-${left}px)`;
     vRangeRef.current = { s: -1, e: -1 }; // примусово перерахувати діапазон рендеру
     computeVRange();
-  }, [COL_W]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [COL_W]);
 
   // Часовий діапазон записів/слотів у ВИДИМИХ днях — основа авто-висоти годин.
   // Рахуємо по індексу bookingsByDay (лише видимі дні), а не проходом по всіх записах.
@@ -2140,7 +2121,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
       return { ...s, hourHeightPx: targetHpx };
     });
   };
-  useEffect(() => { runAutoHeightRef.current(); }, [settings.autoHourHeight]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { runAutoHeightRef.current(); }, [settings.autoHourHeight]);
   // Span видимих днів змінився відносно останнього розрахунку (нові записи/слоти) — перерахувати.
   useEffect(() => {
     if (!settings.autoHourHeight) return;
@@ -3334,7 +3315,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
             <span style={{opacity:0.7}}>·</span>
             <button onClick={()=>{ setCopySource(null); copyTapRef.current = null; }} style={{
               border:"none", background:"rgba(255,255,255,0.22)", color:"#fff", cursor:"pointer",
-              fontSize:12, fontWeight:800, padding:"3px 9px", borderRadius:9, fontFamily:"inherit",
+              fontSize:12, fontWeight:800, padding:"3px 9px", borderRadius:8, fontFamily:"inherit",
             }}>{"Скасувати"}</button>
           </div>
         )}
@@ -5086,7 +5067,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                 setSlotOptions(null);
               }} style={{
                 width:"100%",padding:"13px 14px",border:"none",cursor:"pointer",
-                background:"rgba(245,158,11,0.09)",borderRadius:12,
+                background:"rgba(245,158,11,0.09)",borderRadius:14,
                 color:"#f59e0b",fontSize:15,fontWeight:700,
                 display:"flex",alignItems:"center",gap:10,
               }}>
@@ -5098,7 +5079,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                 setSlotOptions(null);
               }} style={{
                 width:"100%",padding:"13px 14px",border:"none",cursor:"pointer",
-                background:"rgba(45,212,191,0.09)",borderRadius:12,
+                background:"rgba(45,212,191,0.09)",borderRadius:14,
                 color:"#2dd4bf",fontSize:15,fontWeight:700,
                 display:"flex",alignItems:"center",gap:10,
               }}>
@@ -5110,7 +5091,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                 setSlotOptions(null);
               }} style={{
                 width:"100%",padding:"13px 14px",border:"none",cursor:"pointer",
-                background:"rgba(129,140,248,0.09)",borderRadius:12,
+                background:"rgba(129,140,248,0.09)",borderRadius:14,
                 color:"#818cf8",fontSize:15,fontWeight:700,
                 display:"flex",alignItems:"center",gap:10,
               }}>
@@ -5119,7 +5100,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
               {/* VIP слот */}
               <button onClick={()=>applySlotOption(_so.dateStr, fmtTime(_soSelMin), "vip")} style={{
                 width:"100%",padding:"13px 14px",border:"none",cursor:"pointer",
-                background:"rgba(192,132,252,0.09)",borderRadius:12,
+                background:"rgba(192,132,252,0.09)",borderRadius:14,
                 color:"#c084fc",fontSize:15,fontWeight:700,
                 display:"flex",alignItems:"center",gap:10,
               }}>
@@ -5129,7 +5110,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
               {/* Індивідуальний слот */}
               <button onClick={()=>applySlotOption(_so.dateStr, fmtTime(_soSelMin), "private")} style={{
                 width:"100%",padding:"13px 14px",border:"none",cursor:"pointer",
-                background:"rgba(234,179,8,0.09)",borderRadius:12,
+                background:"rgba(234,179,8,0.09)",borderRadius:14,
                 color:"#eab308",fontSize:15,fontWeight:700,
                 display:"flex",alignItems:"center",gap:10,
               }}>
@@ -5142,7 +5123,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                 setFixedPriceEditing(v=>!v);
               }} style={{
                 width:"100%",padding:"13px 14px",border:"none",cursor:"pointer",
-                background:"rgba(74,222,128,0.09)",borderRadius:12,
+                background:"rgba(74,222,128,0.09)",borderRadius:14,
                 color:GREEN,fontSize:15,fontWeight:700,
                 display:"flex",alignItems:"center",gap:10,
               }}>
@@ -5175,7 +5156,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
               {/* Надбавка — фіксована сума з налаштувань (Settings → Надбавки) */}
               <button onClick={()=>setSurchargeEditing(v=>!v)} style={{
                 width:"100%",padding:"13px 14px",border:"none",cursor:"pointer",
-                background:"rgba(245,158,11,0.09)",borderRadius:12,
+                background:"rgba(245,158,11,0.09)",borderRadius:14,
                 color:GOLD,fontSize:15,fontWeight:700,
                 display:"flex",alignItems:"center",gap:10,
               }}>
@@ -5212,7 +5193,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
               }} style={{
                 width:"100%",padding:"13px 14px",border:"none",cursor:"pointer",
                 background: _so.slot?.adminBlocked ? "rgba(34,197,94,0.09)" : "rgba(239,68,68,0.09)",
-                borderRadius:12,
+                borderRadius:14,
                 color: _so.slot?.adminBlocked ? GREEN : "#f87171",
                 fontSize:15,fontWeight:700,
                 display:"flex",alignItems:"center",gap:10,
@@ -5226,7 +5207,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                 _closeSO();
               }} style={{
                 width:"100%",padding:"13px 14px",border:"none",cursor:"pointer",
-                background:"rgba(239,68,68,0.09)",borderRadius:12,
+                background:"rgba(239,68,68,0.09)",borderRadius:14,
                 color:"#f87171",fontSize:15,fontWeight:700,
                 display:"flex",alignItems:"center",gap:10,
               }}>
@@ -5447,7 +5428,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                 value={peEditTitle}
                 onChange={e=>setPeEditTitle(e.target.value)}
                 style={{
-                  width:"100%",padding:"9px 11px",borderRadius:11,
+                  width:"100%",padding:"9px 11px",borderRadius:10,
                   background:SURF_LO,border:`1px solid ${BORDER}`,
                   color:TEXT,fontSize:14,outline:"none",boxSizing:"border-box",fontFamily:"inherit",
                 }}
@@ -5461,7 +5442,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                   value={peEditDate}
                   onChange={e=>setPeEditDate(e.target.value)}
                   style={{
-                    width:"100%",padding:"9px 11px",borderRadius:11,
+                    width:"100%",padding:"9px 11px",borderRadius:10,
                     background:SURF_LO,border:`1px solid ${BORDER}`,
                     color:TEXT,fontSize:13,outline:"none",boxSizing:"border-box",fontFamily:"inherit",
                   }}
@@ -5474,7 +5455,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                     value={peEditTime.split(":")[0] || "09"}
                     onChange={e=>setPeEditTime(`${e.target.value}:${peEditTime.split(":")[1] || "00"}`)}
                     style={{
-                      flex:1,padding:"9px 4px",borderRadius:11,
+                      flex:1,padding:"9px 4px",borderRadius:10,
                       background:SURF_LO,border:`1px solid ${BORDER}`,
                       color:TEXT,fontSize:13,outline:"none",boxSizing:"border-box",fontFamily:"inherit",
                     }}
@@ -5487,7 +5468,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                     value={peEditTime.split(":")[1] || "00"}
                     onChange={e=>setPeEditTime(`${peEditTime.split(":")[0] || "09"}:${e.target.value}`)}
                     style={{
-                      flex:1,padding:"9px 4px",borderRadius:11,
+                      flex:1,padding:"9px 4px",borderRadius:10,
                       background:SURF_LO,border:`1px solid ${BORDER}`,
                       color:TEXT,fontSize:13,outline:"none",boxSizing:"border-box",fontFamily:"inherit",
                     }}
@@ -5506,7 +5487,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                   value={String(Math.floor(peEditDur/60))}
                   onChange={e=>setPeEditDur(Math.max(15, Number(e.target.value)*60 + (peEditDur%60)))}
                   style={{
-                    flex:1,padding:"9px 4px",borderRadius:11,
+                    flex:1,padding:"9px 4px",borderRadius:10,
                     background:SURF_LO,border:`1px solid ${BORDER}`,
                     color:TEXT,fontSize:13,outline:"none",boxSizing:"border-box",fontFamily:"inherit",
                   }}
@@ -5519,7 +5500,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                   value={String(peEditDur%60).padStart(2,"0")}
                   onChange={e=>setPeEditDur(Math.max(15, Math.floor(peEditDur/60)*60 + Number(e.target.value)))}
                   style={{
-                    flex:1,padding:"9px 4px",borderRadius:11,
+                    flex:1,padding:"9px 4px",borderRadius:10,
                     background:SURF_LO,border:`1px solid ${BORDER}`,
                     color:TEXT,fontSize:13,outline:"none",boxSizing:"border-box",fontFamily:"inherit",
                   }}
@@ -5546,7 +5527,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                 onChange={e=>setPeEditNote(e.target.value)}
                 rows={2}
                 style={{
-                  width:"100%",padding:"9px 11px",borderRadius:11,resize:"none",
+                  width:"100%",padding:"9px 11px",borderRadius:10,resize:"none",
                   background:SURF_LO,border:`1px solid ${BORDER}`,
                   color:TEXT,fontSize:13,outline:"none",boxSizing:"border-box",fontFamily:"inherit",
                 }}
@@ -5558,7 +5539,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                 value={peEditReminderHours ?? ""}
                 onChange={e=>setPeEditReminderHours(e.target.value === "" ? null : Number(e.target.value))}
                 style={{
-                  width:"100%",padding:"9px 11px",borderRadius:11,
+                  width:"100%",padding:"9px 11px",borderRadius:10,
                   background:SURF_LO,border:`1px solid ${BORDER}`,
                   color:TEXT,fontSize:13,outline:"none",boxSizing:"border-box",fontFamily:"inherit",
                 }}
@@ -5574,14 +5555,14 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
             </div>
             <div className="modal-footer" style={{gap:10,breakInside:"avoid"}}>
             <button onClick={()=>setPersonalEventView(null)} style={{
-                padding:"12px 8px",borderRadius:12,border:`1px solid ${BORDER}`,cursor:"pointer",fontFamily:"inherit",
+                padding:"12px 8px",borderRadius:14,border:`1px solid ${BORDER}`,cursor:"pointer",fontFamily:"inherit",
                 background:"transparent",color:DIM,fontSize:14,fontWeight:800,
               }}>Скасувати</button>
             <button
               disabled={!peEditTitle.trim()}
               onClick={savePersonalEventEdit}
               style={{
-                padding:"12px 8px",borderRadius:12,border:"none",cursor:"pointer",fontFamily:"inherit",
+                padding:"12px 8px",borderRadius:14,border:"none",cursor:"pointer",fontFamily:"inherit",
                 background: peEditTitle.trim() ? "linear-gradient(145deg,#2dd4bf,#14b8a6)" : ink(0.07),
                 color: peEditTitle.trim() ? "#fff" : FAINT,
                 fontSize:14,fontWeight:800,
@@ -5631,7 +5612,6 @@ function CreateSlotSheetBase({ data, settings, onClose }) {
     for (let m = Math.round(settings.workStart * 60); m < Math.round(settings.workEnd * 60); m += slotStep)
       arr.push({ label: fmtTime(m), value: m });
     return arr;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settings.workStart, settings.workEnd, slotStep]);
 
   const durItems = [
@@ -6088,7 +6068,7 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
           }}>
             {!editOpen && !isPastLocked && (
               <button onClick={openEdit} style={{
-                width:"100%",padding:"10px",borderRadius:12,border:"none",cursor:"pointer",fontFamily:"inherit",
+                width:"100%",padding:"10px",borderRadius:14,border:"none",cursor:"pointer",fontFamily:"inherit",
                 background:"rgba(0,0,0,0.22)",color:"#fff",fontSize:13,fontWeight:800,
                 display:"flex",alignItems:"center",justifyContent:"center",gap:7,marginBottom:12,
               }}><MetalIcon name="edit" size={16}/>Редагувати ціну і час</button>
@@ -6124,8 +6104,8 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
                   {`Макс. тривалість зараз: ${maxDurMin} хв · ціна перераховується автоматично при зміні тривалості`}
                 </div>
                 <div style={{display:"flex",gap:8}}>
-                  <button onClick={()=>setEditOpen(false)} style={{flex:1,padding:"9px",borderRadius:11,border:"none",cursor:"pointer",fontFamily:"inherit",background:"rgba(0,0,0,0.22)",color:DIM,fontSize:12.5,fontWeight:700}}>Скасувати</button>
-                  <button onClick={saveEdit} disabled={!!durConflict} style={{flex:1,padding:"9px",borderRadius:11,border:"none",cursor:"pointer",fontFamily:"inherit",opacity:durConflict?0.45:1,background:GREEN,color:"#0a0d0a",fontSize:12.5,fontWeight:800}}>Зберегти</button>
+                  <button onClick={()=>setEditOpen(false)} style={{flex:1,padding:"9px",borderRadius:10,border:"none",cursor:"pointer",fontFamily:"inherit",background:"rgba(0,0,0,0.22)",color:DIM,fontSize:12.5,fontWeight:700}}>Скасувати</button>
+                  <button onClick={saveEdit} disabled={!!durConflict} style={{flex:1,padding:"9px",borderRadius:10,border:"none",cursor:"pointer",fontFamily:"inherit",opacity:durConflict?0.45:1,background:GREEN,color:"#0a0d0a",fontSize:12.5,fontWeight:800}}>Зберегти</button>
                 </div>
               </div>
             )}
@@ -6242,7 +6222,7 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
                     {TAG_PRESETS.map(tp=>(
                       <button key={tp.id} onClick={()=>{ onAction("setTag",{...booking,tag: displayTag===tp.id?null:tp.id}); setTagPickerOpen(false); }} style={{
                         display:"flex",alignItems:"center",justifyContent:"center",gap:6,
-                        padding:"9px 4px",borderRadius:12,cursor:"pointer",fontFamily:"inherit",
+                        padding:"9px 4px",borderRadius:14,cursor:"pointer",fontFamily:"inherit",
                         border: displayTag===tp.id ? "1.5px solid rgba(255,255,255,0.6)" : "1px solid rgba(255,255,255,0.18)",
                         background: displayTag===tp.id ? "rgba(0,0,0,0.3)" : "rgba(0,0,0,0.22)",
                       }}>
@@ -6506,7 +6486,7 @@ function PersonalEventModalBase({ data, onClose, onConfirm }) {
                   onChange={e=>setTitle(e.target.value)}
                   placeholder="Наприклад: Лікар, Справи..."
                   style={{
-                    width:"100%",padding:"10px 12px",borderRadius:12,
+                    width:"100%",padding:"10px 12px",borderRadius:14,
                     background:SURF_LO,border:`1px solid ${BORDER}`,
                     color:TEXT,fontSize:14,outline:"none",boxSizing:"border-box",fontFamily:"inherit",
                   }}
@@ -6523,7 +6503,7 @@ function PersonalEventModalBase({ data, onClose, onConfirm }) {
                   value={peDate}
                   onChange={e=>setPeDate(e.target.value)}
                   style={{
-                    width:"100%",padding:"10px 12px",borderRadius:12,
+                    width:"100%",padding:"10px 12px",borderRadius:14,
                     background:SURF_LO,border:`1px solid ${BORDER}`,
                     color:TEXT,fontSize:13,outline:"none",boxSizing:"border-box",fontFamily:"inherit",
                   }}
@@ -6610,7 +6590,7 @@ function PersonalEventModalBase({ data, onClose, onConfirm }) {
                 rows={2}
                 placeholder="Деталі..."
                 style={{
-                  width:"100%",padding:"10px 12px",borderRadius:12,resize:"none",
+                  width:"100%",padding:"10px 12px",borderRadius:14,resize:"none",
                   background:SURF_LO,border:`1px solid ${BORDER}`,
                   color:TEXT,fontSize:13,outline:"none",boxSizing:"border-box",fontFamily:"inherit",
                 }}
@@ -6625,7 +6605,7 @@ function PersonalEventModalBase({ data, onClose, onConfirm }) {
                   value={reminderHours ?? ""}
                   onChange={e=>setReminderHours(e.target.value === "" ? null : Number(e.target.value))}
                   style={{
-                    width:"100%",padding:"10px 12px",borderRadius:12,
+                    width:"100%",padding:"10px 12px",borderRadius:14,
                     background:SURF_LO,border:`1px solid ${BORDER}`,
                     color:TEXT,fontSize:13,outline:"none",boxSizing:"border-box",fontFamily:"inherit",
                   }}
@@ -6825,7 +6805,6 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
     for(let m=Math.round(settings.workStart*60); m<Math.round(settings.workEnd*60); m+=timeStep)
       arr.push({label:fmtTime(m), value:m});
     return arr;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   },[settings.workStart, settings.workEnd, timeStep]);
 
   const activeServices = useMemo(()=>
@@ -7020,7 +6999,7 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
             {isNewStudent ? (
               <div style={{display:"flex",flexDirection:"column",gap:7}}>
                 <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",
-                  padding:"7px 12px",borderRadius:11,
+                  padding:"7px 12px",borderRadius:10,
                   background:`${GREEN}18`,border:`1.5px solid ${GREEN}44`}}>
                   <div style={{fontSize:12,fontWeight:700,color:GREEN}}>Новий клієнт</div>
                   <button aria-label="Скасувати вибір клієнта" onClick={()=>{setSelStudent(null);setNewName("");setNewPhone("");}}
@@ -7028,9 +7007,9 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
                 </div>
                 <input type="text" placeholder="Ім'я та прізвище" value={newName}
                   onChange={e=>setNewName(e.target.value)}
-                  style={{padding:"10px 12px",borderRadius:11,border:`1.5px solid ${BORDER}`,
+                  style={{padding:"10px 12px",borderRadius:10,border:`1.5px solid ${BORDER}`,
                     background:SURFACE_LO,color:TEXT,fontSize:14,fontWeight:600,outline:"none"}}/>
-                <PhoneField placeholder="+380..." value={newPhone} onChange={setNewPhone} inputStyle={{padding:"10px 12px",borderRadius:11,border:`1.5px solid ${BORDER}`,
+                <PhoneField placeholder="+380..." value={newPhone} onChange={setNewPhone} inputStyle={{padding:"10px 12px",borderRadius:10,border:`1.5px solid ${BORDER}`,
                     background:SURFACE_LO,color:TEXT,fontSize:14,fontWeight:600,outline:"none"}}/>
               </div>
             ) : selStudent ? (
@@ -7047,7 +7026,7 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
             ) : (
               <>
                 <div style={{display:"flex",alignItems:"center",gap:8,
-                  padding:"9px 12px",borderRadius:12,marginBottom:6,
+                  padding:"9px 12px",borderRadius:14,marginBottom:6,
                   background:SURFACE_LO,border:`1.5px solid ${BORDER}`}}>
                   <svg width={13} height={13} viewBox="0 0 24 24" fill="none" stroke={TEXT_FAINT} strokeWidth="2.5" strokeLinecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-7 8-7s8 3 8 7"/></svg>
                   <input type="text" placeholder="Пошук за ім'ям..."
@@ -7056,7 +7035,7 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
                   {search && <button aria-label="Очистити пошук" onClick={()=>setSearch("")}
                     style={{background:"none",border:"none",cursor:"pointer",color:TEXT_FAINT,fontSize:16,padding:0,lineHeight:1}}>×</button>}
                 </div>
-                <div style={{borderRadius:12,overflow:"hidden",border:`1px solid ${BORDER}`,maxHeight:164,overflowY:"auto"}}>
+                <div style={{borderRadius:14,overflow:"hidden",border:`1px solid ${BORDER}`,maxHeight:164,overflowY:"auto"}}>
                   {!q && (
                     <div onClick={()=>{setSelStudent({id:"new",name:"",phone:""});setNewName("");setNewPhone("");}}
                       style={{display:"flex",alignItems:"center",gap:9,padding:"9px 13px",cursor:"pointer",
@@ -7102,7 +7081,7 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
                 const active = i===dateOffset;
                 return (
                   <button key={i} onClick={()=>setDateOffset(i)} style={{
-                    flexShrink:0,padding:"7px 11px",borderRadius:11,border:"none",cursor:"pointer",
+                    flexShrink:0,padding:"7px 11px",borderRadius:10,border:"none",cursor:"pointer",
                     background:active?`linear-gradient(165deg,${GOLD},#e6a800)`:SURFACE_LO,
                     color:active?"#1a1200":info.wk?ACCENT:TEXT_DIM,
                     fontSize:11,fontWeight:active?800:600,
@@ -7147,7 +7126,7 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
                 return (
                   <button key={s.id} onClick={()=>{ if (s.id!==svcId) { setSvcId(s.id); setAddonIds([]); } setDurSel(null); }} style={{
                     display:"flex",alignItems:"center",justifyContent:"space-between",
-                    padding:"10px 13px",borderRadius:12,cursor:"pointer",
+                    padding:"10px 13px",borderRadius:14,cursor:"pointer",
                     background:active?`${c}1a`:SURFACE_LO,
                     border:active?`1.5px solid ${c}55`:`1.5px solid transparent`,
                     boxShadow:active?`0 4px 14px ${c}2a`:SHADOW_OUT,
@@ -7167,7 +7146,7 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
           </div>
 
           {selSvc && isGroupService(selSvc) && (
-            <div style={{padding:"9px 13px",borderRadius:12,background:`${BLUE}14`,border:`1px solid ${BLUE}30`,fontSize:12,color:TEXT_DIM,lineHeight:1.5}}>
+            <div style={{padding:"9px 13px",borderRadius:14,background:`${BLUE}14`,border:`1px solid ${BLUE}30`,fontSize:12,color:TEXT_DIM,lineHeight:1.5}}>
               <MetalIcon name="users" size={18} style={{marginRight:5}}/>Групова послуга, до {capacityOf(selSvc)} місць. Запис приєднається до наявної групи на цей час або створить нову; якщо місць немає — його буде відхилено.
             </div>
           )}
@@ -7181,7 +7160,7 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
                   const on = addonIds.includes(a.id);
                   return (
                     <button key={a.id} type="button" onClick={()=>setAddonIds(ids=>on?ids.filter(x=>x!==a.id):[...ids,a.id])} style={{
-                      padding:"8px 11px",borderRadius:11,cursor:"pointer",fontFamily:"inherit",textAlign:"left",
+                      padding:"8px 11px",borderRadius:10,cursor:"pointer",fontFamily:"inherit",textAlign:"left",
                       border: on ? `1.5px solid ${GOLD}` : `1.5px solid ${BORDER}`,
                       background: on ? `${GOLD}1f` : SURFACE_LO,
                       color: on ? TEXT : TEXT_DIM, fontSize:12, fontWeight:on?800:600,
@@ -7198,7 +7177,7 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
           {/* ПАКЕТ клієнта */}
           {availPkg && (
             <button type="button" onClick={()=>setUsePkg(v=>!v)} style={{
-              display:"flex",alignItems:"center",gap:10,textAlign:"left",padding:"10px 13px",borderRadius:12,cursor:"pointer",fontFamily:"inherit",
+              display:"flex",alignItems:"center",gap:10,textAlign:"left",padding:"10px 13px",borderRadius:14,cursor:"pointer",fontFamily:"inherit",
               border: pkgOn ? `1.5px solid ${GREEN}` : `1.5px solid ${BORDER}`,
               background: pkgOn ? `${GREEN}1a` : SURFACE_LO, color:TEXT,fontSize:13,fontWeight:700,
             }}>
@@ -7220,7 +7199,7 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
           {selSvc && (
             <div style={{
               display:"flex",alignItems:"center",gap:10,
-              padding:"10px 13px",borderRadius:12,
+              padding:"10px 13px",borderRadius:14,
               background:`${GOLD}14`,border:`1px solid ${GOLD}30`,
             }}>
               <span style={{display:"inline-flex"}}><MetalIcon name="coin" size={22}/></span>
@@ -7247,7 +7226,7 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
             value={note}
             onChange={e=>setNote(e.target.value)}
             style={{
-              padding:"10px 13px",borderRadius:12,
+              padding:"10px 13px",borderRadius:14,
               border:`1.5px solid ${BORDER}`,
               background:SURFACE_LO,color:TEXT,fontSize:13,outline:"none",
             }}
@@ -7262,7 +7241,7 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
             value={debtAmount}
             onChange={e=>setDebtAmount(e.target.value)}
             style={{
-              padding:"10px 13px",borderRadius:12,
+              padding:"10px 13px",borderRadius:14,
               border:`1.5px solid ${BORDER}`,
               background:SURFACE_LO,color:TEXT,fontSize:13,outline:"none",
             }}
@@ -7275,7 +7254,7 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
               return (
                 <button key={tp.id} type="button" onClick={()=>setNewTag(on ? null : tp.id)} style={{
                   flex:1,display:"flex",alignItems:"center",justifyContent:"center",gap:6,
-                  padding:"10px 6px",borderRadius:12,cursor:"pointer",fontFamily:"inherit",
+                  padding:"10px 6px",borderRadius:14,cursor:"pointer",fontFamily:"inherit",
                   border: on ? `1.5px solid ${tp.color}` : `1.5px solid ${BORDER}`,
                   background: on ? `color-mix(in srgb,${tp.color} 22%,${SURFACE_LO})` : SURFACE_LO,
                   color:TEXT,fontSize:13,fontWeight:700,
@@ -7420,7 +7399,7 @@ function SettingsView({ settings, setSettings }) {
                 <button key={d} onClick={()=>upd("weekends", on?settings.weekends.filter(x=>x!==i):[...settings.weekends,i])}
                   style={{
                     width:34,height:34,borderRadius:10,border:"none",cursor:"pointer",fontSize:11,fontWeight:700,
-                    background: on?`linear-gradient(165deg,${ACCENT_HI},${ACCENT})`:`linear-gradient(135deg,${SURFACE_HI},${SURFACE})`,
+                    background: on?`linear-gradient(145deg,${ACCENT_HI},${ACCENT})`:`linear-gradient(135deg,${SURFACE_HI},${SURFACE})`,
                     color: on?"#fff":TEXT_DIM,
                     boxShadow: on?`inset 1px 1px 0 ${glow(0.25)}`:SHADOW_OUT
                   }}>{d}</button>
@@ -7468,7 +7447,7 @@ function SettingsView({ settings, setSettings }) {
           {[1,5,15,30,60].map(v=>(
             <button key={v} onClick={()=>upd("snapMin",v)} style={{
               padding:"6px 12px",borderRadius:10,border:"none",cursor:"pointer",fontSize:11,fontWeight:700,
-              background: settings.snapMin===v?`linear-gradient(165deg,${ACCENT_HI},${ACCENT})`:`linear-gradient(135deg,${SURFACE_HI},${SURFACE})`,
+              background: settings.snapMin===v?`linear-gradient(145deg,${ACCENT_HI},${ACCENT})`:`linear-gradient(135deg,${SURFACE_HI},${SURFACE})`,
               color: settings.snapMin===v?"#fff":TEXT_DIM,
               boxShadow: settings.snapMin===v?`inset 1px 1px 0 ${glow(0.25)}`:SHADOW_OUT
             }}>{v} хв</button>
@@ -7587,7 +7566,7 @@ function SettingsView({ settings, setSettings }) {
         </Hint>
         {settings.categories.map(c=>(
           <div key={c.id} style={{
-            display:"flex",alignItems:"center",gap:10,padding:"12px",marginBottom:8,borderRadius:12,
+            display:"flex",alignItems:"center",gap:10,padding:"12px",marginBottom:8,borderRadius:14,
             background:`linear-gradient(135deg,${SURFACE_HI},${SURFACE})`,boxShadow:SHADOW_OUT
           }}>
             <div style={{
@@ -7692,7 +7671,7 @@ function SettingsView({ settings, setSettings }) {
             {[{k:"uk",l:"УКР"},{k:"en",l:"ENG"}].map(t=>(
               <button key={t.k} onClick={()=>upd("language",t.k)} style={{
                 padding:"8px 14px",borderRadius:10,border:"none",cursor:"pointer",fontSize:12,fontWeight:700,
-                background: settings.language===t.k?`linear-gradient(165deg,${ACCENT_HI},${ACCENT})`:`linear-gradient(135deg,${SURFACE_HI},${SURFACE})`,
+                background: settings.language===t.k?`linear-gradient(145deg,${ACCENT_HI},${ACCENT})`:`linear-gradient(135deg,${SURFACE_HI},${SURFACE})`,
                 color: settings.language===t.k?"#fff":TEXT_DIM,
                 boxShadow: settings.language===t.k?`inset 1px 1px 0 ${glow(0.25)}`:SHADOW_OUT
               }}>{t.l}</button>
@@ -7816,7 +7795,7 @@ function StudentsView() {
     width:"100%", boxSizing:"border-box",
     background:`linear-gradient(135deg,${BG_DEEP},${SLO})`,
     border:"none", outline:"none", color:TEXT, fontSize:14,
-    padding:"10px 13px", borderRadius:12, boxShadow:SI2, fontFamily:"inherit",
+    padding:"10px 13px", borderRadius:14, boxShadow:SI2, fontFamily:"inherit",
   };
   const btnBase = { border:"none", cursor:"pointer", borderRadius:10, padding:"8px 16px", fontSize:13, fontWeight:700 };
 
@@ -7989,7 +7968,7 @@ function TemplatesView() {
     width:"100%", boxSizing:"border-box",
     background:`linear-gradient(135deg,${BG_DEEP},${SLO})`,
     border:"none", outline:"none", color:TEXT, fontSize:13,
-    padding:"10px 13px", borderRadius:12, boxShadow:SI2,
+    padding:"10px 13px", borderRadius:14, boxShadow:SI2,
     fontFamily:"inherit", resize:"none",
   };
   const btnBase = { border:"none", cursor:"pointer", borderRadius:10, padding:"7px 14px", fontSize:12, fontWeight:700 };
@@ -8352,7 +8331,7 @@ export default function App() {
           <button aria-label="Додати запис" style={{
             position:"fixed",bottom:118,right:18,
             width:60,height:60,borderRadius:30,
-            background:`linear-gradient(165deg,${ACCENT_HI},${ACCENT})`,
+            background:`linear-gradient(145deg,${ACCENT_HI},${ACCENT})`,
             color:"#fff",border:"none",fontSize:30,cursor:"pointer",
             boxShadow:`0 8px 24px rgba(255,90,60,0.5),0 4px 8px ${shade(0.3)},inset 1px 1px 0 ${glow(0.3)}`,
             display:"flex",alignItems:"center",justifyContent:"center",
