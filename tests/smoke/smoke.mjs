@@ -6,7 +6,7 @@ import { chromium } from "playwright";
 const kind = process.argv[2];
 const base = (process.argv[3] || "http://localhost:4173").replace(/\/$/, "");
 const TABS = {
-  admin: ["Записи", "Журнал", "Клієнти", "Черга", "Послуги", "Чати", "Шаблони", "Статист.", "Налашт."],
+  admin: ["Записи", "Журнал", "Клієнти", "Черга", "Послуги", "Чати", "Шаблони", "Статист", "Налашт"],
   client: ["Записи", "Черга", "Чат", "Події"],
 };
 if (!TABS[kind]) { console.error("usage: smoke.mjs <admin|client> [BASE_URL]"); process.exit(2); }
@@ -45,14 +45,34 @@ if (kind === "admin") {
 
 for (const tab of TABS[kind]) {
   // у навбарі адмінки підписи сховані (стиль «Плитки») — шукаємо за aria-label або за текстом кнопки
-  const btn = page.locator(`button[aria-label="${tab}"], button:has-text("${tab}")`).last();
-  const found = (await btn.count()) > 0;
+  let btn = page.locator(`#app-bottomnav button[aria-label="${tab}"], button[aria-label="${tab}"], button:has-text("${tab}")`).last();
+  let found = (await btn.count()) > 0;
+  // телефон: другорядні вкладки адмінки — у шторці «Ще»
+  if (!found && kind === "admin") {
+    const more = page.locator('#app-bottomnav button[aria-label="Ще"]');
+    if (await more.count()) {
+      await more.click(); await page.waitForTimeout(400);
+      btn = page.locator(`#app-bottomnav [role="dialog"] button:has-text("${tab}")`).first();
+      found = (await btn.count()) > 0;
+    }
+  }
   check(`tab «${tab}» exists`, found);
   if (!found) continue;
   await btn.click();
   await page.waitForTimeout(700);
   check(`tab «${tab}» renders`, (await textLen()) > 30);
   check(`tab «${tab}» fits 320px`, await noOverflow());
+}
+
+if (kind === "admin") {
+  // кнопка «+» у нижньому меню відкриває форму нового запису
+  const plus = page.locator('#app-bottomnav button[aria-label="Новий запис"]');
+  check("«+» new booking button exists", (await plus.count()) > 0);
+  if (await plus.count()) {
+    await plus.click(); await page.waitForTimeout(1500);
+    check("«+» opens booking form", (await page.getByText("КЛІЄНТ").count() + await page.getByText("Клієнт").count()) > 0);
+    check("booking form fits 320px", await noOverflow());
+  }
 }
 
 check("no JS errors", errors.length === 0, "\n    " + errors.join("\n    "));
