@@ -57,10 +57,13 @@ export default function ServicesFog({ services, colorOf, fmt, capOf, isProtected
           return (
             <div key={svc.id} data-drag-idx={idx} onClick={() => onEdit(svc)} style={{
               position: "relative", borderRadius: 14, padding: "8px 8px", minWidth: 0, cursor: "pointer", opacity: dimmed ? 0.55 : 1,
-              background: `color-mix(in srgb,${c} 26%,transparent)`, border: `1px solid color-mix(in srgb,${c} 55%,transparent)`,
+              background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)",
               backdropFilter: GL, WebkitBackdropFilter: GL, color: TEXT, overflow: "hidden",
             }}>
-              <div style={{ fontSize: 11, fontWeight: 700, paddingRight: 20, overflowWrap: "anywhere" }}>{svc.name}</div>
+              <div style={{ fontSize: 11, fontWeight: 700, paddingRight: 18, display: "flex", alignItems: "flex-start", gap: 5 }}>
+                <span aria-hidden="true" style={{ flexShrink: 0, width: 8, height: 8, borderRadius: "50%", background: c, marginTop: 3 }} />
+                <span style={{ minWidth: 0, overflowWrap: "anywhere" }}>{svc.name}</span>
+              </div>
               <div style={{ fontSize: 11, fontWeight: 500, opacity: 0.92, marginTop: 1, overflowWrap: "anywhere" }}>
                 {fmt(svc.duration)} · {money(svc.price || 0, ' ')}{capOf(svc) > 1 ? ` · група ${capOf(svc)}` : ""}
               </div>

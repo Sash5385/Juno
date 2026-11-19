@@ -135,10 +135,10 @@ function StudentCard({ s, onSelect, settings }) {
       style={{
         position:"relative",overflow:"hidden",borderRadius:14,cursor:"pointer",
         padding:"12px 12px",minHeight:64,display:"flex",alignItems:"center",gap:10,
-        background:`color-mix(in srgb,${barColor} 26%,transparent)`,
-        border:`1px solid color-mix(in srgb,${barColor} 55%,transparent)`,
+        background:"rgba(255,255,255,0.06)",
+        border:s.blocked?`1px solid color-mix(in srgb,${RED} 45%,transparent)`:"1px solid rgba(255,255,255,0.1)",
         backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",
-        opacity:s.blocked?0.85:1,
+        opacity:s.blocked?0.6:1,
       }}
     >
       {s.photo

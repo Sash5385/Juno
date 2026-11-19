@@ -508,9 +508,9 @@ export default function ChatsView() {
             const hueColor   = `hsl(${c.hue},60%,50%)`;
             return (
               <div key={c.id} style={{
-                background:`color-mix(in srgb,${hueColor} 26%,transparent)`,backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",
+                background:"rgba(255,255,255,0.06)",backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",
                 borderRadius:14,overflow:"hidden",boxShadow:SO,
-                border:`1px solid ${isDeleting?"rgba(239,68,68,0.5)":isOpen?"rgba(255,255,255,0.35)":`color-mix(in srgb,${hueColor} 38%,transparent)`}`,
+                border:`1px solid ${isDeleting?"rgba(239,68,68,0.5)":isOpen?"rgba(255,255,255,0.35)":"rgba(255,255,255,0.1)"}`,
                 transition:"border-color .2s",
               }}>
                 <div className={`chat-row${isOpen?" open":""}`} onClick={()=>toggle(c.id)}
