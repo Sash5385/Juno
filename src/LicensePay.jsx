@@ -2,6 +2,7 @@ import { useState, useContext, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { PLANS, LIQPAY_ENABLED, startLicensePayment } from "./licensePayApi";
 import { ThemeContext } from "./theme.js";
+import { MetalIcon } from "./MetalIcon";
 
 // Вибір тарифу + кнопки LiqPay/Monobank (використовується в Налаштуваннях і в модалці банера)
 export function LicensePayPanel() {
@@ -62,8 +63,8 @@ function LicensePayModal({ onClose }) {
         background: SHEET || `linear-gradient(145deg,${SURF_HI},${SURFACE})`, color: TEXT,
       }}>
         <div style={{ position: "relative", textAlign: "center", padding: "0 40px", marginBottom: 12 }}>
-          <div style={{ fontSize: 16, fontWeight: 800 }}>💳 Оплата підписки</div>
-          <button aria-label="Закрити" onClick={onClose} style={{ position: "absolute", top: -4, right: -2, width: 36, height: 36, background: "none", border: "none", color: DIM, fontSize: 22, lineHeight: 1, cursor: "pointer" }}>✕</button>
+          <div style={{ fontSize: 16, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}><MetalIcon name="card" size={28}/>Оплата підписки</div>
+          <button aria-label="Закрити" onClick={onClose} style={{ position: "absolute", top: -4, right: -2, width: 36, height: 36, padding: 0, background: "none", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}><MetalIcon name="cross" size={32}/></button>
         </div>
         <div style={{
           padding: "12px 14px", borderRadius: 14, border: `1px solid ${GOLD}55`,
@@ -96,10 +97,10 @@ export function LicenseBanner({ state }) {
   if (!state || state.level === "ok") return null;
   const { level, until, daysLeft } = state;
   const cfg = level === "readonly"
-    ? { color: RED, text: flash ? "🔒 Режим читання — зміни недоступні, оплатіть підписку" : "🔒 Режим читання · підписку не оплачено" }
+    ? { color: RED, icon: "lock", text: flash ? "Режим читання — зміни недоступні, оплатіть підписку" : "Режим читання · підписку не оплачено" }
     : level === "grace"
-    ? { color: "#f59e0b", text: "⚠️ Підписку не оплачено · сьогодні остання доба" }
-    : { color: GOLD, text: `⏳ Підписка до ${fmtDate(until)} · ${daysLeft <= 1 ? "залишилась доба" : `ще ${daysLeft} дн.`}` };
+    ? { color: "#f59e0b", icon: "warn", text: "Підписку не оплачено · сьогодні остання доба" }
+    : { color: GOLD, icon: "hourglass", text: `Підписка до ${fmtDate(until)} · ${daysLeft <= 1 ? "залишилась доба" : `ще ${daysLeft} дн.`}` };
 
   return (
     <>
@@ -110,7 +111,7 @@ export function LicenseBanner({ state }) {
         color: "#fff", fontSize: 12, fontWeight: 700, lineHeight: 1.25,
         transition: "background .2s",
       }}>
-        <span style={{ minWidth: 0 }}>{cfg.text}</span>
+        <span style={{ minWidth: 0, display: "flex", alignItems: "center", gap: 6 }}><MetalIcon name={cfg.icon} size={18}/><span style={{ minWidth: 0 }}>{cfg.text}</span></span>
         <span style={{
           flexShrink: 0, padding: "3px 9px", borderRadius: 8, fontSize: 11, fontWeight: 800,
           background: level === "readonly" ? "#dc2626" : cfg.color, color: level === "readonly" ? "#fff" : "#1a1200",

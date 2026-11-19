@@ -543,7 +543,7 @@ function InstructorDetail({ loading, data, iid, onStudentDeleted }) {
       </div>
 
       <div style={{ marginBottom:12 }}>
-        <div style={{ fontSize:10, color:DIM, marginBottom:4 }}>Нові записи за 30 днів</div>
+        <div style={{ fontSize:11, color:DIM, marginBottom:4 }}>Нові записи за 30 днів</div>
         <BarChart data={bookingsPerDay([list], 30)} />
       </div>
 
@@ -839,7 +839,7 @@ export function SuperAdminScreen() {
     }}>
       <div style={{ fontSize:11, color:"rgba(255,255,255,0.65)" }}>{label}</div>
       <div style={{ fontSize:22, fontWeight:800, color }}>{value}</div>
-      {sub && <div style={{ fontSize:10, color:"rgba(255,255,255,0.5)", marginTop:2 }}>{sub}</div>}
+      {sub && <div style={{ fontSize:11, color:"rgba(255,255,255,0.5)", marginTop:2 }}>{sub}</div>}
     </div>
   );
   const panel = (color, children, extra = {}) => (
@@ -956,7 +956,7 @@ export function SuperAdminScreen() {
                 </div>
                 <div style={{ textAlign:"right" }}>
                   <div style={{ fontSize:12, fontWeight:700, color:st.color }}>{st.text}</div>
-                  {isInactive(iid, info) && <div style={{ fontSize:10, color:"#e8c547", marginTop:2, display:"flex", alignItems:"center", gap:4 }}><MetalIcon name="moon" size={16}/>без нових записів {INACTIVE_DAYS}+ дн.</div>}
+                  {isInactive(iid, info) && <div style={{ fontSize:11, color:"#e8c547", marginTop:2, display:"flex", alignItems:"center", gap:4 }}><MetalIcon name="moon" size={16}/>без нових записів {INACTIVE_DAYS}+ дн.</div>}
                 </div>
               </div>
               {lic && (
@@ -1074,8 +1074,8 @@ export function SuperAdminScreen() {
                 <div style={{ fontSize:11, color:"rgba(255,255,255,0.6)", marginTop:4 }}>
                   {e.app === "client" ? "клієнт" : "адмінка"} · {e.version} · {e.url} · {new Date(e.last).toLocaleString("uk")}
                 </div>
-                {e.stack && <pre style={{ fontSize:10, color:"rgba(255,255,255,0.5)", whiteSpace:"pre-wrap", wordBreak:"break-all", margin:"8px 0 0", maxHeight:120, overflow:"auto" }}>{e.stack}</pre>}
-                <div style={{ fontSize:10, color:"rgba(255,255,255,0.4)", marginTop:6, wordBreak:"break-word" }}>{e.ua}</div>
+                {e.stack && <pre style={{ fontSize:11, color:"rgba(255,255,255,0.5)", whiteSpace:"pre-wrap", wordBreak:"break-all", margin:"8px 0 0", maxHeight:120, overflow:"auto" }}>{e.stack}</pre>}
+                <div style={{ fontSize:11, color:"rgba(255,255,255,0.4)", marginTop:6, wordBreak:"break-word" }}>{e.ua}</div>
                 <button onClick={() => remove(ref(db, `system/errorLog/${e.id}`)).catch(() => {})}
                   style={{ marginTop:10, padding:"6px 12px", borderRadius:8, background:"rgba(255,255,255,0.06)", border:`1px solid ${BORDER}`, color:DIM, fontSize:11, fontWeight:700, cursor:"pointer" }}>✓ Виправлено</button>
               </>, { marginBottom:12 })}</div>

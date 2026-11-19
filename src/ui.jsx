@@ -6,6 +6,7 @@
 import { useState, useEffect, useRef, useContext } from "react";
 import { createPortal } from "react-dom";
 import PhoneField from "./PhoneField.jsx";
+import { MetalIcon } from "./MetalIcon";
 import { ThemeContext } from "./theme.js";
 
 // ── useBackClose: Android/PWA back gesture closes an open modal/sheet
@@ -275,7 +276,7 @@ export function Modal({ open, onClose, children, size = "md", sheet = true, titl
             {icon && <div style={{ width: 38, height: 38, borderRadius: 10, background: ink(0.07), display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>{icon}</div>}
             <div style={{ fontSize: 16, fontWeight: 700, color: TEXT, textWrap: "balance" }}>{title}</div>
             {subtitle && <div style={{ fontSize: 12, color: FAINT, marginTop: -3 }}>{subtitle}</div>}
-            <div onClick={onClose} role="button" aria-label="Закрити" style={{ position: "absolute", top: 8, right: 10, width: 40, height: 40, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0, userSelect: "none" }}><span style={{ width: 28, height: 28, borderRadius: 8, background: "rgba(239,68,68,0.18)", display: "flex", alignItems: "center", justifyContent: "center", color: RED, fontSize: 14, fontWeight: 800 }}>✕</span></div>
+            <div onClick={onClose} role="button" aria-label="Закрити" style={{ position: "absolute", top: 8, right: 10, width: 40, height: 40, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0, userSelect: "none" }}><MetalIcon name="cross" size={32}/></div>
           </div>
         )}
         <div style={{ flex: 1, overflowY: "auto", padding: bodyPad }}>

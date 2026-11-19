@@ -39,6 +39,7 @@ import { useConfirm } from "../ConfirmModal";
 import { isSalon } from "../workspace.js";
 import { FOG_STYLE } from "../uiStyles";
 import { TAG_PRESETS, AUTO_TAG_IDS } from "../tags";
+import { TagIcon } from "../TagIcon";
 import { MANUAL_DEFAULT_COLOR } from "../studentColors";
 import { cur as curSym, money } from "../currency";
 // module-level aliases for vars used in ICONS (arrow fns, cannot use hooks)
@@ -508,11 +509,11 @@ function BroadcastModalBase({ initialDate, initialSlot, onClose }) {
           }}>
           <button aria-label="Закрити" onClick={_close} style={{
             position:"absolute", top:10, right:12, zIndex:5,
-            width:26, height:26, borderRadius:8, border:"none", cursor:"pointer",
-            background:"rgba(239,68,68,0.18)", color:"#ef4444",
+            width:32,padding:0, height:32, borderRadius:"50%", border:"none", cursor:"pointer",
+            background:"none", color:"#ef4444",
             display:"flex", alignItems:"center", justifyContent:"center",
             fontSize:13, fontWeight:800, lineHeight:1,
-          }}>✕</button>
+          }}><MetalIcon name="cross" size={32}/></button>
 
           {/* Header */}
           <div style={{
@@ -728,11 +729,11 @@ function MonthCalendarSheetBase({ bookings, onClose, onPickDate }) {
           }}>
           <button aria-label="Закрити" onClick={close} style={{
             position:"absolute", top:10, right:12, zIndex:5,
-            width:26, height:26, borderRadius:8, border:"none", cursor:"pointer",
-            background:"rgba(239,68,68,0.18)", color:"#ef4444",
+            width:32,padding:0, height:32, borderRadius:"50%", border:"none", cursor:"pointer",
+            background:"none", color:"#ef4444",
             display:"flex", alignItems:"center", justifyContent:"center",
             fontSize:13, fontWeight:800, lineHeight:1,
-          }}>✕</button>
+          }}><MetalIcon name="cross" size={32}/></button>
 
           <div style={{padding:"14px 16px 6px"}} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
             <div style={{width:38, height:4, borderRadius:2, background:ink(0.1), margin:"0 auto 14px"}}/>
@@ -929,11 +930,11 @@ function DayNotesModalBase({ dateStr, dayLabel, dayNum, dayMonth, note, settings
           <div style={{width:36,height:4,borderRadius:2,background:glow(0.15),margin:"0 auto 12px"}}/>
           <button aria-label="Закрити" onClick={_close} style={{
             position:"absolute", top:12, right:14, zIndex:5,
-            width:26, height:26, borderRadius:8, border:"none", cursor:"pointer",
-            background:"rgba(239,68,68,0.18)", color:"#ef4444",
+            width:32,padding:0, height:32, borderRadius:"50%", border:"none", cursor:"pointer",
+            background:"none", color:"#ef4444",
             display:"flex", alignItems:"center", justifyContent:"center",
             fontSize:13, fontWeight:800, lineHeight:1,
-          }}>✕</button>
+          }}><MetalIcon name="cross" size={32}/></button>
           <div style={{textAlign:"center",padding:"0 36px",marginBottom:6}}>
             <div style={{fontSize:16,fontWeight:800,color:TEXT}}><span style={{display:"inline-flex",alignItems:"center",gap:7}}><MetalIcon name="note" size={28}/>Нотатки — {dayLabel}, {dayNum} {dayMonth}</span></div>
           </div>
@@ -4200,10 +4201,11 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                             borderRadius:999,
                             background:`linear-gradient(135deg, color-mix(in srgb, ${tp.color} 90%, #fff), ${tp.color})`,
                             boxShadow:"0 4px 10px rgba(0,0,0,0.45)",
-                            whiteSpace:"nowrap", overflow:"hidden", textOverflow:"ellipsis",
-                            maxWidth: Math.max(18, COL_W - 6),
+                            display:"inline-flex", alignItems:"center", gap:3, minWidth:0, boxSizing:"border-box",
+                            whiteSpace:"nowrap", overflow:"hidden",
+                            maxWidth: Math.max(18, Math.min(COL_W - 6, 300)),
                             transform:"rotate(9deg)", transformOrigin:"top right",
-                          }}>{showText ? <>{tp.icon}{" "}{label}</> : tp.icon}</div>
+                          }}><TagIcon tag={tp} size={Math.max(12, tagFs + 4)}/>{showText && <span style={{minWidth:0,overflow:"hidden",textOverflow:"ellipsis"}}>{label}</span>}</div>
                         </div>
                       );
                     })()}
@@ -4459,16 +4461,10 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                         style={{
                           position:"absolute", top:-11, left:-11, zIndex:30,
                           width:30, height:30, borderRadius:"50%",
-                          background:"linear-gradient(145deg,#60a5fa,#1d4ed8)",
-                          boxShadow:"0 0 0 3px rgba(30,30,40,0.85), 0 4px 12px #1d4ed899",
                           display:"flex", alignItems:"center", justifyContent:"center",
                           cursor:"pointer", touchAction:"none",
                         }}>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-                          stroke="#fff" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
-                          <rect x="9" y="9" width="12" height="12" rx="2"/>
-                          <path d="M5 15V5a2 2 0 0 1 2-2h8"/>
-                        </svg>
+                        <MetalIcon name="copy" size={30} color="#1d4ed8"/>
                       </div>
                     )}
 
@@ -4530,16 +4526,10 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                         style={{
                           position:"absolute", top:-11, right:-11, zIndex:30,
                           width:30, height:30, borderRadius:"50%",
-                          background:"linear-gradient(145deg,#f87171,#b91c1c)",
-                          boxShadow:"0 0 0 3px rgba(30,30,40,0.85), 0 4px 12px #b91c1c99",
                           display:"flex", alignItems:"center", justifyContent:"center",
                           cursor:"pointer",
                         }}>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-                          stroke="#fff" strokeWidth="3.2" strokeLinecap="round">
-                          <line x1="18" y1="6" x2="6" y2="18"/>
-                          <line x1="6" y1="6" x2="18" y2="18"/>
-                        </svg>
+                        <MetalIcon name="cross" size={30}/>
                       </div>
                     )}
                   </div>
@@ -4654,12 +4644,12 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
         title="Місячний календар"
         style={{
           width:32, height:32, borderRadius:11, cursor:"pointer",
-          background:`linear-gradient(135deg,color-mix(in srgb,${BLUE} 45%,${BG_DEEP}) 0%,${BG_DEEP} 100%)`,
-          border:`1px solid color-mix(in srgb,${BLUE} 35%,transparent)`,
+          background:"none", padding:0,
+          border:"none",
           display:"flex", alignItems:"center", justifyContent:"center",
           transition:"background .15s", flexShrink:0,
         }}>
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18M8 2v4M16 2v4"/></svg>
+        <MetalIcon name="calendar" size={32}/>
       </button>
     , keyPortalEl)}
 
@@ -4712,11 +4702,11 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
               }}>
               <button aria-label="Закрити" onClick={_closeBlock} style={{
                 position:"absolute", top:10, right:12, zIndex:5,
-                width:26, height:26, borderRadius:8, border:"none", cursor:"pointer",
-                background:"rgba(239,68,68,0.18)", color:"#ef4444",
+                width:32,padding:0, height:32, borderRadius:"50%", border:"none", cursor:"pointer",
+                background:"none", color:"#ef4444",
                 display:"flex", alignItems:"center", justifyContent:"center",
                 fontSize:13, fontWeight:800, lineHeight:1,
-              }}>✕</button>
+              }}><MetalIcon name="cross" size={32}/></button>
               {/* Hero */}
               <div style={{
                 padding:"14px 16px 18px",
@@ -4888,11 +4878,11 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
             {!_anyClose && (
               <button aria-label="Закрити" onClick={_closeLtm} style={{
                 position:"absolute", top:8, right:12, zIndex:5,
-                width:26, height:26, borderRadius:8, border:"none", cursor:"pointer",
-                background:"rgba(239,68,68,0.18)", color:"#ef4444",
+                width:32,padding:0, height:32, borderRadius:"50%", border:"none", cursor:"pointer",
+                background:"none", color:"#ef4444",
                 display:"flex", alignItems:"center", justifyContent:"center",
                 fontSize:13, fontWeight:800, lineHeight:1,
-              }}>✕</button>
+              }}><MetalIcon name="cross" size={32}/></button>
             )}
             {/* handle */}
             <div style={{width:36,height:4,borderRadius:2,background:ink(0.18),margin:"0 auto 14px"}}/>
@@ -5042,11 +5032,11 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
             }}>
             <button aria-label="Закрити" onClick={_closeSO} style={{
               position:"absolute", top:10, right:12, zIndex:5,
-              width:26, height:26, borderRadius:8, border:"none", cursor:"pointer",
-              background:"rgba(239,68,68,0.18)", color:"#ef4444",
+              width:32,padding:0, height:32, borderRadius:"50%", border:"none", cursor:"pointer",
+              background:"none", color:"#ef4444",
               display:"flex", alignItems:"center", justifyContent:"center",
               fontSize:13, fontWeight:800, lineHeight:1,
-            }}>✕</button>
+            }}><MetalIcon name="cross" size={32}/></button>
             {/* header (includes handle) */}
             <div style={{
               padding:"10px 18px 14px",
@@ -5288,11 +5278,11 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
               }}>
               <button aria-label="Закрити" onClick={_closeVip} style={{
                 position:"absolute", top:10, right:12, zIndex:5,
-                width:26, height:26, borderRadius:8, border:"none", cursor:"pointer",
-                background:"rgba(239,68,68,0.18)", color:"#ef4444",
+                width:32,padding:0, height:32, borderRadius:"50%", border:"none", cursor:"pointer",
+                background:"none", color:"#ef4444",
                 display:"flex", alignItems:"center", justifyContent:"center",
                 fontSize:13, fontWeight:800, lineHeight:1,
-              }}>✕</button>
+              }}><MetalIcon name="cross" size={32}/></button>
               <div style={{
                 padding:"16px 16px 18px",
                 background:"linear-gradient(145deg,rgba(168,85,247,0.18),rgba(124,58,237,0.08))",
@@ -5437,11 +5427,11 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
         }}>
           <button aria-label="Закрити" onClick={()=>setPersonalEventView(null)} style={{
             position:"absolute", top:12, right:14, zIndex:5,
-            width:26, height:26, borderRadius:8, border:"none", cursor:"pointer",
-            background:"rgba(239,68,68,0.18)", color:"#ef4444",
+            width:32,padding:0, height:32, borderRadius:"50%", border:"none", cursor:"pointer",
+            background:"none", color:"#ef4444",
             display:"flex", alignItems:"center", justifyContent:"center",
             fontSize:13, fontWeight:800, lineHeight:1,
-          }}>✕</button>
+          }}><MetalIcon name="cross" size={32}/></button>
           <div style={{
             padding:"14px 44px 12px",textAlign:"center",
             background:"rgba(45,212,191,0.1)",
@@ -5707,11 +5697,11 @@ function CreateSlotSheetBase({ data, settings, onClose }) {
           }}>
           <button aria-label="Закрити" onClick={_close} style={{
             position:"absolute", top:10, right:12, zIndex:5,
-            width:26, height:26, borderRadius:8, border:"none", cursor:"pointer",
-            background:"rgba(239,68,68,0.18)", color:"#ef4444",
+            width:32,padding:0, height:32, borderRadius:"50%", border:"none", cursor:"pointer",
+            background:"none", color:"#ef4444",
             display:"flex", alignItems:"center", justifyContent:"center",
             fontSize:13, fontWeight:800, lineHeight:1,
-          }}>✕</button>
+          }}><MetalIcon name="cross" size={32}/></button>
           <div style={{
             padding:"10px 20px 14px",
             background:shade(0.04),
@@ -6019,11 +6009,11 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
           }}>
           <button aria-label="Закрити" onClick={_close} style={{
             position:"absolute", top:10, right:12, zIndex:5,
-            width:26, height:26, borderRadius:8, border:"none", cursor:"pointer",
-            background:"rgba(239,68,68,0.18)", color:"#ef4444",
+            width:32,padding:0, height:32, borderRadius:"50%", border:"none", cursor:"pointer",
+            background:"none", color:"#ef4444",
             display:"flex", alignItems:"center", justifyContent:"center",
             fontSize:13, fontWeight:800, lineHeight:1,
-          }}>✕</button>
+          }}><MetalIcon name="cross" size={32}/></button>
 
           {/* Header: handle + student info */}
           <div style={{
@@ -6101,7 +6091,7 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
                 width:"100%",padding:"10px",borderRadius:12,border:"none",cursor:"pointer",fontFamily:"inherit",
                 background:"rgba(0,0,0,0.22)",color:"#fff",fontSize:13,fontWeight:800,
                 display:"flex",alignItems:"center",justifyContent:"center",gap:7,marginBottom:12,
-              }}>✎ Редагувати ціну і час</button>
+              }}><MetalIcon name="edit" size={16}/>Редагувати ціну і час</button>
             )}
 
             {/* Edit sheet: ціна/тривалість */}
@@ -6222,7 +6212,7 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
                       display:"inline-flex",alignItems:"center",gap:5,padding:"5px 9px",borderRadius:20,
                       background:"rgba(0,0,0,0.22)",border:"1px solid rgba(255,255,255,0.25)",cursor:"pointer",
                     }}>
-                      <span style={{fontSize:14}}>{tp.icon}</span>
+                      <span style={{fontSize:14,display:"inline-flex"}}><TagIcon tag={tp} size={14}/></span>
                       <span style={{fontSize:11,fontWeight:700,color:"#fff"}}>{label}</span>
                     </div>
                   );
@@ -6256,7 +6246,7 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
                         border: displayTag===tp.id ? "1.5px solid rgba(255,255,255,0.6)" : "1px solid rgba(255,255,255,0.18)",
                         background: displayTag===tp.id ? "rgba(0,0,0,0.3)" : "rgba(0,0,0,0.22)",
                       }}>
-                        <span style={{fontSize:15}}>{tp.icon}</span>
+                        <span style={{fontSize:15,display:"inline-flex"}}><TagIcon tag={tp} size={14}/></span>
                         <span style={{fontSize:11,fontWeight:700,color:"rgba(255,255,255,.85)"}}>{tp.label}</span>
                       </button>
                     ))}
@@ -6488,11 +6478,11 @@ function PersonalEventModalBase({ data, onClose, onConfirm }) {
           }}>
           <button aria-label="Закрити" onClick={_close} style={{
             position:"absolute", top:10, right:12, zIndex:5,
-            width:26, height:26, borderRadius:8, border:"none", cursor:"pointer",
-            background:"rgba(239,68,68,0.18)", color:"#ef4444",
+            width:32,padding:0, height:32, borderRadius:"50%", border:"none", cursor:"pointer",
+            background:"none", color:"#ef4444",
             display:"flex", alignItems:"center", justifyContent:"center",
             fontSize:13, fontWeight:800, lineHeight:1,
-          }}>✕</button>
+          }}><MetalIcon name="cross" size={32}/></button>
           <div style={{
             padding:"10px 18px 14px",
             background:"linear-gradient(145deg,rgba(45,212,191,0.12),rgba(20,184,166,0.05))",
@@ -6508,7 +6498,7 @@ function PersonalEventModalBase({ data, onClose, onConfirm }) {
 
           <div className="win-cols win-gap" style={{padding:"16px 18px 32px",gap:16}}>
             <div style={{display:"flex",alignItems:"flex-start",gap:8}}>
-              <div style={{width:26,height:26,borderRadius:8,flexShrink:0,marginTop:18,background:"rgba(45,212,191,0.15)",color:"#2dd4bf",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12}}>✎</div>
+              <div style={{width:26,height:26,borderRadius:8,flexShrink:0,marginTop:18,background:"rgba(45,212,191,0.15)",color:"#2dd4bf",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12}}><MetalIcon name="edit" size={18}/></div>
               <div style={{flex:1,minWidth:0}}>
                 <div style={{fontSize:11,fontWeight:700,letterSpacing:1.2,color:FAINT,textTransform:"uppercase",marginBottom:7}}>Назва</div>
                 <input
@@ -6525,7 +6515,7 @@ function PersonalEventModalBase({ data, onClose, onConfirm }) {
             </div>
 
             <div style={{display:"flex",alignItems:"flex-start",gap:8}}>
-              <div style={{width:26,height:26,borderRadius:8,flexShrink:0,marginTop:18,background:"rgba(45,212,191,0.15)",color:"#2dd4bf",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12}}>📅</div>
+              <div style={{width:26,height:26,borderRadius:8,flexShrink:0,marginTop:18,background:"rgba(45,212,191,0.15)",color:"#2dd4bf",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12}}><MetalIcon name="calendar" size={18}/></div>
               <div style={{flex:1,minWidth:0}}>
                 <div style={{fontSize:11,fontWeight:700,letterSpacing:1.2,color:FAINT,textTransform:"uppercase",marginBottom:7}}>Дата</div>
                 <input
@@ -6542,7 +6532,7 @@ function PersonalEventModalBase({ data, onClose, onConfirm }) {
             </div>
 
             <div style={{display:"flex",alignItems:"flex-start",gap:8}}>
-              <div style={{width:26,height:26,borderRadius:8,flexShrink:0,marginTop:18,background:"rgba(45,212,191,0.15)",color:"#2dd4bf",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12}}>🕐</div>
+              <div style={{width:26,height:26,borderRadius:8,flexShrink:0,marginTop:18,background:"rgba(45,212,191,0.15)",color:"#2dd4bf",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12}}><MetalIcon name="clock" size={18}/></div>
               <div style={{flex:1,minWidth:0}}>
                 <div style={{fontSize:11,fontWeight:700,letterSpacing:1.2,color:FAINT,textTransform:"uppercase",marginBottom:7}}>Час</div>
                 <div style={{display:"flex",gap:6}}>
@@ -6628,7 +6618,7 @@ function PersonalEventModalBase({ data, onClose, onConfirm }) {
             </div>
 
             <div style={{display:"flex",alignItems:"flex-start",gap:8}}>
-              <div style={{width:26,height:26,borderRadius:8,flexShrink:0,marginTop:18,background:"rgba(45,212,191,0.15)",color:"#2dd4bf",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12}}>⏰</div>
+              <div style={{width:26,height:26,borderRadius:8,flexShrink:0,marginTop:18,background:"rgba(45,212,191,0.15)",color:"#2dd4bf",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12}}><MetalIcon name="timer" size={18}/></div>
               <div style={{flex:1,minWidth:0}}>
                 <div style={{fontSize:11,fontWeight:700,letterSpacing:1.2,color:FAINT,textTransform:"uppercase",marginBottom:7}}>Нагадування з будильником</div>
                 <select
@@ -6747,8 +6737,6 @@ const HELP_GLASS = {
 function ScheduleHelpBase({ onClose, onPick }) {
   const hv = HELP_GLASS;
   const { BG_DEEP, SURFACE, SURF_HI, BORDER, TEXT, DIM } = useContext(ThemeContext);
-  const keySvg = <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.2"/><rect x="14" y="3" width="7" height="7" rx="1.2"/><rect x="3" y="14" width="7" height="7" rx="1.2"/></svg>;
-  const lockSvg = <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>;
   const SECTIONS = [
     { title: "Панель угорі", items: [
       { ico: <HelpChip bg="linear-gradient(165deg,#5b9bff,#2563eb)">Авто</HelpChip>, h: "hours", t: "Авто · 8 · 10 · 12 · 14 годин", d: "Скільки годин робочого дня видно на екрані одночасно. «Авто» сама підбирає висоту під ваш екран." },
@@ -6765,7 +6753,7 @@ function ScheduleHelpBase({ onClose, onPick }) {
       { ico: <MetalIcon name="pushpin" size={24}/>, t: "Утримати порожнє місце", d: "Меню: додати запис, особиста подія, вільний слот, закрити день." },
       { ico: <div style={{ display:"flex", gap:3 }}><MetalIcon name="car" size={22}/><MetalIcon name="crown" size={22}/></div>, h: "freeicons", t: "Вільний слот: 🚗 · 👑", d: "🚗 — слот лише для приватних клієнтів, 👑 — лише для VIP. Стрічка «900₴» — фіксована ціна слота, «+100₴» — надбавка." },
       { ico: <HelpChip bg="rgba(91,155,255,0.18)" color="#93c5fd" w={44}>ОБІД</HelpChip>, t: "ОБІД", d: "Перерва за налаштуваннями графіка — записів на цей час немає." },
-      { ico: <MetalIcon name="eye" size={24}/>, h: "eye", t: "👁 Слот зараз переглядають", d: "Клієнт саме відкрив цей вільний слот у своєму застосунку й обирає час. Позначка зникає, коли він закриє слот або запишеться." },
+      { ico: <MetalIcon name="eye" size={24}/>, h: "eye", t: "Слот зараз переглядають", d: "Клієнт саме відкрив цей вільний слот у своєму застосунку й обирає час. Позначка зникає, коли він закриє слот або запишеться." },
       { ico: <div style={{ width:36, height:11, borderRadius:7, background:"rgba(126,217,87,0.45)", border:"1px solid rgba(126,217,87,0.75)" }}/>, t: "Зелена ручка внизу слота", d: "Змінює тривалість вільного слота: утримайте ручку 0,6 с і потягніть вгору або вниз. Є лише на вільних слотах майбутніх днів." },
     ] },
     { title: "Картка запису", items: [
@@ -6777,8 +6765,8 @@ function ScheduleHelpBase({ onClose, onPick }) {
       { ico: <div style={{ width:22, height:22, borderRadius:5, background:"rgba(255,255,255,0.12)", position:"relative", overflow:"hidden", flexShrink:0 }}><div style={{ position:"absolute", right:0, bottom:0, width:0, height:0, borderLeft:"10px solid transparent", borderBottom:`10px solid ${GOLD}` }}/></div>, t: "Жовтий куточок", d: "Клієнт залишив нотатку до запису для майстра. Відкрийте картку, щоб прочитати." },
     ] },
     { title: "Кнопки по краях", items: [
-      { ico: <div style={{ display:"flex", gap:3 }}><HelpSq c={GREEN} deep={BG_DEEP}>{keySvg}</HelpSq><HelpSq c={RED} deep={BG_DEEP}>{keySvg}</HelpSq></div>, h: "key", t: "Ключик ▦ (угорі зліва)", s: 0.95, d: "Створює слоти за графіком на найближчі дні або знімає їх усі. Зелений — слотів немає (натискання створить), червоний — слоти вже є (натискання зніме)." },
-      { ico: <div style={{ display:"flex", gap:3 }}><HelpSq c={GREEN} deep={BG_DEEP}>{lockSvg}</HelpSq><HelpSq c={RED} deep={BG_DEEP}>{lockSvg}</HelpSq></div>, h: "lock", t: "Замок (внизу зліва)", s: 0.95, d: "Утримайте 0,7 с: червоний замок — календар заблоковано від змін, зелений — редагування дозволено." },
+      { ico: <div style={{ display:"flex", gap:3 }}><MetalIcon name="grid" size={22} square color={GREEN}/><MetalIcon name="grid" size={22} square color={RED}/></div>, h: "key", t: "Ключик ▦ (угорі зліва)", s: 0.95, d: "Створює слоти за графіком на найближчі дні або знімає їх усі. Зелений — слотів немає (натискання створить), червоний — слоти вже є (натискання зніме)." },
+      { ico: <div style={{ display:"flex", gap:3 }}><MetalIcon name="lock" size={22} square color={GREEN}/><MetalIcon name="lock" size={22} square color={RED}/></div>, h: "lock", t: "Замок (внизу зліва)", s: 0.95, d: "Утримайте 0,7 с: червоний замок — календар заблоковано від змін, зелений — редагування дозволено." },
       { ico: <HelpDot bg={BLUE} color="#fff" size={26}>‹</HelpDot>, h: "todayarrow", t: "Стрілка внизу справа", d: "Повернутися до сьогоднішнього дня. З'являється, коли ви гортаєте далеко від сьогодні." },
       { ico: <HelpChip bg="rgba(126,217,87,0.15)" color={GREEN} w={44}>{`6 000${curSym()}`}</HelpChip>, h: "daysum", t: "Сума внизу колонки", d: "Скільки заробляєте за цей день за записами." },
     ] },
@@ -6797,7 +6785,7 @@ function ScheduleHelpBase({ onClose, onPick }) {
         <div style={{ position:"relative", textAlign:"center", padding:"16px 48px 12px", flexShrink:0 }}>
           <div style={{ fontSize:17, fontWeight:800 }}><span style={{display:"inline-flex",alignItems:"center",gap:7}}><MetalIcon name="info" size={28}/>Підказки по розкладу</span></div>
           <div style={{ fontSize:12, color:"rgba(255,255,255,0.82)", marginTop:3 }}>Що означає кожен значок на екрані «Записи». Натисніть на блок, щоб побачити його на екрані</div>
-          <button onClick={onClose} aria-label="Закрити" style={{ position:"absolute", top:12, right:14, width:26, height:26, borderRadius:8, border:"none", background:"rgba(239,68,68,0.18)", color:"#ef4444", fontSize:13, fontWeight:800, lineHeight:1, cursor:"pointer", padding:0, display:"flex", alignItems:"center", justifyContent:"center" }}>✕</button>
+          <button onClick={onClose} aria-label="Закрити" style={{ position:"absolute", top:12, right:14, width:32, height:32, borderRadius:"50%", border:"none", background:"none", color:"#ef4444", fontSize:13, fontWeight:800, lineHeight:1, cursor:"pointer", padding:0, display:"flex", alignItems:"center", justifyContent:"center" }}><MetalIcon name="cross" size={32}/></button>
         </div>
         <div style={{ overflowY:"auto", WebkitOverflowScrolling:"touch", padding:"2px 14px calc(18px + env(safe-area-inset-bottom, 0px))" }}>
           {SECTIONS.map(sec => (
@@ -7004,11 +6992,11 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
           }}>
           <button aria-label="Закрити" onClick={_close} style={{
             position:"absolute", top:10, right:12, zIndex:5,
-            width:26, height:26, borderRadius:8, border:"none", cursor:"pointer",
-            background:"rgba(239,68,68,0.18)", color:"#ef4444",
+            width:32,padding:0, height:32, borderRadius:"50%", border:"none", cursor:"pointer",
+            background:"none", color:"#ef4444",
             display:"flex", alignItems:"center", justifyContent:"center",
             fontSize:13, fontWeight:800, lineHeight:1,
-          }}>✕</button>
+          }}><MetalIcon name="cross" size={32}/></button>
 
           {/* Header */}
           <div style={{
@@ -7291,7 +7279,7 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
                   border: on ? `1.5px solid ${tp.color}` : `1.5px solid ${BORDER}`,
                   background: on ? `color-mix(in srgb,${tp.color} 22%,${SURFACE_LO})` : SURFACE_LO,
                   color:TEXT,fontSize:13,fontWeight:700,
-                }}><span>{tp.icon}</span>{tp.label}</button>
+                }}><span style={{display:"inline-flex"}}><TagIcon tag={tp} size={14}/></span>{tp.label}</button>
               );
             })}
           </div>
@@ -8080,9 +8068,9 @@ function TemplatesView() {
             </div>
             <div style={{fontSize:11,color:DM,flexShrink:0,textAlign:"right"}}>
               {TYPE_LABELS[item.type]||item.type}
-              {item.recipients>1 && <div style={{fontSize:10,color:FT}}>{item.recipients} клієнтів</div>}
+              {item.recipients>1 && <div style={{fontSize:11,color:FT}}>{item.recipients} клієнтів</div>}
               {item.status && item.status!=="sent" && (
-                <div style={{fontSize:10,color:"#ef4444",fontWeight:700}}>
+                <div style={{fontSize:11,color:"#ef4444",fontWeight:700}}>
                   ⚠ {item.status==="no_token" ? "немає токена" : "не надіслано"}
                 </div>
               )}

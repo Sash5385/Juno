@@ -1,6 +1,7 @@
 import { useState, useCallback, useContext } from "react";
 import { Modal, Btn } from "./ui";
 import { ThemeContext } from "./theme.js";
+import { MetalIcon, METAL_GLYPHS } from "./MetalIcon";
 
 // Діалог підтвердження у стилі застосунку замість системного window.confirm.
 // const [confirm, confirmNode] = useConfirm();  …  if (await confirm({ title, text, okLabel, danger })) { … }  …  {confirmNode}
@@ -20,7 +21,9 @@ function ConfirmBody({ req, onClose }) {
       <Btn variant="primary" flex={1} accent={req.danger ? RED : undefined} onClick={() => onClose(true)}>{req.okLabel || "Так"}</Btn>
     </>}>
       <div style={{textAlign:"center"}}>
-        <div style={{fontSize:30,marginBottom:8}}>{req.icon || (req.danger ? "⚠️" : "❓")}</div>
+        <div style={{fontSize:30,marginBottom:8,lineHeight:1}}>{
+          !req.icon ? <MetalIcon name={req.danger ? "warn" : "info"} size={40}/>
+          : METAL_GLYPHS[req.icon] ? <MetalIcon name={req.icon} size={40}/> : req.icon}</div>
         <div style={{fontSize:16,fontWeight:800,color:TEXT,marginBottom:6}}>{req.title}</div>
         {req.text && <div style={{fontSize:13,color:DIM,lineHeight:1.5}}>{req.text}</div>}
       </div>

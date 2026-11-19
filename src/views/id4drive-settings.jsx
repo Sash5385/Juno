@@ -1310,7 +1310,7 @@ select{color-scheme:${isKava?"light":"dark"}}
                   <input value={t.label} maxLength={20} onChange={e=>patch(t.id,{label:e.target.value})} onBlur={e=>{ if(!e.target.value.trim()) patch(t.id,{label:"Мітка"}); }}
                     style={{flex:1,minWidth:0,alignSelf:"stretch",padding:"10px 12px",borderRadius:10,border:`1px solid ${BORDER}`,background:"rgba(0,0,0,0.18)",color:TEXT,fontSize:14,fontFamily:"inherit"}}/>
                   {!AUTO_TAG_IDS.includes(t.id) && (
-                    <button onClick={()=>setTagList(tags.filter(x=>x.id!==t.id))} title="Видалити" aria-label="Видалити" style={{background:"none",border:"none",cursor:"pointer",color:"#f87171",fontSize:22,lineHeight:1,padding:0,minWidth:32,alignSelf:"stretch"}}>×</button>
+                    <button onClick={()=>setTagList(tags.filter(x=>x.id!==t.id))} title="Видалити" aria-label="Видалити" style={{background:"none",border:"none",cursor:"pointer",color:"#f87171",padding:0,minWidth:32,minHeight:32,alignSelf:"stretch",display:"flex",alignItems:"center",justifyContent:"center"}}><MetalIcon name="cross" size={28}/></button>
                   )}
                 </div>
                 <div style={{display:"flex",gap:8,marginTop:9,alignItems:"center",justifyContent:"space-between"}}>
@@ -1357,7 +1357,7 @@ select{color-scheme:${isKava?"light":"dark"}}
               <div key={pk.id || i} style={{marginBottom:8,padding:"10px 12px",borderRadius:12,background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,boxShadow:SO}}>
                 <div style={{display:"flex",alignItems:"center",gap:6}}>
                   <input value={pk.name || ""} maxLength={40} placeholder="Назва, напр. «5 записів»" onChange={e=>patchPk(i,{name:e.target.value})} style={{...box,flex:1,width:"auto",minWidth:0,alignSelf:"stretch"}}/>
-                  <button onClick={()=>setPk(pkgs.filter((_, j) => j !== i))} aria-label="Видалити" style={{background:"none",border:"none",cursor:"pointer",color:"#f87171",fontSize:22,lineHeight:1,padding:0,minWidth:32,alignSelf:"stretch"}}>×</button>
+                  <button onClick={()=>setPk(pkgs.filter((_, j) => j !== i))} aria-label="Видалити" style={{background:"none",border:"none",cursor:"pointer",color:"#f87171",padding:0,minWidth:32,minHeight:32,alignSelf:"stretch",display:"flex",alignItems:"center",justifyContent:"center"}}><MetalIcon name="cross" size={28}/></button>
                 </div>
                 <div className="pk-grid">
                   <div><div style={lbl}>Записів</div><input type="number" min={1} max={200} value={pk.count ?? ""} onChange={e=>patchPk(i,{count:e.target.value===""?"":+e.target.value})} style={box}/></div>
@@ -1402,9 +1402,9 @@ select{color-scheme:${isKava?"light":"dark"}}
               <div key={f.id || i} style={{marginTop:8,padding:"10px 12px",borderRadius:12,background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,boxShadow:SO}}>
                 <div style={{display:"flex",alignItems:"center",gap:6}}>
                   <input value={f.label || ""} maxLength={80} placeholder={uk ? "Питання, напр. «Алергії»" : "Question"} onChange={e=>patchField(i,{label:e.target.value})} style={{...box,flex:1,width:"auto",minWidth:0,alignSelf:"stretch"}}/>
-                  <button onClick={()=>move(i,-1)} disabled={i===0} aria-label="Вгору" style={{background:"none",border:"none",color:i===0?FAINT:DIM,cursor:"pointer",fontSize:15,padding:0,minWidth:28,alignSelf:"stretch"}}>▲</button>
-                  <button onClick={()=>move(i,1)} disabled={i===fields.length-1} aria-label="Вниз" style={{background:"none",border:"none",color:i===fields.length-1?FAINT:DIM,cursor:"pointer",fontSize:15,padding:0,minWidth:28,alignSelf:"stretch"}}>▼</button>
-                  <button onClick={()=>setIntake({ fields: fields.filter((_, j) => j !== i) })} aria-label="Видалити" style={{background:"none",border:"none",cursor:"pointer",color:"#f87171",fontSize:22,lineHeight:1,padding:0,minWidth:32,alignSelf:"stretch"}}>×</button>
+                  <button onClick={()=>move(i,-1)} disabled={i===0} aria-label="Вгору" style={{background:"none",border:"none",color:i===0?FAINT:DIM,cursor:"pointer",fontSize:15,padding:0,minWidth:32,minHeight:32,alignSelf:"stretch"}}>▲</button>
+                  <button onClick={()=>move(i,1)} disabled={i===fields.length-1} aria-label="Вниз" style={{background:"none",border:"none",color:i===fields.length-1?FAINT:DIM,cursor:"pointer",fontSize:15,padding:0,minWidth:32,minHeight:32,alignSelf:"stretch"}}>▼</button>
+                  <button onClick={()=>setIntake({ fields: fields.filter((_, j) => j !== i) })} aria-label="Видалити" style={{background:"none",border:"none",cursor:"pointer",color:"#f87171",padding:0,minWidth:32,minHeight:32,alignSelf:"stretch",display:"flex",alignItems:"center",justifyContent:"center"}}><MetalIcon name="cross" size={28}/></button>
                 </div>
                 <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:8}}>
                   {FIELD_TYPES.map(ft => (
@@ -1562,7 +1562,7 @@ select{color-scheme:${isKava?"light":"dark"}}
             {DIRECTION_PRESETS[normDirection(settings.direction)] && (
               <button onClick={async ()=>{
                 const pr = DIRECTION_PRESETS[normDirection(settings.direction)];
-                if (!(await confirm({ title: "Додати стартові послуги й мітки?", text: "Для вибраного напрямку з'являться готові послуги й мітки. Наявні не зміняться.", okLabel: "Додати", icon: "✨" }))) return;
+                if (!(await confirm({ title: "Додати стартові послуги й мітки?", text: "Для вибраного напрямку з'являться готові послуги й мітки. Наявні не зміняться.", okLabel: "Додати", icon: "sparkle" }))) return;
                 try {
                   const cur = (await get(iRef("admin_data/services"))).val();
                   const arr = Array.isArray(cur) ? cur : [];
@@ -1925,7 +1925,7 @@ select{color-scheme:${isKava?"light":"dark"}}
       })()}
       {active === "profile" && (
         <div style={{margin:"10px 14px 0"}}>
-          <button onClick={async () => { if (await confirm({ title: "Вийти з акаунта?", okLabel: "Вийти", danger: true, icon: "🚪" })) signOut(auth).catch(() => {}); }} style={{
+          <button onClick={async () => { if (await confirm({ title: "Вийти з акаунта?", okLabel: "Вийти", danger: true, icon: "logout" })) signOut(auth).catch(() => {}); }} style={{
             width:"100%", padding:"12px", borderRadius:12, cursor:"pointer", fontFamily:"inherit",
             background:"rgba(239,68,68,0.10)", border:"1px solid rgba(239,68,68,0.35)",
             color:"#f87171", fontSize:13, fontWeight:800,

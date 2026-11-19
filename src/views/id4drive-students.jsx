@@ -325,10 +325,10 @@ function StudentDetailSheet({ settings, s, onClose, onUpdate, onDelete, onBlock,
             </div>
             <div onClick={_close} role="button" aria-label="Закрити" style={{
               position:"absolute",top:12,right:14,
-              width:28,height:28,borderRadius:8,background:"rgba(239,68,68,0.18)",
+              width:32,padding:0,height:32,borderRadius:"50%",background:"none",
               display:"flex",alignItems:"center",justifyContent:"center",
               cursor:"pointer",color:"#ef4444",fontSize:14,fontWeight:800,userSelect:"none",flexShrink:0,
-            }}>✕</div>
+            }}><MetalIcon name="cross" size={32}/></div>
           </div>
 
           {/* Body (scrollable) */}
@@ -432,7 +432,7 @@ function StudentDetailSheet({ settings, s, onClose, onUpdate, onDelete, onBlock,
                     }}>
                       <div style={{position:"relative",textAlign:"center",padding:"0 36px",marginBottom:14}}>
                         <div style={{fontSize:15,fontWeight:800,color:TEXT}}>Колір слота</div>
-                        <button aria-label="Закрити" onClick={()=>setColorOpen(false)} style={{position:"absolute",top:12,right:14,width:28,height:28,borderRadius:8,border:"none",cursor:"pointer",background:"rgba(239,68,68,0.18)",color:"#ef4444",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,fontWeight:800,lineHeight:1,padding:0}}>✕</button>
+                        <button aria-label="Закрити" onClick={()=>setColorOpen(false)} style={{position:"absolute",top:12,right:14,width:32,height:32,borderRadius:"50%",border:"none",cursor:"pointer",background:"none",color:"#ef4444",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,fontWeight:800,lineHeight:1,padding:0}}><MetalIcon name="cross" size={32}/></button>
                       </div>
                       <div style={{display:"grid",gridTemplateColumns:"repeat(10,1fr)",gap:6}}>
                         {STUDENT_COLOR_CHOICES.map((c,ci)=>(
@@ -488,7 +488,7 @@ function StudentDetailSheet({ settings, s, onClose, onUpdate, onDelete, onBlock,
                   <ActBtn icon={ICONS.link}     label="Запросити"  onClick={generateInvite} color={GOLD}/>
                   <ActBtn icon={ICONS.history}  label="Історія"    onClick={toggleHistory} color={BLUE}/>
                   <ActBtn icon={ICONS.edit}     label="Редагувати" onClick={()=>setEditMode(true)}/>
-                  <ActBtn icon={s.blocked?ICONS.unban:ICONS.ban} label={s.blocked?"Розблок.":"Заблок."} onClick={async()=>{ if (s.blocked || await confirm({ title:"Заблокувати клієнта?", text:`${s.name} не зможе записуватись, а майбутні записи буде скасовано.`, okLabel:"Заблокувати", danger:true, icon:"🚫" })) onBlock(s.id); }} danger={!s.blocked}/>
+                  <ActBtn icon={s.blocked?ICONS.unban:ICONS.ban} label={s.blocked?"Розблок.":"Заблок."} onClick={async()=>{ if (s.blocked || await confirm({ title:"Заблокувати клієнта?", text:`${s.name} не зможе записуватись, а майбутні записи буде скасовано.`, okLabel:"Заблокувати", danger:true, icon:"ban" })) onBlock(s.id); }} danger={!s.blocked}/>
                 </div>
 
                 {/* VIP toggle */}
@@ -585,7 +585,7 @@ function StudentDetailSheet({ settings, s, onClose, onUpdate, onDelete, onBlock,
             <div style={{position:"relative",textAlign:"center",padding:"0 40px",marginBottom:14}}>
               <div style={{fontSize:16,fontWeight:800,color:TEXT}}>Історія записів</div>
               <div style={{fontSize:12,color:DIM,marginTop:2,overflowWrap:"anywhere"}}>{s.name}</div>
-              <button aria-label="Закрити" onClick={()=>setHistoryOpen(false)} style={{position:"absolute",top:12,right:14,width:28,height:28,borderRadius:8,border:"none",cursor:"pointer",background:"rgba(239,68,68,0.18)",color:"#ef4444",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,fontWeight:800,lineHeight:1,padding:0}}>✕</button>
+              <button aria-label="Закрити" onClick={()=>setHistoryOpen(false)} style={{position:"absolute",top:12,right:14,width:32,height:32,borderRadius:"50%",border:"none",cursor:"pointer",background:"none",color:"#ef4444",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,fontWeight:800,lineHeight:1,padding:0}}><MetalIcon name="cross" size={32}/></button>
             </div>
 
             {historyLoading ? (
@@ -903,7 +903,7 @@ export default function StudentsView({ studentJump, onStudentJumpHandled, bookin
             padding:"12px 16px calc(20px + env(safe-area-inset-bottom))",
             maxHeight:"88vh",overflowY:"auto",
           }}>
-            <button aria-label="Закрити" onClick={()=>setShowNew(false)} style={{position:"absolute",top:12,right:14,width:28,height:28,borderRadius:8,border:"none",cursor:"pointer",background:"rgba(239,68,68,0.18)",color:"#ef4444",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,fontWeight:800,lineHeight:1,padding:0}}>✕</button>
+            <button aria-label="Закрити" onClick={()=>setShowNew(false)} style={{position:"absolute",top:12,right:14,width:32,height:32,borderRadius:"50%",border:"none",cursor:"pointer",background:"none",color:"#ef4444",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,fontWeight:800,lineHeight:1,padding:0}}><MetalIcon name="cross" size={32}/></button>
             <div style={{width:38,height:4,borderRadius:2,background:ink(0.12),margin:"0 auto 14px"}}/>
             <div style={{fontSize:16,fontWeight:800,color:TEXT,margin:"0 40px 14px",textAlign:"center"}}>Новий клієнт</div>
             <StudentForm

@@ -96,7 +96,7 @@ function Conversation({ contact, messages, onSend, isBroadcast }) {
           return (
             <div key={m.id} className="msg-in" style={{display:"flex",justifyContent:isMe?"flex-end":"flex-start",padding:"1px 10px"}}>
               <div className={isMe?(m.broadcast?"bubble-broadcast":"bubble-out"):"bubble-in"} style={{maxWidth:"72%",padding:"8px 12px"}}>
-                {isMe && m.senderName && !m.broadcast && <div style={{fontSize:10,fontWeight:700,color:"rgba(255,255,255,0.75)",marginBottom:2}}>{m.senderName}</div>}
+                {isMe && m.senderName && !m.broadcast && <div style={{fontSize:11,fontWeight:700,color:"rgba(255,255,255,0.75)",marginBottom:2}}>{m.senderName}</div>}
                 <div style={{fontSize:13,color:isMe?"#fff":TEXT,lineHeight:1.4,wordBreak:"break-word"}}>{m.text}</div>
                 <div style={{fontSize:11,color:isMe?"rgba(255,255,255,0.75)":FAINT,marginTop:3,textAlign:"right"}}>{m.time}</div>
               </div>

@@ -184,12 +184,12 @@ function EventDetailSheet({ ev, meta, onClose, theme }) {
               role="button" aria-label="Закрити"
               style={{
                 position:"absolute",top:12,right:14,
-                width:28,height:28,borderRadius:8,
-                background:"rgba(239,68,68,0.18)",
+                width:32,padding:0,height:32,borderRadius:"50%",
+                background:"none",
                 display:"flex",alignItems:"center",justifyContent:"center",
                 cursor:"pointer",color:"#ef4444",fontSize:14,fontWeight:800,userSelect:"none",flexShrink:0,
               }}
-            >✕</div>
+            ><MetalIcon name="cross" size={32}/></div>
           </div>
 
           <div style={{padding:"14px 20px 28px",display:"flex",flexDirection:"column",gap:8}}>
@@ -474,12 +474,11 @@ export default function JournalView() {
             title="Місячний календар"
             style={{
               width:32, height:32, borderRadius:11, cursor:"pointer",
-              background:`linear-gradient(135deg,color-mix(in srgb,${theme.BLUE} 45%,${BG_DEEP}) 0%,${BG_DEEP} 100%)`,
-              border:`1px solid color-mix(in srgb,${theme.BLUE} 35%,transparent)`,
+              background:"none", padding:0, border:"none",
               display:"flex", alignItems:"center", justifyContent:"center",
               flexShrink:0,
             }}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18M8 2v4M16 2v4"/></svg>
+            <MetalIcon name="calendar" size={32}/>
           </button>
         </div>
       , keyPortalEl)}

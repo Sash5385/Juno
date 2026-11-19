@@ -1,6 +1,6 @@
 // «Метал + глянець» — єдина іконка застосунку (спільний стиль адмінки й клієнта).
 // <MetalIcon name="bell" size={28}/>  · square — квадратна плитка (аватари, кнопки) · color — свій колір гліфа
-// Гліф займає 72% діаметра. Нову іконку — додати в GLYPHS: [колір, SVG-фрагмент 24×24].
+// Гліф займає 72% діаметра. Менше 22px — без плитки (простий гліф). Нову іконку — додати в GLYPHS: [колір, SVG-фрагмент 24×24].
 const GLYPHS = {
   calendar: ["#2563eb", <><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18"/></>],
   clock:    ["#2563eb", <><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></>],
@@ -80,6 +80,13 @@ const GLYPHS = {
 export function MetalIcon({ name, size = 28, square = false, color, children, style }) {
   const g = GLYPHS[name] || GLYPHS.info;
   const c = color || g[0];
+  // Правило стилю: металева плитка — від 22px. Менші (у тексті, бейджах, чипах) — простий кольоровий гліф.
+  if (size < 22 && !children) {
+    return (
+      <svg aria-hidden="true" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth={2.4}
+        strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, verticalAlign: "middle", ...style }}>{g[1]}</svg>
+    );
+  }
   return (
     <span aria-hidden="true" style={{
       width: size, height: size, flexShrink: 0, borderRadius: square ? Math.round(size * 0.3) : "50%",

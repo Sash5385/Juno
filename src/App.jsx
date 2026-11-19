@@ -1,4 +1,5 @@
 import React, { useState, useEffect, lazy, Suspense, createContext, useContext, startTransition } from "react";
+import { tr as trI18n } from "./i18n";
 import { MetalIcon } from "./MetalIcon";
 import { ref, onValue, update, push, remove, get, set } from "firebase/database";
 import { iRef, db, watchBookings, watchChatMeta, watchChatMetaM, slotRoot, setActiveMaster, setMasterTokenUid, setCurrentIid, registerAdminFCM, onAdminForegroundMessage } from "./firebase";
@@ -371,6 +372,10 @@ function QueueStrip({ tab, onChange }) {
 }
 
 // ─── TAB INSTRUCTIONS ───────────────────────────────────────────
+const INSTR_ICONS = { "☰": "list", "✏️": "edit", "⚡": "bolt", "➤": "share", "🗑": "trash" };
+// Перекладаємо весь рядок ДО розбиття на шматки (переклад шукає точний збіг цілого тексту)
+const renderInstruction = (t) => trI18n(t).split(/(☰|✏️|⚡|➤|🗑)/).map((p, i) => INSTR_ICONS[p]
+  ? <MetalIcon key={i} name={INSTR_ICONS[p]} size={16} style={{ margin: "0 2px" }}/> : p);
 const INSTRUCTIONS = {
   schedule: "Розклад записів. Клік на порожнє місце — записати клієнта, VIP-слот або заблокувати час. Утримати слот — видалити.",
   bookings: "Список записів клієнтів. Натисніть на картку — деталі, телефон, кнопки дій. Черга авто-відкривається якщо є очікуючі.",
@@ -420,7 +425,7 @@ function TopBar({ tab, onChange, settings, setSettings }) {
   const btnBase = {
     flex:"1 1 0",minWidth:0,overflow:"hidden",padding:"4px 2px",borderRadius:9,border:"none",cursor:"pointer",
     transition:"all .15s",
-    display:"flex",flexDirection:"column",alignItems:"center",lineHeight:1,gap:1,
+    display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minHeight:32,lineHeight:1,gap:1,
   };
 
   const theme = useContext(ThemeContext);
@@ -518,7 +523,7 @@ function TopBar({ tab, onChange, settings, setSettings }) {
           borderRadius:"0 0 16px 16px",
           fontSize:12,color:theme.DIM,lineHeight:1.55,
         }}>
-          <span style={{color:theme.GOLD,fontWeight:700,marginRight:6,display:"inline-flex",verticalAlign:"middle"}}><MetalIcon name="info" size={18}/></span>{instruction}
+          <span style={{color:theme.GOLD,fontWeight:700,marginRight:6,display:"inline-flex",verticalAlign:"middle"}}><MetalIcon name="info" size={18}/></span>{renderInstruction(instruction)}
         </div>
       )}
     </div>

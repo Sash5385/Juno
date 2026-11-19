@@ -97,7 +97,7 @@ export default function ServicesFog({ services, colorOf, fmt, capOf, isProtected
       </div>
 
       {/* велика кнопка внизу */}
-      <div style={{ position: "sticky", bottom: 0, zIndex: 5, marginTop: 4, padding: "14px 0 10px", background: `linear-gradient(180deg,transparent,${BG} 38%)` }}>
+      <div style={{ marginTop: 4, padding: "6px 0 16px" }}>
         <Btn variant="primary" onClick={onAdd} style={{ width: "100%", fontWeight: 700, fontSize: 13, padding: 11 }}>Додати послугу</Btn>
       </div>
     </div>
