@@ -262,7 +262,7 @@ function BottomNav({ active, onChange, settings, chatUnread, journalUnread }) {
   const lang = useContext(LangContext);
   const tl = createT(lang);
   const theme = useContext(ThemeContext);
-  const isKava = settings?.theme === "light";
+  const isKava = false; // тема «Кава» вимкнена
   const bdg = isKava ? theme : FOG_STYLE.theme; // бейдж у стилі «Туман» і на вкладці «Розклад»
   const tabIcons = isKava ? makeTabIcons(INACTIVE_KAVA) : TabIcons;
   const visible = TAB_IDS.filter(t => settings?.navTabs?.includes(t.id) ?? true);
@@ -424,7 +424,7 @@ function TopBar({ tab, onChange, settings, setSettings }) {
   };
 
   const theme = useContext(ThemeContext);
-  const isKava = settings?.theme === "light";
+  const isKava = false; // тема «Кава» вимкнена
   const navBg = isKava ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.04)";
   const btnInactive = isKava
     ? `rgba(92,42,26,0.12)`

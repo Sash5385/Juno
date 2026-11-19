@@ -103,13 +103,7 @@ function QueueRow({ item, pos, onInvite, onBooked, onArchive, onDelete, dragHand
       {/* avatar info row */}
       <div {...dragHandleProps} style={{position:"relative",zIndex:2,display:"flex",alignItems:"center",gap:10,padding:"9px 11px",cursor:"grab",touchAction:"none"}}>
         <div style={{position:"relative",flexShrink:0}}>
-          <div style={{
-            width:36,height:36,borderRadius:11,
-            background:`linear-gradient(155deg,color-mix(in srgb,${st.color} 72%,#000),color-mix(in srgb,${st.color} 30%,#000))`,
-            display:"flex",alignItems:"center",justifyContent:"center",
-            fontSize:13,fontWeight:900,color:"#fff",textShadow:"0 1px 2px rgba(0,0,0,0.55)",
-            boxShadow:`-2px 3px 8px color-mix(in srgb,${st.color} 40%,transparent)`,
-          }}>{initials}</div>
+          <MetalIcon square size={36} color={st.color}>{initials}</MetalIcon>
           <div style={{
             position:"absolute",top:-6,left:-6,minWidth:18,height:18,padding:"0 3px",borderRadius:6,
             background:BG_DEEP,color:`color-mix(in srgb,${st.color} 55%,#fff)`,fontSize:11,fontWeight:900,

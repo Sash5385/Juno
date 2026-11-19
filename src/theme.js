@@ -45,7 +45,8 @@ export const LIGHT = {
 };
 
 export const ThemeContext = createContext(DARK);
-export const getTheme = (mode) => mode === "light" ? LIGHT : DARK;
+// Тему «Кава» (світлу) вимкнено — адмінка завжди темна (єдиний стиль «метал + скло»).
+export const getTheme = () => DARK;
 
 // backward-compat static exports (dark theme)
 export const { BG, BG_DEEP, SURFACE, SURF_HI, SURF_LO, BORDER, TEXT, DIM, FAINT,

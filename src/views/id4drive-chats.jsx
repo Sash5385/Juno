@@ -31,11 +31,7 @@ const Ava = ({ name, hue, size=36, online, isBroadcast }) => {
   const ini = (name || "?").split(" ").map(w=>w[0]).slice(0,2).join("");
   return (
     <div style={{position:"relative",flexShrink:0}}>
-      <div style={{width:size,height:size,borderRadius:size/2,
-        background:`linear-gradient(145deg,hsl(${hue},60%,27%),hsl(${(hue+35)%360},70%,18%))`,
-        display:"flex",alignItems:"center",justifyContent:"center",
-        fontSize:Math.max(11,size*.3),fontWeight:800,color:"#fff",
-        boxShadow:`0 2px 8px hsla(${hue},50%,30%,.5)`}}>{ini}</div>
+      <MetalIcon square size={size} color={`hsl(${hue} 70% 38%)`}>{ini}</MetalIcon>
       {online && <div style={{position:"absolute",bottom:1,right:1,width:9,height:9,borderRadius:5,background:GREEN,border:`2px solid ${BG}`}}/>}
     </div>
   );

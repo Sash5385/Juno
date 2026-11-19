@@ -3394,19 +3394,11 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                     background:"transparent", display:"flex", alignItems:"center", justifyContent:"center",
                     flexShrink:0,
                   }}>
-                  <div style={{
-                    width:48, height:32, borderRadius:11, display:"flex", alignItems:"center", justifyContent:"center",
-                    background:`linear-gradient(135deg,color-mix(in srgb,${c} 42%,${BG_DEEP}) 0%,${BG_DEEP} 100%)`,
-                    border:`1px solid color-mix(in srgb,${c} 35%,transparent)`,
-                    transition:"background .15s",
-                  }}>
-                    {isGeneratingAll
-                      ? <div style={{width:14,height:14,borderRadius:"50%",border:`2px solid color-mix(in srgb,${c} 30%,transparent)`,borderTopColor:c,animation:"spin .7s linear infinite"}}/>
-                      : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <rect x="3" y="3" width="7" height="7" rx="1.2"/><rect x="14" y="3" width="7" height="7" rx="1.2"/><rect x="3" y="14" width="7" height="7" rx="1.2"/><rect x="14" y="14" width="7" height="7" rx="1.2"/>
-                        </svg>
-                    }
-                  </div>
+                  {isGeneratingAll
+                    ? <div style={{width:32, height:32, borderRadius:11, display:"flex", alignItems:"center", justifyContent:"center"}}>
+                        <div style={{width:14,height:14,borderRadius:"50%",border:`2px solid color-mix(in srgb,${c} 30%,transparent)`,borderTopColor:c,animation:"spin .7s linear infinite"}}/>
+                      </div>
+                    : <MetalIcon name="grid" size={32} square color={c}/>}
                 </button>
               );
             })()}
@@ -3458,29 +3450,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
               WebkitUserSelect:"none", userSelect:"none", touchAction:"none", cursor:"pointer",
             }}
           >
-            <div style={{
-              width:32, height:32, borderRadius:11, display:"flex", alignItems:"center", justifyContent:"center",
-              background: scheduleLocked
-                ? `linear-gradient(135deg,color-mix(in srgb,${RED} 48%,${BG_DEEP}) 0%,${BG_DEEP} 100%)`
-                : `linear-gradient(135deg,color-mix(in srgb,${GREEN} 42%,${BG_DEEP}) 0%,${BG_DEEP} 100%)`,
-              border: scheduleLocked
-                ? `1px solid color-mix(in srgb,${RED} 40%,transparent)`
-                : `1px solid color-mix(in srgb,${GREEN} 35%,transparent)`,
-              transition:"background .15s",
-            }}>
-              {scheduleLocked ? (
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-                  style={{filter:"drop-shadow(0 0 4px rgba(239,68,68,0.6))"}}>
-                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-                </svg>
-              ) : (
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-                  <path d="M7 11V7a5 5 0 0 1 9.9-1"/>
-                </svg>
-              )}
-            </div>
+            <MetalIcon name="lock" size={32} square color={scheduleLocked ? RED : GREEN}/>
           </div>
         </div>
 
@@ -4667,13 +4637,9 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
           top:Math.min(Math.max(0, helpPos ? helpPos.y : window.innerHeight - 150), window.innerHeight - 46),
           touchAction:"none", userSelect:"none", WebkitUserSelect:"none", WebkitTouchCallout:"none",
           width:38, height:38, borderRadius:"50%", cursor:"grab", fontFamily:"inherit", opacity:0.85,
-          border:"1.5px solid rgba(255,255,255,0.45)",
-          background:"linear-gradient(145deg,#d8b4fe 0%,#a855f7 45%,#6d28d9 100%)",
-          color:"#fff", fontSize:20, fontWeight:900, lineHeight:1, padding:0,
+          border:"none", background:"transparent", padding:0, lineHeight:1,
           display:"flex", alignItems:"center", justifyContent:"center",
-          boxShadow:"0 6px 18px rgba(168,85,247,0.6), inset 0 1px 0 rgba(255,255,255,0.5)",
-          textShadow:"0 1px 3px rgba(0,0,0,0.4)",
-        }}>?</button>,
+        }}><MetalIcon name="info" size={38}/></button>,
         document.getElementById("app-shell") || document.body
       )}
       {helpOpen && <ScheduleHelp onClose={()=>setHelpOpen(false)} onPick={key=>{ setHelpOpen(false); setTimeout(()=>highlightHelp(key), 280); }}/>}
@@ -7733,18 +7699,6 @@ function SettingsView({ settings, setSettings }) {
       {/* ── APPEARANCE ── */}
       <Card style={{padding:"20px"}}>
         <SectionTitle>Зовнішній вигляд</SectionTitle>
-        <Row label="Тема">
-          <div style={{display:"flex",gap:6}}>
-            {[{k:"dark",l:"Темна"},{k:"light",l:"Світла"}].map(t=>(
-              <button key={t.k} onClick={()=>upd("theme",t.k)} style={{
-                padding:"8px 14px",borderRadius:10,border:"none",cursor:"pointer",fontSize:12,fontWeight:700,
-                background: settings.theme===t.k?`linear-gradient(165deg,${ACCENT_HI},${ACCENT})`:`linear-gradient(135deg,${SURFACE_HI},${SURFACE})`,
-                color: settings.theme===t.k?"#fff":TEXT_DIM,
-                boxShadow: settings.theme===t.k?`inset 1px 1px 0 ${glow(0.25)}`:SHADOW_OUT
-              }}>{t.l}</button>
-            ))}
-          </div>
-        </Row>
         <Row label="Мова">
           <div style={{display:"flex",gap:6}}>
             {[{k:"uk",l:"УКР"},{k:"en",l:"ENG"}].map(t=>(
@@ -7921,13 +7875,7 @@ function StudentsView() {
               </div>
             ) : (
               <div style={{display:"flex",alignItems:"center",gap:12}}>
-                <div style={{
-                  width:40,height:40,borderRadius:20,flexShrink:0,
-                  background:`linear-gradient(135deg,${glow(0.15)},${glow(0.05)})`,
-                  display:"flex",alignItems:"center",justifyContent:"center",
-                  fontSize:16,fontWeight:800,color:ACCENT,
-                  boxShadow:`inset 0 0 0 1.5px ${glow(0.2)}`,
-                }}>{s.name.trim()[0]?.toUpperCase()||"?"}</div>
+                <MetalIcon square size={40} color={ACCENT}>{s.name.trim()[0]?.toUpperCase()||"?"}</MetalIcon>
                 <div style={{flex:1,minWidth:0}}>
                   <div style={{fontSize:14,fontWeight:700,color:TEXT,marginBottom:2}}>{s.name}</div>
                   <div style={{fontSize:12,color:DM}}>{s.phone||"телефон не вказано"}</div>

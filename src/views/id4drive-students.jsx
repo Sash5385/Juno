@@ -141,9 +141,11 @@ function StudentCard({ s, onSelect, settings }) {
         opacity:s.blocked?0.85:1,
       }}
     >
-      <div style={{position:"relative",zIndex:2,width:40,height:40,borderRadius:"50%",flexShrink:0,
-        background:"rgba(255,255,255,0.12)",border:"1px solid rgba(255,255,255,0.18)",display:"flex",alignItems:"center",justifyContent:"center",
-        overflow:"hidden",fontSize:12,fontWeight:900,color:"#fff"}}>{s.photo ? <img src={s.photo} alt="" style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}/> : ini}</div>
+      {s.photo
+        ? <div style={{position:"relative",zIndex:2,width:40,height:40,borderRadius:"50%",flexShrink:0,
+            background:"rgba(255,255,255,0.12)",border:"1px solid rgba(255,255,255,0.18)",display:"flex",alignItems:"center",justifyContent:"center",
+            overflow:"hidden",fontSize:12,fontWeight:900,color:"#fff"}}><img src={s.photo} alt="" style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}/></div>
+        : <span style={{position:"relative",zIndex:2,display:"inline-flex",flexShrink:0}}><MetalIcon square size={40} color={barColor}>{ini}</MetalIcon></span>}
 
       <div style={{position:"relative",zIndex:2,flex:1,minWidth:0}}>
         <div style={{fontSize:14,fontWeight:700,color:"#fff",overflowWrap:"anywhere"}}>

@@ -89,7 +89,7 @@ export function MetalIcon({ name, size = 28, square = false, color, children, st
     }}>
       <span style={{ position: "absolute", left: "6%", right: "6%", top: "4%", height: "46%", borderRadius: "40% 40% 60% 60%/60% 60% 40% 40%", background: "linear-gradient(180deg,rgba(255,255,255,0.85),rgba(255,255,255,0.05))", pointerEvents: "none" }}/>
       {children
-        ? <span style={{ position: "relative", fontWeight: 800, fontSize: Math.round(size * 0.36), color: c }}>{children}</span>
+        ? <span style={{ position: "relative", fontWeight: 800, fontSize: Math.round(size * 0.36), color: `color-mix(in srgb, ${c} 62%, #0b1020)` }}>{children}</span>
         : <svg width={Math.round(size * 0.72)} height={Math.round(size * 0.72)} viewBox="0 0 24 24" fill="none" stroke="currentColor"
             strokeWidth={size < 22 ? 2.6 : 2.3} strokeLinecap="round" strokeLinejoin="round"
             style={{ position: "relative", filter: "drop-shadow(0 1px 0 rgba(255,255,255,0.9))" }}>{g[1]}</svg>}

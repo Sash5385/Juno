@@ -366,11 +366,11 @@ export default function JournalView() {
       </div>
       <div className="jtiles">
         {[
-          ["new",         "✓ НОВИЙ",     theme.GREEN],
-          ["cancel",      "✕ СКАСОВАНО", theme.RED  ],
-          ["reschedule",  "↻ ПЕРЕНОС",   theme.GOLD ],
-          ["new_student", "🆕 КЛІЄНТ",    theme.BLUE ],
-        ].map(([id, lbl, color]) => {
+          ["new",         "НОВИЙ", theme.GREEN, "checkCircle"],
+          ["cancel",      "СКАСОВАНО", theme.RED  , "cross"],
+          ["reschedule",  "ПЕРЕНОС", theme.GOLD , "swap"],
+          ["new_student", "КЛІЄНТ", theme.BLUE , "userPlus"],
+        ].map(([id, lbl, color, ic]) => {
           const active = typeFilter === id;
           const count  = bySection.filter(e => e.type === id).length;
           return (
@@ -382,7 +382,7 @@ export default function JournalView() {
               transition:"all .15s",
             }}>
               <div style={{fontSize:22,fontWeight:800,color: active ? theme.TEXT : color}}>{count}</div>
-              <div style={{fontSize:11,fontWeight:600,letterSpacing:0.2,marginTop:2,color: DIM}}>{lbl}</div>
+              <div style={{fontSize:11,fontWeight:600,letterSpacing:0.2,marginTop:2,color: DIM}}><MetalIcon name={ic} size={16} style={{marginRight:4}}/>{lbl}</div>
             </button>
           );
         })}
