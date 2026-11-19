@@ -3,17 +3,19 @@ import { createPortal } from "react-dom";
 import { PLANS, LIQPAY_ENABLED, startLicensePayment } from "./licensePayApi";
 import { ThemeContext } from "./theme.js";
 import { MetalIcon } from "./MetalIcon";
+import { useToast } from "./Toast";
 
 // Вибір тарифу + кнопки LiqPay/Monobank (використовується в Налаштуваннях і в модалці банера)
 export function LicensePayPanel() {
   const [plan, setPlan] = useState("month");
   const [paying, setPaying] = useState(null);
+  const [toast, toastNode] = useToast();
   const cur = PLANS.find(p => p.id === plan);
 
   const pay = async (provider) => {
     setPaying(provider);
     try { await startLicensePayment(provider, plan); }
-    catch { alert(`Не вдалося відкрити оплату ${provider === "liqpay" ? "LiqPay" : "Monobank"}. Спробуйте пізніше.`); }
+    catch { toast(`Не вдалося відкрити оплату ${provider === "liqpay" ? "LiqPay" : "Monobank"}. Спробуйте пізніше.`, true); }
     finally { setPaying(null); }
   };
 
@@ -46,6 +48,7 @@ export function LicensePayPanel() {
       <div style={{ fontSize: 11, color: "rgba(255,255,255,0.82)", marginTop: 8, lineHeight: 1.4 }}>
         {cur.note}. Apple Pay / Google Pay / картка.{LIQPAY_ENABLED ? " Monobank — разовий платіж (без автосписання)." : " Разовий платіж, без автосписання."}
       </div>
+      {toastNode}
     </div>
   );
 }

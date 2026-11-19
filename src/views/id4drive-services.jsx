@@ -41,7 +41,7 @@ const INIT_SERVICES = [
 
 const REBOOK_OPTIONS = [0,14,21,30,45,60,90];
 const rebookOf = svc => { const d = Math.round(Number(svc?.rebookDays)); return d > 0 ? Math.min(365, d) : 0; };
-const fmtDur = min => { const h=Math.floor(min/60),m=min%60; return m?`${h}г ${m}хв`:`${h} год`; };
+const fmtDur = min => { const h=Math.floor(min/60),m=min%60; return h===0?`${m} хв`:m?`${h} год ${m} хв`:`${h} год`; };
 
 // ─── ICONS ──────────────────────────────────────────────────────
 const makeIc = () => ({

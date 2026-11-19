@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { MetalIcon } from "./MetalIcon";
 import { Hint } from "./ui";
+import { useConfirm } from "./ConfirmModal";
+import { useToast } from "./Toast";
 import PhoneField from "./PhoneField.jsx";
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider, onAuthStateChanged, signOut } from "firebase/auth";
 import { ref, get, onValue, update, set, remove } from "firebase/database";
@@ -483,6 +485,7 @@ function BarChart({ data, height = 56 }) {
 }
 
 function InstructorDetail({ loading, data, iid, onStudentDeleted }) {
+  const [toast, toastNode] = useToast();
   const [delStudent, setDelStudent] = useState(null);
   const [delBusy, setDelBusy] = useState(false);
   const [tab, setTab] = useState("bookings");
@@ -619,7 +622,7 @@ function InstructorDetail({ loading, data, iid, onStudentDeleted }) {
               <button disabled={delBusy} onClick={async () => {
                 setDelBusy(true);
                 try { await deleteAccountRequest({ type:"student", iid, uid: delStudent.uid }); onStudentDeleted?.(iid, delStudent.uid); setDelStudent(null); }
-                catch { alert("Не вдалося видалити клієнта"); }
+                catch { toast("Не вдалося видалити клієнта", true); }
                 setDelBusy(false);
               }} style={{ flex:1, padding:10, borderRadius:10, border:"none", background:"#ef4444", color:"#fff", fontWeight:800, cursor:"pointer" }}>{delBusy ? "Видалення…" : "Видалити"}</button>
               <button disabled={delBusy} onClick={() => setDelStudent(null)} style={{ padding:"10px 16px", borderRadius:10, border:`1px solid ${BORDER}`, background:"transparent", color:TEXT, fontWeight:700, cursor:"pointer" }}>Скасувати</button>
@@ -627,6 +630,7 @@ function InstructorDetail({ loading, data, iid, onStudentDeleted }) {
           </div>
         </div>
       )}
+      {toastNode}
     </div>
   );
 }
@@ -636,6 +640,8 @@ function InstructorDetail({ loading, data, iid, onStudentDeleted }) {
 // (для майстрів, що платять поза автоматичними LiqPay/Monobank вебхуками,
 // або для пробного продовження).
 export function SuperAdminScreen() {
+  const [toast, toastNode] = useToast();
+  const [confirm, confirmNode] = useConfirm();
   const [index, setIndex] = useState(null);
   const [licenses, setLicenses] = useState({});
   const [busyIid, setBusyIid] = useState(null);
@@ -648,7 +654,7 @@ export function SuperAdminScreen() {
       await deleteAccountRequest({ type: "instructor", iid: delInst.iid });
       setLicenses(prev => { const n = { ...prev }; delete n[delInst.iid]; return n; });
       setDelInst(null); setDelInstText("");
-    } catch { alert("Не вдалося видалити майстра"); }
+    } catch { toast("Не вдалося видалити майстра", true); }
     setDelInstBusy(false);
   };
   // Нічна резервна копія (functions: nightlyBackup) — вмикається тут
@@ -671,14 +677,14 @@ export function SuperAdminScreen() {
   const recentErrors = errorLog.filter(e => e.fresh).length;
   // Копія "зараз": чекаємо, поки статус оновиться пізніше за запит (максимум 10 хв)
   const backupPending = backupRequestedAt > (backupStatus?.at || 0) && Date.now() - backupRequestedAt < 10 * 60000;
-  const backupNow = () => set(ref(db, "system/backupRequest"), Date.now()).catch(() => alert("Не вдалося запустити копію"));
+  const backupNow = () => set(ref(db, "system/backupRequest"), Date.now()).catch(() => toast("Не вдалося запустити копію", true));
   useEffect(() => {
     const u1 = onValue(ref(db, "system/backupEnabled"), snap => setBackupOn(snap.val() === true));
     const u2 = onValue(ref(db, "system/backupStatus"), snap => setBackupStatus(snap.val()));
     const u3 = onValue(ref(db, "system/backupRequest"), snap => setBackupRequestedAt(snap.val() || 0));
     return () => { u1(); u2(); u3(); };
   }, []);
-  const toggleBackup = () => set(ref(db, "system/backupEnabled"), !backupOn).catch(() => alert("Не вдалося змінити налаштування резервної копії"));
+  const toggleBackup = () => set(ref(db, "system/backupEnabled"), !backupOn).catch(() => toast("Не вдалося змінити налаштування резервної копії", true));
   const [expandedIid, setExpandedIid] = useState(null);
   const [bookingsCache, setBookingsCache] = useState({});
   const [loadingBookingsIid, setLoadingBookingsIid] = useState(null);
@@ -715,14 +721,14 @@ export function SuperAdminScreen() {
     const lic = licenses[iid];
     const field = lic?.status === "trial" ? "trialEndsAt" : "expiresAt";
     if (!lic || !lic[field]) return;
-    if (!window.confirm("Зменшити термін підписки на місяць?")) return;
+    if (!(await confirm({ title: "Зменшити термін підписки на місяць?", okLabel: "Зменшити", danger: true }))) return;
     setBusyIid(iid);
     await update(ref(db, `instructors/${iid}/license`), { [field]: lic[field] - LICENSE_PERIOD_MS }).catch(() => {});
     setBusyIid(null);
   };
 
   const suspend = async (iid) => {
-    if (!window.confirm("Призупинити підписку? Майстер перейде в режим читання одразу.")) return;
+    if (!(await confirm({ title: "Призупинити підписку?", text: "Майстер перейде в режим читання одразу.", okLabel: "Призупинити", danger: true }))) return;
     setBusyIid(iid);
     await update(ref(db, `instructors/${iid}/license`), { status: "suspended" }).catch(() => {});
     setBusyIid(null);
@@ -1048,7 +1054,7 @@ export function SuperAdminScreen() {
                     style={{ flex:1, padding:"8px", borderRadius:8, background:"rgba(45,212,191,0.15)", border:"1px solid rgba(45,212,191,0.4)", color:"#2dd4bf", fontSize:12, fontWeight:700, cursor:"pointer" }}>
                     {m.status === "done" ? "↩ Повернути в нові" : "✓ Оброблено"}
                   </button>
-                  <button onClick={() => { if (window.confirm("Видалити звернення?")) remove(ref(db, `system/contactMessages/${m.id}`)).catch(() => {}); }}
+                  <button onClick={async () => { if (await confirm({ title: "Видалити звернення?", okLabel: "Видалити", danger: true })) remove(ref(db, `system/contactMessages/${m.id}`)).catch(() => {}); }}
                     style={{ padding:"8px 14px", borderRadius:8, background:"rgba(239,68,68,0.12)", border:"1px solid rgba(239,68,68,0.4)", color:"#f87171", fontSize:12, fontWeight:700, cursor:"pointer" }}>Видалити</button>
                 </div>
               </>, { marginBottom:12 })}</div>
@@ -1061,7 +1067,7 @@ export function SuperAdminScreen() {
             {errorLog.length === 0 && panel("#4caf6b", <div style={{ fontSize:13, color:"rgba(255,255,255,0.65)" }}>Помилок немає 🎉 (журнал зберігається 14 днів).</div>)}
             {errorLog.length > 0 && (
               <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:10 }}>
-                <button onClick={() => { if (window.confirm("Очистити журнал помилок?")) remove(ref(db, "system/errorLog")).catch(() => {}); }}
+                <button onClick={async () => { if (await confirm({ title: "Очистити журнал помилок?", okLabel: "Очистити", danger: true })) remove(ref(db, "system/errorLog")).catch(() => {}); }}
                   style={{ padding:"7px 14px", borderRadius:8, background:"rgba(239,68,68,0.12)", border:"1px solid rgba(239,68,68,0.4)", color:"#f87171", fontSize:12, fontWeight:700, cursor:"pointer" }}>Очистити все</button>
               </div>
             )}
@@ -1145,6 +1151,8 @@ export function SuperAdminScreen() {
           </div>
         </div>
       )}
+      {toastNode}
+      {confirmNode}
     </div>
   );
 }

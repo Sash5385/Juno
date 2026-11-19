@@ -433,7 +433,7 @@ function statusPill(s) {
   return <Pill label={l} color={c} bg={b}/>;
 }
 const fmtTime = (m) => `${String(Math.floor(m/60)).padStart(2,"0")}:${String(m%60).padStart(2,"0")}`;
-const fmtDur = (m) => { const h=Math.floor(m/60),min=m%60; return h===0?`${min}хв`:min===0?`${h}год`:`${h}год ${min}хв`; };
+const fmtDur = (m) => { const h=Math.floor(m/60),min=m%60; return h===0?`${min} хв`:min===0?`${h} год`:`${h} год ${min} хв`; };
 const colorOf = (id) => PALETTE.find(p=>p.id===id)?.color || GREEN;
 
 // ═══════════════════════════════════════════════════════════════
@@ -6121,7 +6121,7 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
                   <div style={{fontSize:12,color:"#ef4444",textAlign:"center",marginBottom:8,fontWeight:700}}>{durConflict}</div>
                 )}
                 <div style={{fontSize:11,color:DIM,textAlign:"center",marginBottom:10}}>
-                  Макс. тривалість зараз: {maxDurMin}хв · ціна перераховується автоматично при зміні тривалості
+                  {`Макс. тривалість зараз: ${maxDurMin} хв · ціна перераховується автоматично при зміні тривалості`}
                 </div>
                 <div style={{display:"flex",gap:8}}>
                   <button onClick={()=>setEditOpen(false)} style={{flex:1,padding:"9px",borderRadius:11,border:"none",cursor:"pointer",fontFamily:"inherit",background:"rgba(0,0,0,0.22)",color:DIM,fontSize:12.5,fontWeight:700}}>Скасувати</button>
@@ -6135,7 +6135,7 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
               {[
                 { label:"Дата",  val:`${day.num} ${day.month}`, sub:day.label },
                 { label:"Час",   val:`${fmtTime(booking.startMin)}`, sub:`–${fmtTime(booking.startMin+durMinDisplay)}` },
-                { label:"Ціна",  val:`${money(price)}`, sub: mergeInfo ? `${mergeInfo.count} записи, ${durMinDisplay}хв` : booking.surcharge && discountAmtDisplay ? `+${money(booking.surcharge)} / −${money(discountAmtDisplay)}` : booking.surcharge ? `+${money(booking.surcharge)}` : discountAmtDisplay ? `−${money(discountAmtDisplay)} знижка` : (svc ? `${svc.duration}хв` : "—"), gold: !!booking.surcharge && !mergeInfo },
+                { label:"Ціна",  val:`${money(price)}`, sub: mergeInfo ? `${mergeInfo.count} записи, ${durMinDisplay} хв` : booking.surcharge && discountAmtDisplay ? `+${money(booking.surcharge)} / −${money(discountAmtDisplay)}` : booking.surcharge ? `+${money(booking.surcharge)}` : discountAmtDisplay ? `−${money(discountAmtDisplay)} знижка` : (svc ? `${svc.duration} хв` : "—"), gold: !!booking.surcharge && !mergeInfo },
               ].map(({ label, val, sub, gold }, i) => (
                 <div key={i} style={{
                   padding:"4px 6px",
@@ -7158,7 +7158,7 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
                       <div style={{fontSize:13,fontWeight:active?800:600,color:active?TEXT:TEXT_DIM,textAlign:"left"}}>{s.name}</div>
                     </div>
                     <div style={{fontSize:12,fontWeight:700,color:active?c:TEXT_FAINT,whiteSpace:"nowrap"}}>
-                      {money(s.price)} · {s.duration}хв
+                      {money(s.price)} · {s.duration} хв
                     </div>
                   </button>
                 );
@@ -7187,7 +7187,7 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
                       color: on ? TEXT : TEXT_DIM, fontSize:12, fontWeight:on?800:600,
                     }}>
                       {on?"✓ ":"+ "}{a.name}
-                      <span style={{opacity:0.75,fontWeight:600}}> · {money(a.price)}{a.minutes>0?` · +${a.minutes}хв`:""}</span>
+                      <span style={{opacity:0.75,fontWeight:600}}> · {money(a.price)}{a.minutes>0?` · +${a.minutes} хв`:""}</span>
                     </button>
                   );
                 })}

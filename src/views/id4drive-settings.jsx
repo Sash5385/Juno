@@ -8,6 +8,7 @@ import SalonSection from "./SalonSection";
 import StaffSection from "./StaffSection";
 import { accountTypeOf, ACCOUNT_SALON } from "../workspace";
 import { useConfirm } from "../ConfirmModal";
+import { useToast } from "../Toast";
 import { DIRECTIONS, DIRECTION_IDS, normDirection } from "../terms";
 import PhoneField from "../PhoneField.jsx";
 import { createPortal } from "react-dom";
@@ -783,6 +784,7 @@ const RESET_PATHS = ["bookings","bookings_by_phone","timeslots","slotBookings","
 
 export default function SettingsView({ settings, setSettings }) {
   const [confirm, confirmNode] = useConfirm();
+  const [toast, toastNode] = useToast();
   const [uiScale, setUiScaleLocal] = useState(readUiScale);
   const { BG_DEEP, SURF_HI, SURFACE, SURF_LO, BORDER, TEXT, DIM, FAINT, ACCENT, ACC_HI, GREEN, BLUE, PURPLE, GOLD, RED, TEAL, SO, SI, BTN_TX } = useContext(ThemeContext);
   const lang = useContext(LangContext);
@@ -1572,8 +1574,8 @@ select{color-scheme:${isKava?"light":"dark"}}
                   const tags = normalizeTags(settings.tags);
                   const newTags = pr.tags.filter(t=>!tags.some(x=>x.label===t.label)).map((t,i)=>({ id:`t${stamp}${i}`, ...t }));
                   upd("tags", [...tags, ...newTags]);
-                  window.alert("Готово: послуги — вкладка «Послуги», мітки — Налаштування → Послуги й ціни → Мітки.");
-                } catch { window.alert("Не вдалося додати. Спробуйте ще раз."); }
+                  toast("Готово: послуги — вкладка «Послуги», мітки — Налаштування → Послуги й ціни → Мітки.");
+                } catch { toast("Не вдалося додати. Спробуйте ще раз.", true); }
               }} style={{marginTop:10,width:"100%",padding:"10px",borderRadius:12,border:`1px dashed ${GREEN}88`,cursor:"pointer",background:"transparent",color:GREEN,fontSize:13,fontWeight:700}}>+ Додати стартові послуги й мітки</button>
             )}
           </div>
@@ -1771,7 +1773,7 @@ select{color-scheme:${isKava?"light":"dark"}}
     <>
       <UICss/>
       <style>{css}</style>
-      {confirmNode}
+      {confirmNode}{toastNode}
       <div style={{
         display:"flex", flexDirection:"column", gap:10,
         fontFamily:"Inter,ui-sans-serif,-apple-system,system-ui,sans-serif", color:TEXT,
@@ -1950,7 +1952,7 @@ select{color-scheme:${isKava?"light":"dark"}}
                       RESET_PATHS.forEach(k => { wipe[k] = null; });
                       await update(iRef(""), wipe);
                       window.location.reload();
-                    } catch { setRstBusy(false); alert("Не вдалося скинути дані. Спробуйте пізніше."); }
+                    } catch { setRstBusy(false); toast("Не вдалося скинути дані. Спробуйте пізніше.", true); }
                   }} style={{flex:1,padding:"10px",borderRadius:10,border:"none",cursor:"pointer",background:(rstBusy||!okWord(rstText,"СКИНУТИ"))?"rgba(239,68,68,0.25)":"#ef4444",color:"#fff",fontWeight:800,fontSize:13}}>{rstBusy?"Скидання…":"Скинути все"}</button>
                   <button disabled={rstBusy} onClick={()=>{setRstOpen(false);setRstText("");}} style={{padding:"10px 16px",borderRadius:10,border:"1px solid rgba(255,255,255,0.18)",background:"transparent",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer"}}>Скасувати</button>
                 </div>
@@ -1973,7 +1975,7 @@ select{color-scheme:${isKava?"light":"dark"}}
                   <button disabled={deleting || !okWord(delText,"ВИДАЛИТИ")} onClick={async()=>{
                     setDeleting(true);
                     try { await deleteAccountRequest({ type:"instructor", iid:auth.currentUser.uid }); try{localStorage.clear();}catch{/* ignore */} await signOut(auth).catch(()=>{}); window.location.href=import.meta.env.BASE_URL; }
-                    catch { setDeleting(false); alert("Не вдалося видалити акаунт. Спробуйте пізніше."); }
+                    catch { setDeleting(false); toast("Не вдалося видалити акаунт. Спробуйте пізніше.", true); }
                   }} style={{flex:1,padding:"10px",borderRadius:10,border:"none",cursor:"pointer",background:(deleting||!okWord(delText,"ВИДАЛИТИ"))?"rgba(239,68,68,0.25)":"#ef4444",color:"#fff",fontWeight:800,fontSize:13}}>{deleting?"Видалення…":"Видалити"}</button>
                   <button disabled={deleting} onClick={()=>{setDelOpen(false);setDelText("");}} style={{padding:"10px 16px",borderRadius:10,border:"1px solid rgba(255,255,255,0.18)",background:"transparent",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer"}}>Скасувати</button>
                 </div>

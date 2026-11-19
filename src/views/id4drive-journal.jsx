@@ -8,6 +8,7 @@ import { useBackClose, ScrollChips } from "../ui";
 import { normStaff, masterOf } from "../workspace";
 import { MonthCalendarSheet } from "./id4drive-admin-v5";
 import { cur, money } from "../currency";
+import { tr } from "../i18n";
 
 export const JOURNAL_READ_KEY = "journal_read_at";
 
@@ -108,7 +109,7 @@ function buildEvents(data, ownerUid) {
       const name = b.studentName || b.name || "Без імені";
       const dateStr = b.date ? b.date.split("-").reverse().join(".") : "";
       const durH = b.durationHours ?? (b.durMin ? b.durMin / 60 : null);
-      const durStr = durH ? ` · ${durH} год` : "";
+      const durStr = durH ? tr(` · ${durH} год`) : "";
       // Послуга, ціна і майстер (салон) — щоб запис у журналі було видно повністю
       const svc = b.serviceName ? ` · ${b.serviceName}` : "";
       const price = Number(b.price) > 0 ? ` · ${money(b.price)}` : "";
@@ -116,7 +117,7 @@ function buildEvents(data, ownerUid) {
       const mid = masterOf(b, ownerUid);
       // Клієнт переніс запис: старий запис скасовано (cancelledBy "reschedule"), новий має rescheduledFrom — показуємо ОДНУ подію «Перенос»
       const [fromDate, fromTime] = String(b.rescheduledFrom || "").split(" ");
-      const fromSlot = fromDate ? ` (було ${fromDate.split("-").reverse().join(".")}${fromTime ? " " + fromTime : ""})` : "";
+      const fromSlot = fromDate ? " " + tr(`(було ${fromDate.split("-").reverse().join(".")}${fromTime ? " " + fromTime : ""})`) : "";
       if (b.createdAt && b.rescheduledFrom) evs.push({ id: `${key}_reschedule_new`, type: "reschedule", ts: b.createdAt, name, slot: slot + fromSlot, mid, by: "client" });
       else if (b.createdAt) evs.push({ id: `${key}_new`,        type: "new",        ts: b.createdAt,     name, slot, mid, by: b.createdBy   || "" });
       if (b.cancelledAt && b.cancelledBy !== "reschedule") evs.push({ id: `${key}_cancel`,     type: "cancel",     ts: b.cancelledAt,   name, slot, mid, by: b.cancelledBy  || "" });
