@@ -495,7 +495,7 @@ function TopBar({ tab, onChange, settings, setSettings }) {
 
             {/* Right: діб buttons */}
             <div data-help="days" style={{flex:1,minWidth:0,display:"flex",gap:2,alignItems:"center"}}>
-              {[3,4,5,6,7].map(n=>{
+              {[1,2,3,5,7].map(n=>{
                 const active = settings.daysShown===n;
                 return (
                   <button key={n} onClick={()=>setSettings(s=>({...s,daysShown:n}))} style={{
@@ -561,7 +561,7 @@ const CLEAN_START_SETTINGS = {
 
 const DEFAULT_SETTINGS = {
   profile: { name:"Майстер", phone:"", address:"", experience:0, photo:null },
-  workStart:7, workEnd:20, weekends:[6], daysShown:6, snapMin:30, slotCreateStep:30, hourHeightPx:60, autoHourHeight:false,
+  workStart:7, workEnd:20, weekends:[6], daysShown:3, snapMin:30, slotCreateStep:30, hourHeightPx:60, autoHourHeight:false,
   lunchEnabled:true, lunchStart:12, lunchEnd:13, customBlocks:[], pendingEnabled:false, lockPastBookings:false, autoSlots:false, showHelpBtn:true, calStyle:"neon", calBg:"fog", calClip:true,
   theme:"dark", language:"uk", queueAutoFifo:true, queueBroadcast:false, queueManual:false,
   studentCanReschedule:true, studentCanCancel:true, bookCutoffHours:2, calendarOpenDays:30, schoolCalendarOpenDays:14, slotGenDays:30,
@@ -993,7 +993,7 @@ function AdminApp({ adminUser, ws, onWs }) {
         // якщо писати його сюди, будь-яка непов'язана зміна налаштувань
         // (розклад, години тощо) відкочує щойно збережений профіль назад.
         weekends:        settings.weekends        ?? [],
-        daysShown:       settings.daysShown       ?? 6,
+        daysShown:       settings.daysShown       ?? 3,
         hourHeightPx:    settings.hourHeightPx    ?? 60,
         autoHourHeight:  settings.autoHourHeight   ?? false,
         pendingEnabled:  settings.pendingEnabled  ?? false,

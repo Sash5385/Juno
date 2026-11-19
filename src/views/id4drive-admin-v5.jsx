@@ -294,7 +294,7 @@ const DEFAULT_SETTINGS = {
   workStart: 7,
   workEnd: 20,
   weekends: [6], // 0=Mon..6=Sun
-  daysShown: 5,  // 1..30
+  daysShown: 3,  // 1..30
   snapMin: 30,
   hourHeightPx: 60, // resizable via pinch
   lockPastBookings: false, // заборонити редагувати/переносити/скасовувати минулі записи (вони підсвічуються тьмяніше)
