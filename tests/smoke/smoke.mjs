@@ -75,6 +75,62 @@ if (kind === "admin") {
   }
 }
 
+if (kind === "admin") {
+  const lum = (c) => { const m = (c || "").match(/[\d.]+/g)?.map(Number) || [0, 0, 0]; return (0.2126 * m[0] + 0.7152 * m[1] + 0.0722 * m[2]) / 255; };
+  await page.goto(`${base}/?demo=1&lang=uk`); await page.waitForTimeout(2000);
+  // 1. нижнє меню: рівно 5 кнопок, кожна ≥ 32px заввишки
+  const navInfo = await page.evaluate(() => [...document.querySelectorAll("#app-bottomnav > * button, #app-bottomnav button")]
+    .filter((b) => !b.closest('[role="dialog"]')).map((b) => ({ l: b.getAttribute("aria-label") || b.innerText.trim(), h: b.getBoundingClientRect().height })));
+  check("bottomnav has 5 buttons", navInfo.length === 5, JSON.stringify(navInfo));
+  const navTxt = navInfo.map((b) => b.l).join("|");
+  check("bottomnav buttons are Записи/Клієнти/+/Чати/Ще", ["Записи", "Клієнти", "Новий запис", "Чати", "Ще"].every((t) => navTxt.includes(t)), navTxt);
+  check("bottomnav buttons ≥32px tall", navInfo.every((b) => b.h >= 32), JSON.stringify(navInfo));
+  // 2. шторка «Ще»
+  await page.locator('#app-bottomnav button[aria-label="Ще"]').click(); await page.waitForTimeout(400);
+  const dlg = page.locator('#app-bottomnav [role="dialog"]');
+  check("«Ще» sheet opens", (await dlg.count()) > 0);
+  if (await dlg.count()) {
+    const t = await dlg.first().innerText();
+    for (const w of ["Журнал", "Черга", "Послуги", "Шаблони", "Статист", "Налашт"]) check(`«Ще» sheet has ${w}`, t.includes(w), t);
+    await page.mouse.click(160, 40); await page.waitForTimeout(500);
+    check("«Ще» sheet closes on backdrop click", (await dlg.count()) === 0 || !(await dlg.first().isVisible()));
+  }
+  // 3. кнопки днів у шапці календаря
+  await page.locator('#app-bottomnav button[aria-label="Записи"], #app-bottomnav button:has-text("Записи")').first().click().catch(() => {});
+  await page.waitForTimeout(500);
+  const days = page.locator('[data-help="days"] button');
+  const dl = (await days.allInnerTexts()).map((x) => x.trim());
+  check("day buttons are 1,2,3,5,7", dl.join(",") === "1,2,3,5,7", dl.join(","));
+  if (dl.includes("1")) {
+    await days.filter({ hasText: /^1$/ }).first().click(); await page.waitForTimeout(500);
+    check("day «1» fits 320px", await noOverflow());
+    await days.filter({ hasText: /^3$/ }).first().click(); await page.waitForTimeout(500);
+    check("day «3» fits 320px", await noOverflow());
+  }
+  // 4. список клієнтів: нейтральна картка + аватар з ініціалами
+  await page.locator('#app-bottomnav button[aria-label="Клієнти"], #app-bottomnav button:has-text("Клієнти")').first().click(); await page.waitForTimeout(800);
+  const card = await page.evaluate(() => {
+    const cands = [...document.querySelectorAll("main *, #root *")].filter((e) => { const r = e.getBoundingClientRect(); return r.width > 150 && r.height > 36 && r.height < 160 && e.querySelector("img, [class*=avatar], [class*=Avatar]") !== null || false; });
+    const el = cands[0]; if (!el) return null;
+    const cs = getComputedStyle(el); const m = cs.backgroundColor.match(/[\d.]+/g)?.map(Number) || [0, 0, 0];
+    const sat = Math.max(m[0], m[1], m[2]) - Math.min(m[0], m[1], m[2]);
+    return { bg: cs.backgroundColor, sat };
+  });
+  check("clients: first card neutral background", !card || card.sat < 60 || /rgba?\(255, 255, 255/.test(card.bg), JSON.stringify(card));
+  const initials = await page.evaluate(() => [...document.querySelectorAll("span,div")].some((e) => { if (e.children.length || !/^\p{Lu}{1,2}$/u.test(e.textContent.trim())) return false; const r = (e.parentElement || e).getBoundingClientRect(); return r.width >= 24 && r.width <= 80 && Math.abs(r.width - r.height) < 4; }));
+  check("clients: initials avatar present", initials);
+  // 5. світла тема прибрана
+  await page.goto(`${base}/?demo=1&theme=light&lang=uk`); await page.waitForTimeout(2000);
+  const bgs = await page.evaluate(() => [document.body, document.documentElement, document.getElementById("root")].filter(Boolean).map((e) => getComputedStyle(e).backgroundColor));
+  const solid = bgs.filter((c) => !/rgba\(0, 0, 0, 0\)|transparent/.test(c));
+  check("theme=light stays dark", solid.length > 0 && solid.every((c) => lum(c) < 0.3), bgs.join(" | "));
+  const more2 = page.locator('#app-bottomnav button[aria-label="Ще"]');
+  await more2.click(); await page.waitForTimeout(400);
+  await page.locator('#app-bottomnav [role="dialog"] button:has-text("Налашт")').first().click(); await page.waitForTimeout(800);
+  const body = await page.evaluate(() => document.body.innerText);
+  check("settings has no Темна/Світла theme switch", !/Темна|Світла/.test(body));
+}
+
 check("no JS errors", errors.length === 0, "\n    " + errors.join("\n    "));
 await browser.close();
 console.log(fails ? `\n${fails} FAILED` : "\nSMOKE OK");
