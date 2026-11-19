@@ -244,8 +244,8 @@ const ICONS = {
   calendar: _I3("calendar","#3b73d9"),
   check: _I3("check","#3f8f27"),
   cross: _I3("cross","#3f4248"),
-  car: _I3("car","#6d3fd0"),
-  school: _I3("school","#3f8f27"),
+  car: _I3("tag","#6d3fd0"),
+  school: _I3("calendar","#3f8f27"),
   money: _I3("coin","#b45309"),
   user: _I3("user","#334155"),
   users: _I3("users","#5b21b6"),
@@ -538,7 +538,7 @@ function BroadcastModalBase({ initialDate, initialSlot, onClose }) {
                 {preview && (
                   <div style={{ background:"rgba(192,132,252,0.07)", border:"1px solid rgba(192,132,252,0.2)", borderRadius:10, padding:"10px 12px", marginBottom:14 }}>
                     <div style={{ fontSize:11, color:DIM, marginBottom:4, fontWeight:700, letterSpacing:0.5 }}>ПРЕВ'Ю ПУШУ</div>
-                    <div style={{ fontSize:12, color:TEXT, fontWeight:700 }}><span style={{display:"inline-flex",alignItems:"center",gap:7}}><MetalIcon name="car" size={18}/>Є вільний слот!</span></div>
+                    <div style={{ fontSize:12, color:TEXT, fontWeight:700 }}><span style={{display:"inline-flex",alignItems:"center",gap:7}}><MetalIcon name="user" size={18}/>Є вільний слот!</span></div>
                     <div style={{ fontSize:11, color:DIM, marginTop:3 }}>{preview}</div>
                   </div>
                 )}
@@ -3935,7 +3935,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                       </div>
                     ) : hasSurcharge && <span style={{position:"absolute", top:3, left:4, fontSize:9, fontWeight:800, color:"rgba(247,201,72,0.95)", lineHeight:1}}>+{money(slot.surcharge)}</span>}
                     {(isVip || slot.vipOnly) && <span data-help="freeicons" style={{position:"absolute", top:3, right:4, fontSize:10, lineHeight:1}}><MetalIcon name="crown" size={14}/></span>}
-                    {isPrivateOnly && <span data-help="freeicons" style={{position:"absolute", top:3, right:4, fontSize:10, lineHeight:1}}><MetalIcon name="car" size={14}/></span>}
+                    {isPrivateOnly && <span data-help="freeicons" style={{position:"absolute", top:3, right:4, fontSize:10, lineHeight:1}}><MetalIcon name="user" size={14}/></span>}
 
                     {settings.showSlotTimes !== false && (slot.available || isVip || isBlocked || isPrivateOnly) && (() => {
                       // Час початку/кінця вільного слота — великий, білий і напівпрозорий
@@ -5128,7 +5128,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                 color:"#eab308",fontSize:15,fontWeight:700,
                 display:"flex",alignItems:"center",gap:10,
               }}>
-                <span style={{display:"inline-flex"}}><MetalIcon name="car" size={26}/></span> Індивідуальний слот
+                <span style={{display:"inline-flex"}}><MetalIcon name="user" size={26}/></span> Індивідуальний слот
                 {_so.slot?.privateOnly && <span style={{marginLeft:"auto",fontSize:11,color:"#eab308",opacity:0.7}}>✓ активний</span>}
               </button>
               {/* Фіксована ціна — повністю замінює тарифну ціну послуги для цього слота */}
@@ -6032,7 +6032,7 @@ function BookingModal({ booking, onClose, onAction, settings, bookings, onViewSt
                     <span style={{
                       fontSize:11,fontWeight:800,padding:"2px 7px",borderRadius:99,flexShrink:0,
                       background:`${BLUE}1f`,color:BLUE,
-                    }}>{isSalon(settings) ? null : <MetalIcon name="car" size={16} style={{marginRight:4}}/>}{`${lessonNumber}-й запис`}</span>
+                    }}>{isSalon(settings) ? null : <MetalIcon name="user" size={16} style={{marginRight:4}}/>}{`${lessonNumber}-й запис`}</span>
                   )}
                 </div>
                 <div style={{fontSize:11.5,color:c,fontWeight:700,marginTop:2}}>{typeLabel}</div>
@@ -6745,7 +6745,7 @@ function ScheduleHelpBase({ onClose, onPick }) {
     { title: "Сітка розкладу", items: [
       { ico: <HelpChip bg="#ef4444" w={34}>14:51</HelpChip>, h: "nowline", t: "Червона мітка з часом", d: "Поточний час." },
       { ico: <MetalIcon name="pushpin" size={24}/>, t: "Утримати порожнє місце", d: "Меню: додати запис, особиста подія, вільний слот, закрити день." },
-      { ico: <div style={{ display:"flex", gap:3 }}><MetalIcon name="car" size={22}/><MetalIcon name="crown" size={22}/></div>, h: "freeicons", t: "Вільний слот: 🚗 · 👑", d: "🚗 — слот лише для приватних клієнтів, 👑 — лише для VIP. Стрічка «900₴» — фіксована ціна слота, «+100₴» — надбавка." },
+      { ico: <div style={{ display:"flex", gap:3 }}><MetalIcon name="user" size={22}/><MetalIcon name="crown" size={22}/></div>, h: "freeicons", t: "Вільний слот: 🚗 · 👑", d: "🚗 — слот лише для приватних клієнтів, 👑 — лише для VIP. Стрічка «900₴» — фіксована ціна слота, «+100₴» — надбавка." },
       { ico: <HelpChip bg="rgba(91,155,255,0.18)" color="#93c5fd" w={44}>ОБІД</HelpChip>, t: "ОБІД", d: "Перерва за налаштуваннями графіка — записів на цей час немає." },
       { ico: <MetalIcon name="eye" size={24}/>, h: "eye", t: "Слот зараз переглядають", d: "Клієнт саме відкрив цей вільний слот у своєму застосунку й обирає час. Позначка зникає, коли він закриє слот або запишеться." },
       { ico: <div style={{ width:36, height:11, borderRadius:7, background:"rgba(126,217,87,0.45)", border:"1px solid rgba(126,217,87,0.75)" }}/>, t: "Зелена ручка внизу слота", d: "Змінює тривалість вільного слота: утримайте ручку 0,6 с і потягніть вгору або вниз. Є лише на вільних слотах майбутніх днів." },

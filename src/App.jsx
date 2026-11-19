@@ -154,7 +154,7 @@ function InstallBanner({ theme }) {
 // Плитка нижнього меню — MetalIcon (кругла). Колір гліфа — акцент вкладки;
 // активна — яскравий гліф, кольоровий обідок і світіння; неактивна — приглушений гліф.
 const TAB_ICON = {
-  schedule:["calendar","#2563eb"], bookings:["list","#059669"], students:["users","#7c3aed"], services:["car","#ea580c"], chats:["chat","#047857"],
+  schedule:["calendar","#2563eb"], bookings:["list","#059669"], students:["users","#7c3aed"], services:["tag","#ea580c"], chats:["chat","#047857"],
   templates:["note","#d97706"], stats:["chart","#6d28d9"], settings:["gear","#334155"], queue:["list","#7c3aed"], journal:["clipboard","#0891b2"],
 };
 const tabIcon = (id) => (s, active) => {

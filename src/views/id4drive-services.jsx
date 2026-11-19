@@ -45,8 +45,8 @@ const fmtDur = min => { const h=Math.floor(min/60),m=min%60; return h===0?`${m} 
 
 // ─── ICONS ──────────────────────────────────────────────────────
 const makeIc = () => ({
-  school:  s=><MetalIcon name="school" size={s}/>,
-  car:     s=><MetalIcon name="car" size={s}/>,
+  school:  s=><MetalIcon name="calendar" size={s}/>,
+  car:     s=><MetalIcon name="user" size={s}/>,
   plus:    s=><MetalIcon name="plus" size={s}/>,
   edit:    s=><MetalIcon name="edit" size={s}/>,
   archive: s=><MetalIcon name="download" size={s}/>,
