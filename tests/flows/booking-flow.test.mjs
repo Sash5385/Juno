@@ -495,6 +495,19 @@ const mm = (t) => { const [h, m] = t.split(":").map(Number); return h * 60 + m; 
   const after17 = clean(await mq(D1));
   check("приймання пропозиції: бронь має masterId, слоти майстра зайняті, пропозиція знята", bookedQ?.masterId === MQ && after17.slot1000?.available === false && !after17.slot1000?.offeredTo?.[UB] && (await qEntry())?.status === "booked", JSON.stringify({ bookedQ, s: after17.slot1000 }));
 
+  // ── Пентест 22.11: запис повз claimSlot на чужий слот / на минулу дату — сервер скасовує
+  console.log("── Пентест: підроблені записи");
+  C.setClientMaster(null);
+  await loginAs("a@t.dev"); await C.getUserProfile(UA);
+  const kA = await book(UA, D3, "15:00", 1);
+  await loginAs("b@t.dev"); await C.getUserProfile(UB);
+  const kB = await C.createBooking(UB, { date: D3, time: "15:00", serviceType: "private", serviceName: "Приватний", durationHours: 1, price: 600, studentName: "B", phone: "2" });
+  await fire(UB, kB, null, await bk(UB, kB));
+  check("друга бронь на чужий слот (повз claimSlot) скасована сервером", !!kA && (await bk(UB, kB))?.status === "cancelled" && (await bk(UA, kA))?.status === "pending" && (await day(D3)).slot1500?.bookedBy === UA, JSON.stringify({ b: await bk(UB, kB), s: (await day(D3)).slot1500 }));
+  const kP = await C.createBooking(UB, { date: dateIn(-3), time: "10:00", serviceType: "private", serviceName: "Приватний", durationHours: 1, price: 600, studentName: "B", phone: "2" });
+  await fire(UB, kP, null, await bk(UB, kP));
+  check("бронь на минулу дату скасована сервером", (await bk(UB, kP))?.status === "cancelled");
+
   console.log(failed ? `\n${failed} FAILED` : "\nALL PASS");
   process.exit(failed ? 1 : 0);
 })().catch((e) => { console.error(e); process.exit(1); });

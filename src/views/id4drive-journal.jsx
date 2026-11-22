@@ -103,11 +103,12 @@ function buildEvents(data, ownerUid) {
   Object.values(data).forEach(userBkgs => {
     if (!userBkgs) return;
     Object.entries(userBkgs).forEach(([key, b]) => {
-      if (!b) return;
+      if (!b || typeof b !== "object") return;
       // Особиста подія адміна — не запис, у журналі відвідувань клієнтів їй не місце.
       if (b.type === "personal") return;
-      const name = b.studentName || b.name || "Без імені";
-      const dateStr = b.date ? b.date.split("-").reverse().join(".") : "";
+      const rawName = b.studentName || b.name;
+      const name = typeof rawName === "string" || typeof rawName === "number" ? String(rawName) : "Без імені";
+      const dateStr = typeof b.date === "string" ? b.date.split("-").reverse().join(".") : "";
       const durH = b.durationHours ?? (b.durMin ? b.durMin / 60 : null);
       const durStr = durH ? tr(` · ${durH} год`) : "";
       // Послуга, ціна і майстер (салон) — щоб запис у журналі було видно повністю

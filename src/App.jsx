@@ -1115,8 +1115,14 @@ function AdminApp({ adminUser, ws, onWs }) {
     const all = [];
     Object.entries(data).forEach(([uid, userBkgs]) => {
       if (!userBkgs || typeof userBkgs !== 'object') return;
-      Object.entries(userBkgs).forEach(([key, b]) => {
-        if (b.status === 'cancelled') return;
+      Object.entries(userBkgs).forEach(([key, raw]) => {
+        // «Биті» записи (дата/час не рядком тощо) пропускаємо — інакше один такий запис ламає весь екран
+        if (!raw || typeof raw !== 'object' || raw.status === 'cancelled') return;
+        if ((raw.date != null && typeof raw.date !== 'string') || (raw.time != null && typeof raw.time !== 'string')) return;
+        const b = { ...raw };
+        for (const f of ['studentName', 'phone', 'studentNote', 'serviceName', 'serviceType', 'packageName']) {
+          if (b[f] != null && typeof b[f] !== 'string') b[f] = typeof b[f] === 'number' ? String(b[f]) : undefined;
+        }
         all.push({
           ...b,
           id:        b.id || key,

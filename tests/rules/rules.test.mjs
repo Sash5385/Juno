@@ -176,6 +176,16 @@ await t("student clears package uses", X, () => remove(R(S1, "instructors/inst1/
 await t("instructor adds package to student", A, () => set(R(I1, "instructors/inst1/users/stu1/packages/p3"), { id: "p3", name: "10", total: 10, createdAt: 2 }));
 await t("student creates booking with packageId/packageUseId", A, () => set(R(S1, "instructors/inst1/bookings/stu1/pkgb"), { id: "pkgb", date: D, time: "10:00", status: "pending", durationHours: 1, studentName: "S1", phone: "1", packageId: "p1", packageName: "5", packageUseId: "old", createdAt: NOW }));
 await t("student sets packageUsed himself", X, () => set(R(S1, "instructors/inst1/bookings/stu1/pkgb2"), { id: "pkgb2", date: D, time: "10:00", status: "pending", packageUsed: true }));
+// Пентест 22.11: типи й межі полів нового запису клієнта
+const BK = (id, extra) => ({ id, date: D, time: "10:00", status: "pending", durationHours: 1, studentName: "S1", phone: "1", createdAt: NOW, ...extra });
+await t("student booking with numeric date (crashes admin UI)", X, () => set(R(S1, "instructors/inst1/bookings/stu1/pt1"), BK("pt1", { date: 20261122 })));
+await t("student booking with object time", X, () => set(R(S1, "instructors/inst1/bookings/stu1/pt2"), BK("pt2", { time: { a: 1 } })));
+await t("student booking with negative surcharge", X, () => set(R(S1, "instructors/inst1/bookings/stu1/pt3"), BK("pt3", { surcharge: -500 })));
+await t("student booking with durationHours 999", X, () => set(R(S1, "instructors/inst1/bookings/stu1/pt4"), BK("pt4", { durationHours: 999 })));
+await t("student booking with 10k-char name", X, () => set(R(S1, "instructors/inst1/bookings/stu1/pt5"), BK("pt5", { studentName: "x".repeat(10000) })));
+await t("student booking with normal price/surcharge/discount", A, () => set(R(S1, "instructors/inst1/bookings/stu1/pt6"), BK("pt6", { price: 450, surcharge: 100, discountAmt: 50, bufferMin: 15, serviceName: "Стрижка" })));
+await t("student rating 99", X, () => update(R(S1, "instructors/inst1/bookings/stu1/pt6"), { rating: 99 }));
+await t("student rating 5", A, () => update(R(S1, "instructors/inst1/bookings/stu1/pt6"), { rating: 5 }));
 console.log("── INTAKE (анкета клієнта)");
 const ITEM = { id: "a", label: "Алергії", value: "Немає" };
 await t("student saves own intake", A, () => set(R(S1, "instructors/inst1/users/stu1/intake"), { at: NOW, items: [ITEM, { id: "b", label: "Тип", value: "Суха" }] }));
@@ -330,6 +340,10 @@ await t("master writes own slotBookings_m", A, () => set(R(MA, "instructors/inst
 await t("master writes another's slotBookings_m", X, () => set(R(MA, "instructors/inst1/slotBookings_m/mBob/" + D + "/slot1000"), { phone: "1", bookingId: "x" }));
 console.log("── MASTER CHAT (майстер пише лише клієнтам зі свого masterClients)");
 await env.withSecurityRulesDisabled(async (ctx) => { const db = ctx.database(); await set(ref(db, "instructors/inst1/masterClients/mAnna/stu1"), true); await set(ref(db, "instructors/inst1/chats/stu1/m0"), { from: "student", text: "hi", ts: NOW }); await set(ref(db, "instructors/inst1/chats/stuB/m0"), { from: "student", text: "secret", ts: NOW }); await set(ref(db, "instructors/inst1/chatMeta/stu1"), { unreadForAdmin: 1 }); });
+await t("student posts chat as admin (spoof)", X, () => set(R(S1, "instructors/inst1/chats/stu1/sp1"), { from: "admin", text: "Я адмін", ts: NOW }));
+await t("student posts 5000-char chat message", X, () => set(R(S1, "instructors/inst1/chats/stu1/sp2"), { from: "student", text: "x".repeat(5000), ts: NOW }));
+await t("student posts normal chat message", A, () => set(R(S1, "instructors/inst1/chats/stu1/sp3"), { from: "student", text: "Привіт", time: "10:00", ts: NOW }));
+await t("instructor posts chat as admin", A, () => set(R(I1, "instructors/inst1/chats/stu1/sp4"), { from: "admin", text: "ok", ts: NOW }));
 await t("master reads salon thread chats/{uid} (no access now)", X, () => get(R(MA, "instructors/inst1/chats/stu1")));
 await t("master writes into salon thread chats/{uid}", X, () => set(R(MA, "instructors/inst1/chats/stu1/m1"), { from: "admin", text: "hello", ts: NOW, masterId: "mAnna", senderName: "Анна" }));
 await t("master updates salon chatMeta/{uid}", X, () => update(R(MA, "instructors/inst1/chatMeta/stu1"), { unreadForStudent: 1, lastMsg: "hello", lastTs: NOW }));

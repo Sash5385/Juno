@@ -69,7 +69,7 @@ function flattenBookings(data) {
       all.push({
         ...b,
         startMin: b.startMin ?? ((h || 0) * 60 + (mi || 0)),
-        durMin: b.durMin ?? (b.durationHours ? Math.round(b.durationHours * 60) : 60),
+        durMin: Math.min(1440, Math.max(0, Number(b.durMin ?? (b.durationHours ? Math.round(b.durationHours * 60) : 60)) || 0)),
       });
     });
   });

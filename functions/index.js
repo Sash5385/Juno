@@ -3,7 +3,7 @@ const { onValueCreated, onValueUpdated, onValueWritten } = require("firebase-fun
 const { onRequest } = require("firebase-functions/v2/https");
 const { defineSecret } = require("firebase-functions/params");
 const admin = require("firebase-admin");
-const { blockRangeUpdates, restoreRangeUpdates } = require("./slotRules");
+const { blockRangeUpdates, restoreRangeUpdates, slotIdAt } = require("./slotRules");
 const crypto = require("crypto");
 
 admin.initializeApp();
@@ -15,7 +15,11 @@ const OFFER_WINDOW_MS = 30 * 60 * 1000; // 30 хвилин
 // На відміну від фіксованого зсуву "+03:00", коректно враховує DST
 // (Київ — UTC+2 взимку, UTC+3 влітку).
 function kyivLocalToMs(dateStr, timeStr) {
-  const guessMs = new Date(`${dateStr}T${timeStr}:00Z`).getTime();
+  // «Бита» дата/час (не рядок, 2026-13-45, 99:99) → NaN: виклик не падає, а порівняння з NaN просто false
+  if (typeof dateStr !== "string" || typeof timeStr !== "string") return NaN;
+  const [hh, mm] = timeStr.split(":");
+  const guessMs = new Date(`${dateStr}T${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}:00Z`).getTime();
+  if (!Number.isFinite(guessMs)) return NaN;
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: "Europe/Kiev", hour12: false,
     year: "numeric", month: "2-digit", day: "2-digit",
@@ -365,6 +369,25 @@ function bookingRange(bookingData) {
   return { date, start, dur: durMin ?? ((durationHours || 1) * 60), buffer, master: typeof masterId === "string" && masterId ? masterId : null };
 }
 
+// Перевірка нового запису клієнта на сервері; повертає причину відмови або null
+async function rejectStudentBookingReason(iid, uid, b) {
+  if (typeof b.date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(b.date)) return "bad-date";
+  if (typeof b.time !== "string" || !/^\d{1,2}:\d{2}$/.test(b.time)) return "bad-time";
+  const [h, m] = b.time.split(":").map(Number);
+  if (h > 23 || m > 59) return "bad-time";
+  const dur = Number(b.durationHours ?? 1);
+  if (!Number.isFinite(dur) || dur <= 0 || dur > 12) return "bad-duration";
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Kiev" }).format(new Date());
+  if (b.date < today) return "past-date";
+  const r = bookingRange(b);
+  if (!r) return "bad-range";
+  const day = await readSlotDay(iid, r.date, r.master);
+  const node = day[slotIdAt(r.start)];
+  if (node && node.bookedBy && node.bookedBy !== uid) return "slot-taken";
+  if (node && node.adminBlocked) return "slot-blocked";
+  return null;
+}
+
 // Корінь слотів: власник/«Один майстер» — timeslots, інший майстер салону — timeslots_m/{masterId}
 const slotsRootOf = (iid, master) => (master && master !== iid ? `timeslots_m/${master}` : "timeslots");
 
@@ -570,6 +593,16 @@ exports.onBookingChanged = onValueWritten(
           return;
         }
       }
+      // Захист від підробленого запису клієнта (запит повз застосунок): битий формат, минула дата,
+      // завелика тривалість або чужий/закритий майстром слот → скасовуємо без звільнення чужих слотів і без push.
+      if (after.createdBy !== "admin" && after.status !== "personal" && uid !== "admin" && !after.groupKey) {
+        const reason = await rejectStudentBookingReason(iid, uid, after);
+        if (reason) {
+          console.warn(`onBookingChanged: booking rejected (${reason}) iid=${iid} uid=${uid} id=${bookingId}`);
+          await iRef(iid, `bookings/${uid}/${bookingId}`).update({ status: "cancelled", cancelledBy: "system" }).catch(() => {});
+          return;
+        }
+      }
       const slotUpd = await buildSlotUpdates(iid, after, false);
       if (Object.keys(slotUpd).length) await iRef(iid).update(slotUpd).catch(() => {});
       if (after.groupKey && after.status !== "personal" && !(await ensureGroupSeat(iid, uid, bookingId, after).catch((e) => { console.error("ensureGroupSeat failed", e); return true; }))) return;
@@ -732,7 +765,10 @@ async function mergeInvitedStudentRecord(iid, uid, profile) {
       if (invite?.studentKey) oldKey = invite.studentKey;
     }
     if (!oldKey) {
-      const phone = normPhone(profile?.phone);
+      // Без запрошення зливаємо лише за ПІДТВЕРДЖЕНИМ телефоном акаунта (вхід за SMS):
+      // номер з анкети може ввести будь-хто і так забрати чужу картку (знижку, VIP, нотатки).
+      const authPhone = await admin.auth().getUser(uid).then((u) => normPhone(u.phoneNumber)).catch(() => null);
+      const phone = authPhone && authPhone === normPhone(profile?.phone) ? authPhone : null;
       if (phone) {
         const usersVal = (await iRef(iid, "users").get()).val() || {};
         const matches = Object.entries(usersVal).filter(([key, u]) =>
@@ -825,6 +861,7 @@ exports.cascadeQueueInvites = onSchedule({ schedule: "every 10 minutes", region:
   const instructors = instructorsSnap.val() || {};
 
   for (const [iid, inst] of Object.entries(instructors)) {
+      try {
 
     if (isLicenseReadonly(inst?.license)) continue;
     // Календарі: власника (timeslots) і кожного майстра салону (timeslots_m/{mid}); ключ черги майстра — з префіксом «{mid}~»
@@ -861,7 +898,8 @@ exports.cascadeQueueInvites = onSchedule({ schedule: "every 10 minutes", region:
       }
     }
     }
-  }
+        } catch (e) { console.error(`tenant ${iid} failed:`, e?.message || e); }
+    }
 });
 
 // Адмін відкрив заблокований слот → запрошуємо першого в черзі (календар власника і календарі майстрів салону)
@@ -917,6 +955,7 @@ exports.unlockVipSlots = onSchedule("every 1 hours", async () => {
   const instructors = instructorsSnap.val() || {};
 
   for (const [iid, inst] of Object.entries(instructors)) {
+      try {
 
     if (isLicenseReadonly(inst?.license)) continue;
     const slotsData = inst?.timeslots || {};
@@ -959,7 +998,8 @@ exports.unlockVipSlots = onSchedule("every 1 hours", async () => {
         },
       }).catch(() => {});
     }
-  }
+        } catch (e) { console.error(`tenant ${iid} failed:`, e?.message || e); }
+    }
 });
 
 // «Автовідкриття слотів» на сервері: щодня заповнює дні в межах slotGenDays за тижневим шаблоном,
@@ -1090,6 +1130,7 @@ exports.flushSlotFreedQueue = onSchedule(
     const instructors = instructorsSnap.val() || {};
 
     for (const [iid, inst] of Object.entries(instructors)) {
+      try {
 
       if (isLicenseReadonly(inst?.license)) continue;
       const queueData = inst?.slotFreedQueue;
@@ -1141,6 +1182,7 @@ exports.flushSlotFreedQueue = onSchedule(
           await iRef(iid, `lastSlotNotif/${uid}`).set(now).catch(() => {});
         }
       }
+          } catch (e) { console.error(`tenant ${iid} failed:`, e?.message || e); }
     }
   }
 );
@@ -1154,6 +1196,7 @@ exports.flushRescheduleQueue = onSchedule(
     const instructors = instructorsSnap.val() || {};
 
     for (const [iid, inst] of Object.entries(instructors)) {
+      try {
 
       if (isLicenseReadonly(inst?.license)) continue;
       const queueData = inst?.rescheduleQueue;
@@ -1176,6 +1219,7 @@ exports.flushRescheduleQueue = onSchedule(
         await iRef(iid, `rescheduleQueue/${uid}/${bookingId}`).remove();
         console.log(`flushRescheduleQueue: sent to iid=${iid} uid=${uid} bookingId=${bookingId}`);
       }));
+          } catch (e) { console.error(`tenant ${iid} failed:`, e?.message || e); }
     }
   }
 );
@@ -1293,6 +1337,7 @@ exports.sendLessonReminders = onSchedule(
     const instructors = instructorsSnap.val() || {};
 
     for (const [iid, inst] of Object.entries(instructors)) {
+      try {
 
       if (isLicenseReadonly(inst?.license)) continue;
       const allUids = new Set([
@@ -1374,6 +1419,7 @@ exports.sendLessonReminders = onSchedule(
       }
 
       if (Object.keys(updates).length) await iRef(iid).update(updates).catch(() => {});
+          } catch (e) { console.error(`tenant ${iid} failed:`, e?.message || e); }
     }
   }
 );
@@ -1391,6 +1437,7 @@ exports.sendRebookReminders = onSchedule(
     const today = new Date().toLocaleDateString("sv-SE", { timeZone: "Europe/Kyiv" });
     const instructors = (await db.ref("instructors").get()).val() || {};
     for (const [iid, inst] of Object.entries(instructors)) {
+      try {
       if (isLicenseReadonly(inst?.license)) continue;
       for (const d of findRebookDue(inst, today)) {
         const pushed = await pushStudent(iid, d.uid, (L) => t(L, "📅 Час записатись знову"), (L) => t(L, "Минуло {days} дн. після «{service}». Оберіть зручний час.", { days: d.days, service: d.serviceName }), {
@@ -1398,6 +1445,7 @@ exports.sendRebookReminders = onSchedule(
         }).catch(() => false);
         if (pushed !== false) await iRef(iid, `users/${d.uid}/rebookReminded`).set(d.bookingId).catch(() => {}); // один раз на візит
       }
+          } catch (e) { console.error(`tenant ${iid} failed:`, e?.message || e); }
     }
   }
 );
@@ -1410,6 +1458,7 @@ exports.sendPersonalEventReminders = onSchedule(
     const instructors = instructorsSnap.val() || {};
 
     for (const [iid, inst] of Object.entries(instructors)) {
+      try {
 
       if (isLicenseReadonly(inst?.license)) continue;
       const personal = inst?.bookings?.personal;
@@ -1437,6 +1486,7 @@ exports.sendPersonalEventReminders = onSchedule(
       }
 
       if (Object.keys(updates).length) await iRef(iid).update(updates).catch(() => {});
+          } catch (e) { console.error(`tenant ${iid} failed:`, e?.message || e); }
     }
   }
 );
@@ -1518,6 +1568,7 @@ exports.flushDayNoteReminders = onSchedule(
     const instructors = instructorsSnap.val() || {};
 
     for (const [iid, inst] of Object.entries(instructors)) {
+      try {
 
       if (isLicenseReadonly(inst?.license)) continue;
       const notes = inst?.dayNotes?.[dateStr]?.notes;
@@ -1536,6 +1587,7 @@ exports.flushDayNoteReminders = onSchedule(
         await pushAdmin(iid, title, body, { url: `https://aldemi.com.ua/junoadmin/?date=${dateStr}`, alarm: "1" });
         await iRef(iid, `dayNotes/${dateStr}/notes/${key}/notified`).set(true).catch(() => {});
       }
+          } catch (e) { console.error(`tenant ${iid} failed:`, e?.message || e); }
     }
   }
 );
@@ -1572,6 +1624,7 @@ exports.checkLicenseExpiry = onSchedule(
     const link = { url: "https://aldemi.com.ua/junoadmin" };
 
     for (const [iid, inst] of Object.entries(instructors)) {
+      try {
       const license = inst?.license;
       if (!license || license.status === "suspended") continue;
       const untilTs = licenseUntilTs(license);
@@ -1594,6 +1647,7 @@ exports.checkLicenseExpiry = onSchedule(
         await pushAdmin(iid, (L) => t(L, "⏳ Скоро завершення"),
           (L) => t(L, "{what} закінчується {date} (через {days} дн.). Продовжіть у Налаштуваннях.", { what: t(L, what), date: fmtKyivDate(untilTs, L), days }), link).catch(() => {});
       }
+          } catch (e) { console.error(`tenant ${iid} failed:`, e?.message || e); }
     }
   }
 );
@@ -1824,11 +1878,13 @@ async function runBackup(trigger) {
     let count = 0, bytes = 0;
 
     for (const [iid, inst] of Object.entries(instructors)) {
+      try {
       const data = {};
       for (const k of BACKUP_KEYS) if (inst?.[k] !== undefined) data[k] = inst[k];
       const body = JSON.stringify({ iid, date, savedAt: startedAt, trigger, data });
       await bucket.file(`backups/${date}/${iid}.json`).save(body, { contentType: "application/json", resumable: false });
       count++; bytes += Buffer.byteLength(body);
+          } catch (e) { console.error(`tenant ${iid} failed:`, e?.message || e); }
     }
 
     // Видаляємо копії старші за BACKUP_KEEP_DAYS днів

@@ -28,7 +28,9 @@ const slotExists = (node) =>
 function blockRangeUpdates(day, prefix, startMin, durMin, opts = {}) {
   const { bookingStart = false, step = 30, extra = null, bufferMin = 0 } = opts
   const upd = {}
-  const buffer = bufferMin > 0 ? bufferMin : 0
+  const buffer = bufferMin > 0 ? Math.min(240, bufferMin) : 0
+  // Захист від підробленої тривалості (1e7 хв → мільйони ключів): не більше доби
+  durMin = Math.min(24 * 60, Math.max(0, Number(durMin) || 0))
   for (let i = 0; i < durMin + buffer; i += step) {
     const min = startMin + i
     const id = slotIdAt(min)
@@ -78,7 +80,8 @@ function restoreRangeUpdates(day, prefix, startMin, durMin, opts = {}) {
 // Множина slotId, які займає діапазон.
 function rangeSlotIds(startMin, durMin, step = 30) {
   const ids = new Set()
-  for (let i = 0; i < durMin; i += step) ids.add(slotIdAt(startMin + i))
+  const d = Math.min(24 * 60, Math.max(0, Number(durMin) || 0))
+  for (let i = 0; i < d; i += step) ids.add(slotIdAt(startMin + i))
   return ids
 }
 

@@ -1961,7 +1961,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
     if (action === "openMember") { setLocalSelectedBooking(b); return; }
     // Скасування запису (кнопка в картці і свайп) — лише після підтвердження, щоб випадковий тап не скасовував запис
     if (action === "cancel" && !b?._cancelOk) {
-      const when = [b.date ? b.date.split("-").reverse().join(".") : "", b.time || (b.startMin != null ? `${String(Math.floor(b.startMin/60)).padStart(2,"0")}:${String(b.startMin%60).padStart(2,"0")}` : "")].filter(Boolean).join(" ");
+      const when = [typeof b.date === "string" ? b.date.split("-").reverse().join(".") : "", b.time || (b.startMin != null ? `${String(Math.floor(b.startMin/60)).padStart(2,"0")}:${String(b.startMin%60).padStart(2,"0")}` : "")].filter(Boolean).join(" ");
       confirmDlg({ title: "Скасувати запис?", text: [b.name, when].filter(Boolean).join(" · "), okLabel: "Скасувати запис", danger: true })
         .then(ok => { if (ok) handleActionRef.current?.("cancel", { ...b, _cancelOk: true }); });
       return;
