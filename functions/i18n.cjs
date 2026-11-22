@@ -24,6 +24,8 @@ const DICT = Object.fromEntries([
   E(" та ", " and ", " i ", " und ", " y ", " et "),
   E("група заповнена", "the group is full", "grupa jest pełna", "die Gruppe ist voll", "el grupo está lleno", "le groupe est complet"),
   // ── Клієнту ──
+  E("⚠️ Забагато заявок", "⚠️ Too many requests", "⚠️ Zbyt wiele zgłoszeń", "⚠️ Zu viele Anfragen", "⚠️ Demasiadas solicitudes", "⚠️ Trop de demandes"),
+  E("Дочекайтесь підтвердження попередніх записів або напишіть майстру.", "Please wait for your previous bookings to be confirmed or message your specialist.", "Poczekaj na potwierdzenie poprzednich rezerwacji lub napisz do specjalisty.", "Bitte warte auf die Bestätigung deiner bisherigen Termine oder schreibe deinem Spezialisten.", "Espera la confirmación de tus reservas anteriores o escribe a tu especialista.", "Attendez la confirmation de vos réservations précédentes ou écrivez à votre spécialiste."),
   E("⚠️ Запис недоступний", "⚠️ Booking unavailable", "⚠️ Rezerwacja niedostępna", "⚠️ Termin nicht verfügbar", "⚠️ Reserva no disponible", "⚠️ Réservation indisponible"),
   E("Не вдалося записати в групу: {reason}.", "Could not book into the group: {reason}.", "Nie udało się zapisać do grupy: {reason}.", "Buchung in der Gruppe nicht möglich: {reason}.", "No se pudo reservar en el grupo: {reason}.", "Impossible de réserver dans le groupe : {reason}."),
   E("Майстер тимчасово не приймає нові записи.", "The specialist is temporarily not accepting new bookings.", "Specjalista chwilowo nie przyjmuje nowych rezerwacji.", "Die Fachkraft nimmt vorübergehend keine neuen Buchungen an.", "El especialista no acepta nuevas reservas por el momento.", "Le spécialiste n'accepte temporairement pas de nouvelles réservations."),

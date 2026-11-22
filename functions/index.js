@@ -369,6 +369,72 @@ function bookingRange(bookingData) {
   return { date, start, dur: durMin ?? ((durationHours || 1) * 60), buffer, master: typeof masterId === "string" && masterId ? masterId : null };
 }
 
+// Лічильник дій клієнта (антиспам): rate/{uid}/{key} — мітки часу за вікно windowMs.
+// Вузол пише лише сервер (клієнт до instructors/{iid}/rate доступу не має). Повертає кількість дій у вікні РАЗОМ із поточною.
+async function hitRate(iid, uid, key, windowMs) {
+  const now = Date.now();
+  let count = 1;
+  await iRef(iid, `rate/${uid}/${key}`).transaction((cur) => {
+    const list = (Array.isArray(cur) ? cur : []).filter((t) => typeof t === "number" && now - t < windowMs).slice(-50);
+    list.push(now);
+    count = list.length;
+    return list;
+  }).catch(() => {});
+  return count;
+}
+const BOOKINGS_PER_DAY = 5;      // нових записів клієнта за добу (без записів майстра)
+const MSGS_PER_10MIN = 30;       // повідомлень клієнта за 10 хв, понад це — без push майстру
+// Push майстру про повідомлення клієнта: не частіше 1 на хвилину від одного клієнта і без push при флуді
+async function shouldPushStudentMsg(iid, uid) {
+  if ((await hitRate(iid, uid, "msg", 10 * 60000)) > MSGS_PER_10MIN) return false;
+  return (await hitRate(iid, uid, "msgPush", 60000)) === 1;
+}
+
+// Звірка ціни запису клієнта з цінами послуги (та сама формула, що в клієнті BookTab.jsx).
+// ТИХИЙ РЕЖИМ: лише лог + system/priceAudit, запис не змінюється. Повертає { expected, got } або null.
+const PRICE_AUDIT_ONLY = true;
+async function auditBookingPrice(iid, uid, b) {
+  if (b.groupKey) return null;
+  const list = (await iRef(iid, "admin_data/services").get()).val();
+  const arr = Array.isArray(list) ? list : Object.values(list || {});
+  let svc = arr.find((x) => x && x.id === b.serviceId);
+  if (!svc) return null; // запасні послуги без ціни / видалена послуга — не звіряємо
+  if (typeof b.masterId === "string" && b.masterId) {
+    const o = (await iRef(iid, `master_settings/${b.masterId}/svc/${svc.id}`).get()).val();
+    if (o && Number.isFinite(Number(o.price)) && Number(o.price) >= 0) svc = { ...svc, price: Number(o.price) };
+    if (o && Number.isFinite(Number(o.duration)) && Number(o.duration) > 0) svc = { ...svc, duration: Number(o.duration) };
+  }
+  const user = (await iRef(iid, `users/${uid}`).get()).val() || {};
+  const discount = Number(user.discount) || 0;
+  const custom = Number(user.customPrice) > 0 ? Number(user.customPrice) : null;
+  // Допуслуги: ціни беремо з послуги за id зі знімка запису
+  const svcAddons = Array.isArray(svc.addons) ? svc.addons : Object.values(svc.addons || {});
+  const ids = (Array.isArray(b.addons) ? b.addons : Object.values(b.addons || {})).map((a) => a && a.id).filter(Boolean);
+  const chosen = svcAddons.filter((a, i) => a && ids.includes(String(a.id || `ad${i}`)));
+  const addonPrice = chosen.reduce((t, a) => t + Math.round(Math.max(0, Number(a.price) || 0)), 0);
+  const addonMin = chosen.reduce((t, a) => t + Math.min(240, Math.round(Math.max(0, Number(a.minutes) || 0))), 0);
+  const dur = Number(b.durationHours) || 1;
+  const baseHours = Math.max(0, Math.round(dur * 60 - addonMin)) / 60;
+  const baseDur = (Number(svc.duration) || 60) / 60;
+  const svcPrice = svc.nextPrice != null && svc.nextPriceFrom && b.date >= svc.nextPriceFrom ? Number(svc.nextPrice) : Number(svc.price) || 0;
+  const r = bookingRange(b);
+  const day = r ? await readSlotDay(iid, r.date, r.master) : {};
+  let sur = 0;
+  for (let i = 0; r && i < Math.ceil(baseHours + addonMin / 60); i++) sur += Number(day[slotIdAt(r.start + i * 60)]?.surcharge) || 0;
+  const fixed = r ? day[slotIdAt(r.start)]?.fixedPrice : null;
+  let lesson;
+  if (b.packageId) lesson = 0;
+  else if (fixed != null) lesson = Number(fixed);
+  else if (custom != null) lesson = Math.round(custom * baseHours) + sur;
+  else {
+    const base = Math.round(svcPrice * (baseHours / baseDur)) + sur;
+    lesson = discount > 0 ? Math.max(0, Math.round(base - discount * baseHours)) : base;
+  }
+  const expected = lesson + addonPrice;
+  const got = Number(b.price) || 0;
+  return Math.abs(expected - got) > 1 ? { expected, got } : null;
+}
+
 // Перевірка нового запису клієнта на сервері; повертає причину відмови або null
 async function rejectStudentBookingReason(iid, uid, b) {
   if (typeof b.date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(b.date)) return "bad-date";
@@ -380,6 +446,7 @@ async function rejectStudentBookingReason(iid, uid, b) {
   // Клієнт у чорному списку майстра (users/{uid}/blocked) — застосунок не пускає, а прямий запит відсікаємо тут
   const blocked = (await iRef(iid, `users/${uid}/blocked`).get().catch(() => null))?.val();
   if (blocked === true) return "blocked";
+  if ((await hitRate(iid, uid, "bk", 24 * 3600000)) > BOOKINGS_PER_DAY) return "rate-limit";
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Kiev" }).format(new Date());
   if (b.date < today) return "past-date";
   const r = bookingRange(b);
@@ -603,7 +670,22 @@ exports.onBookingChanged = onValueWritten(
         if (reason) {
           console.warn(`onBookingChanged: booking rejected (${reason}) iid=${iid} uid=${uid} id=${bookingId}`);
           await iRef(iid, `bookings/${uid}/${bookingId}`).update({ status: "cancelled", cancelledBy: "system" }).catch(() => {});
+          // Слот, який клієнт сам зайняв під цей запис (bookedBy = він), повертаємо; чужі слоти freeBookingSlots не чіпає
+          if (reason !== "slot-taken" && reason !== "slot-blocked") await freeBookingSlots(iid, uid, bookingId, after).catch(() => {});
+          if (reason === "rate-limit") {
+            await pushStudent(iid, uid, (L) => t(L, "⚠️ Забагато заявок"), (L) => t(L, "Дочекайтесь підтвердження попередніх записів або напишіть майстру."), {
+              url: "https://aldemi.com.ua/junoclient/cabinet/bookings",
+            }).catch(() => {});
+          }
           return;
+        }
+      }
+      if (after.createdBy !== "admin" && after.status !== "personal" && uid !== "admin") {
+        const mism = await auditBookingPrice(iid, uid, after).catch((e) => { console.error("auditBookingPrice failed", e?.message || e); return null; });
+        if (mism) {
+          console.warn(`price-mismatch iid=${iid} uid=${uid} id=${bookingId} expected=${mism.expected} got=${mism.got}`);
+          await db.ref(`system/priceAudit/${iid}_${bookingId}`).set({ iid, uid, bookingId, ...mism, serviceId: after.serviceId || null, ts: Date.now() }).catch(() => {});
+          if (!PRICE_AUDIT_ONLY) await iRef(iid, `bookings/${uid}/${bookingId}`).update({ price: mism.expected, clientPrice: mism.got, priceFixed: true }).catch(() => {});
         }
       }
       const slotUpd = await buildSlotUpdates(iid, after, false);
@@ -802,6 +884,22 @@ async function mergeInvitedStudentRecord(iid, uid, profile) {
     console.error("mergeInvitedStudentRecord failed:", e);
   }
 }
+
+// Новий майстер/салон (створено профіль) — гарантуємо пробний період на сервері.
+// Інакше, обійшовши екран налаштування (прямий запис у БД), можна лишитись без вузла license,
+// а без нього обмеження підписки не діють. Наявну ліцензію не чіпаємо; старі простори без license — теж (тригер лише на створення).
+const SERVER_TRIAL_DAYS = 14;
+exports.ensureTrialLicense = onValueCreated(
+  { ref: "instructors/{iid}/admin_settings/profile", region: "europe-west1" },
+  async (event) => {
+    const { iid } = event.params;
+    const res = await iRef(iid, "license").transaction((cur) => {
+      if (cur) return; // уже є — нічого не міняємо
+      return { status: "trial", trialEndsAt: Date.now() + SERVER_TRIAL_DAYS * 24 * 3600 * 1000, createdBy: "server" };
+    }).catch((e) => { console.error("ensureTrialLicense failed", e); return null; });
+    if (res?.committed) console.log(`ensureTrialLicense: trial created by server iid=${iid}`);
+  }
+);
 
 // Новий клієнт зареєструвався (заповнив анкету) — сповіщаємо адміна
 exports.onNewStudentRegistered = onValueCreated(
@@ -1244,6 +1342,7 @@ exports.onStudentMessage = onValueCreated(
     }
 
     const text = msg.text || "";
+    if (uid !== "general" && !(await shouldPushStudentMsg(iid, uid))) return;
     await pushAdmin(iid, (L) => `💬 ${name || t(L, "Студент")}`, text.length > 100 ? text.slice(0, 100) + "…" : text);
   }
 );
@@ -1286,6 +1385,7 @@ exports.onStudentMasterMessage = onValueCreated(
     let name = msg.name;
     if (!name) name = (await iRef(iid, `users/${uid}/profile`).get()).val()?.name;
     const text = msg.text || "";
+    if (!(await shouldPushStudentMsg(iid, uid))) return;
     await pushMaster(iid, mid, (L) => `💬 ${name || t(L, "Студент")}`, text.length > 100 ? text.slice(0, 100) + "…" : text);
   }
 );

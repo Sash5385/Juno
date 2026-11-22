@@ -54,7 +54,8 @@ const day = async (d) => { const v = (await adb.ref(`instructors/${IID}/timeslot
 const clean = (v) => Object.fromEntries(Object.entries(v).map(([k, s]) => { const { lastChangedBy, lastChangedAt, ...r } = s; return [k, r]; }));
 const show = (v) => Object.entries(v).filter(([, s]) => s.available === false || s.bookedBy || s.phantom).map(([k, s]) => `${k.slice(4)}:${s.available === false ? "X" : "."}${s.phantom ? "P" : ""}${s.bookedBy ? "<" + (s.bookedBy === UA ? "A" : s.bookedBy === UB ? "B" : "?") : ""}`).join(" ") || "(all free)";
 const bk = async (uid, id) => (await adb.ref(`instructors/${IID}/bookings/${uid}/${id}`).get()).val();
-const fire = async (uid, id, before, after) => { await fns.onBookingChanged.run({ data: { before: { val: () => before }, after: { val: () => after } }, params: { iid: IID, uid, bookingId: id } }); };
+let keepRate = false; // антиспам-лічильник (rate/{uid}) скидаємо перед кожним викликом, крім тесту самого ліміту
+const fire = async (uid, id, before, after) => { if (!keepRate) await adb.ref(`instructors/${IID}/rate`).remove(); await fns.onBookingChanged.run({ data: { before: { val: () => before }, after: { val: () => after } }, params: { iid: IID, uid, bookingId: id } }); };
 // дія над записом + спрацювання серверного тригера, як у проді
 const act = async (uid, id, fn) => { const before = await bk(uid, id); const r = await fn(); const after = await bk(uid, id); await fire(uid, id, before, after); return r; };
 
@@ -507,6 +508,36 @@ const mm = (t) => { const [h, m] = t.split(":").map(Number); return h * 60 + m; 
   const kP = await C.createBooking(UB, { date: dateIn(-3), time: "10:00", serviceType: "private", serviceName: "Приватний", durationHours: 1, price: 600, studentName: "B", phone: "2" });
   await fire(UB, kP, null, await bk(UB, kP));
   check("бронь на минулу дату скасована сервером", (await bk(UB, kP))?.status === "cancelled");
+
+  // ── Антиспам: не більше 5 нових записів клієнта за добу
+  console.log("── Антиспам: ліміт записів");
+  await loginAs("a@t.dev"); await C.getUserProfile(UA);
+  await adb.ref(`instructors/${IID}/rate`).remove(); keepRate = true;
+  const DL = dateIn(12), keysL = [];
+  for (const tm of ["09:00", "10:00", "11:00", "12:00", "13:00", "14:00"]) keysL.push(await book(UA, DL, tm, 1));
+  const stL = await Promise.all(keysL.map((k) => bk(UA, k).then((b) => b?.status)));
+  check("5 записів пройшли, 6-й скасовано сервером, його слот повернуто", stL.slice(0, 5).every((x) => x === "pending") && stL[5] === "cancelled" && (await day(DL)).slot1400?.available !== false, JSON.stringify({ stL, s: (await day(DL)).slot1400 }));
+  keepRate = false;
+
+  // ── Звірка ціни (тихий режим): підроблена ціна потрапляє в system/priceAudit, запис не змінюється
+  console.log("── Звірка ціни");
+  await adb.ref(`instructors/${IID}/admin_data/services`).set([{ id: "svT", name: "Тест", type: "private", duration: 60, price: 500, active: true }]);
+  const DP = dateIn(13);
+  const kCheat = await book(UA, DP, "09:00", 1, { serviceId: "svT", price: 1 });
+  const kFair = await book(UA, DP, "11:00", 1, { serviceId: "svT", price: 500 });
+  const audit = (await adb.ref("system/priceAudit").get()).val() || {};
+  const aCheat = audit[`${IID}_${kCheat}`], aFair = audit[`${IID}_${kFair}`];
+  check("підроблена ціна зафіксована (очікувано 500, прийшло 1), запис не змінено", aCheat?.expected === 500 && aCheat?.got === 1 && (await bk(UA, kCheat))?.price === 1, JSON.stringify({ aCheat }));
+  check("чесна ціна не потрапляє в аудит", !aFair, JSON.stringify({ aFair }));
+
+  // ── Пробний період від сервера: новий простір без license отримує trial, наявну ліцензію не чіпаємо
+  await adb.ref("instructors/newT/license").remove();
+  await fns.ensureTrialLicense.run({ data: { val: () => ({ name: "N" }) }, params: { iid: "newT" } });
+  const licN = (await adb.ref("instructors/newT/license").get()).val();
+  await adb.ref("instructors/oldT/license").set({ status: "active", expiresAt: 123 });
+  await fns.ensureTrialLicense.run({ data: { val: () => ({ name: "O" }) }, params: { iid: "oldT" } });
+  const licO = (await adb.ref("instructors/oldT/license").get()).val();
+  check("сервер створив trial на 14 днів для нового простору; наявну ліцензію не змінив", licN?.status === "trial" && licN.trialEndsAt > Date.now() + 13 * 86400000 && licO?.status === "active" && licO.expiresAt === 123, JSON.stringify({ licN, licO }));
 
   console.log(failed ? `\n${failed} FAILED` : "\nALL PASS");
   process.exit(failed ? 1 : 0);

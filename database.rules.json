@@ -278,7 +278,10 @@
           "$mid": {
             "$uid": {
               ".read": "auth != null && (auth.uid === $iid || (auth.uid === $uid && root.child('instructors/'+$iid+'/masterClients/'+$mid+'/'+$uid).exists()) || (auth.uid === $mid && root.child('instructors/'+$iid+'/staff/'+auth.uid+'/role').val() === 'master' && root.child('instructors/'+$iid+'/masterClients/'+$mid+'/'+$uid).exists()))",
-              ".write": "auth != null && (auth.uid === $iid || (auth.uid === $uid && root.child('instructors/'+$iid+'/masterClients/'+$mid+'/'+$uid).exists()) || (auth.uid === $mid && root.child('instructors/'+$iid+'/staff/'+auth.uid+'/role').val() === 'master' && root.child('instructors/'+$iid+'/masterClients/'+$mid+'/'+$uid).exists() && newData.exists()))"
+              ".write": "auth != null && (auth.uid === $iid || (auth.uid === $uid && root.child('instructors/'+$iid+'/masterClients/'+$mid+'/'+$uid).exists()) || (auth.uid === $mid && root.child('instructors/'+$iid+'/staff/'+auth.uid+'/role').val() === 'master' && root.child('instructors/'+$iid+'/masterClients/'+$mid+'/'+$uid).exists() && newData.exists()))",
+              "$msgId": {
+                ".validate": "auth.uid === $iid || auth.uid === $mid || newData.val() === null || (newData.child('from').val() !== 'admin' && (!newData.child('text').exists() || (newData.child('text').isString() && newData.child('text').val().length <= 4000)))"
+              }
             }
           }
         },
