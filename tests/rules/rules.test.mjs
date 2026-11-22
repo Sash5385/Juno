@@ -186,6 +186,22 @@ await t("student booking with 10k-char name", X, () => set(R(S1, "instructors/in
 await t("student booking with normal price/surcharge/discount", A, () => set(R(S1, "instructors/inst1/bookings/stu1/pt6"), BK("pt6", { price: 450, surcharge: 100, discountAmt: 50, bufferMin: 15, serviceName: "Стрижка" })));
 await t("student rating 99", X, () => update(R(S1, "instructors/inst1/bookings/stu1/pt6"), { rating: 99 }));
 await t("student rating 5", A, () => update(R(S1, "instructors/inst1/bookings/stu1/pt6"), { rating: 5 }));
+// Пентест 22.11 (етап 1): черга і чорний список
+const QE = (k) => `instructors/inst1/queue/${k}/entries/stu1`;
+const QK = D + "_10:00";
+await t("student joins queue (waiting)", A, () => set(R(S1, QE(QK)), { uid: "stu1", studentType: "private", durationHours: 1, name: "S1", phone: "1", addedAt: NOW, status: "waiting" }));
+await t("student self-sets offered in queue", X, () => update(R(S1, QE(QK)), { status: "offered" }));
+await t("student sets booked without offer", X, () => update(R(S1, QE(QK)), { status: "booked" }));
+await t("student joins queue under junk slotKey", X, () => set(R(S1, QE("zzz")), { uid: "stu1", status: "waiting" }));
+await t("student queue entry with durationHours 999", X, () => set(R(S1, QE(D + "_11:00")), { uid: "stu1", durationHours: 999, status: "waiting" }));
+await env.withSecurityRulesDisabled(async (c) => { await set(ref(c.database(), QE(QK) + "/status"), "offered"); });
+await t("student takes offered place (offered → booked)", A, () => update(R(S1, QE(QK)), { status: "booked" }));
+await t("student leaves queue", A, () => remove(R(S1, QE(QK))));
+await env.withSecurityRulesDisabled(async (c) => { await set(ref(c.database(), "instructors/inst1/users/stu1/blocked"), true); });
+await t("blocked student creates booking", X, () => set(R(S1, "instructors/inst1/bookings/stu1/blk1"), BK("blk1")));
+await t("blocked student joins queue", X, () => set(R(S1, QE(D + "_12:00")), { uid: "stu1", status: "waiting" }));
+await t("blocked student cancels own booking", A, () => update(R(S1, "instructors/inst1/bookings/stu1/pt6"), { status: "cancelled", cancelledAt: NOW, cancelledBy: "student" }));
+await env.withSecurityRulesDisabled(async (c) => { await remove(ref(c.database(), "instructors/inst1/users/stu1/blocked")); });
 console.log("── INTAKE (анкета клієнта)");
 const ITEM = { id: "a", label: "Алергії", value: "Немає" };
 await t("student saves own intake", A, () => set(R(S1, "instructors/inst1/users/stu1/intake"), { at: NOW, items: [ITEM, { id: "b", label: "Тип", value: "Суха" }] }));

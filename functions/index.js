@@ -377,6 +377,9 @@ async function rejectStudentBookingReason(iid, uid, b) {
   if (h > 23 || m > 59) return "bad-time";
   const dur = Number(b.durationHours ?? 1);
   if (!Number.isFinite(dur) || dur <= 0 || dur > 12) return "bad-duration";
+  // Клієнт у чорному списку майстра (users/{uid}/blocked) — застосунок не пускає, а прямий запит відсікаємо тут
+  const blocked = (await iRef(iid, `users/${uid}/blocked`).get().catch(() => null))?.val();
+  if (blocked === true) return "blocked";
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Kiev" }).format(new Date());
   if (b.date < today) return "past-date";
   const r = bookingRange(b);
