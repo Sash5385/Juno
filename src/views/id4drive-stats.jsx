@@ -20,6 +20,52 @@ const UK_WEEK_LABELS= ["Пн","Вт","Ср","Чт","Пт","Сб"];
 // ─── HELPERS ────────────────────────────────────────────────────
 const fmtK = n => n>=1000?money(`${(n/1000).toFixed(1)}к`, ' '):`${money(n, ' ')}`;
 
+// «20 записів» / «2 записи» / «1 запис» — українська множина
+function zapysiv(n) {
+  const a = Math.abs(n) % 100, b = a % 10;
+  return a > 10 && a < 20 ? `${n} записів` : b === 1 ? `${n} запис` : b >= 2 && b <= 4 ? `${n} записи` : `${n} записів`;
+}
+
+// Дохід по днях/місяцях/годинах: стовпчики на всю ширину, тап — сума за стовпчик. Майбутні дні — блідіші.
+function IncomeBars({ data, title, todayKey, c }) {
+  const [pick, setPick] = useState(null);
+  const max = Math.max(...data.map(x => x.income || 0), 1);
+  const step = Math.max(1, Math.ceil(data.length / 8));
+  const sel = pick != null ? data[pick] : null;
+  return (
+    <Card className="fu" style={{padding:"12px 13px"}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:8,gap:8}}>
+        <div style={{fontSize:11,color:c.DIM,letterSpacing:1,textTransform:"uppercase",fontWeight:700}}>{title}</div>
+        <div style={{fontSize:12,fontWeight:800,color:c.GOLD,whiteSpace:"nowrap"}}>
+          {sel ? <><span>{sel.label}</span> · <span>{sel.income ? fmtK(sel.income) : "—"}</span></> : `максимум: ${fmtK(max)}`}
+        </div>
+      </div>
+      <div style={{display:"flex",alignItems:"flex-end",gap:data.length > 20 ? 2 : 4,height:72}}>
+        {data.map((d, i) => {
+          const future = todayKey && /^\d{4}-\d{2}-\d{2}$/.test(d.key || "") && d.key > todayKey;
+          const h = d.income ? Math.max(4, Math.round((d.income / max) * 72)) : 2;
+          return (
+            <button key={i} type="button" onClick={() => setPick(pick === i ? null : i)} aria-label={`${d.label}: ${d.income ? fmtK(d.income) : "—"}`}
+              style={{flex:1,minWidth:0,height:"100%",display:"flex",alignItems:"flex-end",padding:0,border:"none",background:"transparent",cursor:"pointer"}}>
+              <span style={{display:"block",width:"100%",height:h,borderRadius:3,
+                background: d.income ? `linear-gradient(180deg,${c.GOLD},${c.GREEN})` : "rgba(255,255,255,.12)",
+                opacity: future ? 0.4 : 1, outline: pick === i ? `2px solid ${c.TEXT}` : "none", outlineOffset:1,
+                transition:"height .5s ease"}}/>
+            </button>
+          );
+        })}
+      </div>
+      <div style={{display:"flex",gap:data.length > 20 ? 2 : 4,marginTop:4}}>
+        {data.map((d, i) => (
+          <span key={i} style={{flex:1,minWidth:0,fontSize:10,color:c.DIM,textAlign:"center",whiteSpace:"nowrap",overflow:"visible"}}>
+            {i === data.length - 1 || (i % step === 0 && data.length - 1 - i >= Math.ceil(step / 2)) ? d.label : ""}
+          </span>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
 function getDateStr(d) {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
@@ -328,8 +374,6 @@ export default function StatsView({ onViewStudent, direction } = {}) {
 
   const totalIncome  = cur.income;
   const totalLessons = cur.lessons;
-  const totalSchool  = data.reduce((s, d) => s + d.school,  0);
-  const totalPrivate = data.reduce((s, d) => s + d.private, 0);
   const totalHours   = Math.round(data.reduce((s, d) => s + (d.hours||0), 0) * 10) / 10;
   const prevHours    = Math.round(prevData.reduce((s, d) => s + (d.hours||0), 0) * 10) / 10;
 
@@ -559,6 +603,76 @@ export default function StatsView({ onViewStudent, direction } = {}) {
           ))}
         </div>
 
+        {secEff === "overview" && period !== "custom" && (
+          <div style={{fontSize:11,color:DIM,margin:"0 2px -2px"}}>
+            {period === "day" ? "Зміна у % — порівняно з попереднім днем" : period === "week" ? "Зміна у % — порівняно з попереднім тижнем" : period === "year" ? "Зміна у % — порівняно з попереднім роком" : "Зміна у % — порівняно з попереднім місяцем"}
+          </div>
+        )}
+        {/* ── KPI 3 ── */}
+        {secEff === "overview" && <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:7}}>
+          {[
+            {label:"Дохід",        value:fmtK(totalIncome),               color:GOLD,  trend:trendPct(cur.income,  prev.income)},
+            {label:"Записів",       value:totalLessons,                    color:BLUE,  trend:trendPct(cur.lessons, prev.lessons)},
+            {label:"Години",       value:totalHours,                      color:GREEN, trend:trendPct(totalHours, prevHours)},
+          ].map((k, i) => (
+            <Card key={i} className="fu" style={{
+              padding:"10px 9px",
+              background:`color-mix(in srgb,${k.color} 18%,transparent)`,backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",
+              border:`1px solid color-mix(in srgb,${k.color} 30%,transparent)`,
+              textAlign:"center",
+            }}>
+              <div style={{fontSize:11,color:"rgba(255,255,255,0.7)",letterSpacing:0.6,textTransform:"uppercase",fontWeight:600,marginBottom:6}}>{k.label}</div>
+              <div style={{fontSize:"min(21px,4.5vw)",fontWeight:800,color:"#fff",letterSpacing:-0.3,lineHeight:1.05,whiteSpace:"nowrap"}}>{k.value}</div>
+              {(k.extra || (k.trend != null && k.trend !== 0)) && (
+                <div style={{display:"flex",justifyContent:"center",alignItems:"center",gap:5,marginTop:5,flexWrap:"wrap"}}>
+                  {k.extra && <span style={{fontSize:11,color:"rgba(255,255,255,0.74)",fontWeight:600}}>{k.extra}</span>}
+                  {k.trend != null && k.trend !== 0 && (
+                    <span style={{
+                      fontSize:11, fontWeight:700, padding:"2px 7px", borderRadius:99,
+                      color:`color-mix(in srgb,${k.trend>=0?GREEN:RED} 55%,#fff)`,
+                      background:k.trend>=0?`${GREEN}1f`:`${RED}1f`,
+                    }}>{k.trend>=0?"+":""}{k.trend}%</span>
+                  )}
+                </div>
+              )}
+            </Card>
+          ))}
+        </div>}
+
+        {/* ── KPI: середній чек, нові клієнти, скасування ── */}
+        {secEff === "overview" && (
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:7}}>
+            {(() => {
+              const kAvg   = {label:"Сер. чек", value:fmtK(avgCheck), trend:trendPct(avgCheck, prevAvg), good:true};
+              const kNew   = {label:"Нові", value:clients.fresh, sub:`з ${clients.total} клієнтів`};
+              const kCanc  = {label:"Скасовано", value:`${cancels.pct}%`, trend:prevCancels ? cancels.pct - prevCancels.pct : null, good:false, pp:true};
+              const noshowPct = cancels.total ? Math.round((cancels.noshow / cancels.total) * 100) : 0;
+              const prevNoshowPct = prevCancels && prevCancels.total ? Math.round((prevCancels.noshow / prevCancels.total) * 100) : null;
+              if (dir === "education") return [
+                {label:"Явка", value:att.pct == null ? "—" : `${att.pct}%`, sub:att.missed ? `пропусків ${att.missed}` : null},
+                kNew,
+                kAvg,
+              ];
+              if (dir === "consult") return [
+                {label:"Неявки", value:`${noshowPct}%`, trend:prevNoshowPct == null ? null : noshowPct - prevNoshowPct, good:false, pp:true},
+                kNew,
+                kAvg,
+              ];
+              return [kAvg, kNew, kCanc];
+            })().map((k, i) => (
+              <Card key={i} className="fu" style={{padding:"10px 9px",textAlign:"center"}}>
+                <div style={{fontSize:10.5,color:DIM,letterSpacing:0.3,textTransform:"uppercase",fontWeight:600,marginBottom:6,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{k.label}</div>
+                <div style={{fontSize:"min(19px,4.3vw)",fontWeight:800,color:TEXT,lineHeight:1.05,whiteSpace:"nowrap"}}>{k.value}</div>
+                {k.sub && <div style={{fontSize:11,color:DIM,marginTop:5}}>{k.sub}</div>}
+                {k.trend != null && k.trend !== 0 && (() => {
+                  const ok = k.good ? k.trend > 0 : k.trend < 0;
+                  return <div style={{marginTop:5}}><span style={{fontSize:11,fontWeight:700,padding:"2px 7px",borderRadius:99,color:`color-mix(in srgb,${ok?GREEN:RED} 55%,#fff)`,background:ok?`${GREEN}1f`:`${RED}1f`}}>{k.trend>0?"+":""}{k.trend}{k.pp?" п.п.":"%"}</span></div>;
+                })()}
+              </Card>
+            ))}
+          </div>
+        )}
+
         {/* ── CALENDAR (завжди відкритий — швидкий вибір місяця/тижня/дня) ── */}
         {secEff === "overview" && <Card className="fu" style={{padding:"12px"}}>
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:11}}>
@@ -631,71 +745,6 @@ export default function StatsView({ onViewStudent, direction } = {}) {
             </div>
           )}
         </Card>}
-
-        {/* ── KPI 3 ── */}
-        {secEff === "overview" && <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:7}}>
-          {[
-            {label:"Дохід",        value:fmtK(totalIncome),               color:GOLD,  trend:trendPct(cur.income,  prev.income)},
-            {label:"Записів",       value:totalLessons,                    color:BLUE,  trend:trendPct(cur.lessons, prev.lessons)},
-            {label:"Години",       value:totalHours,                      color:GREEN, trend:trendPct(totalHours, prevHours)},
-          ].map((k, i) => (
-            <Card key={i} className="fu" style={{
-              padding:"10px 9px",
-              background:`color-mix(in srgb,${k.color} 18%,transparent)`,backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",
-              border:`1px solid color-mix(in srgb,${k.color} 30%,transparent)`,
-              textAlign:"center",
-            }}>
-              <div style={{fontSize:11,color:"rgba(255,255,255,0.7)",letterSpacing:0.6,textTransform:"uppercase",fontWeight:600,marginBottom:6}}>{k.label}</div>
-              <div style={{fontSize:"min(21px,4.5vw)",fontWeight:800,color:"#fff",letterSpacing:-0.3,lineHeight:1.05,whiteSpace:"nowrap"}}>{k.value}</div>
-              {(k.extra || (k.trend != null && k.trend !== 0)) && (
-                <div style={{display:"flex",justifyContent:"center",alignItems:"center",gap:5,marginTop:5,flexWrap:"wrap"}}>
-                  {k.extra && <span style={{fontSize:11,color:"rgba(255,255,255,0.74)",fontWeight:600}}>{k.extra}</span>}
-                  {k.trend != null && k.trend !== 0 && (
-                    <span style={{
-                      fontSize:11, fontWeight:700, padding:"2px 7px", borderRadius:99,
-                      color:`color-mix(in srgb,${k.trend>=0?GREEN:RED} 55%,#fff)`,
-                      background:k.trend>=0?`${GREEN}1f`:`${RED}1f`,
-                    }}>{k.trend>=0?"+":""}{k.trend}%</span>
-                  )}
-                </div>
-              )}
-            </Card>
-          ))}
-        </div>}
-
-        {/* ── KPI: середній чек, нові клієнти, скасування ── */}
-        {secEff === "overview" && (
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:7}}>
-            {(() => {
-              const kAvg   = {label:"Сер. чек", value:fmtK(avgCheck), trend:trendPct(avgCheck, prevAvg), good:true};
-              const kNew   = {label:"Нові", value:clients.fresh, sub:`з ${clients.total} клієнтів`};
-              const kCanc  = {label:"Скасовано", value:`${cancels.pct}%`, trend:prevCancels ? cancels.pct - prevCancels.pct : null, good:false, pp:true};
-              const noshowPct = cancels.total ? Math.round((cancels.noshow / cancels.total) * 100) : 0;
-              const prevNoshowPct = prevCancels && prevCancels.total ? Math.round((prevCancels.noshow / prevCancels.total) * 100) : null;
-              if (dir === "education") return [
-                {label:"Явка", value:att.pct == null ? "—" : `${att.pct}%`, sub:att.missed ? `пропусків ${att.missed}` : null},
-                kNew,
-                kAvg,
-              ];
-              if (dir === "consult") return [
-                {label:"Неявки", value:`${noshowPct}%`, trend:prevNoshowPct == null ? null : noshowPct - prevNoshowPct, good:false, pp:true},
-                kNew,
-                kAvg,
-              ];
-              return [kAvg, kNew, kCanc];
-            })().map((k, i) => (
-              <Card key={i} className="fu" style={{padding:"10px 9px",textAlign:"center"}}>
-                <div style={{fontSize:10.5,color:DIM,letterSpacing:0.3,textTransform:"uppercase",fontWeight:600,marginBottom:6,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{k.label}</div>
-                <div style={{fontSize:"min(19px,4.3vw)",fontWeight:800,color:TEXT,lineHeight:1.05,whiteSpace:"nowrap"}}>{k.value}</div>
-                {k.sub && <div style={{fontSize:11,color:DIM,marginTop:5}}>{k.sub}</div>}
-                {k.trend != null && k.trend !== 0 && (() => {
-                  const ok = k.good ? k.trend > 0 : k.trend < 0;
-                  return <div style={{marginTop:5}}><span style={{fontSize:11,fontWeight:700,padding:"2px 7px",borderRadius:99,color:`color-mix(in srgb,${ok?GREEN:RED} 55%,#fff)`,background:ok?`${GREEN}1f`:`${RED}1f`}}>{k.trend>0?"+":""}{k.trend}{k.pp?" п.п.":"%"}</span></div>;
-                })()}
-              </Card>
-            ))}
-          </div>
-        )}
 
         {/* ── МАЙСТРИ (салон) ── */}
         {secEff === "masters" && (masterFilter ? masterRows.filter(r => r.m.id === masterFilter) : masterRows).map(r => (
@@ -798,59 +847,40 @@ export default function StatsView({ onViewStudent, direction } = {}) {
           )}
         </Card>}
 
-        {/* ── РОЗПОДІЛ + ПО ДНЯХ ── */}
-        {secEff === "overview" && <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7}}>
-          <Card className="fu" style={{
-            padding:"12px",
-            background:`color-mix(in srgb,${GREEN} 18%,transparent)`,backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",
-            border:`1px solid color-mix(in srgb,${GREEN} 24%,transparent)`,
-          }}>
-            <div style={{fontSize:11,color:"rgba(255,255,255,0.74)",letterSpacing:1,textTransform:"uppercase",fontWeight:700,marginBottom:7}}>Розподіл</div>
-            {(() => {
-              const totalRatio = totalSchool + totalPrivate;
-              const schoolPct = totalRatio ? Math.round((totalSchool/totalRatio)*100) : 0;
-              return (
-                <div style={{display:"flex",flexDirection:"column",gap:5}}>
-                  {[[GREEN,"Стандарт",totalSchool,schoolPct],[GOLD,"Індивідуальний",totalPrivate,100-schoolPct]].map(([c,l,v,pct])=>(
-                    <div key={l} style={{display:"flex",alignItems:"center",gap:5,flexWrap:"wrap",rowGap:2}}>
-                      <i style={{width:7,height:7,borderRadius:2,background:c,flexShrink:0}}/>
-                      <span style={{flex:"1 1 auto",fontSize:11,color:"rgba(255,255,255,0.85)"}}>{l}</span>
-                      <span style={{fontSize:12,fontWeight:900,color:c}}>{v}</span>
-                      <span style={{fontSize:11,color:"rgba(255,255,255,0.75)",width:30,textAlign:"right",flexShrink:0}}>{pct}%</span>
-                    </div>
-                  ))}
-                  <div style={{display:"flex",height:8,borderRadius:99,overflow:"hidden",marginTop:2}}>
-                    <div style={{width:`${totalRatio?schoolPct:50}%`,background:GREEN,transition:"width .5s ease"}}/>
-                    <div style={{width:`${totalRatio?100-schoolPct:50}%`,background:GOLD,transition:"width .5s ease"}}/>
+        {/* ── РОЗПОДІЛ ЗА ПОСЛУГАМИ (реальні назви послуг; понад 4 — «Інші») ── */}
+        {secEff === "overview" && (() => {
+          const all = serviceStats(periodBookings, services, incomeOf).sort((x, y) => y.n - x.n);
+          const total = all.reduce((t, r) => t + r.n, 0);
+          if (!total) return null;
+          const COLORS = [GREEN, GOLD, BLUE, PURPLE];
+          const rows = all.slice(0, 4).map((r, i) => ({ ...r, c: COLORS[i] }));
+          const rest = all.slice(4).reduce((t, r) => t + r.n, 0);
+          if (rest) rows.push({ name: "Інші", n: rest, c: FAINT });
+          let acc = 0;
+          const pcts = rows.map((r, i) => { const p = i === rows.length - 1 ? 100 - acc : Math.round((r.n / total) * 100); acc += p; return p; });
+          return (
+            <Card className="fu" style={{padding:"12px 13px"}}>
+              <div style={{...secTitle,marginBottom:8}}>Розподіл за послугами</div>
+              <div style={{display:"flex",height:8,borderRadius:99,overflow:"hidden",marginBottom:8,gap:2}}>
+                {rows.map((r, i) => <div key={r.name} style={{width:`${pcts[i]}%`,background:r.c,transition:"width .5s ease"}}/>)}
+              </div>
+              <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                {rows.map((r, i) => (
+                  <div key={r.name} style={{display:"flex",alignItems:"center",gap:6,minWidth:0}}>
+                    <i style={{width:8,height:8,borderRadius:2,background:r.c,flexShrink:0}}/>
+                    <span style={{fontSize:12,color:TEXT,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",minWidth:0}}>{r.name}</span>
+                    <span style={{marginLeft:"auto",fontSize:12,fontWeight:800,color:TEXT,whiteSpace:"nowrap"}}>{`${r.n} · ${pcts[i]}%`}</span>
                   </div>
-                </div>
-              );
-            })()}
-          </Card>
+                ))}
+              </div>
+            </Card>
+          );
+        })()}
 
-          <Card className="fu" style={{
-            padding:"12px",
-            background:`color-mix(in srgb,${GOLD} 18%,transparent)`,backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",
-            border:`1px solid color-mix(in srgb,${GOLD} 24%,transparent)`,
-          }}>
-            <div style={{fontSize:11,color:"rgba(255,255,255,0.74)",letterSpacing:1,textTransform:"uppercase",fontWeight:700,marginBottom:7}}>{byPeriodLabel}</div>
-            <div style={{display:"flex",flexDirection:"column",gap:4,maxHeight:140,overflowY:"auto",paddingRight:2}}>
-              {data.map((d, i) => {
-                const maxI = Math.max(...data.map(x => x.income), 1);
-                const pct  = d.income / maxI;
-                return (
-                  <div key={i} style={{display:"flex",alignItems:"center",gap:6}}>
-                    <span style={{fontSize:11,color:"rgba(255,255,255,0.74)",fontWeight:700,width:18,textAlign:"right",flexShrink:0}}>{d.label}</span>
-                    <div style={{flex:1,height:6,background:"rgba(255,255,255,.1)",borderRadius:99,overflow:"hidden"}}>
-                      <div style={{height:"100%",width:`${pct*100}%`,borderRadius:3,background:`linear-gradient(90deg,${GOLD},${GREEN})`,transition:"width .5s ease"}}/>
-                    </div>
-                    <span style={{fontSize:11,color:GOLD,fontWeight:800,width:46,textAlign:"right",flexShrink:0,whiteSpace:"nowrap"}}>{d.income ? fmtK(d.income) : <span style={{color:FAINT}}>—</span>}</span>
-                  </div>
-                );
-              })}
-            </div>
-          </Card>
-        </div>}
+        {/* ── ДОХІД ПО ДНЯХ / МІСЯЦЯХ / ГОДИНАХ ── */}
+        {secEff === "overview" && data.length > 0 && (
+          <IncomeBars data={data} title={`Дохід · ${byPeriodLabel.toLowerCase()}`} todayKey={getDateStr(new Date())} c={{ DIM, GOLD, GREEN, TEXT }}/>
+        )}
 
         {/* ── ЗВІДКИ ЗАПИСИ ── */}
         {secEff === "overview" && src.total > 0 && (() => {
@@ -890,6 +920,13 @@ export default function StatsView({ onViewStudent, direction } = {}) {
                 ))}
               </div>
             ))}
+            {hmHasData && (
+              <div style={{display:"flex",alignItems:"center",justifyContent:"flex-end",gap:4,marginTop:7,fontSize:10.5,color:DIM}}>
+                <span>менше</span>
+                {[0, 0.33, 0.66, 1].map(f => <i key={f} style={{width:12,height:10,borderRadius:2,background:f ? `color-mix(in srgb,${ACCENT} ${Math.round(15 + f * 80)}%,transparent)` : BG_DEEP}}/>)}
+                <span>більше записів</span>
+              </div>
+            )}
             {!hmHasData && <div style={{fontSize:12,color:DIM,marginTop:9,textAlign:"center"}}>За цей період записів немає</div>}
             {quiet && (
               <div style={{marginTop:10,padding:"8px 10px",borderRadius:10,background:`${GOLD}1a`,fontSize:12,color:`color-mix(in srgb,${GOLD} 60%,#fff)`,lineHeight:1.4}}>
@@ -918,8 +955,8 @@ export default function StatsView({ onViewStudent, direction } = {}) {
                       background:i===0?`linear-gradient(90deg,${GOLD},${GREEN})`:`linear-gradient(90deg,${PURPLE},${ACCENT})`,
                       transition:"width .5s ease"}}/>
                   </div>
-                  <span style={{fontSize:11,color:`color-mix(in srgb,${i===0?GOLD:PURPLE} 55%,#fff)`,fontWeight:800,width:44,textAlign:"right",flexShrink:0}}>
-                    {s.count} ур.
+                  <span style={{fontSize:11,color:`color-mix(in srgb,${i===0?GOLD:PURPLE} 55%,#fff)`,fontWeight:800,width:74,textAlign:"right",flexShrink:0,whiteSpace:"nowrap"}}>
+                    {zapysiv(s.count)}
                   </span>
                 </div>
               );

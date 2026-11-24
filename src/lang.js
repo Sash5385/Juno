@@ -9,7 +9,7 @@ const S = {
   'nav.services':   { uk:'Послуги',     en:'Services'   },
   'nav.chats':      { uk:'Чати',        en:'Chats'      },
   'nav.templates':  { uk:'Шаблони',     en:'Templates'  },
-  'nav.stats':      { uk:'Статист.',    en:'Stats'      },
+  'nav.stats':      { uk:'Статистика',  en:'Stats'      },
   'nav.settings':   { uk:'Налашт.',     en:'Settings'   },
   'nav.journal':    { uk:'Журнал',      en:'Journal'    },
 
