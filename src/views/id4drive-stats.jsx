@@ -710,6 +710,7 @@ export default function StatsView({ onViewStudent, direction } = {}) {
               const bucket = calMonthData[i];
               const n = bucket ? bucket.lessons : 0;
               const isToday = dateStr === todayStr;
+              const isFuture = dateStr > todayStr; // заплановані, ще не відбулись — бліді, з пунктирною рамкою
               const isSel = period === "custom" && selectedDays.has(dateStr);
               const inPreview = calDragPreview && day >= Math.min(calDragPreview.start,calDragPreview.end) && day <= Math.max(calDragPreview.start,calDragPreview.end);
               let bg = SURF_HI, color = DIM;
@@ -718,20 +719,24 @@ export default function StatsView({ onViewStudent, direction } = {}) {
               return (
                 <button key={day} data-cal-day={day} style={{
                   height:34, borderRadius:11, cursor:"pointer", fontFamily:"inherit",
-                  border: isToday ? `1.5px solid ${ACCENT}` : inPreview ? `1px solid ${ACCENT}` : `1px solid ${BORDER}`,
+                  border: isToday ? `1.5px solid ${ACCENT}` : inPreview ? `1px solid ${ACCENT}` : isFuture && n > 0 ? `1px dashed color-mix(in srgb,${color} 70%,transparent)` : `1px solid ${BORDER}`,
                   background: isSel ? `linear-gradient(145deg,${ACC_HI},${ACCENT})` : bg,
                   color: isSel ? "#04231f" : color,
+                  opacity: isFuture && !isSel && !inPreview ? 0.6 : 1,
                   fontSize:12, fontWeight:700,
                 }}>{day}</button>
               );
             })}
           </div>
-          <div style={{display:"flex",gap:10,justifyContent:"center",marginTop:8}}>
+          <div style={{display:"flex",gap:10,justifyContent:"center",flexWrap:"wrap",rowGap:4,marginTop:8}}>
             {[[RED,"мало"],[GOLD,"середньо"],[GREEN,"багато"]].map(([c,l])=>(
               <span key={l} style={{fontSize:11,color:FAINT,fontWeight:700,display:"flex",alignItems:"center",gap:4}}>
                 <i style={{width:8,height:8,borderRadius:3,background:c,display:"inline-block"}}/>{l}
               </span>
             ))}
+            <span style={{fontSize:11,color:FAINT,fontWeight:700,display:"flex",alignItems:"center",gap:4}}>
+              <i style={{width:8,height:8,borderRadius:3,border:`1px dashed ${FAINT}`,display:"inline-block"}}/>заплановано
+            </span>
           </div>
           {period === "custom" && selectedStrips.length > 0 && (
             <div style={{marginTop:9,display:"flex",alignItems:"center",gap:6}}>
@@ -928,6 +933,7 @@ export default function StatsView({ onViewStudent, direction } = {}) {
               </div>
             )}
             {!hmHasData && <div style={{fontSize:12,color:DIM,marginTop:9,textAlign:"center"}}>За цей період записів немає</div>}
+            {loadOne != null && <Hint style={{marginTop:10}}>Зайнятість — заброньовані години від робочих за графіком майстра (або салону).</Hint>}
             {quiet && (
               <div style={{marginTop:10,padding:"8px 10px",borderRadius:10,background:`${GOLD}1a`,fontSize:12,color:`color-mix(in srgb,${GOLD} 60%,#fff)`,lineHeight:1.4}}>
                 {`Найбільше вільного часу в ${DOW_LONG[quiet.d]} з ${quiet.h}:00 до ${quiet.h + 2}:00 — можна дати знижку на ці години.`}
@@ -1007,6 +1013,9 @@ export default function StatsView({ onViewStudent, direction } = {}) {
               {miniTile(clients.avgGap == null ? "—" : `${clients.avgGap} дн.`, "між записами")}
               {miniTile(sleepList.length, dir === "consult" ? "перервали курс" : "давно не були", sleepList.length ? GOLD : TEXT)}
             </div>
+            <Hint style={{marginTop:9}}>{dir === "consult"
+              ? `«Між записами» — середня кількість днів між візитами одного клієнта. «Перервали курс» — останній візит понад ${sleepDays} днів тому і нового запису немає.`
+              : `«Між записами» — середня кількість днів між візитами одного клієнта. «Давно не були» — останній візит понад ${sleepDays} днів тому і нового запису немає.`}</Hint>
           </Card>
         )}
 
@@ -1119,8 +1128,8 @@ export default function StatsView({ onViewStudent, direction } = {}) {
                   padding:"9px 8px",
                   marginBottom: i < topStudents.length-1 ? 4 : 0,
                   borderRadius:10,
-                  background: i<3 ? `linear-gradient(155deg,color-mix(in srgb,${medals[i]} 22%,${BG_DEEP}),color-mix(in srgb,${medals[i]} 5%,${BG_DEEP}))` : "transparent",
-                  border: i<3 ? `1px solid color-mix(in srgb,${medals[i]} 30%,transparent)` : "none",
+                  background: BG_DEEP,
+                  border: `1px solid ${BORDER}`,
                 }}>
                   <div style={{
                     width:24, height:24, borderRadius:7, flexShrink:0,
@@ -1139,7 +1148,7 @@ export default function StatsView({ onViewStudent, direction } = {}) {
                     <div style={{height:4,background:BG_DEEP,borderRadius:3,boxShadow:SI,overflow:"hidden"}}>
                       <div style={{
                         height:"100%", width:`${(barVal/maxH)*100}%`, borderRadius:3,
-                        background: s.type==="school" ? `linear-gradient(90deg,${BLUE},${GREEN})` : `linear-gradient(90deg,${PURPLE},${GOLD})`,
+                        background: topBy === 'lessons' ? `linear-gradient(90deg,${ACCENT},${BLUE})` : `linear-gradient(90deg,${GOLD},${GREEN})`,
                       }}/>
                     </div>
                   </div>

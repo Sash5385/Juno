@@ -4,6 +4,7 @@ import { Hint } from "../ui";
 import { masterOf } from "../workspace";
 import { onValue } from "firebase/database";
 import { iRef } from "../firebase";
+import { useAllCols, allColsEffective } from "../allCols";
 
 // Огляд салону на день: колонка на кожного майстра, записи блоками за часом. Лише перегляд — тап по запису відкриває календар
 // цього майстра (там усе редагується як завжди).
@@ -13,8 +14,6 @@ const ymd = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate(
 const fmt = (m) => `${pad(Math.floor(m / 60))}:${pad(m % 60)}`;
 const SKIP = new Set(["vip-slot", "personal"]);
 
-const COL_KEY = "allMastersCols";
-const readCols = () => { try { const n = parseInt(localStorage.getItem(COL_KEY), 10); return n >= 1 && n <= 5 ? n : null; } catch { return null; } };
 
 export default function AllMastersView({ bookings, staff, settings, onPick, onViewStudent }) {
   const { TEXT, DIM, FAINT, SURFACE, BORDER } = useContext(ThemeContext);
@@ -52,9 +51,8 @@ export default function AllMastersView({ bookings, staff, settings, onPick, onVi
   // Скільки майстрів на екрані: вибір 1–5 (запам'ятовується на пристрої); без вибору — телефон 1, інакше «N діб» зверху.
   // Гортання вбік прилипає до колонки.
   const phone = win.w < 480;
-  const [colPick, setColPick] = useState(readCols);
-  const pickCols = (n) => { setColPick(n); try { localStorage.setItem(COL_KEY, String(n)); } catch { /* ignore */ } };
-  const cols = Math.max(1, Math.min(staff.length, colPick || (phone ? 1 : (Number(settings.daysShown) || 5))));
+  const colPick = useAllCols(); // вибирається кнопками «N майстр.» у верхній панелі
+  const cols = allColsEffective(colPick, staff.length, settings.daysShown, phone);
   const COL_W = Math.max(44, Math.floor((win.w - 36 - AXIS_W) / cols));
   const total = all.length;
   const isToday = day === ymd(new Date());
@@ -73,19 +71,6 @@ export default function AllMastersView({ bookings, staff, settings, onPick, onVi
         <button aria-label="Наступний день" onClick={() => shift(1)} style={nav}>›</button>
       </div>
 
-      {staff.length > 1 && (
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
-          <span style={{ fontSize: 11.5, color: DIM, whiteSpace: "nowrap" }}>На екрані:</span>
-          {[1, 2, 3, 4, 5].filter((n) => n <= staff.length).map((n) => (
-            <button key={n} aria-label={`Майстрів на екрані: ${n}`} onClick={() => pickCols(n)} style={{
-              width: 32, height: 30, borderRadius: 10, cursor: "pointer", fontFamily: "inherit", fontSize: 13, fontWeight: 700,
-              border: `1px solid ${cols === n ? "transparent" : BORDER}`,
-              background: cols === n ? "linear-gradient(145deg,#8fc0ff,#5fa2ff)" : SURFACE, color: cols === n ? "#06182e" : DIM,
-              boxShadow: cols === n ? "0 4px 12px rgba(95,162,255,.35)" : "none",
-            }}>{n}</button>
-          ))}
-        </div>
-      )}
       <div style={{ padding: 8, borderRadius: 26, background: "radial-gradient(circle at 15% 0%, rgba(80,130,230,.45) 0, transparent 55%), radial-gradient(circle at 100% 100%, rgba(170,90,200,.35) 0, transparent 50%)" }}>
       <div style={{ overflowX: "auto", borderRadius: 20, border: "1px solid rgba(255,255,255,.16)", background: "rgba(255,255,255,.06)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)", WebkitOverflowScrolling: "touch", scrollSnapType: "x mandatory", scrollPaddingLeft: AXIS_W }}>
         <div style={{ display: "flex", minWidth: AXIS_W + staff.length * COL_W }}>

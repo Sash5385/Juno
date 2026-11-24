@@ -1,4 +1,5 @@
 import React, { useState, useEffect, lazy, Suspense, createContext, useContext, startTransition } from "react";
+import { useAllCols, setAllCols, allColsEffective } from "./allCols";
 import { tr as trI18n } from "./i18n";
 import { MetalIcon } from "./MetalIcon";
 import { ref, onValue, update, push, remove, get, set } from "firebase/database";
@@ -405,7 +406,8 @@ const INSTRUCTIONS = {
 };
 
 // ─── TOP BAR ─────────────────────────────────────────────────────
-function TopBar({ tab, onChange, settings, setSettings }) {
+function TopBar({ tab, onChange, settings, setSettings, allCount = 0 }) {
+  const allPick = useAllCols();
   const lang = useContext(LangContext);
   const tl = createT(lang);
   const tabLabel = tl(TAB_IDS.find(x=>x.id===tab)?.lk || tab);
@@ -495,7 +497,22 @@ function TopBar({ tab, onChange, settings, setSettings }) {
 
             {/* Right: діб buttons */}
             <div data-help="days" style={{flex:1,minWidth:0,display:"flex",gap:2,alignItems:"center"}}>
-              {[1,2,3,5,7].map(n=>{
+              {/* Огляд «Усі» (салон): ті самі кнопки задають, скільки майстрів на екрані */}
+              {allCount > 1 && [1,2,3,4,5].filter(n => n <= allCount).map(n=>{
+                const active = allColsEffective(allPick, allCount, settings.daysShown, window.innerWidth < 480) === n;
+                return (
+                  <button key={`m${n}`} aria-label={`Майстрів на екрані: ${n}`} onClick={()=>setAllCols(n)} style={{
+                    ...btnBase,
+                    background:active?`linear-gradient(165deg,${theme.GOLD},#e6a800)`:btnInactive,
+                    color:active?"#1a1200":btnInactiveColor,
+                    boxShadow:active?`0 3px 8px ${theme.GOLD}55`:"none",
+                  }}>
+                    <span style={{fontSize:15,fontWeight:800}}>{n}</span>
+                    {!narrow && <span style={{fontSize:8,fontWeight:600,opacity:0.8}}>майстр.</span>}
+                  </button>
+                );
+              })}
+              {allCount <= 1 && [1,2,3,5,7].map(n=>{
                 const active = settings.daysShown===n;
                 return (
                   <button key={n} onClick={()=>setSettings(s=>({...s,daysShown:n}))} style={{
@@ -1499,7 +1516,7 @@ const pendingDeletesRef = React.useRef(new Set());
         display:"flex",flexDirection:"column",
         zIndex:1,
       }}>
-        <TopBar tab={tab} onChange={switchTab} settings={navSettings} setSettings={setSettings}/>
+        <TopBar tab={tab} onChange={switchTab} settings={navSettings} setSettings={setSettings} allCount={allMode ? staffList.length : 0}/>
         <FogScope><LicenseBanner state={licState}/></FogScope>
         <div className="tab-anim" key={`${displayedTab}-${tabVisits[displayedTab]||0}`} style={{
           position:"relative",
