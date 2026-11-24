@@ -1,6 +1,6 @@
 import { useState, useEffect, useContext, useRef } from "react";
 import { MetalIcon } from "../MetalIcon";
-import { onValue, get, update } from "firebase/database";
+import { onValue, get, update, push, increment } from "firebase/database";
 import { iRef, auth } from "../firebase";
 import { normStaff, masterOf } from "../workspace";
 import { LangContext } from "../App";
@@ -13,6 +13,8 @@ import { hasOwnSchedule } from "../masterSettings";
 import { periodDates, utilization, cancelStats, sources, clientStats, serviceStats, heatmap, quietestSlot, attendance, cohorts, courseStats, packageStats } from "./stats-extra";
 import { normDirection } from "../terms";
 import { cur as curSym, money } from "../currency";
+import { useToast } from "../Toast";
+import { useConfirm } from "../ConfirmModal";
 
 const UK_MONTHS     = ["Січ","Лют","Бер","Кві","Тра","Чер","Лип","Сер","Вер","Жов","Лис","Гру"];
 const UK_WEEK_LABELS= ["Пн","Вт","Ср","Чт","Пт","Сб"];
@@ -304,6 +306,9 @@ export default function StatsView({ onViewStudent, direction } = {}) {
   const [svcBy,       setSvcBy]       = useState("sum");
   const [sleepAll,    setSleepAll]    = useState(false);
   const [users,       setUsers]       = useState({});         // users/{uid}: пакети клієнтів
+  const [toast, toastNode]     = useToast();
+  const [confirm, confirmNode] = useConfirm();
+  const [slug, setSlug]        = useState("");             // посилання на онлайн-запис (admin_settings/profile/slug)
 
   const css = `
 @keyframes bar-grow{from{height:0%}to{height:var(--h)}}
@@ -346,6 +351,7 @@ export default function StatsView({ onViewStudent, direction } = {}) {
   useEffect(() => onValue(iRef("admin_settings/weekSchedule"), snap => setWeekSchedule(Array.isArray(snap.val()) ? snap.val() : null), () => {}), []);
   useEffect(() => onValue(iRef("master_settings"), snap => setMasterSet(snap.val() || {}), () => {}), []);
   useEffect(() => onValue(iRef("users"), snap => setUsers(snap.val() || {}), () => {}), []);
+  useEffect(() => { get(iRef("admin_settings/profile/slug")).then(sn => setSlug(sn.val() || "")).catch(() => {}); }, []);
 
   useEffect(() => {
     get(iRef( "admin_settings/incomeGoal")).then(s => { if (s.exists()) setIncomeGoal(s.val() || 0); }).catch(() => {});
@@ -566,8 +572,50 @@ export default function StatsView({ onViewStudent, direction } = {}) {
   })();
   const fmtDM = (dateStr) => { const d = new Date(dateStr+"T00:00:00"); return `${d.getDate()}.${String(d.getMonth()+1).padStart(2,'0')}`; };
 
+  const bookingLink = slug ? `https://aldemi.com.ua/junoclient/i/${slug}` : "";
+  const shareLink = async () => {
+    if (!bookingLink) { toast("Спершу задайте адресу сторінки в Налаштуваннях", true); return; }
+    if (navigator.share) { navigator.share({ title: "Запис онлайн", url: bookingLink }).catch(() => {}); return; }
+    try { await navigator.clipboard.writeText(bookingLink); toast("Посилання скопійовано"); } catch { toast(bookingLink); }
+  };
+  // «Давно не були» → нагадування в чат клієнта (сервер надішле push). Не частіше ніж раз на 7 днів.
+  const REMIND_GAP = 7 * 86400000;
+  const remindedAt = (uid) => Number(users?.[uid]?.remindedAt) || 0;
+  const remind = async (c) => {
+    const first = String(c.name || "").trim().split(/\s+/)[0] || "";
+    const text = bookingLink
+      ? `${first ? first + ", д" : "Д"}авно не бачились! Будемо раді вам знову — оберіть зручний час: ${bookingLink}`
+      : `${first ? first + ", д" : "Д"}авно не бачились! Будемо раді вам знову — напишіть, коли вам зручно.`;
+    if (!(await confirm({ title: `Нагадати: ${showName(c.name)}?`, text, okLabel: "Надіслати" }))) return;
+    const ts = Date.now(), time = new Date(ts).toLocaleTimeString("uk-UA", { hour: "2-digit", minute: "2-digit" });
+    try {
+      await push(iRef(`chats/${c.uid}`), { from: "admin", text, time, ts, reminder: true });
+      await update(iRef(`chatMeta/${c.uid}`), { unreadForStudent: increment(1), lastMsg: text, lastTs: ts });
+      await update(iRef(`users/${c.uid}`), { remindedAt: ts });
+      toast("Нагадування надіслано");
+    } catch { toast("Не вдалося надіслати", true); }
+  };
+  // CSV за обраний період (Excel: «;» і BOM, щоб кирилиця відкрилась правильно)
+  const exportCsv = () => {
+    const STATUS = { confirmed: "підтверджено", pending: "очікує", cancelled: "скасовано", done: "відбувся", noshow: "не прийшов" };
+    const mName = (b) => (staff.find(m => m.id === masterOf(b, ownerUid)) || {}).name || "";
+    const esc = (v) => { const t = String(v ?? ""); return /[";\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t; };
+    const head = ["Дата", "Час", "Клієнт", "Телефон", "Послуга", ...(staff.length > 1 ? ["Майстер"] : []), "Сума", "Статус"];
+    const rows = [...periodBookings].sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`)).map(b => [
+      b.date, b.time, b.studentName || b.name || "", b.phone || "", (services.find(x => x.id === b.serviceId) || {}).name || b.serviceName || "", ...(staff.length > 1 ? [mName(b)] : []),
+      b.status === "cancelled" || b.status === "noshow" ? 0 : incomeOf(b), STATUS[b.status] || b.status || "",
+    ]);
+    const csv = "\ufeff" + [head, ...rows].map(r => r.map(esc).join(";")).join("\r\n");
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    a.download = `juno-${period}-${todayStr}.csv`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  };
+
   return (
     <>
+      {toastNode}{confirmNode}
       <UICss/>
       <style>{css}</style>
       <div style={{display:"flex",flexDirection:"column",gap:8,fontFamily:"ui-sans-serif,-apple-system,system-ui,sans-serif",color:TEXT}}>
@@ -848,7 +896,13 @@ export default function StatsView({ onViewStudent, direction } = {}) {
               </div>
             </>
           ) : (
-            <div style={{fontSize:11,color:DIM}}>Встановіть ціль доходу на місяць</div>
+            <>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7,margin:"6px 0 8px"}}>
+                {miniTile(fmtK(curMonthCurrent), "вже зароблено", GOLD)}
+                {miniTile(fmtK(curMonthForecast), "прогноз із записами", ACCENT)}
+              </div>
+              <div style={{fontSize:11,color:DIM}}>Встановіть ціль доходу на місяць</div>
+            </>
           )}
         </Card>}
 
@@ -901,6 +955,10 @@ export default function StatsView({ onViewStudent, direction } = {}) {
                 <span><i style={{display:"inline-block",width:8,height:8,borderRadius:3,background:BLUE,marginRight:5}}/>Онлайн {src.online} · {on}%</span>
                 <span><i style={{display:"inline-block",width:8,height:8,borderRadius:3,background:GOLD,marginRight:5}}/>Вручну {src.manual} · {100-on}%</span>
               </div>
+              <button onClick={shareLink} style={{width:"100%",marginTop:10,minHeight:40,borderRadius:10,border:`1px solid ${BLUE}66`,background:`${BLUE}1f`,color:`color-mix(in srgb,${BLUE} 60%,#fff)`,fontFamily:"inherit",fontSize:12.5,fontWeight:800,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:7}}>
+                <MetalIcon name="link" size={18}/>Поділитися посиланням на запис
+              </button>
+              {on < 30 && <div style={{fontSize:11,color:DIM,marginTop:6,textAlign:"center"}}>Більше онлайн-записів — менше дзвінків і переписки</div>}
             </Card>
           );
         })()}
@@ -1037,6 +1095,9 @@ export default function StatsView({ onViewStudent, direction } = {}) {
                   <div data-notrans={dir === "consult" ? "1" : undefined} style={{fontSize:13,fontWeight:700,color:TEXT,overflowWrap:"anywhere"}}>{showName(c.name)}</div>
                   <div style={{fontSize:11,color:DIM}}>{`${c.days} дн. тому · записів ${c.visits} · ${fmtDate(c.last)}`}</div>
                 </div>
+                {!String(c.uid).startsWith("guest_") && (Date.now() - remindedAt(c.uid) < REMIND_GAP
+                  ? <span style={{flexShrink:0,fontSize:11,color:GREEN,fontWeight:700}}>{`нагадано ${fmtDate(new Date(remindedAt(c.uid)).toISOString().slice(0,10))}`}</span>
+                  : <button onClick={()=>remind(c)} style={{flexShrink:0,minHeight:36,padding:"0 12px",borderRadius:10,border:`1px solid ${GOLD}66`,background:`${GOLD}1f`,color:`color-mix(in srgb,${GOLD} 60%,#fff)`,fontFamily:"inherit",fontSize:12,fontWeight:800,cursor:"pointer"}}>Нагадати</button>)}
                 {onViewStudent && (
                   <button onClick={()=>onViewStudent(c.uid)} style={{flexShrink:0,minHeight:36,padding:"0 12px",borderRadius:10,border:`1px solid ${BLUE}66`,background:`${BLUE}1f`,color:`color-mix(in srgb,${BLUE} 60%,#fff)`,fontFamily:"inherit",fontSize:12,fontWeight:800,cursor:"pointer"}}>Відкрити</button>
                 )}
@@ -1195,6 +1256,11 @@ export default function StatsView({ onViewStudent, direction } = {}) {
           </Card>
         )}
 
+        {periodBookings.length > 0 && (
+          <button onClick={exportCsv} style={{minHeight:40,borderRadius:12,border:`1px solid ${BORDER}`,background:SURFACE,color:TEXT,fontFamily:"inherit",fontSize:12.5,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:7}}>
+            <MetalIcon name="download" size={18}/>Вивантажити записи за період (CSV)
+          </button>
+        )}
         <div style={{height:8}}/>
       </div>
     </>
