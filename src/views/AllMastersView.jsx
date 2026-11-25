@@ -84,7 +84,7 @@ export default function AllMastersView({ bookings, staff, settings, onPick, onVi
   const hours = Array.from({ length: Math.max(1, (to - from) / 60) }, (_, i) => from + i * 60);
   // «N годин» — скільки годин вміщається на екрані (Авто — весь діапазон записів); «N діб» — скільки колонок майстрів на екрані
   const wantHours = settings.autoHourHeight ? Math.max(6, Math.min(16, hours.length)) : Math.max(1, ((Number(settings.workEnd) || 18) - (Number(settings.workStart) || 9)) * 60 / (Number(settings.hourHeightPx) || 60));
-  const HOUR_H = Math.max(26, Math.round(Math.max(240, win.h - 330) / wantHours));
+  const HOUR_H = Math.max(26, Math.round(Math.max(240, win.h - 400) / wantHours)); // 400 — шапка, навігація, підсумок дня і підказка
   // Скільки майстрів на екрані: вибір 1–5 (запам'ятовується на пристрої); без вибору — телефон 1, інакше «N діб» зверху.
   // Гортання вбік прилипає до колонки.
   const phone = win.w < 480;
@@ -97,7 +97,8 @@ export default function AllMastersView({ bookings, staff, settings, onPick, onVi
   const nav = { width: 40, height: 40, borderRadius: 12, border: `1px solid ${BORDER}`, background: SURFACE, color: TEXT, fontSize: 18, cursor: "pointer", fontFamily: "inherit", flexShrink: 0 };
 
   return (
-    <div style={{ color: TEXT, display: "flex", flexDirection: "column", gap: 10 }}>
+    // Вкладка розкладу не прокручується (overflow hidden) — свій скрол, щоб підказка внизу не ховалась під нижнім меню
+    <div style={{ color: TEXT, display: "flex", flexDirection: "column", gap: 10, height: "100%", overflowY: "auto", paddingBottom: 12, boxSizing: "border-box" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <button aria-label="Попередній день" onClick={() => shift(-1)} style={nav}>‹</button>
         <div style={{ flex: 1, textAlign: "center", minWidth: 0 }}>
