@@ -70,9 +70,9 @@ const isMouseContext = (e) => (e?.nativeEvent?.pointerType || _lastPtrType) === 
 // GLOBAL CSS (slots from v4, rest v3)
 // ═══════════════════════════════════════════════════════════════
 const makeGlobalCSS = (SURFACE_LO, ACCENT, GLOW, SHADE, INK) => `
-  .tag-orbit{animation-name:tagOrbit;animation-timing-function:linear;animation-iteration-count:infinite;will-change:offset-distance,scale}
-  @keyframes tagOrbit{0%{offset-distance:0%;z-index:8;scale:1;opacity:1}25%{scale:1.15}49.9%{z-index:8;scale:1}50%{offset-distance:50%;z-index:-1;scale:1;opacity:1}75%{scale:.7;opacity:.55}99.9%{z-index:-1}100%{offset-distance:100%;z-index:8;scale:1;opacity:1}}
-  @media (prefers-reduced-motion: reduce){.tag-orbit{animation:none;offset-distance:12%}}
+  .tag-train{padding-left:100%;animation:tagTrain 4.5s linear infinite;will-change:transform}
+  @keyframes tagTrain{from{transform:translateX(0)}to{transform:translateX(-100%)}}
+  @media (prefers-reduced-motion: reduce){.tag-train{animation:none;padding-left:4px}}
 
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
 body, html, #root { margin:0; padding:0; }

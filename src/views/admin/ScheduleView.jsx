@@ -3017,8 +3017,11 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                 // а текст починається ПІД часом — раніше на картках з міткою ("1-й запис",
                 // "Борг"...) час перекривав першу строку імені. Висоти рахуємо з тих самих
                 // розмірів, що й у бейджа (tagFs/відступи), тож на широких колонках теж без накладання.
-                const _hasTag = !isBlock && !isVipSlot && !isPersonal && height >= 14 && !!effectiveTag(b);
                 const _tagFs = Math.max(6, Math.min(9, Math.round(COL_W / 11)));
+                // «1-й запис» — стрічка в куті: місця під бейдж не резервуємо, а час ставимо лівіше стрічки
+                const _isRibbon = !isBlock && !isVipSlot && !isPersonal && height >= 14 && effectiveTag(b) === "first";
+                const _ribbonRight = _isRibbon ? Math.ceil((Math.min(18, Math.max(10, Math.min(COL_W - 2, height - 2) * 0.2)) + (Math.max(6, _tagFs - 1) * 1.2 + 3) / 2) * Math.SQRT2) + 1 : 0;
+                const _hasTag = !_isRibbon && !isBlock && !isVipSlot && !isPersonal && height >= 14 && !!effectiveTag(b);
                 const _tagBottom = Math.round(_tagFs * 0.9) + 0.99 * (_tagFs * 1.3 + 2 * (COL_W >= 34 ? Math.max(1, Math.round(_tagFs * 0.25)) : 2));
                 const _timeFs = Math.min(8, Math.max(6, height / 9));
                 const _timeTagTop = Math.max(16, Math.floor(_tagBottom));
@@ -3052,40 +3055,46 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                       const label = curTag === "debt" && b.debtAmount > 0 ? `${tp.label} ${money(b.debtAmount)}` : tp.label;
                       const tagFs = Math.max(6, Math.min(9, Math.round(COL_W / 11)));
                       const showText = COL_W >= 34;
-                      // «1-й запис» — бейдж ходить по орбіті як стрічка навколо картки — по діагоналі:
-                      // пласка еліпс-орбіта вздовж діагоналі, бейдж нахилений по ній; спереду — поверх картки,
-                      // позаду — ховається за неї. Геометрія рахується так, щоб бейдж не виходив за межі слоту.
-                      const orbit = curTag === "first";
-                      const oW = COL_W - 2, oH = Math.max(4, height - 2);
-                      const oAng = Math.atan2(oH, oW), oc = Math.cos(oAng), os = Math.sin(oAng), oDeg = oAng * 180 / Math.PI;
-                      const oPadV = Math.max(1, Math.round(tagFs * 0.25)), oPadH = Math.max(5, Math.round(tagFs * 0.85)), oIc = Math.max(12, tagFs + 4);
-                      const oFit = (bw, bh) => { const hw = (bw * oc + bh * os) / 2 * 1.15, hh = (bw * os + bh * oc) / 2 * 1.15; return Math.min((oW / 2 - hw) / oc, (oH / 2 - hh) / os); };
-                      const oBwText = oIc + 3 + String(label).length * tagFs * 0.62 + 2 * oPadH, oBh = Math.max(oIc, tagFs * 1.3) + 2 * oPadV;
-                      const oText = showText && oFit(oBwText, oBh) >= 6;
-                      const orx = Math.max(0, oText ? oFit(oBwText, oBh) : oFit(oIc + 6, oIc + 4)), ory = Math.min(5, orx * 0.25);
-                      const ocx = oW / 2, ocy = oH / 2;
-                      const oP1 = `${(ocx + orx * oc).toFixed(1)} ${(ocy + orx * os).toFixed(1)}`, oP2 = `${(ocx - orx * oc).toFixed(1)} ${(ocy - orx * os).toFixed(1)}`;
-                      const orbitPath = `path("M ${oP1} A ${orx.toFixed(1)} ${Math.max(0.5, ory).toFixed(1)} ${oDeg.toFixed(1)} 1 1 ${oP2} A ${orx.toFixed(1)} ${Math.max(0.5, ory).toFixed(1)} ${oDeg.toFixed(1)} 1 1 ${oP1}")`;
+                      // «1-й запис» — стрічка навскіс через правий верхній кут слоту, текст їде по ній, як поїзд
+                      // (заходить з одного краю і виїжджає з іншого). Обрізається по межах картки.
+                      if (curTag === "first") {
+                        const oW = COL_W - 2, oH = Math.max(4, height - 2);
+                        const rFs = Math.max(6, tagFs - 1);
+                        const bh = Math.round(rFs * 1.2 + 3);
+                        const c = Math.min(18, Math.max(10, Math.min(oW, oH) * 0.2));
+                        const L = Math.round(2 * c + 2 * bh + 6);
+                        const cx = oW - c / Math.SQRT2, cy = c / Math.SQRT2;
+                        return (
+                          <div style={{ position:"absolute", inset:0, borderRadius:8, overflow:"hidden", zIndex:8, pointerEvents:"none" }}>
+                            <div style={{
+                              position:"absolute", left:cx - L / 2, top:cy - bh / 2, width:L, height:bh,
+                              transform:"rotate(45deg)", transformOrigin:"center",
+                              background:`linear-gradient(180deg, color-mix(in srgb, ${tp.color} 85%, #fff), ${tp.color})`,
+                              boxShadow:"0 2px 6px rgba(0,0,0,0.45)", overflow:"hidden", display:"flex", alignItems:"center",
+                            }}>
+                              <span className="tag-train" style={{ fontSize:rFs, fontWeight:900, color:"#fff", lineHeight:1, whiteSpace:"nowrap", display:"inline-flex", alignItems:"center", gap:2 }}>
+                                <TagIcon tag={tp} size={Math.max(8, rFs + 1)}/>{label}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      }
                       return (
-                        <div className={orbit ? "tag-orbit" : undefined} style={orbit ? {
-                          position:"absolute", top:0, left:0, zIndex:8, pointerEvents:"none",
-                          offsetPath:orbitPath, offsetRotate:`${oDeg.toFixed(1)}deg`, offsetAnchor:"center",
-                          animationDuration:"7s",
-                        } : {
+                        <div style={{
                           position:"absolute", top:Math.round(tagFs * 0.9), right:2, zIndex:8,
                           pointerEvents:"none",
                         }}>
                           <div style={{
                             fontSize:tagFs, fontWeight:900, color:"#fff", lineHeight:1.3,
-                            padding: (orbit ? oText : showText) ? `${Math.max(1, Math.round(tagFs*0.25))}px ${Math.max(5, Math.round(tagFs*0.85))}px` : "2px 3px",
+                            padding: showText ? `${Math.max(1, Math.round(tagFs*0.25))}px ${Math.max(5, Math.round(tagFs*0.85))}px` : "2px 3px",
                             borderRadius:999,
                             background:`linear-gradient(135deg, color-mix(in srgb, ${tp.color} 90%, #fff), ${tp.color})`,
                             boxShadow:"0 4px 10px rgba(0,0,0,0.45)",
                             display:"inline-flex", alignItems:"center", gap:3, minWidth:0, boxSizing:"border-box",
                             whiteSpace:"nowrap", overflow:"hidden",
-                            maxWidth: orbit ? "none" : Math.max(18, Math.min(COL_W - 6, 300)),
-                            transform: orbit ? "none" : "rotate(9deg)", transformOrigin:"top right",
-                          }}><TagIcon tag={tp} size={Math.max(12, tagFs + 4)}/>{(orbit ? oText : showText) && <span style={{minWidth:0,overflow:"hidden",textOverflow:"ellipsis"}}>{label}</span>}</div>
+                            maxWidth: Math.max(18, Math.min(COL_W - 6, 300)),
+                            transform:"rotate(9deg)", transformOrigin:"top right",
+                          }}><TagIcon tag={tp} size={Math.max(12, tagFs + 4)}/>{showText && <span style={{minWidth:0,overflow:"hidden",textOverflow:"ellipsis"}}>{label}</span>}</div>
                         </div>
                       );
                     })()}
@@ -3281,7 +3290,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                           є мітка (бейдж-пігулка), щоб час не перекривався нею. */}
                       {!isBlock && !isVipSlot && !isPersonal && height >= 14 && showTime && (
                         <div style={{
-                          position:"absolute", top:timeTop, right:3, zIndex:4,
+                          position:"absolute", top:timeTop, right:_isRibbon ? _ribbonRight : 3, zIndex:4,
                           fontSize:_timeFs,
                           fontWeight:800, lineHeight:1, color: neonCal && !isLight ? "rgba(255,255,255,0.92)" : "rgba(0,0,0,0.8)",
                           pointerEvents:"none",
