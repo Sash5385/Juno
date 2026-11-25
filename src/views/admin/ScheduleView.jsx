@@ -3048,8 +3048,16 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                       const label = curTag === "debt" && b.debtAmount > 0 ? `${tp.label} ${money(b.debtAmount)}` : tp.label;
                       const tagFs = Math.max(6, Math.min(9, Math.round(COL_W / 11)));
                       const showText = COL_W >= 34;
+                      // «1-й запис» — бейдж літає по орбіті навколо картки (по периметру).
+                      const orbit = curTag === "first";
+                      const oW = COL_W - 2, oH = Math.max(4, height - 2), oR = Math.min(8, oW / 2, oH / 2);
+                      const orbitPath = `path("M ${oR} 0 H ${oW - oR} A ${oR} ${oR} 0 0 1 ${oW} ${oR} V ${oH - oR} A ${oR} ${oR} 0 0 1 ${oW - oR} ${oH} H ${oR} A ${oR} ${oR} 0 0 1 0 ${oH - oR} V ${oR} A ${oR} ${oR} 0 0 1 ${oR} 0 Z")`;
                       return (
-                        <div style={{
+                        <div className={orbit ? "tag-orbit" : undefined} style={orbit ? {
+                          position:"absolute", top:0, left:0, zIndex:8, pointerEvents:"none",
+                          offsetPath:orbitPath, offsetRotate:"0deg", offsetAnchor:"center",
+                          animationDuration:`${Math.round(Math.max(6, (oW + oH) / 30))}s`,
+                        } : {
                           position:"absolute", top:Math.round(tagFs * 0.9), right:2, zIndex:8,
                           pointerEvents:"none",
                         }}>
@@ -3062,7 +3070,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                             display:"inline-flex", alignItems:"center", gap:3, minWidth:0, boxSizing:"border-box",
                             whiteSpace:"nowrap", overflow:"hidden",
                             maxWidth: Math.max(18, Math.min(COL_W - 6, 300)),
-                            transform:"rotate(9deg)", transformOrigin:"top right",
+                            transform: orbit ? "none" : "rotate(9deg)", transformOrigin:"top right",
                           }}><TagIcon tag={tp} size={Math.max(12, tagFs + 4)}/>{showText && <span style={{minWidth:0,overflow:"hidden",textOverflow:"ellipsis"}}>{label}</span>}</div>
                         </div>
                       );

@@ -70,6 +70,10 @@ const isMouseContext = (e) => (e?.nativeEvent?.pointerType || _lastPtrType) === 
 // GLOBAL CSS (slots from v4, rest v3)
 // ═══════════════════════════════════════════════════════════════
 const makeGlobalCSS = (SURFACE_LO, ACCENT, GLOW, SHADE, INK) => `
+  .tag-orbit{animation-name:tagOrbit;animation-timing-function:linear;animation-iteration-count:infinite;will-change:offset-distance}
+  @keyframes tagOrbit{from{offset-distance:0%}to{offset-distance:100%}}
+  @media (prefers-reduced-motion: reduce){.tag-orbit{animation:none;offset-distance:12%}}
+
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
 body, html, #root { margin:0; padding:0; }
 
