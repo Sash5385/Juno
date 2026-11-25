@@ -19,7 +19,7 @@ const SKIP = new Set(["vip-slot", "personal"]);
 
 
 export default function AllMastersView({ bookings, staff, settings, onPick, onViewStudent }) {
-  const { TEXT, DIM, FAINT, SURFACE, SURF_HI, SURF_LO, BORDER, ACCENT, GREEN, GLOW, SHADE, INK } = useContext(ThemeContext);
+  const { TEXT, DIM, FAINT, SURFACE, SURF_HI, SURF_LO, BORDER, ACCENT, GREEN, GLOW, SHADE, INK, BG, BG_DEEP } = useContext(ThemeContext);
   // Поточний час (червона лінія), оновлюється щохвилини
   const [nowMin, setNowMin] = useState(() => { const n = new Date(); return n.getHours() * 60 + n.getMinutes(); });
   useEffect(() => { const t = setInterval(() => { const n = new Date(); setNowMin(n.getHours() * 60 + n.getMinutes()); }, 60000); return () => clearInterval(t); }, []);
@@ -113,7 +113,8 @@ export default function AllMastersView({ bookings, staff, settings, onPick, onVi
       <div className="cal-neon" style={{ overflowX: "auto", borderRadius: 16, WebkitOverflowScrolling: "touch", scrollSnapType: "x mandatory", scrollPaddingLeft: AXIS_W }}>
         <div style={{ display: "flex", minWidth: AXIS_W + staff.length * COL_W }}>
           {/* Вісь часу: години великим, :30 — дрібно; поточний час — червона плашка */}
-          <div style={{ width: AXIS_W, flexShrink: 0, position: "sticky", left: 0, zIndex: 3, background: "var(--app-bg, transparent)" }}>
+          {/* Непрозорий фон: при гортанні вбік картки ховаються ПІД віссю, а не просвічують крізь підписи годин */}
+          <div style={{ width: AXIS_W, flexShrink: 0, position: "sticky", left: 0, zIndex: 5, background: BG_DEEP || BG || "#0b0d14", boxShadow: "4px 0 8px rgba(0,0,0,0.35)" }}>
             <div style={{ height: 46 }} />
             <div style={{ position: "relative", height: hours.length * HOUR_H }}>
               {hours.map((h, i) => (
