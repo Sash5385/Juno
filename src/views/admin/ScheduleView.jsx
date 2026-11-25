@@ -3048,15 +3048,19 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                       const label = curTag === "debt" && b.debtAmount > 0 ? `${tp.label} ${money(b.debtAmount)}` : tp.label;
                       const tagFs = Math.max(6, Math.min(9, Math.round(COL_W / 11)));
                       const showText = COL_W >= 34;
-                      // «1-й запис» — бейдж літає по орбіті навколо картки (по периметру).
+                      // «1-й запис» — бейдж обертається навколо картки як Місяць навколо Землі:
+                      // нахилена еліптична орбіта; спереду — над карткою і більший, позаду — ховається за неї.
                       const orbit = curTag === "first";
-                      const oW = COL_W - 2, oH = Math.max(4, height - 2), oR = Math.min(8, oW / 2, oH / 2);
-                      const orbitPath = `path("M ${oR} 0 H ${oW - oR} A ${oR} ${oR} 0 0 1 ${oW} ${oR} V ${oH - oR} A ${oR} ${oR} 0 0 1 ${oW - oR} ${oH} H ${oR} A ${oR} ${oR} 0 0 1 0 ${oH - oR} V ${oR} A ${oR} ${oR} 0 0 1 ${oR} 0 Z")`;
+                      const oW = COL_W - 2, oH = Math.max(4, height - 2);
+                      const ocx = oW / 2, ocy = oH / 2, orx = oW / 2 + 8, ory = Math.min(oH / 2 + 6, Math.max(12, oW * 0.28));
+                      const oA = -12 * Math.PI / 180, oc = Math.cos(oA), os = Math.sin(oA);
+                      const oP1 = `${(ocx + orx * oc).toFixed(1)} ${(ocy + orx * os).toFixed(1)}`, oP2 = `${(ocx - orx * oc).toFixed(1)} ${(ocy - orx * os).toFixed(1)}`;
+                      const orbitPath = `path("M ${oP1} A ${orx.toFixed(1)} ${ory.toFixed(1)} -12 1 1 ${oP2} A ${orx.toFixed(1)} ${ory.toFixed(1)} -12 1 1 ${oP1}")`;
                       return (
                         <div className={orbit ? "tag-orbit" : undefined} style={orbit ? {
                           position:"absolute", top:0, left:0, zIndex:8, pointerEvents:"none",
                           offsetPath:orbitPath, offsetRotate:"0deg", offsetAnchor:"center",
-                          animationDuration:`${Math.round(Math.max(6, (oW + oH) / 30))}s`,
+                          animationDuration:"7s",
                         } : {
                           position:"absolute", top:Math.round(tagFs * 0.9), right:2, zIndex:8,
                           pointerEvents:"none",
