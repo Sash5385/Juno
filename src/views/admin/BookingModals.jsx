@@ -619,6 +619,14 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   },[!!data]);
 
+  // Форма відкрита з чату («Записати»): клієнт уже обраний
+  useEffect(() => {
+    if (!data?.studentId || selStudent) return;
+    const s = students.find(x => x.id === data.studentId);
+    if (s) { setSelStudent(s); setPhone(s.phone); setSearch(""); }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data?.studentId, students]);
+
   const sortedStudents = useMemo(() => {
     const lastBooked = {};
     bookings.forEach(b => {

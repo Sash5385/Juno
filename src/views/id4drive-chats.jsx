@@ -7,10 +7,32 @@ import { DEMO, DEMO_USER } from "../demo/demoMode";
 
 import { ThemeContext } from "../theme.js";
 import { UICss, useFX } from "../ui";
+import { useConfirm } from "../ConfirmModal";
 
 const QUICK = ["Підтверджую запис ✅","Запис скасовано ❌","Нагадую: завтра","Будь ласка, підтвердіть","До зустрічі 👋"];
 const HUES = [160, 220, 30, 280, 340, 200, 40, 300, 100, 180];
-const hueForUid = (uid) => HUES[(uid || "").charCodeAt(0) % HUES.length];
+// Колір аватарки — хеш усього uid (раніше лише перша літера → майже всі однакові)
+const hueForUid = (uid) => { let h = 0; for (const ch of String(uid || "")) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return HUES[h % HUES.length]; };
+const ymdOf = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+// Час у списку: сьогодні — 09:10, учора — «вчора», цього року — 23.11, інакше 23.11.25
+const fmtWhen = (ts, time) => {
+  if (!ts) return time || "";
+  const d = new Date(ts), now = new Date(), y = new Date(now); y.setDate(now.getDate() - 1);
+  if (ymdOf(d) === ymdOf(now)) return time || d.toLocaleTimeString("uk", {hour:"2-digit", minute:"2-digit"});
+  if (ymdOf(d) === ymdOf(y)) return "вчора";
+  const dm = `${String(d.getDate()).padStart(2,"0")}.${String(d.getMonth()+1).padStart(2,"0")}`;
+  return d.getFullYear() === now.getFullYear() ? dm : `${dm}.${String(d.getFullYear()).slice(2)}`;
+};
+// Роздільник дня в переписці
+const dayLabel = (ts) => {
+  const d = new Date(ts), now = new Date(), y = new Date(now); y.setDate(now.getDate() - 1);
+  if (ymdOf(d) === ymdOf(now)) return "Сьогодні";
+  if (ymdOf(d) === ymdOf(y)) return "Вчора";
+  return d.toLocaleDateString("uk-UA", { day: "numeric", month: "long", ...(d.getFullYear() !== now.getFullYear() ? { year: "numeric" } : {}) });
+};
+// «24 клієнти» / «5 клієнтів» / «1 клієнт»
+const klientiv = (n) => { const a = n % 100, b = n % 10; return a > 10 && a < 20 ? `${n} клієнтів` : b === 1 ? `${n} клієнт` : b >= 2 && b <= 4 ? `${n} клієнти` : `${n} клієнтів`; };
+const WD = ["нд","пн","вт","ср","чт","пт","сб"];
 // Тред чату: "" = «Салон» (chats/{uid}, власник), інакше id майстра (chats_m/{mid}/{uid}). Ключ повідомлень/непрочитаних: uid або "mid/uid".
 const tKey = (uid, tk) => tk ? `${tk}/${uid}` : uid;
 const chatPath = (uid, tk) => tk ? `chats_m/${tk}/${uid}` : `chats/${uid}`;
@@ -33,7 +55,7 @@ const Ava = ({ name, hue, size=36, online, isBroadcast }) => {
 };
 
 // ─── CONVERSATION ────────────────────────────────────────────────
-function Conversation({ contact, messages, onSend, isBroadcast }) {
+function Conversation({ contact, messages, onSend, isBroadcast, unreadForStudent = 0 }) {
   const { BORDER, BG_DEEP, SURF_LO, SURF_HI, SURFACE, FAINT, DIM, GOLD, SI, SO, ACC_HI, ACCENT, TEXT } = useContext(ThemeContext);
   const { shade } = useFX();
   const [text, setText] = useState("");
@@ -64,7 +86,7 @@ function Conversation({ contact, messages, onSend, isBroadcast }) {
     : `linear-gradient(145deg,${ACC_HI},${ACCENT})`;
 
   return (
-    <div className="drop" style={{display:"flex",flexDirection:"column",borderTop:`1px solid ${borderCol}`,background:BG_DEEP}}>
+    <div style={{display:"flex",flexDirection:"column",flex:1,minHeight:0,background:BG_DEEP}}>
       {isBroadcast && (
         <div style={{padding:"8px 12px",background:"rgba(168,85,247,0.06)",borderBottom:`1px solid ${borderCol}`}}>
           <div style={{fontSize:11,color:"rgba(168,85,247,0.9)",fontWeight:700,letterSpacing:0.3}}>
@@ -75,26 +97,38 @@ function Conversation({ contact, messages, onSend, isBroadcast }) {
           </div>
         </div>
       )}
-      <div ref={listRef} style={{height:isBroadcast?220:260,overflowY:"auto",padding:"10px 0",display:"flex",flexDirection:"column",gap:3}}>
+      <div ref={listRef} style={{flex:1,minHeight:0,overflowY:"auto",padding:"10px 0",display:"flex",flexDirection:"column",gap:3}}>
         {(messages||[]).length === 0 && (
           <div style={{textAlign:"center",padding:"30px 20px",color:FAINT,fontSize:12}}>Немає повідомлень</div>
         )}
-        {(messages||[]).map(m => {
-          if (m.type==="sys") return (
+        {(messages||[]).map((m, i, arr) => {
+          // Роздільник дня перед першим повідомленням кожної дати
+          const sep = m.ts && (i === 0 || !arr[i-1].ts || ymdOf(new Date(arr[i-1].ts)) !== ymdOf(new Date(m.ts)))
+            ? <div key={`d${m.id}`} style={{display:"flex",justifyContent:"center",padding:"8px 0 4px"}}><span style={{fontSize:11,fontWeight:700,color:DIM,padding:"3px 10px",borderRadius:99,background:SURF_HI}}>{dayLabel(m.ts)}</span></div>
+            : null;
+          if (m.type==="sys") return [sep, (
             <div key={m.id} style={{display:"flex",justifyContent:"center",padding:"2px 0"}}>
               <span className="bubble-sys msg-in" style={{padding:"4px 12px",fontSize:11,color:DIM}}>{m.text}</span>
             </div>
-          );
+          )];
           const isMe = m.from==="admin";
-          return (
+          // Прочитано клієнтом: останні unreadForStudent повідомлень майстра — ще ні (✓), решта — так (✓✓)
+          let ticks = "";
+          if (isMe && !isBroadcast && !m.broadcast) {
+            const after = arr.slice(i + 1).filter(x => x.from === "admin" && !x.broadcast).length;
+            ticks = after < unreadForStudent ? " ✓" : " ✓✓";
+          }
+          return [sep, (
             <div key={m.id} className="msg-in" style={{display:"flex",justifyContent:isMe?"flex-end":"flex-start",padding:"1px 10px"}}>
               <div className={isMe?(m.broadcast?"bubble-broadcast":"bubble-out"):"bubble-in"} style={{maxWidth:"72%",padding:"8px 12px"}}>
                 {isMe && m.senderName && !m.broadcast && <div style={{fontSize:11,fontWeight:700,color:"rgba(255,255,255,0.75)",marginBottom:2}}>{m.senderName}</div>}
                 <div style={{fontSize:13,color:isMe?"#fff":TEXT,lineHeight:1.4,wordBreak:"break-word"}}>{m.text}</div>
-                <div style={{fontSize:11,color:isMe?"rgba(255,255,255,0.75)":FAINT,marginTop:3,textAlign:"right"}}>{m.time}</div>
+                <div style={{fontSize:11,color:isMe?"rgba(255,255,255,0.75)":FAINT,marginTop:3,textAlign:"right",whiteSpace:"nowrap"}}>
+                  {m.time}{ticks && <span aria-label={ticks.length > 2 ? "Прочитано" : "Надіслано"} style={{marginLeft:3,color:ticks.length > 2 ? "#93c5fd" : "rgba(255,255,255,0.6)",fontWeight:700}}>{ticks.trim()}</span>}
+                </div>
               </div>
             </div>
-          );
+          )];
         })}
         <div ref={bottomRef}/>
       </div>
@@ -111,7 +145,7 @@ function Conversation({ contact, messages, onSend, isBroadcast }) {
         </div>
       )}
 
-      <div style={{padding:"8px 10px",borderTop:`1px solid ${borderCol}`,background:SURF_LO,display:"flex",alignItems:"flex-end",gap:7}}>
+      <div style={{padding:"8px 10px calc(8px + env(safe-area-inset-bottom, 0px))",borderTop:`1px solid ${borderCol}`,background:SURF_LO,display:"flex",alignItems:"flex-end",gap:7}}>
         <button onClick={()=>setQuick(v=>!v)} aria-label="Швидкі відповіді" style={{background:"none",border:"none",cursor:"pointer",color:quick?GOLD:FAINT,fontSize:16,width:32,height:32,padding:0,flexShrink:0}}><MetalIcon name="bolt" size={24}/></button>
         <div style={{flex:1,background:BG_DEEP,borderRadius:10,boxShadow:SI,padding:"8px 12px",display:"flex",alignItems:"flex-end",gap:8}}>
           <textarea ref={taRef} className="msg-input" value={text} onChange={e=>setText(e.target.value)}
@@ -137,8 +171,9 @@ function Conversation({ contact, messages, onSend, isBroadcast }) {
 // ─── MAIN ────────────────────────────────────────────────────────
 const BROADCAST_ID = "__broadcast__";
 
-export default function ChatsView() {
-  const { SURFACE, SURF_HI, BORDER, TEXT, DIM, FAINT, ACCENT, SO, BTN_TX } = useContext(ThemeContext);
+export default function ChatsView({ bookings = [], onViewStudent, navTo } = {}) {
+  const { SURFACE, SURF_HI, BORDER, TEXT, DIM, FAINT, ACCENT, SO, BTN_TX, BG, BG_DEEP, GREEN } = useContext(ThemeContext);
+  const [confirm, confirmNode] = useConfirm();
   const { shade, ink } = useFX();
 
   const css = `
@@ -180,9 +215,10 @@ export default function ChatsView() {
   const [broadcastMsgs, setBroadcastMsgs] = useState([]);
   const [openId,        setOpenId]        = useState(null);
   const [search,      setSearch]      = useState("");
-  const [deletingId,  setDeletingId]  = useState(null);
   const [loading,     setLoading]     = useState(true);
   const [unreadMeta,  setUnreadMeta]  = useState({});
+  const [stuUnread,   setStuUnread]   = useState({});      // скільки повідомлень майстра клієнт ще не прочитав: { uid | "mid/uid": n }
+  const [onlyWaiting, setOnlyWaiting] = useState(false);   // фільтр «Без відповіді»: останнім писав клієнт
   // Салон із кількома майстрами: треди клієнта з майстрами (chats_m). threadMsgs/unreadM — за ключем "mid/uid".
   const [threadMsgs,  setThreadMsgs]  = useState({});
   const [unreadM,     setUnreadM]     = useState({});
@@ -233,10 +269,11 @@ export default function ChatsView() {
   // Треди клієнта: власник — «Салон» + кожен майстер, у якого є запис; майстер — лише свій
   const threadsOf = (uid) => isMaster ? [myUid] : ["", ...masterIds.filter(mid => mcMap[mid]?.[uid])];
   const threadName = (tk) => tk ? (staffNames[tk] || "Майстер") : "Салон";
-  const defaultTk = (uid) => isMaster ? myUid : (pickedTk[uid] ?? (filterTk && mcMap[filterTk]?.[uid] ? filterTk : ""));
+  const OWN = "__own"; // фільтр «власник»: лише тред «Салон» (chats/{uid})
+  const defaultTk = (uid) => isMaster ? myUid : (pickedTk[uid] ?? (filterTk && filterTk !== OWN && mcMap[filterTk]?.[uid] ? filterTk : ""));
   const unreadOf = (uid, tk) => tk ? (unreadM[tKey(uid, tk)] || 0) : (unreadMeta[uid] || 0);
   // Непрочитані клієнта: за фільтром — лише тред цього майстра, інакше сума всіх тредів
-  const unreadRow = (uid) => filterTk ? unreadOf(uid, filterTk)
+  const unreadRow = (uid) => filterTk ? unreadOf(uid, filterTk === OWN ? "" : filterTk)
     : threadsOf(uid).reduce((s, tk) => s + unreadOf(uid, tk), 0);
 
   // Лічильник непрочитаних — з chatMeta/{uid}/unreadForAdmin (той самий
@@ -248,13 +285,17 @@ export default function ChatsView() {
   useEffect(() => {
     const unsub = watchChatMeta(data => {
       const map = {};
-      Object.entries(data).forEach(([uid, m]) => { map[uid] = m?.unreadForAdmin || 0; });
+      const su = {};
+      Object.entries(data).forEach(([uid, m]) => { map[uid] = m?.unreadForAdmin || 0; su[uid] = m?.unreadForStudent || 0; });
       setUnreadMeta(map);
+      setStuUnread(prev => ({ ...Object.fromEntries(Object.entries(prev).filter(([k]) => k.includes("/"))), ...su }));
     }, () => {});
     const unsubM = watchChatMetaM(data => {
       const map = {};
-      Object.entries(data).forEach(([k, m]) => { map[k] = m?.unreadForAdmin || 0; });
+      const su = {};
+      Object.entries(data).forEach(([k, m]) => { map[k] = m?.unreadForAdmin || 0; su[k] = m?.unreadForStudent || 0; });
       setUnreadM(map);
+      setStuUnread(prev => ({ ...Object.fromEntries(Object.entries(prev).filter(([k]) => !k.includes("/"))), ...su }));
     }, () => {});
     return () => { unsub(); unsubM(); };
   }, []);
@@ -294,7 +335,7 @@ export default function ChatsView() {
         if (msgs.length > 0) {
           const last = msgs[msgs.length-1];
           setContacts(cs => cs.map(ct => ct.id===c.id
-            ? {...ct, lastMsg:last.text, lastTime:last.time, lastTs:last.ts||0}
+            ? {...ct, lastMsg:last.text, lastTime:last.time, lastTs:last.ts||0, lastFrom:last.from||""}
             : ct));
         }
       }, () => showErr("Немає доступу до чату з цим клієнтом."));
@@ -321,7 +362,7 @@ export default function ChatsView() {
         if (msgs.length > 0) {
           const last = msgs[msgs.length-1];
           setContacts(cs => cs.map(ct => ct.id===uid && (last.ts||0) >= (ct.lastTs||0)
-            ? {...ct, lastMsg:last.text, lastTime:last.time, lastTs:last.ts||0} : ct));
+            ? {...ct, lastMsg:last.text, lastTime:last.time, lastTs:last.ts||0, lastFrom:last.from||""} : ct));
         }
       }, () => showErr("Немає доступу до чату з цим клієнтом."));
     });
@@ -355,11 +396,23 @@ export default function ChatsView() {
   }, [applyFreeSlotBroadcast]);
 
   // ── Actions ───────────────────────────────────────────────────
+  // Діалог відкривається на весь екран; системна «Назад» (Android) закриває його, а не застосунок
+  const histRef = useRef(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const toggle = id => {
-    if (deletingId) { setDeletingId(null); return; }
+    setMenuOpen(false);
     setOpenId(prev => prev===id ? null : id);
     if (id !== BROADCAST_ID) markRead(id, defaultTk(id));
   };
+  const closeChat = () => { if (histRef.current) { histRef.current = false; window.history.back(); } else setOpenId(null); };
+  useEffect(() => {
+    if (!openId) return undefined;
+    if (!histRef.current) { window.history.pushState({ junoChat: 1 }, ""); histRef.current = true; }
+    const onPop = () => { histRef.current = false; setOpenId(null); };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, [openId]);
+  useEffect(() => () => { if (histRef.current) { histRef.current = false; window.history.back(); } }, []);
   toggleRef.current = toggle;
   // Позначити тред прочитаним (лише його, інші треди клієнта лишаються з лічильниками)
   const markRead = (uid, tk) => {
@@ -387,35 +440,32 @@ export default function ChatsView() {
     }
   };
 
-  const handleDelete = (e, id) => {
-    e.stopPropagation();
+  // Видалити переписку «Салон» з клієнтом — лише з меню діалогу і з підтвердженням (клієнт лишається в списку клієнтів)
+  const handleDelete = async (id, name) => {
     if (isMaster) return;
-    if (deletingId === id) {
-      setContacts(cs => cs.filter(c=>c.id!==id));
-      if (openId===id) setOpenId(null);
-      setDeletingId(null);
-      msgUnsubs.current[id]?.(); delete msgUnsubs.current[id];
-      setMessages(prev => { const n={...prev}; delete n[id]; return n; });
-      remove(iRef( `chats/${id}`)).catch(()=>{});
-      remove(iRef( `chatMeta/${id}`)).catch(()=>{});
-    } else {
-      setDeletingId(id);
-      setTimeout(() => setDeletingId(di => di===id ? null : di), 3000);
-    }
+    if (!(await confirm({ title: `Видалити переписку з ${name || "клієнтом"}?`, text: "Усі повідомлення цього чату буде видалено без можливості відновлення.", okLabel: "Видалити", danger: true }))) return;
+    closeChat();
+    setContacts(cs => cs.map(c => c.id===id ? {...c, lastMsg:"", lastTime:"", lastTs:0, lastFrom:""} : c));
+    setMessages(prev => ({...prev, [id]: []}));
+    remove(iRef( `chats/${id}`)).catch(()=>{});
+    remove(iRef( `chatMeta/${id}`)).catch(()=>{});
   };
 
   // Активні чати — з непрочитаними та/або нещодавнім листуванням — зверху списку.
+  // Без пошуку — лише клієнти з перепискою; пошук знаходить будь-кого, щоб почати новий чат
+  const hasChat = (c) => (c.lastTs||0) > 0 || unreadRow(c.id) > 0;
   const filtered      = contacts
-    .filter(c => !filterTk || mcMap[filterTk]?.[c.id])
-    .filter(c => (c.name||"").toLowerCase().includes(search.toLowerCase()) || (c.phone||"").includes(search))
+    .filter(c => !filterTk || (filterTk === OWN ? (messages[c.id]||[]).length > 0 : mcMap[filterTk]?.[c.id]))
+    .filter(c => search ? ((c.name||"").toLowerCase().includes(search.toLowerCase()) || (c.phone||"").includes(search)) : hasChat(c))
+    .filter(c => !onlyWaiting || (c.lastFrom && c.lastFrom !== "admin"))
     .sort((a,b) => (unreadRow(b.id)>0)-(unreadRow(a.id)>0) || (b.lastTs||0)-(a.lastTs||0));
   const totalUnread   = filtered.reduce((s,c)=>s+unreadRow(c.id), 0);
-  const broadcastOpen = openId === BROADCAST_ID;
 
   return (
     <>
       <UICss/>
       <style>{css}</style>
+      {confirmNode}
       <div style={{fontFamily:"ui-sans-serif,-apple-system,system-ui,sans-serif",color:TEXT}}>
 
         {err && (
@@ -428,62 +478,44 @@ export default function ChatsView() {
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={FAINT} strokeWidth="2.2" strokeLinecap="round">
               <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
             </svg>
-            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Пошук клієнта…"
-              style={{flex:1,background:"transparent",border:"none",outline:"none",color:TEXT,padding:"11px 0",fontSize:14,fontFamily:"inherit"}}/>
-            {search && <button aria-label="Очистити пошук" onClick={()=>setSearch("")} style={{background:"none",border:"none",cursor:"pointer",color:FAINT,fontSize:16,padding:0,lineHeight:1}}>×</button>}
+            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Пошук або новий чат…"
+              style={{flex:1,minWidth:0,background:"transparent",border:"none",outline:"none",color:TEXT,padding:"11px 0",fontSize:14,fontFamily:"inherit"}}/>
+            {search && <button aria-label="Очистити пошук" onClick={()=>setSearch("")} style={{background:"none",border:"none",cursor:"pointer",color:FAINT,fontSize:16,padding:0,lineHeight:1,minWidth:28,minHeight:28}}>×</button>}
           </div>
-          {totalUnread > 0 && (
-            <div style={{background:ACCENT,color:BTN_TX||"#fff",borderRadius:10,padding:"3px 9px",fontSize:11,fontWeight:800,flexShrink:0,boxShadow:`0 0 8px ${ACCENT}66`}}>
-              {totalUnread}
-            </div>
-          )}
         </div>
 
-        {/* ── ФІЛЬТР ПО МАЙСТРУ (власник салону) ── */}
-        {!isMaster && masterIds.length > 0 && (
-          <div style={{display:"flex",gap:6,overflowX:"auto",marginBottom:9,paddingBottom:2}}>
-            {["", ...masterIds].map(tk => {
-              const on = filterTk === tk;
-              const n = tk ? contacts.reduce((s,c)=>s+unreadOf(c.id,tk),0) : 0;
-              return (
-                <button key={tk||"all"} onClick={()=>setFilterTk(tk)} style={{
-                  flexShrink:0,minHeight:32,padding:"4px 12px",borderRadius:16,cursor:"pointer",fontFamily:"inherit",fontSize:12,fontWeight:700,whiteSpace:"nowrap",
-                  background:on?ACCENT:SURFACE,color:on?(BTN_TX||"#fff"):TEXT,border:`1px solid ${on?ACCENT:BORDER}`}}>
-                  {tk ? threadName(tk) : "Усі"}{n > 0 ? ` · ${n}` : ""}
-                </button>
-              );
-            })}
-          </div>
-        )}
+        {/* ── ФІЛЬТРИ: майстри (власник салону) + «Без відповіді» ── */}
+        <div style={{display:"flex",gap:6,overflowX:"auto",marginBottom:9,paddingBottom:2}}>
+          {(!isMaster && masterIds.length > 0 ? ["", OWN, ...masterIds] : [""]).map(tk => {
+            const on = filterTk === tk;
+            const n = tk ? contacts.reduce((s,c)=>s+unreadOf(c.id, tk === OWN ? "" : tk),0) : 0;
+            return (
+              <button key={tk||"all"} onClick={()=>setFilterTk(tk)} style={{
+                flexShrink:0,minHeight:32,padding:"4px 12px",borderRadius:16,cursor:"pointer",fontFamily:"inherit",fontSize:12,fontWeight:700,whiteSpace:"nowrap",
+                background:on?ACCENT:SURFACE,color:on?(BTN_TX||"#fff"):TEXT,border:`1px solid ${on?ACCENT:BORDER}`}}>
+                {tk === OWN ? (ownerName || "Салон") : tk ? threadName(tk) : "Усі"}{n > 0 ? ` · ${n}` : ""}
+              </button>
+            );
+          })}
+          <button onClick={()=>setOnlyWaiting(v=>!v)} aria-pressed={onlyWaiting} style={{
+            flexShrink:0,minHeight:32,padding:"4px 12px",borderRadius:16,cursor:"pointer",fontFamily:"inherit",fontSize:12,fontWeight:700,whiteSpace:"nowrap",
+            background:onlyWaiting?GREEN:SURFACE,color:onlyWaiting?"#06210f":TEXT,border:`1px solid ${onlyWaiting?GREEN:BORDER}`}}>
+            Без відповіді
+          </button>
+        </div>
 
         {/* ── BROADCAST ── */}
-        {!search && !isMaster && (
-          <div style={{
+        {!search && !isMaster && !onlyWaiting && (
+          <div className="chat-row" onClick={()=>toggle(BROADCAST_ID)} style={{
+            display:"flex",alignItems:"center",gap:9,padding:"9px 12px",marginBottom:6,
             background:`color-mix(in srgb,#a855f7 26%,transparent)`,backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",
-            borderRadius:14,overflow:"hidden",marginBottom:6,boxShadow:SO,
-            border:`1px solid color-mix(in srgb,#a855f7 ${broadcastOpen?55:38}%,transparent)`}}>
-            <div className={`chat-row${broadcastOpen?" broadcast-open":""}`} onClick={()=>toggle(BROADCAST_ID)}
-              style={{display:"flex",alignItems:"center",gap:9,padding:"9px 12px"}}>
-              <Ava name="Розсилка" hue={270} size={36} isBroadcast/>
-              <div style={{flex:1,minWidth:0}}>
-                <div style={{display:"flex",alignItems:"center",gap:"2px 6px",flexWrap:"wrap",marginBottom:2}}>
-                  <span style={{fontSize:13,fontWeight:800,color:"#fff",whiteSpace:"nowrap"}}>Розсилка</span>
-                </div>
-                <div style={{fontSize:11,color:"rgba(255,255,255,0.8)"}}>Надіслати повідомлення всім клієнтам</div>
-              </div>
-              <div style={{flexShrink:0,textAlign:"right"}}>
-                <div style={{fontSize:11,color:"rgba(255,255,255,0.7)",fontWeight:700}}>{contacts.length} клієнтів</div>
-              </div>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.65)" strokeWidth="2.2" strokeLinecap="round"
-                style={{flexShrink:0,transform:broadcastOpen?"rotate(180deg)":"none",transition:"transform .22s"}}>
-                <polyline points="6 9 12 15 18 9"/>
-              </svg>
+            borderRadius:14,boxShadow:SO,border:`1px solid color-mix(in srgb,#a855f7 38%,transparent)`}}>
+            <Ava name="Розсилка" hue={270} size={36} isBroadcast/>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontSize:13,fontWeight:800,color:"#fff",marginBottom:2}}>Розсилка</div>
+              <div style={{fontSize:11,color:"rgba(255,255,255,0.8)"}}>Повідомлення всім клієнтам</div>
             </div>
-            {broadcastOpen && (
-              <Conversation key={BROADCAST_ID}
-                contact={{id:BROADCAST_ID,name:"Розсилка",messages:broadcastMsgs}}
-                messages={broadcastMsgs} onSend={handleSend} isBroadcast/>
-            )}
+            <div style={{flexShrink:0,fontSize:11,color:"rgba(255,255,255,0.7)",fontWeight:700}}>{klientiv(contacts.length)}</div>
           </div>
         )}
 
@@ -496,78 +528,29 @@ export default function ChatsView() {
           </div>
         )}
 
-        {/* ── PERSONAL CHATS ── */}
+        {/* ── СПИСОК ЧАТІВ ── */}
         <div style={{display:"flex",flexDirection:"column",gap:6}}>
           {filtered.map(c => {
-            const isOpen     = openId === c.id;
-            const isDeleting = deletingId === c.id;
-            const tk         = defaultTk(c.id);
-            const cMsgs      = (tk ? threadMsgs[tKey(c.id, tk)] : messages[c.id]) || [];
-            const cThreads   = threadsOf(c.id);
-            const cUnread    = unreadRow(c.id);
-            const hueColor   = `hsl(${c.hue},60%,50%)`;
+            const cUnread = unreadRow(c.id);
+            const waiting = c.lastFrom && c.lastFrom !== "admin";
             return (
-              <div key={c.id} style={{
+              <div key={c.id} className="chat-row" onClick={()=>toggle(c.id)} style={{
+                display:"flex",alignItems:"center",gap:9,padding:"9px 12px",
                 background:"rgba(255,255,255,0.06)",backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",
-                borderRadius:14,overflow:"hidden",boxShadow:SO,
-                border:`1px solid ${isDeleting?"rgba(239,68,68,0.5)":isOpen?"rgba(255,255,255,0.35)":"rgba(255,255,255,0.1)"}`,
-                transition:"border-color .2s",
-              }}>
-                <div className={`chat-row${isOpen?" open":""}`} onClick={()=>toggle(c.id)}
-                  style={{display:"flex",alignItems:"center",gap:9,padding:"9px 12px"}}>
-                  <Ava name={c.name} hue={c.hue} size={36} online={c.online}/>
-                  <div style={{flex:1,minWidth:0}}>
-                    <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:2}}>
-                      <span style={{fontSize:13,fontWeight:800,color:"#fff",overflowWrap:"anywhere"}}>{c.name || c.phone}</span>
-                    </div>
-                    <div style={{fontSize:11,color:"rgba(255,255,255,0.85)",overflow:"hidden",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflowWrap:"anywhere"}}>
-                      {c.lastMsg || c.phone || "Немає повідомлень"}
-                    </div>
+                borderRadius:14,boxShadow:SO,border:`1px solid ${cUnread?"rgba(91,155,255,0.45)":"rgba(255,255,255,0.1)"}`}}>
+                <Ava name={c.name} hue={c.hue} size={36} online={c.online}/>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:13,fontWeight:800,color:"#fff",overflowWrap:"anywhere",marginBottom:2}}>{c.name || c.phone}</div>
+                  <div style={{fontSize:11,color:cUnread?"#fff":"rgba(255,255,255,0.75)",fontWeight:cUnread?600:400,overflow:"hidden",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflowWrap:"anywhere"}}>
+                    {c.lastMsg ? `${c.lastFrom === "admin" ? "Ви: " : ""}${c.lastMsg}` : (c.phone || "Почати переписку")}
                   </div>
-                  <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4,flexShrink:0}}>
-                    <span style={{fontSize:11,color:"rgba(255,255,255,0.8)"}}>{c.lastTime}</span>
-                    {cUnread > 0
-                      ? <span style={{background:ACCENT,color:BTN_TX||"#fff",borderRadius:8,padding:"1px 6px",fontSize:11,fontWeight:800}}>{cUnread}</span>
-                      : <span style={{width:8,height:8,borderRadius:4,background:"rgba(255,255,255,0.25)",display:"inline-block"}}/>
-                    }
-                  </div>
-                  {!isMaster && <button onClick={e=>handleDelete(e,c.id)} aria-label="Видалити чат"
-                    className={isDeleting?"del-confirm":""}
-                    style={{flexShrink:0,background:"none",border:"none",cursor:"pointer",
-                      minWidth:32,minHeight:32,padding:"4px 6px",borderRadius:8,marginLeft:0,
-                      color:isDeleting?"#f87171":"rgba(255,255,255,0.65)",fontSize:isDeleting?11:14,fontWeight:isDeleting?700:400,transition:"color .2s"}}>
-                    {isDeleting?"Видалити?":(
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="3 6 5 6 21 6"/>
-                        <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
-                        <path d="M10 11v6M14 11v6"/>
-                        <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>
-                      </svg>
-                    )}
-                  </button>}
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.65)" strokeWidth="2.2" strokeLinecap="round"
-                    style={{flexShrink:0,transform:isOpen?"rotate(180deg)":"none",transition:"transform .22s"}}>
-                    <polyline points="6 9 12 15 18 9"/>
-                  </svg>
                 </div>
-
-                {isOpen && cThreads.length > 1 && (
-                  <div style={{display:"flex",gap:6,overflowX:"auto",padding:"6px 10px",borderTop:"1px solid rgba(255,255,255,0.15)"}}>
-                    {cThreads.map(t => {
-                      const on = t === tk, n = unreadOf(c.id, t);
-                      return (
-                        <button key={t||"salon"} onClick={()=>pickThread(c.id, t)} style={{
-                          flexShrink:0,minHeight:30,padding:"3px 11px",borderRadius:15,cursor:"pointer",fontFamily:"inherit",fontSize:12,fontWeight:700,whiteSpace:"nowrap",
-                          background:on?ACCENT:"rgba(255,255,255,0.12)",color:on?(BTN_TX||"#fff"):"#fff",border:"1px solid rgba(255,255,255,0.25)"}}>
-                          {threadName(t)}{n > 0 ? ` · ${n}` : ""}
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-                {isOpen && (
-                  <Conversation key={`${c.id}|${tk}`} contact={c} messages={cMsgs} onSend={(id, text) => handleSend(id, text, tk)}/>
-                )}
+                <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4,flexShrink:0}}>
+                  <span style={{fontSize:11,color:cUnread?"#93c5fd":"rgba(255,255,255,0.7)",fontWeight:cUnread?700:400}}>{fmtWhen(c.lastTs, c.lastTime)}</span>
+                  {cUnread > 0
+                    ? <span style={{background:ACCENT,color:BTN_TX||"#fff",borderRadius:8,padding:"1px 6px",fontSize:11,fontWeight:800}}>{cUnread}</span>
+                    : waiting ? <span style={{fontSize:10,fontWeight:700,color:GREEN}}>чекає</span> : null}
+                </div>
               </div>
             );
           })}
@@ -576,12 +559,82 @@ export default function ChatsView() {
             <div style={{textAlign:"center",padding:"40px 20px"}}>
               <div style={{opacity:.5,marginBottom:8,display:"flex",justifyContent:"center"}}><MetalIcon name="chat" size={44}/></div>
               <div style={{fontSize:14,fontWeight:700,color:DIM}}>
-                {search ? "Нікого не знайдено" : "Немає клієнтів в системі"}
+                {search ? "Нікого не знайдено" : onlyWaiting ? "Усім відповіли" : contacts.length ? "Поки немає переписок" : "Немає клієнтів в системі"}
               </div>
-              <div style={{fontSize:12,color:FAINT,marginTop:6}}>Клієнти з'являться після реєстрації в застосунку</div>
+              <div style={{fontSize:12,color:FAINT,marginTop:6}}>
+                {contacts.length ? "Щоб написати клієнту, знайдіть його в пошуку" : "Клієнти з'являться після реєстрації в застосунку"}
+              </div>
             </div>
           )}
         </div>
+
+        {/* ── ДІАЛОГ НА ВЕСЬ ЕКРАН ── */}
+        {openId && (() => {
+          const isB = openId === BROADCAST_ID;
+          const c = isB ? null : contacts.find(x => x.id === openId);
+          if (!isB && !c) return null;
+          const tk = isB ? "" : defaultTk(c.id);
+          const cMsgs = isB ? broadcastMsgs : ((tk ? threadMsgs[tKey(c.id, tk)] : messages[c.id]) || []);
+          const cThreads = isB ? [] : threadsOf(c.id);
+          const now = ymdOf(new Date()) + " " + new Date().toTimeString().slice(0, 5);
+          const next = isB ? null : bookings
+            .filter(b => b.userId === c.id && b.status !== "cancelled" && b.date && `${b.date} ${String(b.time||"").padStart(5,"0")}` >= now)
+            .sort((x, y) => `${x.date} ${x.time}`.localeCompare(`${y.date} ${y.time}`))[0];
+          const nextTxt = next ? (() => { const d = new Date(next.date + "T00:00:00"); return `Наступний запис: ${WD[d.getDay()]} ${String(d.getDate()).padStart(2,"0")}.${String(d.getMonth()+1).padStart(2,"0")} · ${next.time}`; })() : "";
+          const phone = String(c?.phone || "").replace(/[^\d+]/g, "");
+          const narrowHdr = window.innerWidth < 380; // вузький екран: без аватарки й телефону в шапці — місце для імені
+          const act = { width:narrowHdr?32:36,height:narrowHdr?32:36,borderRadius:12,border:`1px solid ${BORDER}`,background:SURFACE,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0,padding:0,textDecoration:"none" };
+          return (
+            <div role="dialog" aria-label={isB ? "Розсилка" : (c.name || c.phone)} style={{position:"fixed",inset:0,zIndex:1500,display:"flex",flexDirection:"column",background:BG || BG_DEEP}}>
+              <div style={{display:"flex",alignItems:"center",gap:8,padding:"calc(8px + env(safe-area-inset-top, 0px)) 10px 8px",borderBottom:`1px solid ${BORDER}`,background:SURFACE}}>
+                <button onClick={closeChat} aria-label="Назад" style={{...act,border:"none",background:"transparent",fontSize:22,color:TEXT}}>‹</button>
+                {narrowHdr ? null : isB ? <Ava name="Розсилка" hue={270} size={34} isBroadcast/> : <Ava name={c.name} hue={c.hue} size={34}/>}
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:14,fontWeight:800,color:TEXT,lineHeight:1.2,overflow:"hidden",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflowWrap:"anywhere"}}>{isB ? "Розсилка" : (c.name || c.phone)}</div>
+                  {(isB || !narrowHdr) && <div style={{fontSize:11,color:DIM,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                    {isB ? `Отримають ${klientiv(contacts.length)}` : (c.phone || "")}
+                  </div>}
+                </div>
+                {!isB && onViewStudent && <button aria-label="Картка клієнта" onClick={()=>{closeChat();setTimeout(()=>onViewStudent(c.id),0);}} style={act}><MetalIcon name="user" size={22}/></button>}
+                {!isB && navTo && <button aria-label="Записати" onClick={()=>{window.__junoPendingStudent=c.id;window.__junoPendingNew=Date.now();closeChat();setTimeout(()=>{navTo("schedule");window.dispatchEvent(new CustomEvent("juno:newBooking"));},0);}} style={act}><MetalIcon name="calendar" size={22}/></button>}
+                {!isB && phone && <a href={`tel:${phone}`} aria-label="Подзвонити" style={act}><MetalIcon name="phone" size={22}/></a>}
+                {!isB && !isMaster && (
+                  <div style={{position:"relative",flexShrink:0}}>
+                    <button aria-label="Ще дії" aria-expanded={menuOpen} onClick={()=>setMenuOpen(v=>!v)} style={{...act,width:30,border:"none",background:"transparent",color:TEXT,fontSize:20,fontWeight:800}}>⋮</button>
+                    {menuOpen && <>
+                      <div onClick={()=>setMenuOpen(false)} style={{position:"fixed",inset:0,zIndex:1}}/>
+                      <div role="menu" style={{position:"absolute",right:0,top:"calc(100% + 6px)",zIndex:2,minWidth:200,borderRadius:12,border:`1px solid ${BORDER}`,background:BG_DEEP,boxShadow:"0 10px 30px rgba(0,0,0,.5)",padding:4}}>
+                        <button role="menuitem" onClick={()=>{setMenuOpen(false);handleDelete(c.id, c.name);}} style={{width:"100%",minHeight:40,textAlign:"left",padding:"0 12px",border:"none",borderRadius:9,background:"transparent",color:"#f87171",fontFamily:"inherit",fontSize:13,fontWeight:700,cursor:"pointer"}}>Видалити переписку</button>
+                      </div>
+                    </>}
+                  </div>
+                )}
+              </div>
+              {nextTxt && (
+                <div style={{padding:"6px 14px",fontSize:12,fontWeight:700,color:GREEN,background:`color-mix(in srgb,${GREEN} 10%,transparent)`,borderBottom:`1px solid ${BORDER}`,display:"flex",alignItems:"center",gap:6}}>
+                  <MetalIcon name="calendar" size={16}/>{nextTxt}
+                </div>
+              )}
+              {cThreads.length > 1 && (
+                <div style={{display:"flex",gap:6,overflowX:"auto",padding:"6px 10px",borderBottom:`1px solid ${BORDER}`,background:SURFACE}}>
+                  {cThreads.map(t => {
+                    const on = t === tk, n = unreadOf(c.id, t);
+                    return (
+                      <button key={t||"salon"} onClick={()=>pickThread(c.id, t)} style={{
+                        flexShrink:0,minHeight:30,padding:"3px 11px",borderRadius:15,cursor:"pointer",fontFamily:"inherit",fontSize:12,fontWeight:700,whiteSpace:"nowrap",
+                        background:on?ACCENT:"rgba(255,255,255,0.12)",color:on?(BTN_TX||"#fff"):"#fff",border:"1px solid rgba(255,255,255,0.25)"}}>
+                        {threadName(t)}{n > 0 ? ` · ${n}` : ""}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              {isB
+                ? <Conversation key={BROADCAST_ID} contact={{id:BROADCAST_ID,name:"Розсилка"}} messages={broadcastMsgs} onSend={handleSend} isBroadcast/>
+                : <Conversation key={`${c.id}|${tk}`} contact={c} messages={cMsgs} unreadForStudent={stuUnread[tKey(c.id, tk)] || 0} onSend={(id, text) => handleSend(id, text, tk)}/>}
+            </div>
+          );
+        })()}
       </div>
     </>
   );

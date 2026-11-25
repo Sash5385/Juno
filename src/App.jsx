@@ -634,7 +634,7 @@ function ViewRenderer({ allMode, staffList, onPickMaster, ws, onWs, masterKey, s
   if (tab === "queue")     return <QueueView settings={settings}/>;
   if (tab === "students")  return <StudentsView studentJump={studentJump} onStudentJumpHandled={onStudentJumpHandled} bookings={bookings} settings={settings}/>;
   if (tab === "services")  return <ServicesView/>;
-  if (tab === "chats")     return <ChatsView/>;
+  if (tab === "chats")     return <ChatsView bookings={bookings} onViewStudent={onViewStudent} navTo={navTo}/>;
   if (tab === "templates") return <TemplatesView/>;
   if (tab === "stats")     return <StatsView onViewStudent={onViewStudent} direction={settings.direction}/>;
   if (tab === "journal")   return <JournalView/>;

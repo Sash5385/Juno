@@ -767,7 +767,8 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
       const n = new Date(); let m = Math.ceil((n.getHours() * 60 + n.getMinutes()) / 30) * 30, day = 0;
       if (m < ws) m = ws;
       if (m > we - 30) { day = 1; m = ws; }
-      setFormData({ day, startMin: m });
+      const studentId = window.__junoPendingStudent || undefined; window.__junoPendingStudent = null; // «Записати» з чату — клієнт уже обраний
+      setFormData({ day, startMin: m, studentId });
     };
     if (window.__junoPendingNew && Date.now() - window.__junoPendingNew < 4000) open();
     window.addEventListener("juno:newBooking", open);
