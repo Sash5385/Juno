@@ -48,7 +48,7 @@ function statsByClient(bookings, svcs) {
     if (key >= now) { if (!r.next || key < `${r.next.date} ${String(r.next.time||"").padStart(5,"0")}`) r.next = b; return; }
     if (b.status === "noshow") { r.noshow += 1; return; }
     r.visits += 1; r.sum += priceOf(b, svcs);
-    if (b.date > r.last) r.last = b.date;
+    if (b.date > r.last) { r.last = b.date; r.lastSvc = b.serviceId || ""; r.lastSvcName = b.serviceName || ""; }
   });
   return map;
 }
@@ -60,7 +60,7 @@ const Svg = (d, s=18, c="white", w=2) => (
 
 const ICONS = {
   phone:    Svg(<><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.05A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.9.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></>),
-  viber:    Svg(<><path d="M21 12c0 5-4 8-9 8a16 16 0 0 1-4-.7L3 21l1-4C2.5 15.5 2 13.8 2 12c0-5 4-8 9-8s10 3 10 8z"/></>),
+  viber:    Svg(<><path d="M12 2.5c5.2 0 9 3 9 8.2 0 5-3.8 8.1-9 8.1-.9 0-1.8-.1-2.6-.3L5.5 21v-3.6C3.6 16 3 13.8 3 10.7 3 5.5 6.8 2.5 12 2.5z"/><path d="M9.2 7.6c.4-.4 1-.4 1.3 0l.8 1c.3.4.2.9-.1 1.2l-.4.4c.4 1 1.2 1.8 2.2 2.2l.4-.4c.3-.3.8-.4 1.2-.1l1 .8c.4.3.4.9 0 1.3l-.5.5c-.6.6-1.6.7-2.4.3a8.2 8.2 0 0 1-3.9-3.9c-.4-.8-.3-1.8.3-2.4z"/></>),
   telegram: Svg(<><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></>),
   chat:     Svg(<><path d="M21 12c0 5-4 8-9 8a16 16 0 0 1-4-.7L3 21l1-4C2.5 15.5 2 13.8 2 12c0-5 4-8 9-8s10 3 10 8z"/></>),
   edit:     Svg(<><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4z"/></>),
@@ -361,6 +361,21 @@ function StudentDetailSheet({ settings, s, st, onClose, onUpdate, onDelete, onBl
               <div style={{fontSize:16,fontWeight:800,color:s.blocked?DIM:TEXT,overflowWrap:"anywhere"}}>
                 {s.name}{s.blocked && <MetalIcon name="ban" size={16} style={{marginLeft:6}}/>}
               </div>
+              {/* Хто це — одним рядком: VIP · постійний/новий · остання послуга */}
+              {(() => {
+                const lastSvc = st?.last ? (((settings?.services||[]).find(x => x.id === st.lastSvc) || {}).name || st.lastSvcName) : "";
+                const chips = [
+                  ...(s.isVip ? [["👑 VIP", "#c084fc"]] : []),
+                  ...(s.blocked ? [["заблоковано", "#f87171"]] : []),
+                  [(st?.visits || 0) >= 2 ? "постійний" : "новий", (st?.visits || 0) >= 2 ? GREEN : BLUE],
+                  ...(lastSvc ? [[lastSvc, DIM]] : []),
+                ];
+                return (
+                  <div style={{display:"flex",flexWrap:"wrap",justifyContent:"center",gap:5,marginTop:6}}>
+                    {chips.map(([t, c]) => <span key={t} style={{fontSize:11,fontWeight:700,color:c,padding:"2px 8px",borderRadius:99,border:`1px solid color-mix(in srgb,${c} 45%,transparent)`,background:`color-mix(in srgb,${c} 12%,transparent)`,whiteSpace:"nowrap",maxWidth:200,overflow:"hidden",textOverflow:"ellipsis"}}>{t}</span>)}
+                  </div>
+                );
+              })()}
 
             </div>
             <div onClick={_close} role="button" aria-label="Закрити" style={{
@@ -428,31 +443,96 @@ function StudentDetailSheet({ settings, s, st, onClose, onUpdate, onDelete, onBl
               </div>
             ) : (
               <div className="win-cols win-gap">
-                {/* Підсумок по клієнту */}
-                <div style={{display:"grid",gridTemplateColumns:"repeat(4,minmax(0,1fr))",gap:6}}>
-                  {[
-                    [st?.visits ?? 0, "візитів", TEXT],
-                    [st?.last ? dm(st.last) : "—", st?.last ? `${daysSince(st.last)} дн. тому` : "останній", TEXT],
-                    [st?.next ? dm(st.next.date) : "—", st?.next ? (st.next.time || "наступний") : "наступний", st?.next ? GREEN : DIM],
-                    [fmtK(st?.sum || 0), st?.noshow ? `неявок: ${st.noshow}` : "сума", st?.noshow ? RED : GOLD],
-                  ].map(([v, l, c], i) => (
-                    <div key={i} style={{background:glow(0.04),border:`1px solid ${BORDER}`,borderRadius:10,padding:"8px 4px",textAlign:"center",minWidth:0}}>
-                      <div style={{fontSize:14,fontWeight:900,color:c,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{v}</div>
-                      <div style={{fontSize:10.5,color:i===3&&st?.noshow?RED:DIM,marginTop:2,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{l}</div>
+                {/* Підсумок: 4 однакові плитки — значення зверху, підпис знизу */}
+                {(() => {
+                  const ds = st?.last ? daysSince(st.last) : null;
+                  const lastV = ds === 0 ? "сьогодні" : ds === 1 ? "вчора" : st?.last ? dm(st.last) : "—";
+                  const nd = st?.next ? new Date(st.next.date + "T12:00:00") : null;
+                  // Кожна плитка: назва зверху · значення · уточнення знизу (однакова висота)
+                  const tiles = [
+                    ["Візитів", String(st?.visits ?? 0), st?.noshow ? `неявок ${st.noshow}` : " ", TEXT],
+                    ["Останній", lastV, ds != null && ds > 1 ? `${ds} дн. тому` : " ", TEXT],
+                    ["Наступний", nd ? `${WD[nd.getDay()]} ${dm(st.next.date)}` : "—", nd ? (st.next.time || " ") : " ", nd ? GREEN : DIM],
+                    ["Сума", fmtK(st?.sum || 0), " ", GOLD],
+                  ];
+                  return (
+                    <div style={{display:"grid",gridTemplateColumns:"repeat(4,minmax(0,1fr))",gap:6}}>
+                      {tiles.map(([t, v, sub, c], i) => (
+                        <div key={i} style={{background:glow(0.04),border:`1px solid ${BORDER}`,borderRadius:12,padding:"7px 3px",textAlign:"center",minWidth:0}}>
+                          <div style={{fontSize:"min(9.5px, 2.65vw)",fontWeight:700,letterSpacing:0.2,textTransform:"uppercase",color:FAINT,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{t}</div>
+                          <div style={{fontSize:"min(14px, 3.6vw)",fontWeight:900,color:c,marginTop:3,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{v}</div>
+                          <div style={{fontSize:10.5,color:i===0&&st?.noshow?RED:DIM,marginTop:2,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",minHeight:13}}>{sub}</div>
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  );
+                })()}
+
+                {/* Телефон на всю ширину: тап — дзвінок; копіювати; знижка/індив. ціна — бейджами */}
+                <div style={{background:glow(0.04),border:`1px solid ${BORDER}`,borderRadius:12,display:"flex",alignItems:"center",gap:8,padding:"6px 6px 6px 12px",minHeight:52}}>
+                  <a href={s.phone ? `tel:${s.phone}` : undefined} style={{flex:1,minWidth:0,textDecoration:"none",display:"flex",alignItems:"center",gap:10}}>
+                    <span style={{display:"inline-flex",color:GREEN}}>{ICONS.phone}</span>
+                    <span style={{minWidth:0}}>
+                      <span style={{display:"block",fontSize:15,fontWeight:800,color:TEXT,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{s.phone || "—"}</span>
+                      <span style={{display:"block",fontSize:10.5,color:(s.discount>0||s.customPrice>0)?GOLD:DIM,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+                        {s.customPrice > 0 ? `своя ціна ${money(s.customPrice)}/год` : s.discount > 0 ? `знижка −${money(s.discount)}/год` : "натисніть, щоб подзвонити"}
+                      </span>
+                    </span>
+                  </a>
+                  {s.phone && <button aria-label="Копіювати номер" onClick={()=>navigator.clipboard?.writeText(s.phone).catch(()=>{})} style={{flexShrink:0,width:40,height:40,borderRadius:10,border:`1px solid ${BORDER}`,background:"transparent",color:DIM,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center"}}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+                  </button>}
                 </div>
 
-                {/* Phone + discount */}
-                <div style={{display:"flex",gap:8}}>
-                  <div style={{flex:1,background:glow(0.04),borderRadius:10,padding:"9px 12px",border:`1px solid ${BORDER}`}}>
-                    <div style={{fontSize:11,color:FAINT,letterSpacing:1,textTransform:"uppercase",marginBottom:3}}>Телефон</div>
-                    <div style={{fontSize:14,fontWeight:700,color:TEXT}}>{s.phone||"—"}</div>
+                {/* Зв'язок: 4 рівні кнопки */}
+                <div style={{display:"grid",gridTemplateColumns:"repeat(4,minmax(0,1fr))",gap:6}}>
+                  <ActBtn icon={ICONS.viber}    label="Viber"    onClick={()=>{window.location.href=`viber://chat?number=%2B${phone}`;}} color="#7c5cf0"/>
+                  <ActBtn icon={ICONS.telegram} label="Telegram" onClick={()=>{window.open(`https://t.me/+${phone}`,"_blank");}} color="#2aa3e0"/>
+                  <ActBtn icon={ICONS.chat}     label="Чат"      onClick={()=>{openChatWith(s.id);_close();}} color={BLUE}/>
+                  <ActBtn icon={ICONS.bell}     label="Push" onClick={()=>{setPushOpen(true);setPushSent(false);setPushError(null);}} color={GOLD}/>
+                </div>
+                {/* Головне: 3 рівні кнопки, «Записати» — акцентна */}
+                <div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:6}}>
+                  <button className="act-btn" onClick={()=>{bookFor(s.id);_close();}} disabled={s.blocked} style={{
+                    background:s.blocked?SURF_HI:`linear-gradient(145deg,${ACC_HI},${ACCENT})`,boxShadow:SO,cursor:s.blocked?"default":"pointer"}}>
+                    <MetalIcon name="calendar" size={20}/><span style={{color:s.blocked?DIM:"#fff"}}>Записати</span>
+                  </button>
+                  <ActBtn icon={ICONS.history}  label="Історія"   onClick={toggleHistory}/>
+                  <ActBtn icon={ICONS.link}     label="Запросити" onClick={generateInvite}/>
+                </div>
+
+                {/* Нотатки — завжди видно */}
+                <button onClick={()=>setEditMode(true)} style={{background:glow(0.04),border:`1px solid ${BORDER}`,borderRadius:12,display:"flex",alignItems:"flex-start",gap:9,padding:"10px 12px",textAlign:"left",cursor:"pointer",fontFamily:"inherit",width:"100%"}}>
+                  <MetalIcon name="note" size={20}/>
+                  <span style={{flex:1,minWidth:0}}>
+                    <span style={{display:"block",fontSize:11,fontWeight:700,letterSpacing:1,textTransform:"uppercase",color:FAINT,marginBottom:2}}>Нотатки</span>
+                    <span style={{display:"block",fontSize:12.5,color:s.notes?TEXT:DIM,lineHeight:1.45,overflowWrap:"anywhere"}}>{s.notes || "Додати нотатку: побажання, алергії, деталі…"}</span>
+                  </span>
+                </button>
+
+                {/* Налаштування — одна картка-список */}
+                <div style={{background:glow(0.04),border:`1px solid ${BORDER}`,borderRadius:12,overflow:"hidden"}}>
+                  <div onClick={()=>onUpdate(s.id,{isVip:!s.isVip})} role="switch" aria-checked={!!s.isVip} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",cursor:"pointer"}}>
+                    <MetalIcon name="crown" size={22}/>
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{fontSize:12.5,fontWeight:700,color:s.isVip?"#c084fc":TEXT}}>VIP клієнт</div>
+                      <div style={{fontSize:11,color:FAINT}}>{s.isVip?"Має доступ до VIP слотів":"Без доступу до VIP слотів"}</div>
+                    </div>
+                    <div style={{width:36,height:20,borderRadius:10,position:"relative",background:s.isVip?"linear-gradient(145deg,#a855f7,#7c3aed)":ink(0.08),transition:"background .2s",flexShrink:0}}>
+                      <div style={{position:"absolute",top:2,left:s.isVip?18:2,width:16,height:16,borderRadius:8,background:"#fff",transition:"left .2s"}}/>
+                    </div>
                   </div>
-                  <div style={{minWidth:88,flexShrink:0,background:glow(0.04),borderRadius:10,padding:"9px 10px",border:`1px solid ${BORDER}`,textAlign:"center"}}>
-                    <div style={{fontSize:11,color:FAINT,letterSpacing:1,textTransform:"uppercase",marginBottom:3,whiteSpace:"nowrap"}}>Знижка</div>
-                    <div style={{fontSize:18,fontWeight:900,color:s.discount>0?GOLD:DIM}}>{s.discount>0 ? `${money(s.discount)}/год` : "—"}</div>
+                  <div onClick={()=>setColorOpen(true)} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",cursor:"pointer",borderTop:`1px solid ${BORDER}`}}>
+                    <span style={{width:22,height:22,borderRadius:"50%",flexShrink:0,background:slotColor||"transparent",border:slotColor?"none":`1.5px dashed ${DIM}`}}/>
+                    <div style={{flex:1,fontSize:12.5,fontWeight:700,color:TEXT}}>Колір у розкладі</div>
+                    <span style={{fontSize:12,color:DIM}}>{slotColor ? "свій" : autoColors ? "автоматично" : "—"} ›</span>
                   </div>
+                  {s.createdAt && (() => { const d = new Date(s.createdAt); return (
+                    <div style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",borderTop:`1px solid ${BORDER}`}}>
+                      <MetalIcon name="calendar" size={20}/>
+                      <div style={{flex:1,fontSize:12.5,fontWeight:700,color:TEXT}}>Клієнт з</div>
+                      <span style={{fontSize:12,color:DIM}}>{d.toLocaleDateString("uk-UA",{day:"numeric",month:"short",year:"numeric"})}</span>
+                    </div>); })()}
                 </div>
 
                 {colorOpen && createPortal(
@@ -486,85 +566,6 @@ function StudentDetailSheet({ settings, s, st, onClose, onUpdate, onDelete, onBl
                   document.body
                 )}
 
-                {/* Individual fixed price — показуємо тільки якщо задана */}
-                {s.customPrice > 0 && (
-                  <div style={{background:"rgba(234,179,8,0.10)",border:"1px solid rgba(234,179,8,0.35)",borderRadius:10,padding:"9px 12px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-                    <div style={{fontSize:11,fontWeight:700,color:"#eab308"}}><span style={{display:"inline-flex",alignItems:"center",gap:7}}><MetalIcon name="coin" size={18}/>Індивідуальна ціна</span></div>
-                    <div style={{fontSize:14,fontWeight:900,color:"#eab308"}}>{`${money(s.customPrice)}/год`}</div>
-                  </div>
-                )}
-
-                {/* Registration date */}
-                {s.createdAt && (() => {
-                  const d = new Date(s.createdAt);
-                  return (
-                    <div style={{fontSize:11,color:"rgba(255,255,255,0.74)",display:"flex",alignItems:"center",gap:5,padding:"0 2px"}}>
-                      <MetalIcon name="calendar" size={16}/>
-                      <span>Реєстрація: {d.getDate()} {M[d.getMonth()+1]} {d.getFullYear()}</span>
-                    </div>
-                  );
-                })()}
-
-
-                {/* Дії: зв'язок · головне · тихі */}
-                <div style={{display:"grid",gridTemplateColumns:"repeat(4,minmax(0,1fr))",gap:6}}>
-                  <ActBtn icon={ICONS.phone}    label="Дзвонити" onClick={()=>{window.location.href=`tel:${s.phone}`;}} color={GREEN}/>
-                  <ActBtn icon={ICONS.viber}    label="Viber"    onClick={()=>{window.location.href=`viber://chat?number=%2B${phone}`;}} color="#7c5cf0"/>
-                  <ActBtn icon={ICONS.telegram} label="Telegram" onClick={()=>{window.open(`https://t.me/+${phone}`,"_blank");}} color="#2aa3e0"/>
-                  <ActBtn icon={ICONS.chat}     label="Чат"      onClick={()=>{openChatWith(s.id);_close();}} color={BLUE}/>
-                </div>
-                <div style={{display:"grid",gridTemplateColumns:"1.4fr 1fr 1fr",gap:6}}>
-                  <button onClick={()=>{bookFor(s.id);_close();}} disabled={s.blocked} style={{border:"none",borderRadius:11,cursor:s.blocked?"default":"pointer",minHeight:48,fontFamily:"inherit",fontSize:13,fontWeight:800,
-                    background:s.blocked?SURF_HI:`linear-gradient(145deg,${ACC_HI},${ACCENT})`,color:s.blocked?DIM:"#fff",display:"flex",alignItems:"center",justifyContent:"center",gap:7,boxShadow:SO}}>
-                    <MetalIcon name="calendar" size={20}/>Записати
-                  </button>
-                  <ActBtn icon={ICONS.history}  label="Історія"   onClick={toggleHistory}/>
-                  <ActBtn icon={ICONS.link}     label="Запросити" onClick={generateInvite}/>
-                </div>
-                <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-                  {[
-                    ["Push-сповіщення", ()=>{setPushOpen(true);setPushSent(false);setPushError(null);}, DIM],
-                    ["Редагувати", ()=>setEditMode(true), DIM],
-                    [s.blocked ? "Розблокувати" : "Заблокувати", async()=>{ if (s.blocked || await confirm({ title:"Заблокувати клієнта?", text:`${s.name} не зможе записуватись, а майбутні записи буде скасовано.`, okLabel:"Заблокувати", danger:true, icon:"ban" })) onBlock(s.id); }, s.blocked ? GREEN : "#f87171"],
-                  ].map(([l, fn, c]) => (
-                    <button key={l} onClick={fn} style={{flex:"1 1 auto",minHeight:36,padding:"0 10px",borderRadius:10,border:`1px solid ${BORDER}`,background:"transparent",color:c,fontFamily:"inherit",fontSize:12,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap"}}>{l}</button>
-                  ))}
-                </div>
-
-                {/* VIP toggle */}
-                <div onClick={()=>onUpdate(s.id,{isVip:!s.isVip})} style={{
-                  display:"flex",alignItems:"center",gap:10,cursor:"pointer",borderRadius:10,padding:"10px 13px",
-                  background:s.isVip?"rgba(168,85,247,0.12)":glow(0.04),
-                  border:s.isVip?"1px solid rgba(168,85,247,0.35)":`1px solid ${BORDER}`,
-                }}>
-                  <MetalIcon name="crown" size={26}/>
-                  <div style={{flex:1}}>
-                    <div style={{fontSize:12,fontWeight:700,color:s.isVip?"#c084fc":TEXT}}>VIP клієнт</div>
-                    <div style={{fontSize:11,color:FAINT,marginTop:2}}>{s.isVip?"Має доступ до VIP слотів":"Без доступу до VIP слотів"}</div>
-                  </div>
-                  <div style={{width:36,height:20,borderRadius:10,position:"relative",background:s.isVip?"linear-gradient(145deg,#a855f7,#7c3aed)":ink(0.08),transition:"background .2s",flexShrink:0}}>
-                    <div style={{position:"absolute",top:2,left:s.isVip?18:2,width:16,height:16,borderRadius:8,background:"#fff",transition:"left .2s"}}/>
-                  </div>
-                </div>
-
-                {/* Колір клієнта в розкладі (рідкісне налаштування — внизу, компактно) */}
-                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,padding:"4px 2px"}}>
-                  <div style={{fontSize:12,color:DIM}}>{autoColors && !slotColor ? "Колір у розкладі: автоматично" : "Колір у розкладі"}</div>
-                  <button onClick={()=>setColorOpen(true)} style={{
-                    display:"flex",alignItems:"center",gap:8,padding:"5px 10px 5px 6px",borderRadius:20,cursor:"pointer",minHeight:32,
-                    background:glow(0.06),border:`1px solid ${BORDER}`,color:TEXT,fontSize:12,fontWeight:700,fontFamily:"inherit",
-                  }}>
-                    <span style={{width:20,height:20,borderRadius:"50%",display:"inline-flex",alignItems:"center",justifyContent:"center",
-                      background:slotColor||"transparent",border:slotColor?"none":`1.5px dashed ${DIM}`,color:DIM,fontSize:11}}>{slotColor?"":"∅"}</span>
-                    {slotColor?"Змінити":"Обрати"}
-                  </button>
-                </div>
-
-                {/* Notes */}
-                {s.notes && (
-                  <div style={{background:glow(0.04),borderRadius:10,padding:"9px 12px",border:`1px solid ${BORDER}`,fontSize:12,color:DIM,lineHeight:1.5,display:"flex",alignItems:"flex-start",gap:7}}><MetalIcon name="note" size={18}/><span>{s.notes}</span></div>
-                )}
-
                 {confirmNode}
                 {/* Пакети (абонементи) клієнта: додає майстер із заготовок (Налаштування → Пакети) */}
                 {(() => {
@@ -586,7 +587,7 @@ function StudentDetailSheet({ settings, s, st, onClose, onUpdate, onDelete, onBl
                       {tpls.length > 0 ? (
                         <div style={{display:"flex",flexWrap:"wrap",gap:6,marginTop:6}}>
                           {tpls.map(t => (
-                            <button key={t.id} onClick={()=>{ const pk = buildClientPackage(t); update(iRef(`users/${s.id}/packages/${pk.id}`), pk).catch(()=>{}); }} style={{padding:"6px 10px",borderRadius:8,border:`1px dashed ${GREEN}`,background:"transparent",color:GREEN,fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>+ {t.name}</button>
+                            <button key={t.id} onClick={()=>{ const pk = buildClientPackage(t); update(iRef(`users/${s.id}/packages/${pk.id}`), pk).catch(()=>{}); }} style={{padding:"6px 10px",borderRadius:8,border:`1px dashed ${GREEN}`,background:"transparent",color:GREEN,fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>{`+ Пакет «${t.name}»`}</button>
                           ))}
                         </div>
                       ) : (
@@ -606,11 +607,15 @@ function StudentDetailSheet({ settings, s, st, onClose, onUpdate, onDelete, onBl
                   </div>
                 )}
 
-                {/* Delete */}
+                {/* Керування: редагувати / заблокувати — порівну; видалити — окремо */}
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginTop:2}}>
+                  <button onClick={()=>setEditMode(true)} style={{minHeight:42,borderRadius:11,border:`1px solid ${BORDER}`,background:glow(0.04),color:TEXT,fontFamily:"inherit",fontSize:13,fontWeight:700,cursor:"pointer"}}>Редагувати</button>
+                  <button onClick={async()=>{ if (s.blocked || await confirm({ title:"Заблокувати клієнта?", text:`${s.name} не зможе записуватись, а майбутні записи буде скасовано.`, okLabel:"Заблокувати", danger:true, icon:"ban" })) onBlock(s.id); }} style={{minHeight:42,borderRadius:11,border:`1px solid ${s.blocked?"rgba(74,222,128,0.35)":"rgba(239,68,68,0.3)"}`,background:"transparent",color:s.blocked?GREEN:"#f87171",fontFamily:"inherit",fontSize:13,fontWeight:700,cursor:"pointer"}}>{s.blocked ? "Розблокувати" : "Заблокувати"}</button>
+                </div>
                 <button onClick={()=>setConfirmDel(true)} style={{
-                  width:"100%",padding:"11px",borderRadius:10,border:"1px solid rgba(239,68,68,0.25)",
-                  cursor:"pointer",background:"rgba(239,68,68,0.08)",color:"#fca5a5",
-                  fontSize:13,fontWeight:700,fontFamily:"inherit",marginTop:4,
+                  width:"100%",minHeight:40,borderRadius:11,border:"none",
+                  cursor:"pointer",background:"transparent",color:"#fca5a5",
+                  fontSize:12.5,fontWeight:700,fontFamily:"inherit",
                 }}>Видалити клієнта</button>
               </div>
             )}
