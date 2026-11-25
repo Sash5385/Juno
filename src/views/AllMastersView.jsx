@@ -1,6 +1,5 @@
 import { useState, useEffect, useContext, useMemo } from "react";
 import { ThemeContext } from "../theme.js";
-import { Hint } from "../ui";
 import { masterOf } from "../workspace";
 import { onValue } from "firebase/database";
 import { iRef } from "../firebase";
@@ -84,7 +83,7 @@ export default function AllMastersView({ bookings, staff, settings, onPick, onVi
   const hours = Array.from({ length: Math.max(1, (to - from) / 60) }, (_, i) => from + i * 60);
   // «N годин» — скільки годин вміщається на екрані (Авто — весь діапазон записів); «N діб» — скільки колонок майстрів на екрані
   const wantHours = settings.autoHourHeight ? Math.max(6, Math.min(16, hours.length)) : Math.max(1, ((Number(settings.workEnd) || 18) - (Number(settings.workStart) || 9)) * 60 / (Number(settings.hourHeightPx) || 60));
-  const HOUR_H = Math.max(26, Math.round(Math.max(240, win.h - 400) / wantHours)); // 400 — шапка, навігація, підсумок дня і підказка
+  const HOUR_H = Math.max(26, Math.round(Math.max(240, win.h - 335) / wantHours)); // 335 — шапка, навігація і підсумок дня
   // Скільки майстрів на екрані: вибір 1–5 (запам'ятовується на пристрої); без вибору — телефон 1, інакше «N діб» зверху.
   // Гортання вбік прилипає до колонки.
   const phone = win.w < 480;
@@ -109,7 +108,7 @@ export default function AllMastersView({ bookings, staff, settings, onPick, onVi
         <button aria-label="Наступний день" onClick={() => shift(1)} style={nav}>›</button>
       </div>
 
-      <style>{makeGlobalCSS(SURF_LO, ACCENT, GLOW, SHADE, INK)}</style>
+      <style>{makeGlobalCSS(SURF_LO, ACCENT, GLOW, SHADE, INK) + ".am-scroll::-webkit-scrollbar{display:none}"}</style>
       {/* Вісь часу — окремо від горизонтального скролу (як в індивідуальному розкладі): прозора, картки під неї не заїжджають */}
       <div style={{ display: "flex", alignItems: "flex-start" }}>
           {/* Вісь часу: години великим, :30 — дрібно; поточний час — червона плашка */}
@@ -127,7 +126,7 @@ export default function AllMastersView({ bookings, staff, settings, onPick, onVi
               )}
             </div>
           </div>
-          <div className="cal-neon" style={{ flex: 1, minWidth: 0, overflowX: "auto", WebkitOverflowScrolling: "touch", scrollSnapType: "x mandatory" }}>
+          <div className="cal-neon am-scroll" style={{ flex: 1, minWidth: 0, overflowX: "auto", WebkitOverflowScrolling: "touch", scrollSnapType: "x mandatory", scrollbarWidth: "none" }}>
           <div style={{ display: "flex", minWidth: staff.length * COL_W }}>
           {staff.map((m) => {
             const list = byMaster.get(m.id) || [];
@@ -198,7 +197,8 @@ export default function AllMastersView({ bookings, staff, settings, onPick, onVi
                   })}
                 </div>
                 {/* Підсумок дня майстра */}
-                <div style={{ marginTop: 4, minHeight: 22, borderRadius: 7, textAlign: "center", fontSize: 11, fontWeight: 800, lineHeight: "22px", color: daySum > 0 ? GREEN : FAINT, background: `linear-gradient(180deg, color-mix(in srgb, ${SURF_HI} 78%, transparent), color-mix(in srgb, ${SURFACE} 78%, transparent))`, border: `1px solid ${BORDER}` }}>
+                {/* Підсумок дня — просто текст під колонкою, без рамки (менше нагромадження) */}
+                <div style={{ marginTop: 6, textAlign: "center", fontSize: 12, fontWeight: 800, color: daySum > 0 ? GREEN : FAINT }}>
                   {daySum > 0 ? money(daySum.toLocaleString("uk")) : "—"}
                 </div>
               </div>
@@ -207,7 +207,6 @@ export default function AllMastersView({ bookings, staff, settings, onPick, onVi
           </div>
           </div>
       </div>
-      <Hint>Торкніться запису — картка клієнта; імені майстра — його календар</Hint>
     </div>
   );
 }
