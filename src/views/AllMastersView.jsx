@@ -175,6 +175,14 @@ export default function AllMastersView({ bookings, staff, settings, onPick, onVi
                         className={blocked ? "slot-base" : "slot-base slot-colored"}
                         style={{ "--c": c, position: "absolute", left: 3, right: 3, top, height: h, padding: 0, textAlign: "center", cursor: "pointer", fontFamily: "inherit", zIndex: 2, touchAction: "pan-x pan-y",
                           ...(blocked ? { background: "repeating-linear-gradient(45deg,rgba(148,163,184,.12),rgba(148,163,184,.12) 6px,rgba(148,163,184,.22) 6px,rgba(148,163,184,.22) 12px)", border: `1px solid ${BORDER}` } : {}) }}>
+                        {/* Низька картка (малий масштаб, напр. «14 годин»): усе в один рядок — № · ім'я · час */}
+                        {!blocked && h < 36 ? (
+                          <span style={{ position: "absolute", inset: "0 4px", display: "flex", alignItems: "center", gap: 4, overflow: "hidden" }}>
+                            {visitNo[b.id] != null && h >= 16 && <span style={{ flexShrink: 0, width: 13, height: 13, borderRadius: "50%", background: "rgba(20,20,24,0.85)", color: "rgba(255,255,255,0.8)", border: "1px solid rgba(255,255,255,0.2)", fontSize: 7.5, fontWeight: 900, display: "flex", alignItems: "center", justifyContent: "center" }}>{visitNo[b.id]}</span>}
+                            <span style={{ flex: 1, minWidth: 0, fontSize: Math.min(11, Math.max(8, h - 12)), fontWeight: 800, color: "rgba(255,255,255,0.95)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", textAlign: "left" }}>{wide ? (b.name || "") : fName}</span>
+                            {COL_W >= 130 && <span style={{ flexShrink: 0, fontSize: Math.min(9.5, Math.max(7.5, h - 14)), fontWeight: 800, color: "rgba(255,255,255,0.85)" }}>{b.time || fmt(b.startMin)}</span>}
+                          </span>
+                        ) : <>
                         {!blocked && visitNo[b.id] != null && h >= 20 && (
                           <span style={{ position: "absolute", top: 3, left: 3, width: 13, height: 13, borderRadius: "50%", background: "rgba(20,20,24,0.85)", color: "rgba(255,255,255,0.8)", border: "1px solid rgba(255,255,255,0.2)", fontSize: 7.5, fontWeight: 900, display: "flex", alignItems: "center", justifyContent: "center" }}>{visitNo[b.id]}</span>
                         )}
@@ -184,6 +192,7 @@ export default function AllMastersView({ bookings, staff, settings, onPick, onVi
                             <span key={i} style={{ fontSize: fs, fontWeight: w, color: col, lineHeight: 1.2, width: "100%", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{t}</span>
                           ))}
                         </span>
+                        </>}
                       </button>
                     );
                   })}
