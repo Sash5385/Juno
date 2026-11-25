@@ -3052,18 +3052,24 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                       const label = curTag === "debt" && b.debtAmount > 0 ? `${tp.label} ${money(b.debtAmount)}` : tp.label;
                       const tagFs = Math.max(6, Math.min(9, Math.round(COL_W / 11)));
                       const showText = COL_W >= 34;
-                      // «1-й запис» — бейдж обертається навколо картки як Місяць навколо Землі:
-                      // нахилена еліптична орбіта; спереду — над карткою і більший, позаду — ховається за неї.
+                      // «1-й запис» — бейдж ходить по орбіті як стрічка навколо картки — по діагоналі:
+                      // пласка еліпс-орбіта вздовж діагоналі, бейдж нахилений по ній; спереду — поверх картки,
+                      // позаду — ховається за неї. Геометрія рахується так, щоб бейдж не виходив за межі слоту.
                       const orbit = curTag === "first";
                       const oW = COL_W - 2, oH = Math.max(4, height - 2);
-                      const ocx = oW / 2, ocy = oH / 2, orx = oW / 2 + 8, ory = Math.min(oH / 2 + 6, Math.max(12, oW * 0.28));
-                      const oA = -12 * Math.PI / 180, oc = Math.cos(oA), os = Math.sin(oA);
+                      const oAng = Math.atan2(oH, oW), oc = Math.cos(oAng), os = Math.sin(oAng), oDeg = oAng * 180 / Math.PI;
+                      const oPadV = Math.max(1, Math.round(tagFs * 0.25)), oPadH = Math.max(5, Math.round(tagFs * 0.85)), oIc = Math.max(12, tagFs + 4);
+                      const oFit = (bw, bh) => { const hw = (bw * oc + bh * os) / 2 * 1.15, hh = (bw * os + bh * oc) / 2 * 1.15; return Math.min((oW / 2 - hw) / oc, (oH / 2 - hh) / os); };
+                      const oBwText = oIc + 3 + String(label).length * tagFs * 0.62 + 2 * oPadH, oBh = Math.max(oIc, tagFs * 1.3) + 2 * oPadV;
+                      const oText = showText && oFit(oBwText, oBh) >= 6;
+                      const orx = Math.max(0, oText ? oFit(oBwText, oBh) : oFit(oIc + 6, oIc + 4)), ory = Math.min(5, orx * 0.25);
+                      const ocx = oW / 2, ocy = oH / 2;
                       const oP1 = `${(ocx + orx * oc).toFixed(1)} ${(ocy + orx * os).toFixed(1)}`, oP2 = `${(ocx - orx * oc).toFixed(1)} ${(ocy - orx * os).toFixed(1)}`;
-                      const orbitPath = `path("M ${oP1} A ${orx.toFixed(1)} ${ory.toFixed(1)} -12 1 1 ${oP2} A ${orx.toFixed(1)} ${ory.toFixed(1)} -12 1 1 ${oP1}")`;
+                      const orbitPath = `path("M ${oP1} A ${orx.toFixed(1)} ${Math.max(0.5, ory).toFixed(1)} ${oDeg.toFixed(1)} 1 1 ${oP2} A ${orx.toFixed(1)} ${Math.max(0.5, ory).toFixed(1)} ${oDeg.toFixed(1)} 1 1 ${oP1}")`;
                       return (
                         <div className={orbit ? "tag-orbit" : undefined} style={orbit ? {
                           position:"absolute", top:0, left:0, zIndex:8, pointerEvents:"none",
-                          offsetPath:orbitPath, offsetRotate:"0deg", offsetAnchor:"center",
+                          offsetPath:orbitPath, offsetRotate:`${oDeg.toFixed(1)}deg`, offsetAnchor:"center",
                           animationDuration:"7s",
                         } : {
                           position:"absolute", top:Math.round(tagFs * 0.9), right:2, zIndex:8,
@@ -3071,15 +3077,15 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                         }}>
                           <div style={{
                             fontSize:tagFs, fontWeight:900, color:"#fff", lineHeight:1.3,
-                            padding: showText ? `${Math.max(1, Math.round(tagFs*0.25))}px ${Math.max(5, Math.round(tagFs*0.85))}px` : "2px 3px",
+                            padding: (orbit ? oText : showText) ? `${Math.max(1, Math.round(tagFs*0.25))}px ${Math.max(5, Math.round(tagFs*0.85))}px` : "2px 3px",
                             borderRadius:999,
                             background:`linear-gradient(135deg, color-mix(in srgb, ${tp.color} 90%, #fff), ${tp.color})`,
                             boxShadow:"0 4px 10px rgba(0,0,0,0.45)",
                             display:"inline-flex", alignItems:"center", gap:3, minWidth:0, boxSizing:"border-box",
                             whiteSpace:"nowrap", overflow:"hidden",
-                            maxWidth: Math.max(18, Math.min(COL_W - 6, 300)),
+                            maxWidth: orbit ? "none" : Math.max(18, Math.min(COL_W - 6, 300)),
                             transform: orbit ? "none" : "rotate(9deg)", transformOrigin:"top right",
-                          }}><TagIcon tag={tp} size={Math.max(12, tagFs + 4)}/>{showText && <span style={{minWidth:0,overflow:"hidden",textOverflow:"ellipsis"}}>{label}</span>}</div>
+                          }}><TagIcon tag={tp} size={Math.max(12, tagFs + 4)}/>{(orbit ? oText : showText) && <span style={{minWidth:0,overflow:"hidden",textOverflow:"ellipsis"}}>{label}</span>}</div>
                         </div>
                       );
                     })()}
