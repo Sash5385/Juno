@@ -46,10 +46,19 @@ const STUDENTS = [
   { n: "Артем Нестеренко",      t: "private", firstDay: 3 },
   { n: "Людмила Пархоменко",    t: "private" },
   { n: "Ярослав Коваль",        t: "private", firstDay: 4 },
-].map((s, i) => ({
-  ...s, uid: `demo_u${pad(i + 1)}`, phone: `+3809900000${pad(i + 10)}`,
+].concat(extraDemoClients()).map((s, i) => ({
+  ...s, uid: `demo_u${pad(i + 1)}`, phone: `+38099${String(i + 10).padStart(7, "0")}`,
   firstDay: s.firstDay === undefined ? null : s.firstDay,
 }));
+
+// ?demo=1&clients=N — більше клієнтів у демо (24 базових + згенеровані, до 200)
+function extraDemoClients() {
+  const want = Math.min(200, Math.max(0, parseInt(demoParam("clients") || "0", 10) || 0));
+  const extra = Math.max(0, want - 24);
+  const FN = ["Аліна", "Віталій", "Галина", "Денис", "Єлизавета", "Захар", "Інна", "Кирило", "Лариса", "Микола", "Ніна", "Остап", "Поліна", "Ростислав", "Світлана", "Тимур", "Уляна", "Федір", "Христина", "Яна"];
+  const LN = ["Ткачук", "Лисенко", "Гнатюк", "Петренко", "Савченко", "Кравець", "Мороз", "Зінченко", "Литвин", "Бондар", "Карпенко", "Шевченко"];
+  return Array.from({ length: extra }, (_, i) => ({ n: `${FN[i % FN.length]} ${LN[(i * 7) % LN.length]}`, t: i % 2 ? "private" : "school", ...(i % 9 === 0 ? { vip: true } : {}) }));
+}
 
 const SERVICES = [
   { id: "sv1", name: "Стандарт 1 год", type: "school",  duration: 60,  price: 600,  colorId: "green",  active: true, description: "Стандартний запис",
