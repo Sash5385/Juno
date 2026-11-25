@@ -16,6 +16,43 @@ import { cur as curSym, money } from "../currency";
 const M = ["","Січ","Лют","Бер","Кві","Тра","Чер","Лип","Сер","Вер","Жов","Лис","Гру"];
 const fmtS = d => { if(!d) return "—"; const [,m,day]=d.split("-"); return `${parseInt(day)} ${M[parseInt(m)]}`; };
 const navTo = tab => window.dispatchEvent(new CustomEvent("id4drive-nav", {detail:tab}));
+// Чат саме з цим клієнтом (ChatsView відкриває його одразу), «Записати» — форма запису з обраним клієнтом
+const openChatWith = (uid) => { window.__openChatUid = uid; navTo("chats"); };
+const bookFor = (uid) => {
+  window.__junoPendingStudent = uid; window.__junoPendingNew = Date.now(); navTo("schedule");
+  setTimeout(() => window.dispatchEvent(new CustomEvent("juno:newBooking")), 0);
+};
+const WD = ["нд","пн","вт","ср","чт","пт","сб"];
+const ymd0 = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+const dm = (ds) => { const [, m, d] = String(ds).split("-"); return `${d}.${m}`; };
+const klientiv = (n) => { const a = n % 100, b = n % 10; return a > 10 && a < 20 ? `${n} клієнтів` : b === 1 ? `${n} клієнт` : b >= 2 && b <= 4 ? `${n} клієнти` : `${n} клієнтів`; };
+const SLEEP_DAYS = 60;
+const fmtK = (n) => n >= 1000 ? money(`${(n/1000).toFixed(1)}к`, " ") : money(n);
+// Підсумок по клієнту з записів: візити (минулі, без скасованих/неявок), останній і наступний, сума, неявки
+// Сума запису: ручна ціна → ціна в записі → тариф послуги за тривалістю (як у статистиці, спрощено)
+const priceOf = (b, svcs) => {
+  if (b.manualPrice != null) return Number(b.manualPrice) || 0;
+  if (Number(b.price) > 0) return Number(b.price);
+  const svc = (svcs || []).find(x => x.id === b.serviceId);
+  const dur = b.durMin || (b.durationHours ? b.durationHours * 60 : 60);
+  return svc && svc.price && svc.duration ? Math.round(svc.price / svc.duration * dur) : 0;
+};
+function statsByClient(bookings, svcs) {
+  const today = ymd0(new Date()), now = `${today} ${new Date().toTimeString().slice(0,5)}`;
+  const map = {};
+  (bookings || []).forEach(b => {
+    if (!b.userId || !b.date || b.status === "cancelled") return;
+    const r = (map[b.userId] ||= { visits: 0, last: "", next: null, sum: 0, noshow: 0, total: 0 });
+    const key = `${b.date} ${String(b.time || "").padStart(5, "0")}`;
+    r.total += 1;
+    if (key >= now) { if (!r.next || key < `${r.next.date} ${String(r.next.time||"").padStart(5,"0")}`) r.next = b; return; }
+    if (b.status === "noshow") { r.noshow += 1; return; }
+    r.visits += 1; r.sum += priceOf(b, svcs);
+    if (b.date > r.last) r.last = b.date;
+  });
+  return map;
+}
+const daysSince = (ds) => ds ? Math.round((new Date(ymd0(new Date()) + "T00:00:00") - new Date(ds + "T00:00:00")) / 86400000) : null;
 
 const Svg = (d, s=18, c="white", w=2) => (
   <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke={c} strokeWidth={w} strokeLinecap="round" strokeLinejoin="round">{d}</svg>
@@ -115,7 +152,7 @@ function StudentForm({ initial, onSave, onCancel, saveLabel="Зберегти" }
 }
 
 // ─── STUDENT CARD (colorway card) ────────────────────────────────
-function StudentCard({ s, onSelect, settings }) {
+function StudentCard({ s, onSelect, settings, st }) {
   const theme = useContext(ThemeContext);
   const { GREEN, GOLD, RED } = theme;
   // Колір картки клієнта — той самий, що обраний для послуги цього типу
@@ -125,7 +162,6 @@ function StudentCard({ s, onSelect, settings }) {
   const matchedSvc = (settings?.services || []).find(sv => sv.type === s.type && sv.active)
                    || (settings?.services || []).find(sv => sv.type === s.type);
   const typeColor = matchedSvc ? colorOf(matchedSvc.colorId) : (s.type === "school" ? GREEN : GOLD);
-  const typeLabel = s.type === "school" ? "Стандарт" : "Індивідуальний";
   const ini       = s.name.split(" ").map(w=>w[0]).slice(0,2).join("");
   const barColor  = s.blocked ? RED : typeColor;
 
@@ -151,10 +187,14 @@ function StudentCard({ s, onSelect, settings }) {
         <div style={{fontSize:14,fontWeight:700,color:"#fff",overflowWrap:"anywhere"}}>
           {s.isVip && <MetalIcon name="crown" size={16} style={{marginRight:5}}/>}{s.name}{s.blocked && <MetalIcon name="ban" size={16} style={{marginLeft:6}}/>}
         </div>
-        <div style={{fontSize:11.5,color:"rgba(255,255,255,0.8)",fontWeight:500,marginTop:2}}>{typeLabel}</div>
+        <div style={{fontSize:11.5,color:st?.next?GREEN:"rgba(255,255,255,0.75)",fontWeight:st?.next?700:500,marginTop:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+          {st?.next
+            ? (() => { const d = new Date(st.next.date + "T00:00:00"); return `Наст.: ${WD[d.getDay()]} ${dm(st.next.date)} · ${st.next.time || ""}`; })()
+            : st?.last ? `Був ${dm(st.last)} · записів: ${st.visits}` : "Ще не записувався"}
+        </div>
       </div>
 
-      <button aria-label="Чат з клієнтом" onClick={e=>{e.stopPropagation();navTo("chats");}} style={{position:"relative",zIndex:2,background:"rgba(0,0,0,0.25)",border:"none",borderRadius:8,cursor:"pointer",width:36,height:36,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+      <button aria-label="Чат з клієнтом" onClick={e=>{e.stopPropagation();openChatWith(s.id);}} style={{position:"relative",zIndex:2,background:"rgba(0,0,0,0.25)",border:"none",borderRadius:8,cursor:"pointer",width:36,height:36,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
         {ICONS.chat}
       </button>
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="2.5" strokeLinecap="round" style={{position:"relative",zIndex:2,flexShrink:0}}>
@@ -165,7 +205,7 @@ function StudentCard({ s, onSelect, settings }) {
 }
 
 // ─── STUDENT DETAIL SHEET ────────────────────────────────────────
-function StudentDetailSheet({ settings, s, onClose, onUpdate, onDelete, onBlock, autoOpenHistory, slotColor, autoColors, onColorChange }) {
+function StudentDetailSheet({ settings, s, st, onClose, onUpdate, onDelete, onBlock, autoOpenHistory, slotColor, autoColors, onColorChange }) {
   const { BG_DEEP, SURF_HI, SURFACE, BORDER, TEXT, DIM, FAINT, ACCENT, ACC_HI, GREEN, BLUE, GOLD, RED, SO, SI } = useContext(ThemeContext);
   const { shade, glow, ink } = useFX();
   const [closing,      setClosing]     = useState(false);
@@ -211,7 +251,7 @@ function StudentDetailSheet({ settings, s, onClose, onUpdate, onDelete, onBlock,
   const historyStats = (() => {
     const attended = (history || []).filter(b => b.status !== "cancelled" && b.status !== "noshow");
     const totalMin = attended.reduce((sum, b) => sum + getDurMin(b), 0);
-    return { count: attended.length, hours: totalMin / 60 };
+    return { count: attended.length, hours: totalMin / 60, sum: attended.reduce((t, b) => t + priceOf(b, settings?.services), 0) };
   })();
 
   // Перехід із модалки запису ("Історія") — розгорнути історію одразу при відкритті картки
@@ -263,8 +303,8 @@ function StudentDetailSheet({ settings, s, onClose, onUpdate, onDelete, onBlock,
   };
 
   const typeColor = s.type === "school" ? GREEN : GOLD;
-  const typeLabel = s.type === "school" ? "Стандарт" : "Індивідуальний";
   const phone     = (s.phone||"").replace(/\D/g,"");
+  const svcName   = (b) => ((settings?.services || []).find(x => x.id === b.serviceId) || {}).name || b.serviceName || b.svc || "—";
   const ini       = s.name.split(" ").map(w=>w[0]).slice(0,2).join("");
   const barColor  = s.blocked ? RED : typeColor;
 
@@ -321,7 +361,7 @@ function StudentDetailSheet({ settings, s, onClose, onUpdate, onDelete, onBlock,
               <div style={{fontSize:16,fontWeight:800,color:s.blocked?DIM:TEXT,overflowWrap:"anywhere"}}>
                 {s.name}{s.blocked && <MetalIcon name="ban" size={16} style={{marginLeft:6}}/>}
               </div>
-              <div style={{fontSize:11,color:typeColor,fontWeight:700,marginTop:2}}>{typeLabel}</div>
+
             </div>
             <div onClick={_close} role="button" aria-label="Закрити" style={{
               position:"absolute",top:12,right:14,
@@ -388,6 +428,21 @@ function StudentDetailSheet({ settings, s, onClose, onUpdate, onDelete, onBlock,
               </div>
             ) : (
               <div className="win-cols win-gap">
+                {/* Підсумок по клієнту */}
+                <div style={{display:"grid",gridTemplateColumns:"repeat(4,minmax(0,1fr))",gap:6}}>
+                  {[
+                    [st?.visits ?? 0, "візитів", TEXT],
+                    [st?.last ? dm(st.last) : "—", st?.last ? `${daysSince(st.last)} дн. тому` : "останній", TEXT],
+                    [st?.next ? dm(st.next.date) : "—", st?.next ? (st.next.time || "наступний") : "наступний", st?.next ? GREEN : DIM],
+                    [fmtK(st?.sum || 0), st?.noshow ? `неявок: ${st.noshow}` : "сума", st?.noshow ? RED : GOLD],
+                  ].map(([v, l, c], i) => (
+                    <div key={i} style={{background:glow(0.04),border:`1px solid ${BORDER}`,borderRadius:10,padding:"8px 4px",textAlign:"center",minWidth:0}}>
+                      <div style={{fontSize:14,fontWeight:900,color:c,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{v}</div>
+                      <div style={{fontSize:10.5,color:i===3&&st?.noshow?RED:DIM,marginTop:2,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{l}</div>
+                    </div>
+                  ))}
+                </div>
+
                 {/* Phone + discount */}
                 <div style={{display:"flex",gap:8}}>
                   <div style={{flex:1,background:glow(0.04),borderRadius:10,padding:"9px 12px",border:`1px solid ${BORDER}`}}>
@@ -395,32 +450,11 @@ function StudentDetailSheet({ settings, s, onClose, onUpdate, onDelete, onBlock,
                     <div style={{fontSize:14,fontWeight:700,color:TEXT}}>{s.phone||"—"}</div>
                   </div>
                   <div style={{minWidth:88,flexShrink:0,background:glow(0.04),borderRadius:10,padding:"9px 10px",border:`1px solid ${BORDER}`,textAlign:"center"}}>
-                    <div style={{fontSize:11,color:FAINT,letterSpacing:1,textTransform:"uppercase",marginBottom:3,whiteSpace:"nowrap"}}>Знижка/год</div>
-                    <div style={{fontSize:18,fontWeight:900,color:s.discount>0?GOLD:DIM}}>{money(s.discount||0)}</div>
+                    <div style={{fontSize:11,color:FAINT,letterSpacing:1,textTransform:"uppercase",marginBottom:3,whiteSpace:"nowrap"}}>Знижка</div>
+                    <div style={{fontSize:18,fontWeight:900,color:s.discount>0?GOLD:DIM}}>{s.discount>0 ? `${money(s.discount)}/год` : "—"}</div>
                   </div>
                 </div>
 
-                {/* Колір слота клієнта (має пріоритет над автокольорами) */}
-                <div style={{background:glow(0.04),borderRadius:10,padding:"10px 12px",border:`1px solid ${BORDER}`}}>
-                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10}}>
-                    <div style={{fontSize:11,color:FAINT,letterSpacing:1,textTransform:"uppercase"}}>Колір слота</div>
-                    <button onClick={()=>setColorOpen(true)} style={{
-                      display:"flex",alignItems:"center",gap:8,padding:"5px 10px 5px 6px",borderRadius:20,cursor:"pointer",
-                      background:glow(0.06),border:`1px solid ${BORDER}`,color:TEXT,fontSize:12,fontWeight:700,fontFamily:"inherit",
-                    }}>
-                      <span style={{
-                        width:20,height:20,borderRadius:"50%",display:"inline-flex",alignItems:"center",justifyContent:"center",
-                        background:slotColor||"transparent",border:slotColor?"none":`1.5px dashed ${DIM}`,color:DIM,fontSize:11,
-                      }}>{slotColor?"":"∅"}</span>
-                      {slotColor?"Змінити":"Обрати"}
-                    </button>
-                  </div>
-                  {autoColors && !slotColor && (
-                    <Hint style={{marginTop:8}}>
-                      Без вибору колір призначається автоматично.
-                    </Hint>
-                  )}
-                </div>
                 {colorOpen && createPortal(
                   <div onClick={()=>setColorOpen(false)} style={{
                     position:"fixed",inset:0,zIndex:400,background:"rgba(0,0,0,0.6)",
@@ -471,24 +505,30 @@ function StudentDetailSheet({ settings, s, onClose, onUpdate, onDelete, onBlock,
                   );
                 })()}
 
-                {/* Type + progress */}
-                <div style={{background:glow(0.04),borderRadius:10,padding:"10px 12px",border:`1px solid ${BORDER}`}}>
-                  <div style={{display:"flex",alignItems:"center",gap:7}}>
-                    <span style={{fontSize:11,fontWeight:800,color:typeColor}}>{typeLabel}</span>
-                  </div>
-                </div>
 
-                {/* Action buttons */}
-                <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:7}}>
-                  <ActBtn icon={ICONS.phone}    label="Дзвонити"   onClick={()=>{window.location.href=`tel:${s.phone}`;}}                    color={GREEN}/>
-                  <ActBtn icon={ICONS.viber}    label="Вайбер"     onClick={()=>{window.location.href=`viber://chat?number=%2B${phone}`;}}    color={BLUE}/>
-                  <ActBtn icon={ICONS.telegram} label="Телеграм"   onClick={()=>{window.open(`https://t.me/+${phone}`,"_blank");}}            color="#5b9bff"/>
-                  <ActBtn icon={ICONS.chat}     label="Чат"        onClick={()=>{navTo("chats");_close();}}                                   color={BLUE}/>
-                  <ActBtn icon={ICONS.bell}     label="Повідомлення" onClick={()=>{setPushOpen(true);setPushSent(false);setPushError(null);}} color={GOLD}/>
-                  <ActBtn icon={ICONS.link}     label="Запросити"  onClick={generateInvite} color={GOLD}/>
-                  <ActBtn icon={ICONS.history}  label="Історія"    onClick={toggleHistory} color={BLUE}/>
-                  <ActBtn icon={ICONS.edit}     label="Редагувати" onClick={()=>setEditMode(true)}/>
-                  <ActBtn icon={s.blocked?ICONS.unban:ICONS.ban} label={s.blocked?"Розблок.":"Заблок."} onClick={async()=>{ if (s.blocked || await confirm({ title:"Заблокувати клієнта?", text:`${s.name} не зможе записуватись, а майбутні записи буде скасовано.`, okLabel:"Заблокувати", danger:true, icon:"ban" })) onBlock(s.id); }} danger={!s.blocked}/>
+                {/* Дії: зв'язок · головне · тихі */}
+                <div style={{display:"grid",gridTemplateColumns:"repeat(4,minmax(0,1fr))",gap:6}}>
+                  <ActBtn icon={ICONS.phone}    label="Дзвонити" onClick={()=>{window.location.href=`tel:${s.phone}`;}} color={GREEN}/>
+                  <ActBtn icon={ICONS.viber}    label="Viber"    onClick={()=>{window.location.href=`viber://chat?number=%2B${phone}`;}} color="#7c5cf0"/>
+                  <ActBtn icon={ICONS.telegram} label="Telegram" onClick={()=>{window.open(`https://t.me/+${phone}`,"_blank");}} color="#2aa3e0"/>
+                  <ActBtn icon={ICONS.chat}     label="Чат"      onClick={()=>{openChatWith(s.id);_close();}} color={BLUE}/>
+                </div>
+                <div style={{display:"grid",gridTemplateColumns:"1.4fr 1fr 1fr",gap:6}}>
+                  <button onClick={()=>{bookFor(s.id);_close();}} disabled={s.blocked} style={{border:"none",borderRadius:11,cursor:s.blocked?"default":"pointer",minHeight:48,fontFamily:"inherit",fontSize:13,fontWeight:800,
+                    background:s.blocked?SURF_HI:`linear-gradient(145deg,${ACC_HI},${ACCENT})`,color:s.blocked?DIM:"#fff",display:"flex",alignItems:"center",justifyContent:"center",gap:7,boxShadow:SO}}>
+                    <MetalIcon name="calendar" size={20}/>Записати
+                  </button>
+                  <ActBtn icon={ICONS.history}  label="Історія"   onClick={toggleHistory}/>
+                  <ActBtn icon={ICONS.link}     label="Запросити" onClick={generateInvite}/>
+                </div>
+                <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                  {[
+                    ["Push-сповіщення", ()=>{setPushOpen(true);setPushSent(false);setPushError(null);}, DIM],
+                    ["Редагувати", ()=>setEditMode(true), DIM],
+                    [s.blocked ? "Розблокувати" : "Заблокувати", async()=>{ if (s.blocked || await confirm({ title:"Заблокувати клієнта?", text:`${s.name} не зможе записуватись, а майбутні записи буде скасовано.`, okLabel:"Заблокувати", danger:true, icon:"ban" })) onBlock(s.id); }, s.blocked ? GREEN : "#f87171"],
+                  ].map(([l, fn, c]) => (
+                    <button key={l} onClick={fn} style={{flex:"1 1 auto",minHeight:36,padding:"0 10px",borderRadius:10,border:`1px solid ${BORDER}`,background:"transparent",color:c,fontFamily:"inherit",fontSize:12,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap"}}>{l}</button>
+                  ))}
                 </div>
 
                 {/* VIP toggle */}
@@ -505,6 +545,19 @@ function StudentDetailSheet({ settings, s, onClose, onUpdate, onDelete, onBlock,
                   <div style={{width:36,height:20,borderRadius:10,position:"relative",background:s.isVip?"linear-gradient(145deg,#a855f7,#7c3aed)":ink(0.08),transition:"background .2s",flexShrink:0}}>
                     <div style={{position:"absolute",top:2,left:s.isVip?18:2,width:16,height:16,borderRadius:8,background:"#fff",transition:"left .2s"}}/>
                   </div>
+                </div>
+
+                {/* Колір клієнта в розкладі (рідкісне налаштування — внизу, компактно) */}
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,padding:"4px 2px"}}>
+                  <div style={{fontSize:12,color:DIM}}>{autoColors && !slotColor ? "Колір у розкладі: автоматично" : "Колір у розкладі"}</div>
+                  <button onClick={()=>setColorOpen(true)} style={{
+                    display:"flex",alignItems:"center",gap:8,padding:"5px 10px 5px 6px",borderRadius:20,cursor:"pointer",minHeight:32,
+                    background:glow(0.06),border:`1px solid ${BORDER}`,color:TEXT,fontSize:12,fontWeight:700,fontFamily:"inherit",
+                  }}>
+                    <span style={{width:20,height:20,borderRadius:"50%",display:"inline-flex",alignItems:"center",justifyContent:"center",
+                      background:slotColor||"transparent",border:slotColor?"none":`1.5px dashed ${DIM}`,color:DIM,fontSize:11}}>{slotColor?"":"∅"}</span>
+                    {slotColor?"Змінити":"Обрати"}
+                  </button>
                 </div>
 
                 {/* Notes */}
@@ -595,11 +648,15 @@ function StudentDetailSheet({ settings, s, onClose, onUpdate, onDelete, onBlock,
                 <div style={{display:"flex",gap:8,marginBottom:16}}>
                   <div style={{flex:1,borderRadius:14,padding:"10px 8px",textAlign:"center",background:`linear-gradient(155deg,color-mix(in srgb,${GREEN} 30%,${BG_DEEP}),${BG_DEEP})`}}>
                     <div style={{fontSize:19,fontWeight:900,color:GREEN}}>{Number.isInteger(historyStats.hours)?historyStats.hours:historyStats.hours.toFixed(1)}</div>
-                    <div style={{fontSize:11,color:DIM,fontWeight:700,marginTop:2}}>годин пройдено</div>
+                    <div style={{fontSize:11,color:DIM,fontWeight:700,marginTop:2}}>годин</div>
                   </div>
                   <div style={{flex:1,borderRadius:14,padding:"10px 8px",textAlign:"center",background:`linear-gradient(155deg,color-mix(in srgb,${BLUE} 30%,${BG_DEEP}),${BG_DEEP})`}}>
                     <div style={{fontSize:19,fontWeight:900,color:BLUE}}>{historyStats.count}</div>
-                    <div style={{fontSize:11,color:DIM,fontWeight:700,marginTop:2}}>записів відвідано</div>
+                    <div style={{fontSize:11,color:DIM,fontWeight:700,marginTop:2}}>візитів</div>
+                  </div>
+                  <div style={{flex:1,borderRadius:14,padding:"10px 8px",textAlign:"center",background:`linear-gradient(155deg,color-mix(in srgb,${GOLD} 30%,${BG_DEEP}),${BG_DEEP})`}}>
+                    <div style={{fontSize:19,fontWeight:900,color:GOLD,whiteSpace:"nowrap"}}>{money(historyStats.sum)}</div>
+                    <div style={{fontSize:11,color:DIM,fontWeight:700,marginTop:2}}>сума</div>
                   </div>
                 </div>
 
@@ -616,7 +673,7 @@ function StudentDetailSheet({ settings, s, onClose, onUpdate, onDelete, onBlock,
                           <span style={{fontSize:12,fontWeight:800,color:TEXT}}>{fmtS(b.date)}{b.time?`, ${b.time}`:""}</span>
                           <span style={{fontSize:11,fontWeight:800,padding:"2px 8px",borderRadius:20,flexShrink:0,background:`${dotColor}22`,color:dotColor}}>{fmtHours(getDurMin(b))}</span>
                         </div>
-                        <div style={{fontSize:11,color:DIM,marginTop:2}}>{b.serviceName||b.svc||"—"} · {statusLabel}</div>
+                        <div style={{fontSize:11,color:DIM,marginTop:2}}>{`${svcName(b)} · ${statusLabel}`}</div>
                       </div>
                     );
                   })}
@@ -772,9 +829,21 @@ export default function StudentsView({ studentJump, onStudentJumpHandled, bookin
     return map;
   }, [bookings]);
 
+  const cStats = useMemo(() => statsByClient(bookings, settings?.services), [bookings, settings?.services]);
+  // Сегменти замість типів «Стандарт/Індивідуальний»: нові, постійні, давно не були, VIP, заблоковані
+  const NEW_MS = 30 * 86400000;
+  const SEGMENTS = [
+    ["all", "Всі", () => true],
+    ["new", "Нові", (s) => (s.createdAt && Date.now() - s.createdAt < NEW_MS) || ((cStats[s.id]?.visits || 0) <= 1 && !cStats[s.id]?.next && (cStats[s.id]?.total || 0) > 0)],
+    ["regular", "Постійні", (s) => (cStats[s.id]?.visits || 0) >= 2],
+    ["sleep", "Давно не були", (s) => { const st = cStats[s.id]; return !!st?.last && !st.next && daysSince(st.last) > SLEEP_DAYS; }],
+    ["vip", "VIP", (s) => s.isVip],
+    ["blocked", "Заблоковані", (s) => s.blocked],
+  ];
+  const segFn = (SEGMENTS.find(x => x[0] === filterType) || SEGMENTS[0])[2];
   const q    = search.toLowerCase();
   const list = students
-    .filter(s=>(!q||(s.name||"").toLowerCase().includes(q)||(s.phone||"").includes(q))&&(filterType==="all"||s.type===filterType))
+    .filter(s=>(!q||(s.name||"").toLowerCase().includes(q)||(s.phone||"").includes(q))&&segFn(s))
     .sort((a,b)=>{
       if (sortMode === "lastBooking") {
         const ka = studentStats[a.id]?.lastKey || "";
@@ -800,6 +869,7 @@ export default function StudentsView({ studentJump, onStudentJumpHandled, bookin
         <StudentDetailSheet
           settings={settings}
           s={liveDetail}
+          st={cStats[liveDetail.id]}
           onClose={()=>setDetailStudent(null)}
           onUpdate={updateStudent}
           onDelete={deleteStudent}
@@ -820,40 +890,44 @@ export default function StudentsView({ studentJump, onStudentJumpHandled, bookin
       <style>{css}</style>
       <div style={{display:"flex",flexDirection:"column",gap:8,fontFamily:"ui-sans-serif,-apple-system,system-ui,sans-serif",color:TEXT}}>
 
-        <div style={{display:"flex",alignItems:"center",marginBottom:2}}>
-          <div style={{fontSize:20,fontWeight:700,color:TEXT}}>Клієнти</div>
-          <div style={{marginLeft:"auto",fontSize:12,color:DIM}}>{list.length}</div>
-        </div>
-
         <div style={{background:SURFACE,border:`1px solid ${BORDER}`,backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",borderRadius:16,padding:"2px 14px",minHeight:48,display:"flex",alignItems:"center",gap:8}}>
           {ICONS.search}
           <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Ім'я або телефон…"
             style={{flex:1,background:"transparent",border:"none",outline:"none",color:TEXT,padding:"11px 0",fontSize:14,minWidth:0,fontFamily:"inherit"}}/>
-          {search && <button aria-label="Очистити пошук" onClick={()=>setSearch("")} style={{background:"none",border:"none",cursor:"pointer",color:FAINT,fontSize:16,padding:0,lineHeight:1}}>×</button>}
+          {search && <button aria-label="Очистити пошук" onClick={()=>setSearch("")} style={{background:"none",border:"none",cursor:"pointer",color:FAINT,fontSize:16,padding:0,lineHeight:1,minWidth:28,minHeight:28}}>×</button>}
         </div>
 
-        <div style={{display:"flex",background:SURFACE,padding:3,borderRadius:14,border:`1px solid ${BORDER}`,backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)"}}>
-          {[["all","Всі","Всі"],["school","Стандарт","Стандарт"],["private","Індивідуальний","Індивід."]].map(([k,l,ls])=>(
-            <button key={k} onClick={()=>setFilterType(k)} style={{
-              flex:"1 1 0",minWidth:0,padding:"10px 2px",borderRadius:10,border:"none",cursor:"pointer",fontSize:12,fontWeight:600,fontFamily:"inherit",whiteSpace:"nowrap",
-              background:filterType===k?SURF_HI:"transparent",color:filterType===k?TEXT:DIM,boxShadow:filterType===k?"0 2px 8px rgba(0,0,0,.12)":"none",
-            }}><span className="lbl-long">{l}</span><span className="lbl-short">{ls}</span></button>
-          ))}
+        {/* Сегменти */}
+        <div style={{display:"flex",gap:6,overflowX:"auto",paddingBottom:2}}>
+          {SEGMENTS.map(([k,l,fn])=>{
+            const on = filterType===k, n = k === "all" ? students.length : students.filter(fn).length;
+            if (k !== "all" && !n && !on) return null;
+            return (
+              <button key={k} onClick={()=>setFilterType(k)} style={{
+                flexShrink:0,minHeight:32,padding:"4px 12px",borderRadius:16,cursor:"pointer",fontFamily:"inherit",fontSize:12,fontWeight:700,whiteSpace:"nowrap",
+                background:on?ACCENT:SURFACE,color:on?(BTN_TX||"#fff"):TEXT,border:`1px solid ${on?ACCENT:BORDER}`}}>
+                {`${l} · ${n}`}
+              </button>
+            );
+          })}
         </div>
 
-        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(130px,1fr))",gap:6}}>
-          {[["name","Алфавіт"],["lastBooking","Останні записи"],["createdAt","Реєстрація"],["lessons","К-сть записів"]].map(([k,l])=>(
-            <button key={k} onClick={()=>setSortMode(k)} style={{
-              minWidth:0,padding:"8px 8px",borderRadius:99,cursor:"pointer",fontSize:12,fontWeight:600,fontFamily:"inherit",whiteSpace:"nowrap",
-              border:`1px solid ${sortMode===k?"transparent":BORDER}`,backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",
-              background:sortMode===k?`linear-gradient(145deg,${ACC_HI},${ACCENT})`:SURFACE,color:sortMode===k?(BTN_TX||"#fff"):DIM,
-            }}>{l}</button>
-          ))}
+        {/* Кількість · сортування · додати */}
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          <div style={{fontSize:12,color:DIM,whiteSpace:"nowrap"}}>{klientiv(list.length)}</div>
+          <label style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:4,minWidth:0,fontSize:12,color:DIM}}>
+            <span className="lbl-long" style={{whiteSpace:"nowrap"}}>Сортування:</span>
+            <select value={sortMode} onChange={e=>setSortMode(e.target.value)} style={{minWidth:0,maxWidth:140,minHeight:32,borderRadius:10,border:`1px solid ${BORDER}`,background:SURFACE,color:TEXT,fontFamily:"inherit",fontSize:12,fontWeight:700,padding:"0 6px",colorScheme:"dark"}}>
+              {[["name","Алфавіт"],["lastBooking","Останні записи"],["createdAt","Реєстрація"],["lessons","К-сть записів"]].map(([k,l])=><option key={k} value={k}>{l}</option>)}
+            </select>
+          </label>
+          <button onClick={()=>setShowNew(true)} aria-label="Додати клієнта" style={{flexShrink:0,minHeight:34,padding:"0 12px",borderRadius:10,border:"none",cursor:"pointer",fontFamily:"inherit",fontSize:12.5,fontWeight:800,
+            background:`linear-gradient(145deg,${ACC_HI},${ACCENT})`,color:BTN_TX||"#fff"}}>+ Клієнт</button>
         </div>
 
         <div className="pc-grid">
         {list.map(s=>(
-          <StudentCard key={s.id} s={s} onSelect={s=>setDetailStudent(s)} settings={settings} />
+          <StudentCard key={s.id} s={s} st={cStats[s.id]} onSelect={s=>setDetailStudent(s)} settings={settings} />
         ))}
         </div>
 
@@ -869,24 +943,8 @@ export default function StudentsView({ studentJump, onStudentJumpHandled, bookin
             <div style={{fontSize:14,fontWeight:700,color:DIM}}>{search?"Нікого не знайдено":"Ще немає клієнтів"}</div>
           </div>
         )}
-        {/* запас під плаваючою кнопкою «+ Клієнт», щоб вона не закривала останню картку */}
-        <div aria-hidden="true" style={{height:78,flexShrink:0}}/>
+        <div aria-hidden="true" style={{height:12,flexShrink:0}}/>
       </div>
-
-      {createPortal(
-        <button onClick={()=>setShowNew(true)} aria-label="Додати клієнта" style={{
-          position:"fixed",right:18,bottom:"calc(86px + env(safe-area-inset-bottom, 0px))",zIndex:45,
-          display:"flex",alignItems:"center",gap:6,
-          background:`linear-gradient(145deg,${ACC_HI},${ACCENT})`,
-          border:"none",borderRadius:999,padding:"13px 20px",cursor:"pointer",
-          fontSize:14,fontWeight:700,color:BTN_TX||"#fff",fontFamily:"inherit",
-          boxShadow:`0 6px 16px ${ACCENT}59`,
-        }}>
-          <span style={{fontSize:20,lineHeight:1,marginTop:-2}}>+</span>
-          Клієнт
-        </button>,
-        document.getElementById("app-shell") || document.body
-      )}
 
       {/* New student sheet */}
       {showNew && createPortal(
@@ -920,6 +978,7 @@ export default function StudentsView({ studentJump, onStudentJumpHandled, bookin
         <StudentDetailSheet
           settings={settings}
           s={liveDetail}
+          st={cStats[liveDetail.id]}
           onClose={()=>setDetailStudent(null)}
           onUpdate={updateStudent}
           onDelete={deleteStudent}
