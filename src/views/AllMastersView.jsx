@@ -83,6 +83,7 @@ export default function AllMastersView({ bookings, staff, settings, onPick, onVi
   const hours = Array.from({ length: Math.max(1, (to - from) / 60) }, (_, i) => from + i * 60);
   // «N годин» — скільки годин вміщається на екрані (Авто — весь діапазон записів); «N діб» — скільки колонок майстрів на екрані
   const wantHours = settings.autoHourHeight ? Math.max(6, Math.min(16, hours.length)) : Math.max(1, ((Number(settings.workEnd) || 18) - (Number(settings.workStart) || 9)) * 60 / (Number(settings.hourHeightPx) || 60));
+  const END_PAD = 10; // запас знизу: остання картка не обрізається заокругленням колонки
   const HOUR_H = Math.max(26, Math.round(Math.max(240, win.h - 335) / wantHours)); // 335 — шапка, навігація і підсумок дня
   // Скільки майстрів на екрані: вибір 1–5 (запам'ятовується на пристрої); без вибору — телефон 1, інакше «N діб» зверху.
   // Гортання вбік прилипає до колонки.
@@ -114,7 +115,7 @@ export default function AllMastersView({ bookings, staff, settings, onPick, onVi
           {/* Вісь часу: години великим, :30 — дрібно; поточний час — червона плашка */}
           <div style={{ width: AXIS_W, flexShrink: 0 }}>
             <div style={{ height: 46 }} />
-            <div style={{ position: "relative", height: hours.length * HOUR_H }}>
+            <div style={{ position: "relative", height: hours.length * HOUR_H + END_PAD }}>
               {hours.map((h, i) => (
                 <div key={h}>
                   <div style={{ position: "absolute", top: i * HOUR_H - 7, right: 6, fontSize: 12, fontWeight: 800, color: TEXT, opacity: 0.85 }}>{`${Math.floor(h / 60)}:00`}</div>
@@ -138,7 +139,7 @@ export default function AllMastersView({ bookings, staff, settings, onPick, onVi
                   <span style={{ width: 9, height: 9, borderRadius: "50%", background: m.color, flexShrink: 0 }} />
                   <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.name}</span>
                 </button>
-                <div style={{ position: "relative", height: hours.length * HOUR_H, borderRadius: 12, background: "rgba(0,0,0,0.22)", border: `1px solid ${BORDER}`, overflow: "hidden" }}>
+                <div style={{ position: "relative", height: hours.length * HOUR_H + END_PAD, borderRadius: 12, background: "rgba(0,0,0,0.22)", border: `1px solid ${BORDER}`, overflow: "hidden" }}>
                   {/* Лінії: година — помітніше, :30 — ледь видно */}
                   {Array.from({ length: hours.length * 2 - 1 }, (_, i) => (
                     <div key={i} style={{ position: "absolute", left: 0, right: 0, top: ((i + 1) / 2) * HOUR_H, height: 1, background: (i + 1) % 2 === 0 ? "rgba(255,255,255,0.07)" : "rgba(255,255,255,0.025)" }} />
