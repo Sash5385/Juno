@@ -1085,7 +1085,7 @@ select{color-scheme:dark}
       case "clients": return (<div><SubHead first icon="📋">Анкета клієнта</SubHead>{P("intake")}<SubHead icon="⭐">Відгуки клієнтів</SubHead>{P("reviews")}</div>);
       case "push": return P("push");
       case "team": return (<div>{P("staff")}{accountTypeOf(settings) !== ACCOUNT_SALON && <><SubHead icon="🏢">Салон</SubHead>{P("salon")}</>}</div>);
-      case "profile": return (<div>{P("profile")}<SubHead icon="🎨">Вигляд і мова</SubHead>{P("appearance")}</div>);
+      case "profile": return (<div>{P("profile")}<SubHead icon="🎨">Вигляд і мова</SubHead>{P("appearance")}<SubHead icon="⏱">Масштаб записів (тест)</SubHead>{P("slotScale")}</div>);
       default: return null;
     }
   }
@@ -1201,6 +1201,24 @@ select{color-scheme:dark}
               </>);
             })()}
           </div>
+        </div>
+      );
+
+      case "slotScale": return (
+        <div>
+          {[
+            ["slotMinH", "Авто за найкоротшим записом", "У режимі «Авто» висота години така, щоб найкоротший запис був не нижче 44px. Якщо день не влазить — розклад гортається."],
+            ["slotSmart", "Розумний вміст картки", "Мало місця — показується головне: ім'я → ціна → послуга. Один рядок — «Ф. Шевченко»."],
+            ["slotShortName", "Коротке ім'я у вузьких колонках", "Колонка вужча 70px: «Ф. Шевченко» одним рядком, ціна прихована."],
+            ["slotPeek", "Деталі по тапу на малий запис", "Тап по маленькій картці показує міні-картку з усією інформацією і кнопкою «Відкрити запис»."],
+          ].map(([k, l, h]) => (
+            <Row compact key={k} color={svColor(!!settings[k])} label={l} hint={h}>
+              <Toggle color={svColor(!!settings[k])} on={!!settings[k]} onChange={v=>upd(k,v)}/>
+            </Row>
+          ))}
+          <Row compact last color={GREEN} label="Щипок двома пальцями" hint="Вже працює: зведіть/розведіть два пальці на розкладі, щоб змінити висоту години (на ПК — Ctrl + коліщатко).">
+            <span/>
+          </Row>
         </div>
       );
 

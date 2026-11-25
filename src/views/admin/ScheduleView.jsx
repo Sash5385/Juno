@@ -379,6 +379,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   const snapTimerRef = useRef(null);
   const timeColRef = useRef(null);
   const [pinch, setPinch] = useState(null);
+  const [peek, setPeek] = useState(null); // тест «Деталі по тапу»: { b, x, y } — міні-картка з повною інформацією
   const [shineId, setShineId] = useState(null);
   const slotHoldTimerRef = useRef(null);
   const slotHoldFiredRef = useRef(false);
@@ -927,7 +928,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   const calcAutoSpan = () => {
     const dayFrom = dayOffset + visDayRangeRef.current.s;
     const dayTo   = dayOffset + visDayRangeRef.current.e;
-    let minStart = Infinity, maxEnd = -Infinity;
+    let minStart = Infinity, maxEnd = -Infinity, minDur = Infinity;
     for (let dd = dayFrom; dd <= dayTo; dd++) {
       const dayList = bookingsByDay.get(dd);
       if (!dayList) continue;
@@ -935,6 +936,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
         if (b.status === "cancelled") continue;
         minStart = Math.min(minStart, b.startMin);
         maxEnd   = Math.max(maxEnd, b.startMin + b.durMin);
+        if (b.type !== "block" && b.durMin > 0) minDur = Math.min(minDur, b.durMin);
       }
     }
     // Порожні (вільні, ще не заброньовані) слоти теж входять у діапазон —
@@ -950,7 +952,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
         maxEnd   = Math.max(maxEnd, sMin + (slot.durMin || 60));
       });
     }
-    return { minStart, maxEnd, key: minStart === Infinity ? null : `${minStart}-${maxEnd}` };
+    return { minStart, maxEnd, minDur, key: minStart === Infinity ? null : `${minStart}-${maxEnd}-${minDur}` };
   };
 
   // Авто-висота годин ("Авто" замість фіксованих 6/8/9/10/12): підлаштовуємо
@@ -965,7 +967,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   const runAutoHeightRef = useRef(null);
   runAutoHeightRef.current = () => {
     if (!settings.autoHourHeight) return;
-    const { minStart, maxEnd, key } = calcAutoSpan();
+    const { minStart, maxEnd, minDur, key } = calcAutoSpan();
     lastAutoKeyRef.current = key;
     if (minStart === Infinity) return; // немає ні записів, ні слотів у видимому діапазоні — висоту не чіпаємо
     const spanHours = Math.ceil((maxEnd - minStart) / 60);
@@ -987,7 +989,9 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
     const BOTTOM_BUFFER = 56; // місце під плашку суми дня знизу + запас на неточність вимірювання
     const usableH = Math.max(200, el.clientHeight - headerOffsetReal - BOTTOM_BUFFER);
     const autoPxPerMinBase = availGridH / totalMin; // той самий множник, що й у реальному PX_PER_MIN
-    const targetHpx = Math.max(30, Math.round(usableH / (n * autoPxPerMinBase))); // нижня межа 30 (а не 60) — довгий день теж вміщується
+    let targetHpx = Math.max(30, Math.round(usableH / (n * autoPxPerMinBase))); // нижня межа 30 (а не 60) — довгий день теж вміщується
+    // Тест «Авто за найкоротшим записом»: найкоротший запис дня — не нижче 44px (ім'я + час), решта — скролом.
+    if (settings.slotMinH && Number.isFinite(minDur)) targetHpx = Math.min(160, Math.max(targetHpx, Math.ceil(44 / (minDur * autoPxPerMinBase))));
     // Мета "Авто" — бачити ВСІ записи одразу, без ручного скролу (не просто
     // підібрати висоту рядка). Тому разом зі зміною hourHeightPx запам'ятовуємо
     // час першого запису — окремий ефект нижче проскролить до нього, коли
@@ -998,7 +1002,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
       return { ...s, hourHeightPx: targetHpx };
     });
   };
-  useEffect(() => { runAutoHeightRef.current(); }, [settings.autoHourHeight]);
+  useEffect(() => { runAutoHeightRef.current(); }, [settings.autoHourHeight, settings.slotMinH]);
   // Span видимих днів змінився відносно останнього розрахунку (нові записи/слоти) — перерахувати.
   useEffect(() => {
     if (!settings.autoHourHeight) return;
@@ -3120,6 +3124,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                           setCancellingSet(s=>{ const ns=new Set(s); ns.delete(b.id); return ns; });
                           return;
                         }
+                        if(!dragRef.current && settings.slotPeek && (height < 56 || COL_W < 58) && !e.shiftKey){ const r = e.currentTarget.getBoundingClientRect(); setPeek({ b: origB, price, x: r.left + r.width / 2, y: r.bottom, top: r.top }); return; }
                         if(!dragRef.current){ setLocalSelectedBooking(origB); onSlotClick?.(origB); }
                       }}
                       style={isVipSlot ? {
@@ -3213,12 +3218,26 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                         const maxLinesByH = Math.max(1, Math.floor(availH / 10));
                         const maxLinesByW = COL_W < 44 ? 2 : COL_W < 58 ? 3 : 4;
                         const maxLines = Math.min(maxLinesByH, maxLinesByW);
-                        const lines = allLines.slice(0, maxLines);
+                        let lines = allLines.slice(0, maxLines);
+                        const shortName = lName ? `${fName.charAt(0)}. ${lName}` : fName;
+                        // Тест «Коротке ім'я у вузьких колонках»: «Ф. Шевченко» одним рядком, ціну ховаємо
+                        if (settings.slotShortName && COL_W < 70) {
+                          lines = [{ text: shortName, w: 800, c: si(0.95) }, { text: typeLabel, w: 600, c: si(0.58) }].slice(0, maxLines);
+                        } else if (settings.slotSmart && maxLines < allLines.length) {
+                          // Тест «Розумний вміст»: пріоритет ім'я → ціна → послуга; нічого не ріжемо посередині
+                          const nameL = { text: fName, w: 800, c: si(0.95) }, lastL = lName ? { text: lName, w: 700, c: si(0.80) } : null;
+                          const priceL = priceText ? { text: priceText, w: 900, c: priceColor, shadow: !!b.surcharge } : null;
+                          if (maxLines === 1) lines = [{ text: shortName, w: 800, c: si(0.95) }];
+                          else if (maxLines === 2) lines = priceL ? [{ text: lName ? shortName : fName, w: 800, c: si(0.95) }, priceL] : [nameL, ...(lastL ? [lastL] : [{ text: typeLabel, w: 600, c: si(0.58) }])];
+                          else lines = [nameL, ...(lastL ? [lastL] : [{ text: typeLabel, w: 600, c: si(0.58) }]), ...(priceL ? [priceL] : [])].slice(0, maxLines);
+                        }
                         // Однаковий розмір у сусідніх картках: від ширини КОЛОНКИ (≈8 символів), а не від довжини тексту —
                         // інакше одне довге слово («Індивідуальний») робило всю картку дрібною. Довге — «…».
                         const fsByW = Math.max(6, Math.floor(availW / (8 * 0.62)));
                         const fsByH = Math.max(6, Math.floor(availH / (lines.length * 1.4)));
-                        const fs = Math.min(11, fsByW, fsByH);
+                        // Коротке ім'я («Ф. Шевченко», ~11 символів) — шрифт під ширину, щоб влазило без «…»
+                        const _shortMode = (settings.slotShortName && COL_W < 70) || (settings.slotSmart && maxLines < allLines.length && maxLines <= 2);
+                        const fs = Math.min(11, fsByW, fsByH, _shortMode ? Math.max(7, Math.floor(availW / (Math.max(...lines.map(l => String(l.text).length), 8) * 0.6))) : 99);
                         return (
                           <div style={{
                             position:"absolute", top:textTop, left:2, right:2, bottom: queueCount > 0 ? 13 : 2,
@@ -4483,6 +4502,33 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
         onClose={() => setDayNotesModal(null)}
       />
     )}
+    {/* Тест «Деталі по тапу»: міні-картка над маленьким записом — повна інформація без відкриття запису */}
+    {peek && (() => {
+      const b = peek.b, W = Math.min(240, windowW - 24);
+      const left = Math.max(12, Math.min(windowW - W - 12, peek.x - W / 2));
+      const below = peek.y + 150 < windowH;
+      const end = b.startMin + b.durMin;
+      const svc = b.serviceName || b.cardLabel || (b.type === "school" ? "Стандарт" : "Індивідуальний");
+      return (
+        <div onClick={() => setPeek(null)} style={{ position:"fixed", inset:0, zIndex:900 }}>
+          <div onClick={e => e.stopPropagation()} style={{
+            position:"fixed", left, width:W, boxSizing:"border-box", ...(below ? { top: peek.y + 6 } : { bottom: windowH - peek.top + 6 }),
+            background:SURF_HI, border:`1px solid ${BORDER}`, borderRadius:14, padding:"10px 12px",
+            boxShadow:"0 10px 30px rgba(0,0,0,0.45)", color:TEXT, display:"flex", flexDirection:"column", gap:4,
+          }}>
+            <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+              <span style={{ width:10, height:10, borderRadius:"50%", background:slotColor(b), flexShrink:0 }}/>
+              <span style={{ fontSize:14, fontWeight:800, flex:1, minWidth:0, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{b.name}</span>
+            </div>
+            <div style={{ fontSize:12.5, color:DIM }}>{fmtTime(b.startMin)}–{fmtTime(end)} · {fmtDur(b.durMin)}</div>
+            <div style={{ fontSize:12.5, color:DIM, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{svc}{peek.price > 0 ? ` · ${money(peek.price)}` : ""}</div>
+            {b.studentNote && <div style={{ fontSize:12, color:FAINT, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>📝 {b.studentNote}</div>}
+            <button onClick={() => { const ob = peek.b; setPeek(null); setLocalSelectedBooking(ob); onSlotClick?.(ob); }}
+              style={{ marginTop:6, padding:"8px 10px", borderRadius:10, border:"none", background:ACCENT, color:"#fff", fontWeight:800, fontSize:13, cursor:"pointer", fontFamily:"inherit" }}>Відкрити запис</button>
+          </div>
+        </div>
+      );
+    })()}
     </>
   );
 }
