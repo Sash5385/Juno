@@ -19,7 +19,7 @@ const SKIP = new Set(["vip-slot", "personal"]);
 
 
 export default function AllMastersView({ bookings, staff, settings, onPick, onViewStudent }) {
-  const { TEXT, DIM, FAINT, SURFACE, SURF_HI, SURF_LO, BORDER, ACCENT, GREEN, GLOW, SHADE, INK, BG, BG_DEEP } = useContext(ThemeContext);
+  const { TEXT, DIM, FAINT, SURFACE, SURF_HI, SURF_LO, BORDER, ACCENT, GREEN, GLOW, SHADE, INK } = useContext(ThemeContext);
   // Поточний час (червона лінія), оновлюється щохвилини
   const [nowMin, setNowMin] = useState(() => { const n = new Date(); return n.getHours() * 60 + n.getMinutes(); });
   useEffect(() => { const t = setInterval(() => { const n = new Date(); setNowMin(n.getHours() * 60 + n.getMinutes()); }, 60000); return () => clearInterval(t); }, []);
@@ -110,11 +110,10 @@ export default function AllMastersView({ bookings, staff, settings, onPick, onVi
       </div>
 
       <style>{makeGlobalCSS(SURF_LO, ACCENT, GLOW, SHADE, INK)}</style>
-      <div className="cal-neon" style={{ overflowX: "auto", borderRadius: 16, WebkitOverflowScrolling: "touch", scrollSnapType: "x mandatory", scrollPaddingLeft: AXIS_W }}>
-        <div style={{ display: "flex", minWidth: AXIS_W + staff.length * COL_W }}>
+      {/* Вісь часу — окремо від горизонтального скролу (як в індивідуальному розкладі): прозора, картки під неї не заїжджають */}
+      <div style={{ display: "flex", alignItems: "flex-start" }}>
           {/* Вісь часу: години великим, :30 — дрібно; поточний час — червона плашка */}
-          {/* Непрозорий фон: при гортанні вбік картки ховаються ПІД віссю, а не просвічують крізь підписи годин */}
-          <div style={{ width: AXIS_W, flexShrink: 0, position: "sticky", left: 0, zIndex: 5, background: BG_DEEP || BG || "#0b0d14", boxShadow: "4px 0 8px rgba(0,0,0,0.35)" }}>
+          <div style={{ width: AXIS_W, flexShrink: 0 }}>
             <div style={{ height: 46 }} />
             <div style={{ position: "relative", height: hours.length * HOUR_H }}>
               {hours.map((h, i) => (
@@ -128,6 +127,8 @@ export default function AllMastersView({ bookings, staff, settings, onPick, onVi
               )}
             </div>
           </div>
+          <div className="cal-neon" style={{ flex: 1, minWidth: 0, overflowX: "auto", WebkitOverflowScrolling: "touch", scrollSnapType: "x mandatory" }}>
+          <div style={{ display: "flex", minWidth: staff.length * COL_W }}>
           {staff.map((m) => {
             const list = byMaster.get(m.id) || [];
             const daySum = list.filter((b) => b.type !== "block" && b.status !== "cancelled" && b.status !== "noshow").reduce((t, b) => t + computeBookingPrice(b, services), 0);
@@ -194,7 +195,8 @@ export default function AllMastersView({ bookings, staff, settings, onPick, onVi
               </div>
             );
           })}
-        </div>
+          </div>
+          </div>
       </div>
       <Hint>Торкніться запису — картка клієнта; імені майстра — його календар</Hint>
     </div>
