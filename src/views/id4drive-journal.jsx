@@ -7,7 +7,7 @@ import { ThemeContext } from "../theme.js";
 import { useBackClose, ScrollChips } from "../ui";
 import { normStaff, masterOf } from "../workspace";
 import { MonthCalendarSheet } from "./id4drive-admin-v5";
-import { cur, money } from "../currency";
+import { money } from "../currency";
 import { tr } from "../i18n";
 
 export const JOURNAL_READ_KEY = "journal_read_at";
@@ -36,6 +36,7 @@ export function countJournalUnread(data) {
   return count;
 }
 
+const WD = ["нд","пн","вт","ср","чт","пт","сб"];
 const MN = ["Січ","Лют","Бер","Кві","Тра","Чер","Лип","Сер","Вер","Жов","Лис","Гру"];
 
 function formatDT(ts) {
@@ -78,7 +79,6 @@ function buildDayGroups(events) {
   return [...map.values()];
 }
 
-const noun = n => n === 1 ? "подія" : n < 5 ? "події" : "подій";
 const TYPE_PREFIX = { new: "✓", cancel: "✕", reschedule: "↻", new_student: "🆕" };
 
 // Нові реєстрації — окреме джерело даних (users), а не bookings: подія
@@ -92,7 +92,7 @@ function buildStudentEvents(data) {
     if (!ts) return;
     const name = u.profile?.name || u.name || "Новий клієнт";
     const phone = u.profile?.phone || u.phone || "";
-    evs.push({ id: `${uid}_reg`, type: "new_student", ts, name, slot: phone, by: "" });
+    evs.push({ id: `${uid}_reg`, type: "new_student", ts, name, slot: phone, uid, by: "client" });
   });
   return evs;
 }
@@ -100,7 +100,7 @@ function buildStudentEvents(data) {
 function buildEvents(data, ownerUid) {
   const evs = [];
   if (!data) return evs;
-  Object.values(data).forEach(userBkgs => {
+  Object.entries(data).forEach(([uid, userBkgs]) => {
     if (!userBkgs) return;
     Object.entries(userBkgs).forEach(([key, b]) => {
       if (!b || typeof b !== "object") return;
@@ -108,29 +108,31 @@ function buildEvents(data, ownerUid) {
       if (b.type === "personal") return;
       const rawName = b.studentName || b.name;
       const name = typeof rawName === "string" || typeof rawName === "number" ? String(rawName) : "Без імені";
-      const dateStr = typeof b.date === "string" ? b.date.split("-").reverse().join(".") : "";
+      // Дата запису коротко, без року: «чт 26.11»
+      const dateStr = typeof b.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(b.date)
+        ? `${WD[new Date(b.date + "T12:00:00").getDay()]} ${b.date.slice(8,10)}.${b.date.slice(5,7)}` : "";
       const durH = b.durationHours ?? (b.durMin ? b.durMin / 60 : null);
       const durStr = durH ? tr(` · ${durH} год`) : "";
       // Послуга, ціна і майстер (салон) — щоб запис у журналі було видно повністю
       const svc = b.serviceName ? ` · ${b.serviceName}` : "";
       const price = Number(b.price) > 0 ? ` · ${money(b.price)}` : "";
-      const slot = [dateStr, b.time].filter(Boolean).join(" ") + durStr + svc + price;
+      const slot = [dateStr, b.time].filter(Boolean).join(" · ") + durStr + svc + price;
       const mid = masterOf(b, ownerUid);
       // Клієнт переніс запис: старий запис скасовано (cancelledBy "reschedule"), новий має rescheduledFrom — показуємо ОДНУ подію «Перенос»
       const [fromDate, fromTime] = String(b.rescheduledFrom || "").split(" ");
-      const fromSlot = fromDate ? " " + tr(`(було ${fromDate.split("-").reverse().join(".")}${fromTime ? " " + fromTime : ""})`) : "";
-      if (b.createdAt && b.rescheduledFrom) evs.push({ id: `${key}_reschedule_new`, type: "reschedule", ts: b.createdAt, name, slot: slot + fromSlot, mid, by: "client" });
-      else if (b.createdAt) evs.push({ id: `${key}_new`,        type: "new",        ts: b.createdAt,     name, slot, mid, by: b.createdBy   || "" });
-      if (b.cancelledAt && b.cancelledBy !== "reschedule") evs.push({ id: `${key}_cancel`,     type: "cancel",     ts: b.cancelledAt,   name, slot, mid, by: b.cancelledBy  || "" });
-      if (b.rescheduledAt) evs.push({ id: `${key}_reschedule`, type: "reschedule", ts: b.rescheduledAt, name, slot, mid, by: "" });
+      const fromSlot = fromDate ? " " + tr(`(було ${fromDate.slice(8,10)}.${fromDate.slice(5,7)}${fromTime ? " " + fromTime : ""})`) : "";
+      if (b.createdAt && b.rescheduledFrom) evs.push({ id: `${key}_reschedule_new`, type: "reschedule", ts: b.createdAt, name, slot: slot + fromSlot, mid, uid, by: "client" });
+      else if (b.createdAt) evs.push({ id: `${key}_new`,        type: "new",        ts: b.createdAt,     name, slot, mid, uid, by: b.createdBy === "admin" ? "admin" : "client" });
+      if (b.cancelledAt && b.cancelledBy !== "reschedule") evs.push({ id: `${key}_cancel`,     type: "cancel",     ts: b.cancelledAt,   name, slot, mid, uid, by: b.cancelledBy  || "" });
+      if (b.rescheduledAt) evs.push({ id: `${key}_reschedule`, type: "reschedule", ts: b.rescheduledAt, name, slot, mid, uid, by: "admin" });
     });
   });
   return evs.sort((a, b) => b.ts - a.ts);
 }
 
-const BY_LABEL = { admin: "майстер", client: "клієнт", student: "клієнт" }; // student — старі скасування клієнтом
+const BY_LABEL = { admin: "майстер", client: "клієнт", student: "клієнт", system: "система", license: "система" }; // student — старі скасування клієнтом
 
-function EventDetailSheet({ ev, meta, onClose, theme }) {
+function EventDetailSheet({ ev, meta, onClose, theme, onViewStudent, navTo }) {
   const [closing, setClosing] = useState(false);
   const shade = a => `rgba(${theme.SHADE},${a})`;
   const glow  = a => `rgba(${theme.GLOW},${a})`;
@@ -196,8 +198,15 @@ function EventDetailSheet({ ev, meta, onClose, theme }) {
 
           <div style={{padding:"14px 20px 28px",display:"flex",flexDirection:"column",gap:8}}>
             <InfoRow label="КЛІЄНТ" value={ev.name} valueStyle={{fontSize:16,fontWeight:800,color:theme.TEXT}} theme={theme} />
-            {ev.slot && <InfoRow label={ev.type === "new_student" ? "ТЕЛЕФОН" : "ЗАНЯТТЯ"} value={ev.slot} theme={theme} />}
+            {ev.slot && <InfoRow label={ev.type === "new_student" ? "ТЕЛЕФОН" : "ЗАПИС"} value={ev.slot} theme={theme} />}
             {byLabel && <InfoRow label="ДІЯ ВІД" value={byLabel} theme={theme} />}
+            {/* Швидка реакція: картка клієнта / написати */}
+            {ev.uid && !String(ev.uid).startsWith("guest_") && (onViewStudent || navTo) && (
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginTop:4}}>
+                {onViewStudent && <button onClick={()=>{ onClose(); setTimeout(()=>onViewStudent(ev.uid), 0); }} style={{minHeight:44,borderRadius:12,border:`1px solid ${theme.BORDER}`,background:theme.SURFACE,color:theme.TEXT,fontFamily:"inherit",fontSize:13,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:7}}><MetalIcon name="user" size={18}/>Картка клієнта</button>}
+                {navTo && <button onClick={()=>{ window.__openChatUid = ev.uid; onClose(); setTimeout(()=>navTo("chats"), 0); }} style={{minHeight:44,borderRadius:12,border:"none",background:`linear-gradient(145deg,${theme.ACC_HI},${theme.ACCENT})`,color:"#fff",fontFamily:"inherit",fontSize:13,fontWeight:800,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:7}}><MetalIcon name="chat" size={18}/>Написати</button>}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -220,10 +229,9 @@ function InfoRow({ label, value, theme, valueStyle = {} }) {
   );
 }
 
-export default function JournalView() {
+export default function JournalView({ onViewStudent, navTo } = {}) {
   const theme = useContext(ThemeContext);
   const { BG_DEEP, SURF_HI, SURFACE, BORDER, DIM, ACCENT } = theme;
-  const glow  = a => `rgba(${theme.GLOW},${a})`;
 
   const EVENT_TYPES = {
     new:         { label: "Новий запис", color: theme.GREEN, icon: "calendar" },
@@ -243,7 +251,10 @@ export default function JournalView() {
     () => [...bookingEvents, ...studentEvents].sort((a, b) => b.ts - a.ts),
     [bookingEvents, studentEvents]
   );
-  const [section,    setSection]   = useState("all");
+  const [section,    setSection]   = useState("all");   // хто: all | client | admin
+  const [period,     setPeriod]    = useState("7");     // today | 7 | 30 | all
+  const [q,          setQ]         = useState("");
+  const [shown,      setShown]     = useState(50);      // підвантаження порціями — довгий журнал не гальмує
   const [typeFilter, setTypeFilter] = useState("all");
   const [detail,     setDetail]    = useState(null);
   const [prevReadAt] = useState(getJournalReadAt);
@@ -306,12 +317,15 @@ export default function JournalView() {
   }, [showMonthCal, pendingJump]);
   const jumpToDate = (dateStr) => setPendingJump(dateStr);
 
-  const unreadCount = events.filter(e => e.ts > prevReadAt).length;
   // Салон: фільтр по майстру стосується лише подій записів (клієнти спільні)
   const byMaster    = isSalonJ && masterFilter ? events.filter(e => e.type === "new_student" || e.mid === masterFilter) : events;
-  const bySection   = section === "admin" ? byMaster.filter(e => e.by === "admin") : byMaster;
+  const sinceTs     = period === "all" ? 0 : period === "today" ? new Date(new Date().toDateString()).getTime() : Date.now() - Number(period) * 86400000;
+  const byPeriod    = byMaster.filter(e => e.ts >= sinceTs && (!q || String(e.name || "").toLowerCase().includes(q.toLowerCase())));
+  const bySection   = section === "all" ? byPeriod : byPeriod.filter(e => section === "admin" ? e.by === "admin" : e.by !== "admin");
   const filtered    = typeFilter === "all" ? bySection : bySection.filter(e => e.type === typeFilter);
-  const groups      = buildDayGroups(filtered);
+  const groups      = buildDayGroups(filtered.slice(0, shown));
+  const _chip       = { flexShrink:0,minHeight:32,padding:"4px 12px",borderRadius:16,cursor:"pointer",fontFamily:"inherit",fontSize:12,fontWeight:700,whiteSpace:"nowrap" };
+  useEffect(() => { setShown(50); }, [period, section, typeFilter, masterFilter, q]);
 
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:0 }}>
@@ -322,36 +336,35 @@ export default function JournalView() {
         @media (max-width:399px){.jtiles{grid-template-columns:repeat(2,minmax(0,1fr))}}
       `}</style>
 
-      {/* Section tabs */}
-      <div style={{
-        display:"flex",gap:0,marginBottom:12,
-        background:SURFACE,borderRadius:14,padding:3,
-        border:`1px solid ${BORDER}`,backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",
-      }}>
-        {[
-          ["all",   unreadCount > 0 ? `Всі записи · ${unreadCount}` : "Всі записи"],
-          ["admin", "Дії майстра"],
-        ].map(([id, lbl]) => (
-          <button key={id} onClick={() => setSection(id)} style={{
-            flex:1,padding:"10px 10px",borderRadius:10,border:"none",
-            cursor:"pointer",fontSize:12,fontWeight:600,fontFamily:"inherit",
-            background: section === id ? SURF_HI : "transparent",
-            color: section === id ? theme.TEXT : DIM,
-            boxShadow: section === id ? "0 2px 8px rgba(0,0,0,.12)" : "none",
-            transition:"all .15s",
-          }}>{lbl}</button>
-        ))}
+      {/* Пошук + період */}
+      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8,background:SURFACE,border:`1px solid ${BORDER}`,borderRadius:14,padding:"2px 12px",minHeight:44}}>
+        <MetalIcon name="search" size={18}/>
+        <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Пошук клієнта…" style={{flex:1,minWidth:0,background:"transparent",border:"none",outline:"none",color:theme.TEXT,fontSize:14,fontFamily:"inherit",padding:"9px 0"}}/>
+        {q && <button aria-label="Очистити пошук" onClick={()=>setQ("")} style={{background:"none",border:"none",color:DIM,fontSize:16,cursor:"pointer",minWidth:28,minHeight:28}}>×</button>}
+      </div>
+      <div style={{display:"flex",gap:6,overflowX:"auto",marginBottom:8,paddingBottom:2}}>
+        {[["today","Сьогодні"],["7","7 днів"],["30","30 днів"],["all","Усе"]].map(([k,l]) => {
+          const on = period === k;
+          return <button key={k} onClick={()=>setPeriod(k)} style={{..._chip,background:on?ACCENT:SURFACE,color:on?"#fff":theme.TEXT,border:`1px solid ${on?ACCENT:BORDER}`}}>{l}</button>;
+        })}
+      </div>
+      {/* Хто зробив дію */}
+      <div style={{display:"flex",background:SURFACE,borderRadius:12,padding:3,border:`1px solid ${BORDER}`,marginBottom:8}}>
+        {[["all","Усі дії"],["client","Клієнти"],["admin","Майстер"]].map(([k,l]) => {
+          const on = section === k;
+          return <button key={k} onClick={()=>setSection(k)} style={{flex:1,minHeight:34,borderRadius:9,border:"none",cursor:"pointer",fontFamily:"inherit",fontSize:12,fontWeight:700,background:on?SURF_HI:"transparent",color:on?theme.TEXT:DIM}}>{l}</button>;
+        })}
       </div>
 
       {/* Салон: фільтр по майстру */}
       {isSalonJ && (
-        <div style={{marginBottom:10}}>
+        <div style={{marginBottom:8}}>
           <ScrollChips activeKey={masterFilter}>
             {[{ id:"", name:"Усі майстри", color:ACCENT }, ...staff].map(m => {
               const on = masterFilter === m.id;
               return (
                 <button key={m.id || "all"} onClick={()=>setMasterFilter(m.id)} style={{
-                  flex:"1 0 auto",justifyContent:"center",display:"flex",alignItems:"center",gap:7,padding:"8px 13px",borderRadius:99,cursor:"pointer",fontFamily:"inherit",fontSize:12.5,fontWeight:600,whiteSpace:"nowrap",
+                  flex:"1 0 auto",justifyContent:"center",display:"flex",alignItems:"center",gap:7,padding:"7px 12px",borderRadius:99,cursor:"pointer",fontFamily:"inherit",fontSize:12,fontWeight:600,whiteSpace:"nowrap",
                   border:`1px solid ${on ? m.color : BORDER}`,background:on?`color-mix(in srgb,${m.color} 26%,transparent)`:SURFACE,color:on?theme.TEXT:DIM,
                 }}>
                   {m.id && <span style={{width:10,height:10,borderRadius:"50%",background:m.color}}/>}{m.name}
@@ -362,29 +375,24 @@ export default function JournalView() {
         </div>
       )}
 
-      {/* Type filter — stat tiles */}
-      <div style={{ display:"flex", justifyContent:"flex-end", marginBottom:6 }}>
-        <span style={{fontSize:12,color:DIM}}>{bySection.length} {noun(bySection.length)}</span>
-      </div>
+      {/* Тип події — лічильники за обраний період (тап = фільтр) */}
       <div className="jtiles">
         {[
-          ["new",         "НОВИЙ", theme.GREEN, "checkCircle"],
-          ["cancel",      "СКАСОВАНО", theme.RED  , "cross"],
-          ["reschedule",  "ПЕРЕНОС", theme.GOLD , "swap"],
-          ["new_student", "КЛІЄНТ", theme.BLUE , "userPlus"],
+          ["new",         "Нові записи", theme.GREEN, "checkCircle"],
+          ["cancel",      "Скасування",  theme.RED  , "cross"],
+          ["reschedule",  "Переноси",    theme.GOLD , "swap"],
+          ["new_student", "Нові клієнти", theme.BLUE , "userPlus"],
         ].map(([id, lbl, color, ic]) => {
           const active = typeFilter === id;
           const count  = bySection.filter(e => e.type === id).length;
           return (
-            <button key={id} onClick={() => setTypeFilter(active ? "all" : id)} style={{
-              border: active ? `1px solid color-mix(in srgb,${color} 55%,transparent)` : `1px solid ${BORDER}`,
-              cursor:"pointer",borderRadius:16,padding:"10px 6px",textAlign:"center",fontFamily:"inherit",
-              background: active ? `color-mix(in srgb,${color} 26%,transparent)` : SURFACE,
-              backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",
-              transition:"all .15s",
+            <button key={id} onClick={() => setTypeFilter(active ? "all" : id)} aria-pressed={active} style={{
+              border: active ? `1.5px solid ${color}` : `1px solid ${BORDER}`,
+              cursor:"pointer",borderRadius:14,padding:"8px 6px",textAlign:"center",fontFamily:"inherit",
+              background: active ? `color-mix(in srgb,${color} 22%,transparent)` : SURFACE,
             }}>
-              <div style={{fontSize:22,fontWeight:800,color: active ? theme.TEXT : color}}>{count}</div>
-              <div style={{fontSize:11,fontWeight:600,letterSpacing:0.2,marginTop:2,color: DIM}}><MetalIcon name={ic} size={16} style={{marginRight:4}}/>{lbl}</div>
+              <div style={{fontSize:20,fontWeight:800,color}}>{count}</div>
+              <div style={{fontSize:11,fontWeight:600,marginTop:2,color: active ? theme.TEXT : DIM,display:"flex",alignItems:"center",justifyContent:"center",gap:4,whiteSpace:"nowrap"}}><MetalIcon name={ic} size={14}/>{lbl}</div>
             </button>
           );
         })}
@@ -393,7 +401,7 @@ export default function JournalView() {
       {/* Empty state */}
       {groups.length === 0 && (
         <div style={{ textAlign:"center", color:DIM, fontSize:13, paddingTop:40 }}>
-          {section === "admin" ? "Немає дій майстра" : "Журнал порожній"}
+          {q ? "Нікого не знайдено" : period !== "all" ? "За цей період подій немає" : "Журнал порожній"}
         </div>
       )}
 
@@ -401,73 +409,59 @@ export default function JournalView() {
       {groups.map(group => {
         const gd = new Date(group.evs[0].ts);
         const dateStr = `${gd.getFullYear()}-${String(gd.getMonth()+1).padStart(2,'0')}-${String(gd.getDate()).padStart(2,'0')}`;
+        const all = filtered.filter(e => { const d = new Date(e.ts); return d.toDateString() === gd.toDateString(); });
+        const cnt = (t) => all.filter(e => e.type === t).length;
+        const sum = [[cnt("new"), "+", theme.GREEN], [cnt("cancel"), "−", theme.RED], [cnt("reschedule"), "⇄", theme.GOLD], [cnt("new_student"), "👤", theme.BLUE]].filter(x => x[0] > 0);
         return (
-        <div key={group.key} id={`jgroup-${dateStr}`} style={{marginBottom:14}}>
+        <div key={group.key} id={`jgroup-${dateStr}`} style={{marginBottom:12}}>
 
-          {/* Day header */}
-          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6,paddingLeft:2}}>
-            <div style={{width:28,height:3,borderRadius:2,background:glow(0.10),flexShrink:0}}/>
-            <span style={{fontSize:12,fontWeight:700,color:DIM,letterSpacing:0.8,textTransform:"uppercase",flexShrink:0}}>{group.label}</span>
-            <div style={{flex:1,height:1,background:BORDER}}/>
-            <span style={{fontSize:11,color:DIM,flexShrink:0}}>{group.evs.length} {noun(group.evs.length)}</span>
+          {/* Заголовок дня — прилипає при прокрутці; підсумок дня */}
+          <div style={{position:"sticky",top:0,zIndex:3,display:"flex",alignItems:"center",gap:8,padding:"6px 4px",marginBottom:4,background:BG_DEEP,borderRadius:10}}>
+            <span style={{fontSize:12,fontWeight:800,color:theme.TEXT,letterSpacing:0.6,textTransform:"uppercase",flexShrink:0}}>{group.label}</span>
+            <div style={{flex:1}}/>
+            {sum.map(([n, sym, c]) => <span key={sym} style={{fontSize:11.5,fontWeight:800,color:c,whiteSpace:"nowrap"}}>{`${sym}${n}`}</span>)}
           </div>
 
-          {/* Events — tinted cards, big time on the left */}
-          {group.evs.map(ev => {
-            const meta    = EVENT_TYPES[ev.type] || { label: ev.type, color: ACCENT };
+          {/* Події: нейтральні рядки, тип — кольоровим значком */}
+          <div style={{borderRadius:14,border:`1px solid ${BORDER}`,background:SURFACE,overflow:"hidden"}}>
+          {group.evs.map((ev, i) => {
+            const meta    = EVENT_TYPES[ev.type] || { label: ev.type, color: ACCENT, icon: "calendar" };
             const isNew   = ev.ts > prevReadAt;
             const byLabel = BY_LABEL[ev.by] || ev.by;
-            const prefix  = TYPE_PREFIX[ev.type] || "•";
-
+            const mm = isSalonJ && ev.mid ? staff.find(m => m.id === ev.mid) : null;
             return (
-              <div
-                key={ev.id}
-                className="jrow"
-                onClick={() => setDetail(ev)}
-                style={{
-                  display:"flex",alignItems:"center",gap:10,padding:"11px 12px",minHeight:60,
-                  borderRadius:14,marginBottom:7,
-                  background:`color-mix(in srgb,${meta.color} 26%,transparent)`,
-                  border:`1px solid color-mix(in srgb,${meta.color} 55%,transparent)`,
-                  backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",
-                }}
-              >
-                {/* Time */}
-                <div style={{fontSize:16,fontWeight:800,color:"#fff",width:52,textAlign:"center",flexShrink:0,fontVariantNumeric:"tabular-nums"}}>
-                  {formatTime(ev.ts)}
+              <div key={ev.id} className="jrow" onClick={() => setDetail(ev)}
+                style={{display:"flex",alignItems:"center",gap:10,padding:"9px 10px",borderTop:i?`1px solid ${BORDER}`:"none",background:isNew?`color-mix(in srgb,${ACCENT} 8%,transparent)`:"transparent"}}>
+                <div style={{width:30,height:30,borderRadius:9,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",background:`color-mix(in srgb,${meta.color} 20%,transparent)`,border:`1px solid color-mix(in srgb,${meta.color} 50%,transparent)`}}>
+                  <MetalIcon name={meta.icon} size={18}/>
                 </div>
-
-                {/* Info */}
                 <div style={{flex:1,minWidth:0}}>
-                  <div style={{display:"flex",alignItems:"center",gap:5}}>
-                    <span style={{
-                      fontSize:14,fontWeight:isNew?700:600,color:"#fff",
-                      overflowWrap:"anywhere",
-                    }}>{ev.name}</span>
-                    {isNew && <div style={{width:5,height:5,borderRadius:"50%",flexShrink:0,background:"#fff",boxShadow:"0 0 4px #fff"}}/>}
+                  <div style={{display:"flex",alignItems:"center",gap:6,minWidth:0}}>
+                    {mm && <span title={mm.name} style={{width:8,height:8,borderRadius:"50%",background:mm.color,flexShrink:0}}/>}
+                    <span style={{fontSize:13.5,fontWeight:isNew?800:700,color:theme.TEXT,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{ev.name}</span>
                   </div>
-                  {(() => { const mm = isSalonJ && ev.mid ? staff.find(m => m.id === ev.mid) : null; return mm ? (
-                    <div style={{display:"flex",alignItems:"center",gap:5,marginTop:2,fontSize:11.5,color:"rgba(255,255,255,0.88)"}}>
-                      <span style={{width:9,height:9,borderRadius:"50%",background:mm.color,flexShrink:0}}/>
-                      <span style={{overflowWrap:"anywhere"}}>{mm.name}</span>
-                    </div>) : null; })()}
-                  <div style={{fontSize:11.5,marginTop:2,fontWeight:500,color:"rgba(255,255,255,0.88)",overflowWrap:"anywhere"}}>
-                    {ev.type==="new_student" ? <MetalIcon name="userPlus" size={16} style={{marginRight:4}}/> : <>{prefix} </>}{meta.label}
-                    {ev.slot && <span> · {ev.slot}</span>}
-                    {byLabel && <span> · {byLabel}</span>}
+                  <div style={{fontSize:11.5,marginTop:2,color:DIM,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                    <span style={{color:meta.color,fontWeight:700}}>{meta.label}</span>
+                    {ev.slot && <span>{ev.type === "new_student" ? ` · ${ev.slot}` : ` · на ${ev.slot}`}</span>}
                   </div>
                 </div>
-
-                {/* Chevron */}
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="2.5" strokeLinecap="round" style={{flexShrink:0}}>
-                  <polyline points="9 18 15 12 9 6"/>
-                </svg>
+                <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:3,flexShrink:0}}>
+                  <span style={{fontSize:11,color:DIM,fontVariantNumeric:"tabular-nums"}}>{formatTime(ev.ts)}</span>
+                  {byLabel && <span style={{fontSize:10,fontWeight:700,padding:"1px 6px",borderRadius:6,color:ev.by==="admin"?theme.GOLD:DIM,border:`1px solid ${BORDER}`}}>{byLabel}</span>}
+                </div>
               </div>
             );
           })}
+          </div>
         </div>
         );
       })}
+
+      {filtered.length > shown && (
+        <button onClick={()=>setShown(n => n + 50)} style={{margin:"4px 0 12px",minHeight:42,borderRadius:12,border:`1px solid ${BORDER}`,background:SURFACE,color:theme.TEXT,fontFamily:"inherit",fontSize:13,fontWeight:700,cursor:"pointer"}}>
+          {`Показати ще (${filtered.length - shown})`}
+        </button>
+      )}
 
       {keyPortalEl && createPortal(
         <div style={{display:"flex",alignItems:"center",gap:6}}>
@@ -500,6 +494,8 @@ export default function JournalView() {
           meta={EVENT_TYPES[detail.type] || { label: detail.type, color: ACCENT, icon: "•" }}
           onClose={() => setDetail(null)}
           theme={theme}
+          onViewStudent={onViewStudent}
+          navTo={navTo}
         />
       )}
     </div>
