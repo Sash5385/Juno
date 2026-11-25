@@ -3017,12 +3017,14 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                 const _tagFs = Math.max(6, Math.min(9, Math.round(COL_W / 11)));
                 const _tagBottom = Math.round(_tagFs * 0.9) + 0.99 * (_tagFs * 1.3 + 2 * (COL_W >= 34 ? Math.max(1, Math.round(_tagFs * 0.25)) : 2));
                 const _timeFs = Math.min(8, Math.max(6, height / 9));
-                // Мітка — пласка пігулка у ВЕРХНЬОМУ РЯДКУ (поруч із № і часом), а не повернутий бейдж над текстом:
-                // раніше він накривав час і перший рядок імені. Текст — одразу під верхнім рядком.
-                void _tagBottom;
-                const showTime = !_hasTag || COL_W >= 74; // вузька колонка з міткою: час видно на шкалі зліва
-                const timeTop = 2;
-                const textTop = _hasTag ? 15 : 11;
+                const _timeTagTop = Math.max(16, Math.floor(_tagBottom));
+                const _textTopTagged = _timeTagTop + Math.ceil(_timeFs) + 2;
+                // У тісній картці з міткою для імені під часом місця немає — час ховаємо
+                // (він видний за шкалою зліва), а текст лишається як було.
+                const _tagRoomy = _hasTag && height - _textTopTagged - 4 >= 20;
+                const showTime = !_hasTag || _tagRoomy;
+                const timeTop = _hasTag ? _timeTagTop : 2;
+                const textTop = _tagRoomy ? _textTopTagged : 11;
                 return (
                   /* Обгортка — overflow:visible щоб значок не обрізався */
                   <div key={b.id} className="cal-slot-wrap" style={{
@@ -3044,25 +3046,24 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                       const tp = TAG_PRESETS.find(t => t.id === curTag);
                       if (!tp) return null;
                       const label = curTag === "debt" && b.debtAmount > 0 ? `${tp.label} ${money(b.debtAmount)}` : tp.label;
-                      const tagFs = 7.5;
-                      const timeW = COL_W >= 74 ? 28 : 2;
-                      const leftX = (cumulativeHoursMap[b.id] != null && height >= 20 ? 14 : 2) + (b.isVipOnly ? 13 : 0);
-                      const avail = COL_W - leftX - timeW - 4;
-                      const showText = avail >= 34;
+                      const tagFs = Math.max(6, Math.min(9, Math.round(COL_W / 11)));
+                      const showText = COL_W >= 34;
                       return (
                         <div style={{
-                          position:"absolute", top:2, left:leftX, zIndex:8, maxWidth:Math.max(14, avail),
+                          position:"absolute", top:Math.round(tagFs * 0.9), right:2, zIndex:8,
                           pointerEvents:"none",
                         }}>
                           <div style={{
-                            fontSize:tagFs, fontWeight:900, color:"#fff", lineHeight:"11px", height:12,
-                            padding: showText ? "0 5px 0 3px" : "0 2px",
+                            fontSize:tagFs, fontWeight:900, color:"#fff", lineHeight:1.3,
+                            padding: showText ? `${Math.max(1, Math.round(tagFs*0.25))}px ${Math.max(5, Math.round(tagFs*0.85))}px` : "2px 3px",
                             borderRadius:999,
                             background:`linear-gradient(135deg, color-mix(in srgb, ${tp.color} 90%, #fff), ${tp.color})`,
-                            boxShadow:"0 2px 5px rgba(0,0,0,0.4)",
-                            display:"inline-flex", alignItems:"center", gap:2, minWidth:0, maxWidth:"100%", boxSizing:"border-box",
+                            boxShadow:"0 4px 10px rgba(0,0,0,0.45)",
+                            display:"inline-flex", alignItems:"center", gap:3, minWidth:0, boxSizing:"border-box",
                             whiteSpace:"nowrap", overflow:"hidden",
-                          }}><TagIcon tag={tp} size={10}/>{showText && <span style={{minWidth:0,overflow:"hidden",textOverflow:"ellipsis"}}>{label}</span>}</div>
+                            maxWidth: Math.max(18, Math.min(COL_W - 6, 300)),
+                            transform:"rotate(9deg)", transformOrigin:"top right",
+                          }}><TagIcon tag={tp} size={Math.max(12, tagFs + 4)}/>{showText && <span style={{minWidth:0,overflow:"hidden",textOverflow:"ellipsis"}}>{label}</span>}</div>
                         </div>
                       );
                     })()}
