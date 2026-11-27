@@ -8,7 +8,6 @@ import { bufferOf } from "../../addons";
 import { ThemeContext, GOLD } from "../../theme.js";
 import { useFX } from "../../ui";
 import { useConfirm } from "../../ConfirmModal";
-import { isSalon } from "../../workspace.js";
 import { FOG_STYLE } from "../../uiStyles";
 import { TAG_PRESETS } from "../../tags";
 import { TagIcon } from "../../TagIcon";
@@ -168,7 +167,6 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   const { BG, BG_DEEP, SURFACE, SURF_HI, SURF_LO, BORDER, TEXT, DIM, FAINT, ACCENT, ACC_HI, BLUE, GREEN, RED, SO, SI, STRIPE_A, STRIPE_B, GLOW, SHADE, INK } = useContext(ThemeContext);
   const isLight = BG !== "#1c1d21";
   const neonCal = true; // «Неонове сяйво» завжди увімкнено
-  const salonCard = isSalon(settings); // салон: на картці запису — назва послуги
   const { glow, shade, ink } = useFX();
   const GRID_H      = isLight ? "rgba(0,0,0,0.09)"        : "rgba(255,255,255,0.07)";
   const GRID_HH     = isLight ? "rgba(0,0,0,0.04)"        : "rgba(255,255,255,0.025)";
@@ -3219,7 +3217,7 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
                         const si = a => `rgba(${neonCal && !isLight ? "255,255,255" : INK === "255,255,255" ? "0,0,0" : INK},${a})`;
                         const priceColor = b.surcharge ? GOLD : si(0.9);
                         const priceText = price > 0 ? `${money(price)}` : null;
-                        const typeLabel = b.cardLabel || (salonCard && b.serviceName) || (b.type==="school" ? "Стандарт" : "Індивідуальний"); // cardLabel — лише демо-пресети (назва послуги)
+                        const typeLabel = b.cardLabel || b.serviceName || (settings.services || []).find(sv => sv && sv.id === b.serviceId)?.name || (b.type==="school" ? "Стандарт" : "Індивідуальний"); // назва послуги — зрозуміло будь-якому напрямку // cardLabel — лише демо-пресети (назва послуги)
                         const allLines = [
                           { text: fName,     w: 800, c: si(0.95) },
                           ...(lName          ? [{ text: lName,     w: 700, c: si(0.80) }] : []),

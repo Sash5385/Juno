@@ -7,30 +7,23 @@ import { money } from "../currency";
 // чипи → велика кнопка. Розміри/кольори/шрифти взяті 1-в-1 з макета.
 const GL = "blur(16px)";
 const FILTERS = [
-  { id: "all", label: "Усі" },
+  { id: "all", label: "Активні" },
   { id: "off", label: "Вимкнені" },
   { id: "arch", label: "Архів" },
-];
-const TYPES = [
-  { id: "", label: "Усі типи" },
-  { id: "school", label: "Стандарт" },
-  { id: "private", label: "Індивід." },
-  { id: "group", label: "Група" },
 ];
 
 export default function ServicesFog({ services, colorOf, fmt, capOf, isProtected, onEdit, onToggle, onDelete, onAdd, getHandlers }) {
   const theme = useContext(ThemeContext);
-  const { TEXT, DIM, SURFACE, SURF_HI, BORDER, ACCENT, ACC_HI, BTN_GRAD, BTN_TX, SO, BG } = theme;
+  const { TEXT, DIM, SURFACE, SURF_HI, BORDER, BTN_GRAD } = theme;
   const [filter, setFilter] = useState("all");
-  const [type, setType] = useState("");
+  const type = ""; // фільтр за типом прибрано: тип «Стандарт/Індивідуальний» — спадок автошколи, послуги розрізняються назвою
 
   const base = services.filter(s => (filter === "arch" ? s.archived : filter === "off" ? !s.active && !s.archived : !s.archived));
   const shown = base.filter(s => !type || (type === "group" ? capOf(s) > 1 : s.type === type && capOf(s) <= 1));
   const activeCount = services.filter(s => s.active && !s.archived).length;
   const archCount = services.filter(s => s.archived).length;
+  const offCount = services.filter(s => !s.active && !s.archived).length;
   const stop = e => e.stopPropagation();
-  const row = { display: "flex", alignItems: "center", gap: 8, fontSize: 12 };
-  const rowSep = { marginTop: 8, paddingTop: 8, borderTop: `1px solid ${BORDER}` };
   const toggle = on => ({ width: 34, height: 20, borderRadius: 99, flexShrink: 0, position: "relative", cursor: "pointer", border: `1px solid ${on ? "transparent" : BORDER}`, background: on ? BTN_GRAD : SURF_HI });
   const thumb = on => ({ position: "absolute", top: 2, left: on ? 16 : 2, width: 14, height: 14, borderRadius: "50%", background: on ? "#fff" : DIM, transition: "left .2s" });
 
@@ -43,7 +36,7 @@ export default function ServicesFog({ services, colorOf, fmt, capOf, isProtected
           return (
             <button key={f.id} onClick={() => setFilter(f.id)} style={{ flex: 1, textAlign: "center", fontSize: 12, fontWeight: 600, padding: "9px 0", borderRadius: 8, border: "none", cursor: "pointer", fontFamily: "inherit",
               background: on ? SURF_HI : "transparent", color: on ? TEXT : DIM, boxShadow: on ? "0 2px 8px rgba(0,0,0,.12)" : "none" }}>
-              {f.label}{f.id === "arch" && archCount ? ` · ${archCount}` : ""}
+              {`${f.label} · ${f.id === "arch" ? archCount : f.id === "off" ? offCount : activeCount}`}
             </button>
           );
         })}
@@ -62,7 +55,7 @@ export default function ServicesFog({ services, colorOf, fmt, capOf, isProtected
             }}>
               <div style={{ fontSize: 11, fontWeight: 700, paddingRight: 18, display: "flex", alignItems: "flex-start", gap: 5 }}>
                 <span aria-hidden="true" style={{ flexShrink: 0, width: 8, height: 8, borderRadius: "50%", background: c, marginTop: 3 }} />
-                <span style={{ minWidth: 0, overflowWrap: "anywhere" }}>{svc.name}</span>
+                <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{svc.name}</span>
               </div>
               <div style={{ fontSize: 11, fontWeight: 500, opacity: 0.92, marginTop: 1, overflowWrap: "anywhere" }}>
                 {fmt(svc.duration)} · {money(svc.price || 0, ' ')}{capOf(svc) > 1 ? ` · група ${capOf(svc)}` : ""}
@@ -73,7 +66,9 @@ export default function ServicesFog({ services, colorOf, fmt, capOf, isProtected
                   : <span />}
                 <div onClick={() => onToggle(svc.id, !(svc.active && !svc.archived))} style={toggle(svc.active && !svc.archived)}><div style={thumb(svc.active && !svc.archived)} /></div>
               </div>
-              {!isProtected(svc) && (
+              {isProtected(svc) ? (
+                <div title="Базова послуга — її можна лише вимкнути" aria-label="Базова послуга" onClick={stop} style={{ position: "absolute", top: 4, right: 5, width: 22, height: 22, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: DIM, background: "rgba(255,255,255,.06)" }}>🔒</div>
+              ) : (
                 <div onClick={e => { stop(e); onDelete(svc); }} style={{ position: "absolute", top: 4, right: 5, width: 22, height: 22, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 800, color: DIM, cursor: "pointer", background: "rgba(255,255,255,.1)" }}>×</div>
               )}
             </div>
@@ -81,23 +76,6 @@ export default function ServicesFog({ services, colorOf, fmt, capOf, isProtected
         })}
       </div>
       {shown.length === 0 && <div style={{ textAlign: "center", padding: "24px 0", color: DIM, fontSize: 12 }}>Немає послуг</div>}
-
-      {/* скляна картка з рядками */}
-      <div style={{ borderRadius: 18, background: SURFACE, border: `1px solid ${BORDER}`, boxShadow: SO, padding: "9px 11px", backdropFilter: GL, WebkitBackdropFilter: GL }}>
-        <div style={row}><span style={{ flex: 1, fontWeight: 600 }}>Активних послуг</span><span style={{ color: DIM, fontSize: 11 }}>{activeCount}</span></div>
-        <div style={{ ...row, ...rowSep }}><span style={{ flex: 1, fontWeight: 600 }}>В архіві</span><span style={{ color: DIM, fontSize: 11 }}>{archCount}</span></div>
-      </div>
-
-      {/* чипи типів */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 5 }}>
-        {TYPES.map(t => {
-          const on = type === t.id;
-          return (
-            <button key={t.id || "all"} onClick={() => setType(t.id)} style={{ minWidth: 0, fontSize: 11, fontWeight: 600, padding: "9px 2px", borderRadius: 99, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap",
-              border: `1px solid ${on ? "transparent" : BORDER}`, background: on ? `linear-gradient(145deg,${ACC_HI},${ACCENT})` : SURFACE, color: on ? BTN_TX : DIM, backdropFilter: GL, WebkitBackdropFilter: GL }}>{t.label}</button>
-          );
-        })}
-      </div>
 
       {/* велика кнопка внизу */}
       <div style={{ marginTop: 4, padding: "6px 0 16px" }}>

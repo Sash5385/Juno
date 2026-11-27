@@ -508,8 +508,8 @@ export default function ChatsView({ bookings = [], onViewStudent, navTo } = {}) 
         {!search && !isMaster && !onlyWaiting && (
           <div className="chat-row" onClick={()=>toggle(BROADCAST_ID)} style={{
             display:"flex",alignItems:"center",gap:9,padding:"9px 12px",marginBottom:6,
-            background:`color-mix(in srgb,#a855f7 26%,transparent)`,backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",
-            borderRadius:14,boxShadow:SO,border:`1px solid color-mix(in srgb,#a855f7 38%,transparent)`}}>
+            background:"rgba(255,255,255,0.06)",backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",
+            borderRadius:14,boxShadow:SO,border:"1px solid rgba(255,255,255,0.12)"}}>
             <Ava name="Розсилка" hue={270} size={36} isBroadcast/>
             <div style={{flex:1,minWidth:0}}>
               <div style={{fontSize:13,fontWeight:800,color:"#fff",marginBottom:2}}>Розсилка</div>

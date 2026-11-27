@@ -756,7 +756,7 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
           }}>
             <div style={{width:36,height:4,borderRadius:2,background:"rgba(34,197,94,0.35)",margin:"0 auto 12px"}}/>
             <div style={{padding:"0 36px",textAlign:"center"}}>
-            <div style={{fontSize:17,fontWeight:800,color:"#22c55e"}}><span style={{display:"inline-flex",alignItems:"center",gap:7}}><MetalIcon name="plusCircle" size={28}/>Новий запис</span></div>
+            <div style={{fontSize:17,fontWeight:800,color:TEXT}}><span style={{display:"inline-flex",alignItems:"center",gap:7}}><MetalIcon name="plusCircle" size={28}/>Новий запис</span></div>
             {activeM && <div style={{marginTop:6,fontSize:12,fontWeight:600,color:TEXT_DIM,display:"flex",alignItems:"center",justifyContent:"center",gap:6,minWidth:0}}>Майстер: <span style={{width:9,height:9,borderRadius:"50%",background:activeM.color,flexShrink:0}}/><span style={{color:TEXT,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{activeM.name}</span></div>}
             </div>
           </div>
@@ -822,7 +822,7 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
                       style={{display:"flex",alignItems:"center",justifyContent:"space-between",
                         padding:"9px 13px",cursor:"pointer",borderBottom:`1px solid ${BORDER}`,background:BG_DEEP}}>
                       <div style={{fontSize:13,fontWeight:700,color:TEXT}}>{s.name}</div>
-                      <div style={{fontSize:11,color:TEXT_FAINT}}>{s.phone.slice(-7)}</div>
+                      <div style={{fontSize:11,color:TEXT_FAINT,whiteSpace:"nowrap"}}>{s.phone}</div>
                     </div>
                   ))}
                   {q && !filtered.length && (
@@ -851,7 +851,7 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
                 const active = i===dateOffset;
                 return (
                   <button key={i} onClick={()=>setDateOffset(i)} style={{
-                    flexShrink:0,padding:"7px 11px",borderRadius:10,border:"none",cursor:"pointer",
+                    flexShrink:0,minWidth:64,padding:"7px 10px",borderRadius:10,border:"none",cursor:"pointer",
                     background:active?`linear-gradient(165deg,${GOLD},#e6a800)`:SURFACE_LO,
                     color:active?"#1a1200":info.wk?ACCENT:TEXT_DIM,
                     fontSize:11,fontWeight:active?800:600,
@@ -859,7 +859,7 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
                     transition:"all .12s",
                   }}>
                     <div>{lbl}</div>
-                    {i>1&&<div style={{fontSize:11,opacity:0.9,marginTop:1}}>{info.month}</div>}
+                    <div style={{fontSize:11,opacity:0.9,marginTop:1}}>{i>1 ? info.month : `${info.num} ${info.month}`}</div>
                   </button>
                 );
               })}
@@ -869,12 +869,12 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
           {/* ЧАС */}
           <div>
             <SL>Час початку</SL>
-            <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(58px,1fr))",gap:6}}>
               {timeItems.map(t=>{
                 const active = t.value===timeVal;
                 return (
                   <button key={t.value} onClick={()=>setTimeVal(t.value)} style={{
-                    padding:"9px 10px",borderRadius:10,border:"none",cursor:"pointer",minWidth:54,flex:"1 1 auto",textAlign:"center",
+                    padding:"9px 4px",borderRadius:10,border:"none",cursor:"pointer",minWidth:0,textAlign:"center",
                     background:active?`linear-gradient(165deg,#2f6fe0,#1d4ed8)`:SURFACE_LO,
                     color:active?"#fff":TEXT_DIM,
                     fontSize:13,fontWeight:active?800:500,

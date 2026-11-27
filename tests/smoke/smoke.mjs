@@ -98,13 +98,17 @@ if (kind === "admin") {
   // 3. кнопки днів у шапці календаря
   await page.locator('#app-bottomnav button[aria-label="Записи"], #app-bottomnav button:has-text("Записи")').first().click().catch(() => {});
   await page.waitForTimeout(500);
-  const days = page.locator('[data-help="days"] button');
-  const dl = (await days.allInnerTexts()).map((x) => x.trim());
-  check("day buttons are 1,2,3,5,7", dl.join(",") === "1,2,3,5,7", dl.join(","));
+  // Кнопка «Показати ▾» відкриває вибір 1,2,3,5,7 днів
+  const pickDays = async () => { await page.locator('[data-help="days"]').first().click(); await page.waitForTimeout(300); };
+  await pickDays();
+  const opts = page.locator('button').filter({ hasText: /^(1|2|3|5|7)$/ });
+  const dl = (await opts.allInnerTexts()).map((x) => x.trim());
+  check("day options are 1,2,3,5,7", dl.join(",") === "1,2,3,5,7", dl.join(","));
   if (dl.includes("1")) {
-    await days.filter({ hasText: /^1$/ }).first().click(); await page.waitForTimeout(500);
+    await opts.filter({ hasText: /^1$/ }).first().click(); await page.waitForTimeout(500);
     check("day «1» fits 320px", await noOverflow());
-    await days.filter({ hasText: /^3$/ }).first().click(); await page.waitForTimeout(500);
+    await pickDays();
+    await page.locator('button').filter({ hasText: /^3$/ }).first().click(); await page.waitForTimeout(500);
     check("day «3» fits 320px", await noOverflow());
   }
   // 4. список клієнтів: нейтральна картка + аватар з ініціалами

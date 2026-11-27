@@ -411,13 +411,7 @@ function TopBar({ tab, onChange, settings, setSettings, allCount = 0 }) {
   const tl = createT(lang);
   const tabLabel = tl(TAB_IDS.find(x=>x.id===tab)?.lk || tab);
   const [showInfo, setShowInfo] = useState(false);
-  // Вузький екран (≤360px): ховаємо підписи «годин/діб» під цифрами, щоб ряд кнопок не виходив за край
-  const [narrow, setNarrow] = useState(() => typeof window !== "undefined" && window.innerWidth <= 360);
-  useEffect(() => {
-    const onR = () => setNarrow(window.innerWidth <= 360);
-    window.addEventListener("resize", onR);
-    return () => window.removeEventListener("resize", onR);
-  }, []);
+  const [pick, setPick] = useState(null); // розклад: відкритий вибір «Масштаб» (h) / «Днів» (d)
   const instruction = INSTRUCTIONS[tab];
 
   // reset when tab changes
@@ -438,11 +432,6 @@ function TopBar({ tab, onChange, settings, setSettings, allCount = 0 }) {
     }
   };
 
-  const btnBase = {
-    flex:"1 1 0",minWidth:0,overflow:"hidden",padding:"4px 2px",borderRadius:9,border:"none",cursor:"pointer",
-    transition:"all .15s",
-    display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minHeight:32,lineHeight:1,gap:1,
-  };
 
   const theme = useContext(ThemeContext);
   const navBg = "rgba(255,255,255,0.04)";
@@ -462,70 +451,59 @@ function TopBar({ tab, onChange, settings, setSettings, allCount = 0 }) {
       }}>
         {tab==="schedule" && settings && setSettings ? (
           <>
-            {/* Left: годин buttons */}
-            <div data-help="hours" style={{flex:1,minWidth:0,display:"flex",gap:2,alignItems:"center"}}>
-              <button key="hauto" onClick={()=>setSettings(s=>({...s,autoHourHeight:true}))} style={{
-                ...btnBase,
-                background:settings.autoHourHeight?`linear-gradient(165deg,#5b9bff,#2563eb)`:btnInactive,
-                color:settings.autoHourHeight?"#fff":btnInactiveColor,
-                boxShadow:settings.autoHourHeight?`0 3px 8px rgba(91,155,255,0.5)`:"none",
-              }}>
-                <span style={{fontSize:11,fontWeight:800}}>Авто</span>
-                {!narrow && <span style={{fontSize:8,fontWeight:600,opacity:0.8}}>годин</span>}
-              </button>
-              {[8,10,12,14].map(n=>{
-                const totalH = (settings.workEnd - settings.workStart) * 60;
-                const targetHpx = Math.round(totalH / n);
-                const active = !settings.autoHourHeight && Math.abs(settings.hourHeightPx - targetHpx) < 5;
-                return (
-                  <button key={`h${n}`} onClick={()=>setSettings(s=>({...s,autoHourHeight:false,hourHeightPx:Math.round((s.workEnd-s.workStart)*60/n)}))} style={{
-                    ...btnBase,
-                    background:active?`linear-gradient(165deg,#5b9bff,#2563eb)`:btnInactive,
-                    color:active?"#fff":btnInactiveColor,
-                    boxShadow:active?`0 3px 8px rgba(91,155,255,0.5)`:"none",
-                  }}>
-                    <span style={{fontSize:15,fontWeight:800}}>{n}</span>
-                    {!narrow && <span style={{fontSize:8,fontWeight:600,opacity:0.8}}>годин</span>}
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Center: портал для кнопки «Ключик» (рендериться з ScheduleView через createPortal) */}
-            <div id="topbar-key-portal" style={{flex:"0 0 auto",display:"flex",justifyContent:"center",alignItems:"center",padding:"0 2px",minWidth:28}}/>
-
-            {/* Right: діб buttons */}
-            <div data-help="days" style={{flex:1,minWidth:0,display:"flex",gap:2,alignItems:"center"}}>
-              {/* Огляд «Усі» (салон): ті самі кнопки задають, скільки майстрів на екрані */}
-              {allCount > 1 && [1,2,3,4,5].filter(n => n <= allCount).map(n=>{
-                const active = allColsEffective(allPick, allCount, settings.daysShown, window.innerWidth < 480) === n;
-                return (
-                  <button key={`m${n}`} aria-label={`Майстрів на екрані: ${n}`} onClick={()=>setAllCols(n)} style={{
-                    ...btnBase,
-                    background:active?`linear-gradient(165deg,${theme.GOLD},#e6a800)`:btnInactive,
-                    color:active?"#1a1200":btnInactiveColor,
-                    boxShadow:active?`0 3px 8px ${theme.GOLD}55`:"none",
-                  }}>
-                    <span style={{fontSize:15,fontWeight:800}}>{n}</span>
-                    {!narrow && <span style={{fontSize:8,fontWeight:600,opacity:0.8}}>майстр.</span>}
-                  </button>
-                );
-              })}
-              {allCount <= 1 && [1,2,3,5,7].map(n=>{
-                const active = settings.daysShown===n;
-                return (
-                  <button key={n} onClick={()=>setSettings(s=>({...s,daysShown:n}))} style={{
-                    ...btnBase,
-                    background:active?`linear-gradient(165deg,${theme.GOLD},#e6a800)`:btnInactive,
-                    color:active?"#1a1200":btnInactiveColor,
-                    boxShadow:active?`0 3px 8px ${theme.GOLD}55`:"none",
-                  }}>
-                    <span style={{fontSize:15,fontWeight:800}}>{n}</span>
-                    {!narrow && <span style={{fontSize:8,fontWeight:600,opacity:0.8}}>діб</span>}
-                  </button>
-                );
-              })}
-            </div>
+            {(() => {
+              // Дві кнопки-вибору замість 10 дрібних: «Масштаб ▾» і «Днів ▾» — тап відкриває список варіантів
+              const totalH = (settings.workEnd - settings.workStart) * 60;
+              const curH = settings.autoHourHeight ? null : [8,10,12,14].find(n => Math.abs(settings.hourHeightPx - Math.round(totalH / n)) < 5) || null;
+              const hLabel = settings.autoHourHeight ? "Авто" : curH ? `${curH} год` : "Свій";
+              const isAll = allCount > 1;
+              const dCur = isAll ? allColsEffective(allPick, allCount, settings.daysShown, window.innerWidth < 480) : settings.daysShown;
+              const dLabel = isAll ? `${dCur} майстр.` : `${dCur} ${dCur === 1 ? "день" : dCur < 5 ? "дні" : "днів"}`;
+              const pickBtn = (key, title, label, color) => (
+                <button data-help={key === "h" ? "hours" : "days"} onClick={() => setPick(p => p === key ? null : key)} style={{
+                  flex:"1 1 0",minWidth:0,height:34,borderRadius:10,border:`1px solid ${pick===key?color:theme.BORDER}`,cursor:"pointer",fontFamily:"inherit",
+                  background:pick===key?`color-mix(in srgb,${color} 22%,transparent)`:btnInactive,color:theme.TEXT,
+                  display:"flex",alignItems:"center",justifyContent:"center",gap:5,padding:"0 6px",
+                }}>
+                  <span style={{fontSize:10.5,fontWeight:600,color:btnInactiveColor,whiteSpace:"nowrap"}}>{title}</span>
+                  <span style={{fontSize:13,fontWeight:800,whiteSpace:"nowrap"}}>{label}</span>
+                  <span style={{fontSize:9,color:btnInactiveColor,transform:pick===key?"rotate(180deg)":"none"}}>▼</span>
+                </button>
+              );
+              return (
+                <>
+                  {pickBtn("h", "Масштаб", hLabel, "#5b9bff")}
+                  {/* Center: портал для кнопки «Ключик» (рендериться з ScheduleView через createPortal) */}
+                  <div id="topbar-key-portal" style={{flex:"0 0 auto",display:"flex",justifyContent:"center",alignItems:"center",padding:"0 4px",minWidth:28}}/>
+                  {pickBtn("d", isAll ? "На екрані" : "Показати", dLabel, theme.GOLD)}
+                  {pick && (
+                    <>
+                      <div onClick={() => setPick(null)} style={{position:"fixed",inset:0,zIndex:30}}/>
+                      <div style={{position:"absolute",top:"100%",left:6,right:6,marginTop:6,zIndex:31,padding:8,borderRadius:14,
+                        background:theme.SURF_HI || "#1e2230",border:`1px solid ${theme.BORDER}`,boxShadow:"0 12px 30px rgba(0,0,0,0.45)",
+                        display:"grid",gridTemplateColumns:"repeat(5,minmax(0,1fr))",gap:6}}>
+                        {(pick === "h"
+                          ? [["auto","Авто", settings.autoHourHeight, () => setSettings(s=>({...s,autoHourHeight:true}))],
+                             ...[8,10,12,14].map(n => [n, `${n} год`, curH === n, () => setSettings(s=>({...s,autoHourHeight:false,hourHeightPx:Math.round((s.workEnd-s.workStart)*60/n)}))])]
+                          : isAll
+                            ? [1,2,3,4,5].filter(n => n <= allCount).map(n => [n, `${n}`, dCur === n, () => setAllCols(n)])
+                            : [1,2,3,5,7].map(n => [n, `${n}`, dCur === n, () => setSettings(s=>({...s,daysShown:n}))])
+                        ).map(([k, l, on, fn]) => (
+                          <button key={k} onClick={() => { fn(); setPick(null); }} style={{
+                            height:40,borderRadius:10,border:"none",cursor:"pointer",fontFamily:"inherit",fontSize:13,fontWeight:800,
+                            background:on?(pick==="h"?"linear-gradient(165deg,#5b9bff,#2563eb)":`linear-gradient(165deg,${theme.GOLD},#e6a800)`):btnInactive,
+                            color:on?(pick==="h"?"#fff":"#1a1200"):theme.TEXT,
+                          }}>{l}</button>
+                        ))}
+                        <div style={{gridColumn:"1 / -1",fontSize:11,color:btnInactiveColor,textAlign:"center"}}>
+                          {pick === "h" ? "Скільки годин видно на екрані (Авто — весь робочий день)" : isAll ? "Скільки майстрів видно на екрані" : "Скільки днів видно на екрані"}
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </>
+              );
+            })()}
           </>
         ) : (
           <div style={{display:"flex",alignItems:"center",gap:6,flex:1}}>
