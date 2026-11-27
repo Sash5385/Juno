@@ -184,8 +184,8 @@ function StudentCard({ s, onSelect, settings, st }) {
         : <span style={{position:"relative",zIndex:2,display:"inline-flex",flexShrink:0}}><MetalIcon square size={40} color={barColor}>{ini}</MetalIcon></span>}
 
       <div style={{position:"relative",zIndex:2,flex:1,minWidth:0}}>
-        <div style={{fontSize:14,fontWeight:700,color:"#fff",overflowWrap:"anywhere"}}>
-          {s.isVip && <MetalIcon name="crown" size={16} style={{marginRight:5}}/>}{s.name}{s.blocked && <MetalIcon name="ban" size={16} style={{marginLeft:6}}/>}
+        <div style={{fontSize:14,fontWeight:700,color:"#fff",display:"flex",alignItems:"center",minWidth:0}}>
+          {s.isVip && <MetalIcon name="crown" size={16} style={{marginRight:5,flexShrink:0}}/>}<span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",minWidth:0}}>{s.name}</span>{s.blocked && <MetalIcon name="ban" size={16} style={{marginLeft:6,flexShrink:0}}/>}
         </div>
         <div style={{fontSize:11.5,color:st?.next?GREEN:"rgba(255,255,255,0.75)",fontWeight:st?.next?700:500,marginTop:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
           {st?.next
@@ -194,12 +194,15 @@ function StudentCard({ s, onSelect, settings, st }) {
         </div>
       </div>
 
+      {/* Підсумок клієнта справа: візити й сума — заповнює картку, видно цінність клієнта одразу */}
+      <div className="sc-stats" style={{position:"relative",zIndex:2,flexShrink:0,textAlign:"right",minWidth:44}}>
+        <div style={{fontSize:14,fontWeight:900,color:"#fff",lineHeight:1.1}}>{st?.visits || 0}<span style={{fontSize:10.5,fontWeight:600,color:"rgba(255,255,255,0.6)",marginLeft:2}}>віз.</span></div>
+        <div style={{fontSize:11,fontWeight:700,color:"rgba(255,255,255,0.65)",marginTop:3,whiteSpace:"nowrap"}}>{st?.sum ? fmtK(st.sum) : "—"}</div>
+      </div>
       <button aria-label="Чат з клієнтом" onClick={e=>{e.stopPropagation();openChatWith(s.id);}} style={{position:"relative",zIndex:2,background:"rgba(0,0,0,0.25)",border:"none",borderRadius:8,cursor:"pointer",width:36,height:36,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
         {ICONS.chat}
       </button>
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="2.5" strokeLinecap="round" style={{position:"relative",zIndex:2,flexShrink:0}}>
-        <polyline points="9 18 15 12 9 6"/>
-      </svg>
+
     </div>
   );
 }
@@ -892,7 +895,7 @@ export default function StudentsView({ studentJump, onStudentJumpHandled, bookin
   return (
     <>
       <UICss/>
-      <style>{css}</style>
+      <style>{css + "@media (max-width:359px){.sc-stats{display:none!important}}"}</style>
       <div style={{display:"flex",flexDirection:"column",gap:8,fontFamily:"ui-sans-serif,-apple-system,system-ui,sans-serif",color:TEXT}}>
 
         <div style={{background:SURFACE,border:`1px solid ${BORDER}`,backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",borderRadius:16,padding:"2px 14px",minHeight:48,display:"flex",alignItems:"center",gap:8}}>
@@ -903,30 +906,36 @@ export default function StudentsView({ studentJump, onStudentJumpHandled, bookin
         </div>
 
         {/* Сегменти */}
-        <div style={{display:"flex",gap:6,overflowX:"auto",paddingBottom:2}}>
-          {SEGMENTS.map(([k,l,fn])=>{
-            const on = filterType===k, n = k === "all" ? students.length : students.filter(fn).length;
-            if (k !== "all" && !n && !on) return null;
-            return (
-              <button key={k} onClick={()=>setFilterType(k)} style={{
-                flexShrink:0,minHeight:32,padding:"4px 12px",borderRadius:16,cursor:"pointer",fontFamily:"inherit",fontSize:12,fontWeight:700,whiteSpace:"nowrap",
-                background:on?ACCENT:SURFACE,color:on?(BTN_TX||"#fff"):TEXT,border:`1px solid ${on?ACCENT:BORDER}`}}>
-                {`${l} · ${n}`}
-              </button>
-            );
-          })}
-        </div>
+        {(() => {
+          // Сегменти рівною сіткою на всю ширину: число зверху, назва знизу (≤4 — один ряд, 5–6 — по 3 у ряд)
+          const segs = SEGMENTS.map(([k,l,fn]) => [k, l, k === "all" ? students.length : students.filter(fn).length]).filter(([k,,n]) => k === "all" || n || filterType === k);
+          const cols = segs.length <= 4 ? segs.length : 3;
+          return (
+            <div style={{display:"grid",gridTemplateColumns:`repeat(${cols},minmax(0,1fr))`,gap:6}}>
+              {segs.map(([k,l,n])=>{
+                const on = filterType===k;
+                return (
+                  <button key={k} onClick={()=>setFilterType(k)} style={{
+                    minWidth:0,padding:"6px 4px",borderRadius:12,cursor:"pointer",fontFamily:"inherit",display:"flex",flexDirection:"column",alignItems:"center",gap:1,
+                    background:on?`linear-gradient(145deg,${ACC_HI},${ACCENT})`:SURFACE,color:on?(BTN_TX||"#fff"):TEXT,border:`1px solid ${on?"transparent":BORDER}`}}>
+                    <span style={{fontSize:16,fontWeight:900,lineHeight:1.1}}>{n}</span>
+                    <span style={{fontSize:"min(11px, 3vw)",fontWeight:700,opacity:on?1:0.75,maxWidth:"100%",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{l}</span>
+                  </button>
+                );
+              })}
+            </div>
+          );
+        })()}
 
         {/* Кількість · сортування · додати */}
-        <div style={{display:"flex",alignItems:"center",gap:8}}>
-          <div style={{fontSize:12,color:DIM,whiteSpace:"nowrap"}}>{klientiv(list.length)}</div>
-          <label style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:4,minWidth:0,fontSize:12,color:DIM}}>
-            <span className="lbl-long" style={{whiteSpace:"nowrap"}}>Сортування:</span>
-            <select value={sortMode} onChange={e=>setSortMode(e.target.value)} style={{minWidth:0,maxWidth:140,minHeight:32,borderRadius:10,border:`1px solid ${BORDER}`,background:SURFACE,color:TEXT,fontFamily:"inherit",fontSize:12,fontWeight:700,padding:"0 6px",colorScheme:"dark"}}>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
+          <label style={{display:"flex",minWidth:0,position:"relative"}} aria-label="Сортування">
+            <span aria-hidden style={{position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",fontSize:14,color:DIM,pointerEvents:"none"}}>⇅</span>
+            <select value={sortMode} onChange={e=>setSortMode(e.target.value)} style={{width:"100%",minWidth:0,height:38,borderRadius:12,border:`1px solid ${BORDER}`,background:SURFACE,color:TEXT,fontFamily:"inherit",fontSize:12.5,fontWeight:700,padding:"0 8px 0 28px",colorScheme:"dark"}}>
               {[["name","Алфавіт"],["lastBooking","Останні записи"],["createdAt","Реєстрація"],["lessons","К-сть записів"]].map(([k,l])=><option key={k} value={k}>{l}</option>)}
             </select>
           </label>
-          <button onClick={()=>setShowNew(true)} aria-label="Додати клієнта" style={{flexShrink:0,minHeight:34,padding:"0 12px",borderRadius:10,border:"none",cursor:"pointer",fontFamily:"inherit",fontSize:12.5,fontWeight:800,
+          <button onClick={()=>setShowNew(true)} aria-label="Додати клієнта" style={{height:38,padding:"0 12px",borderRadius:12,border:"none",cursor:"pointer",fontFamily:"inherit",fontSize:12.5,fontWeight:800,
             background:`linear-gradient(145deg,${ACC_HI},${ACCENT})`,color:BTN_TX||"#fff"}}>+ Клієнт</button>
         </div>
 
