@@ -29,7 +29,7 @@ function zapysiv(n) {
 }
 
 // Дохід по днях/місяцях/годинах: стовпчики на всю ширину, тап — сума за стовпчик. Майбутні дні — блідіші.
-function IncomeBars({ data, title, todayKey, c }) {
+function IncomeBars({ data, title, todayKey, c, detail }) {
   const [pick, setPick] = useState(null);
   const max = Math.max(...data.map(x => x.income || 0), 1);
   const step = Math.max(1, Math.ceil(data.length / 8));
@@ -64,7 +64,57 @@ function IncomeBars({ data, title, todayKey, c }) {
           </span>
         ))}
       </div>
+      {sel && detail && detail(sel.key)}
     </Card>
+  );
+}
+
+// Деталі дня під графіком доходу: хто з майстрів скільки заробив, які послуги і які саме записи
+function DayDetail({ groups, c }) {
+  const [open, setOpen] = useState(() => new Set(groups.length === 1 ? [groups[0].id] : []));
+  if (!groups.length) return <div style={{marginTop:10,paddingTop:10,borderTop:`1px solid ${c.BORDER}`,fontSize:12,color:c.DIM,textAlign:"center"}}>Записів цього дня немає</div>;
+  const single = groups.length === 1 && !groups[0].name;
+  return (
+    <div style={{marginTop:10,paddingTop:10,borderTop:`1px solid ${c.BORDER}`,display:"flex",flexDirection:"column",gap:8}}>
+      {groups.map(g => {
+        const isOpen = single || open.has(g.id);
+        return (
+          <div key={g.id} style={{borderRadius:12,background:"rgba(255,255,255,0.04)",border:`1px solid ${c.BORDER}`,overflow:"hidden"}}>
+            {!single && (
+              <button type="button" onClick={() => setOpen(prev => { const n = new Set(prev); n.has(g.id) ? n.delete(g.id) : n.add(g.id); return n; })}
+                style={{width:"100%",display:"flex",alignItems:"center",gap:8,padding:"9px 10px",border:"none",background:"transparent",cursor:"pointer",fontFamily:"inherit",textAlign:"left",color:c.TEXT}}>
+                <span style={{width:10,height:10,borderRadius:"50%",background:g.color || c.GOLD,flexShrink:0}}/>
+                <span style={{flex:1,minWidth:0}}>
+                  <span style={{display:"block",fontSize:13,fontWeight:800,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{g.name}</span>
+                  <span style={{display:"block",fontSize:11,color:c.DIM,marginTop:1}}>{g.n} зап. · {g.hours} год</span>
+                </span>
+                <span style={{fontSize:14,fontWeight:900,color:c.GOLD,whiteSpace:"nowrap"}}>{money(g.sum)}</span>
+                <span style={{fontSize:12,color:c.DIM,transform:isOpen?"rotate(90deg)":"none",transition:"transform .2s"}}>›</span>
+              </button>
+            )}
+            {isOpen && (
+              <div style={{padding:single?"8px 10px":"0 10px 9px"}}>
+                <div style={{display:"flex",flexWrap:"wrap",gap:5,marginBottom:7}}>
+                  {g.svcs.map(sv => (
+                    <span key={sv.name} style={{fontSize:11,fontWeight:700,color:c.TEXT,padding:"3px 8px",borderRadius:99,background:"rgba(255,255,255,0.07)",whiteSpace:"nowrap"}}>{sv.name} ×{sv.n} · {money(sv.sum)}</span>
+                  ))}
+                </div>
+                {g.rows.map((r, i) => (
+                  <div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"5px 0",borderTop:i?`1px solid ${c.BORDER}`:"none",fontSize:12}}>
+                    <span style={{flexShrink:0,color:c.DIM,fontSize:11.5,whiteSpace:"nowrap",fontVariantNumeric:"tabular-nums"}}>{r.time}</span>
+                    <span style={{flex:1,minWidth:0}}>
+                      <span style={{display:"block",color:c.TEXT,fontWeight:700,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{r.name}</span>
+                      <span style={{display:"block",color:c.DIM,fontSize:11,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{r.svc}</span>
+                    </span>
+                    <span style={{fontWeight:800,color:r.price?c.TEXT:c.DIM,whiteSpace:"nowrap"}}>{r.price ? money(r.price) : "—"}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
@@ -353,8 +403,13 @@ export default function StatsView({ onViewStudent, direction } = {}) {
   useEffect(() => onValue(iRef("users"), snap => setUsers(snap.val() || {}), () => {}), []);
   useEffect(() => { get(iRef("admin_settings/profile/slug")).then(sn => setSlug(sn.val() || "")).catch(() => {}); }, []);
 
+  // Пороги кольорів календаря (години за день): до r — червоний, до y — жовтий, більше — зелений
+  const [calTiers, setCalTiers] = useState({ r: 3, y: 6 });
+  const [tiersEdit, setTiersEdit] = useState(false);
+  const saveTiers = (t) => { setCalTiers(t); update(iRef("admin_settings"), { calTiers: t }).catch(() => {}); };
   useEffect(() => {
     get(iRef( "admin_settings/incomeGoal")).then(s => { if (s.exists()) setIncomeGoal(s.val() || 0); }).catch(() => {});
+    get(iRef("admin_settings/calTiers")).then(s => { const v = s.val(); if (v && v.r > 0 && v.y > v.r) setCalTiers({ r: v.r, y: v.y }); }).catch(() => {});
   }, []);
 
   // Салон: фільтр по майстру (записи без masterId — власника)
@@ -463,7 +518,7 @@ export default function StatsView({ onViewStudent, direction } = {}) {
     if (m < 0) { m = 11; y--; } else if (m > 11) { m = 0; y++; }
     setCalViewM(m); setCalViewY(y);
   };
-  const calTierColor = (n) => n <= 3 ? RED : n <= 6 ? GOLD : GREEN;
+  const calTierColor = (h) => h <= calTiers.r ? RED : h <= calTiers.y ? GOLD : GREEN;
 
   // Швидкий тап на день — перемикає ЛИШЕ цей день (додає/прибирає з вибору),
   // інші раніше обрані дні залишаються — скинути все можна кнопкою "✕ Скинути".
@@ -762,7 +817,7 @@ export default function StatsView({ onViewStudent, direction } = {}) {
               const isSel = period === "custom" && selectedDays.has(dateStr);
               const inPreview = calDragPreview && day >= Math.min(calDragPreview.start,calDragPreview.end) && day <= Math.max(calDragPreview.start,calDragPreview.end);
               let bg = SURF_HI, color = DIM;
-              if (n > 0) { const tier = calTierColor(n); bg = `color-mix(in srgb,${tier} 22%,transparent)`; color = `color-mix(in srgb,${tier} 55%,#fff)`; }
+              if (n > 0) { const tier = calTierColor(bucket.hours || 0); bg = `color-mix(in srgb,${tier} 22%,transparent)`; color = `color-mix(in srgb,${tier} 55%,#fff)`; }
               if (inPreview) { bg = `${ACCENT}45`; color = ACCENT; }
               return (
                 <button key={day} data-cal-day={day} style={{
@@ -777,15 +832,35 @@ export default function StatsView({ onViewStudent, direction } = {}) {
             })}
           </div>
           <div style={{display:"flex",gap:10,justifyContent:"center",flexWrap:"wrap",rowGap:4,marginTop:8}}>
-            {[[RED,"мало"],[GOLD,"середньо"],[GREEN,"багато"]].map(([c,l])=>(
-              <span key={l} style={{fontSize:11,color:FAINT,fontWeight:700,display:"flex",alignItems:"center",gap:4}}>
+            {[[RED,`до ${calTiers.r} год`],[GOLD,`до ${calTiers.y} год`],[GREEN,`більше ${calTiers.y} год`]].map(([c,l])=>(
+              <button key={c} type="button" onClick={()=>setTiersEdit(v=>!v)} style={{fontSize:11,color:FAINT,fontWeight:700,display:"flex",alignItems:"center",gap:4,background:"none",border:"none",padding:0,cursor:"pointer",fontFamily:"inherit"}}>
                 <i style={{width:8,height:8,borderRadius:3,background:c,display:"inline-block"}}/>{l}
-              </span>
+              </button>
             ))}
+            <button type="button" onClick={()=>setTiersEdit(v=>!v)} aria-label="Налаштувати кольори" style={{background:"none",border:"none",padding:0,cursor:"pointer",display:"flex",alignItems:"center"}}><MetalIcon name="gear" size={18}/></button>
             <span style={{fontSize:11,color:FAINT,fontWeight:700,display:"flex",alignItems:"center",gap:4}}>
               <i style={{width:8,height:8,borderRadius:3,border:`1px dashed ${FAINT}`,display:"inline-block"}}/>заплановано
             </span>
           </div>
+          {tiersEdit && (() => {
+            const stepper = (label, color, val, set, min, max) => (
+              <div style={{display:"flex",alignItems:"center",gap:8}}>
+                <i style={{width:10,height:10,borderRadius:3,background:color,flexShrink:0}}/>
+                <span style={{flex:1,fontSize:12.5,color:TEXT,fontWeight:600}}>{label}</span>
+                <button type="button" disabled={val<=min} onClick={()=>set(val-1)} style={{width:32,height:30,borderRadius:8,border:`1px solid ${BORDER}`,background:SURF_HI,color:TEXT,fontSize:16,cursor:"pointer",opacity:val<=min?0.4:1}}>−</button>
+                <span style={{minWidth:44,textAlign:"center",fontSize:13,fontWeight:800,color:TEXT}}>{val} год</span>
+                <button type="button" disabled={val>=max} onClick={()=>set(val+1)} style={{width:32,height:30,borderRadius:8,border:`1px solid ${BORDER}`,background:SURF_HI,color:TEXT,fontSize:16,cursor:"pointer",opacity:val>=max?0.4:1}}>+</button>
+              </div>
+            );
+            return (
+              <div style={{marginTop:9,padding:"10px 11px",borderRadius:12,border:`1px solid ${BORDER}`,background:"rgba(255,255,255,0.03)",display:"flex",flexDirection:"column",gap:8}}>
+                <div style={{fontSize:11,color:DIM,fontWeight:700,letterSpacing:0.5,textTransform:"uppercase"}}>Кольори днів за годинами роботи</div>
+                {stepper("Червоний — до", RED, calTiers.r, v=>saveTiers({ r:v, y:Math.max(calTiers.y, v+1) }), 1, 23)}
+                {stepper("Жовтий — до", GOLD, calTiers.y, v=>saveTiers({ r:Math.min(calTiers.r, v-1), y:v }), 2, 24)}
+                <div style={{fontSize:11.5,color:DIM}}>Зелений — більше {calTiers.y} год</div>
+              </div>
+            );
+          })()}
           {period === "custom" && selectedStrips.length > 0 && (
             <div style={{marginTop:9,display:"flex",alignItems:"center",gap:6}}>
               <div style={{flex:1,textAlign:"center",fontSize:11,fontWeight:700,color:ACCENT,background:`${ACCENT}1a`,borderRadius:8,padding:"6px 8px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
@@ -938,7 +1013,28 @@ export default function StatsView({ onViewStudent, direction } = {}) {
 
         {/* ── ДОХІД ПО ДНЯХ / МІСЯЦЯХ / ГОДИНАХ ── */}
         {secEff === "overview" && data.length > 0 && (
-          <IncomeBars data={data} title={`Дохід · ${byPeriodLabel.toLowerCase()}`} todayKey={getDateStr(new Date())} c={{ DIM, GOLD, GREEN, TEXT }}/>
+          <IncomeBars data={data} title={`Дохід · ${byPeriodLabel.toLowerCase()}`} todayKey={getDateStr(new Date())} c={{ DIM, GOLD, GREEN, TEXT }}
+            detail={(key) => {
+              if (!/^\d{4}-\d{2}-\d{2}$/.test(key || "")) return null;
+              const hm = (m) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+              const list = bookings.filter(b => b.date === key && ["confirmed", "pending"].includes(b.status || "confirmed") && b.type !== "block" && b.type !== "personal" && b.type !== "vip-slot");
+              const bySalon = staff.length > 1 && !masterFilter;
+              const map = new Map();
+              list.forEach(b => {
+                const mid = bySalon ? masterOf(b, ownerUid) : "_";
+                if (!map.has(mid)) { const m = bySalon ? staff.find(x => x.id === mid) : null; map.set(mid, { id: mid, name: bySalon ? (m?.name || "Майстер") : "", color: m?.color, n: 0, mins: 0, sum: 0, svcMap: {}, rows: [] }); }
+                const g = map.get(mid);
+                const price = bkIncome(b, services);
+                const dur = b.durMin || (b.durationHours ? b.durationHours * 60 : 60);
+                const st = b.startMin != null ? b.startMin : (b.time ? (+b.time.slice(0, 2)) * 60 + (+b.time.slice(3, 5)) : 0);
+                const svc = (services || []).find(x => x.id === b.serviceId)?.name || b.serviceName || (bkType(b) === "school" ? "Стандарт" : "Індивідуальний");
+                g.n++; g.mins += dur; g.sum += price;
+                (g.svcMap[svc] ||= { name: svc, n: 0, sum: 0 }); g.svcMap[svc].n++; g.svcMap[svc].sum += price;
+                g.rows.push({ st, time: `${hm(st)}–${hm(st + dur)}`, name: b.name || b.studentName || "Клієнт", svc, price });
+              });
+              const groups = [...map.values()].map(g => ({ ...g, hours: Math.round(g.mins / 6) / 10, svcs: Object.values(g.svcMap).sort((x, y) => y.sum - x.sum), rows: g.rows.sort((x, y) => x.st - y.st) })).sort((x, y) => y.sum - x.sum);
+              return <DayDetail key={key} groups={groups} c={{ DIM, GOLD, TEXT, BORDER }}/>;
+            }}/>
         )}
 
         {/* ── ЗВІДКИ ЗАПИСИ ── */}

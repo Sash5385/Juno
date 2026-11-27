@@ -264,6 +264,10 @@ async function getCurrencySym(iid) {
 }
 function renderTemplateBody(body, vars = {}, sym = "₴") {
   let s = body || "";
+  // Ім'я майстра не заповнене — прибираємо речення з {майстер}, а не шлемо клієнту «{майстер}»
+  for (const k of ["майстер", "інструктор"]) {
+    if (k in vars && !vars[k]) s = s.replace(new RegExp(`[ \\t]*[^.!?\\n]*\\{${k}\\}[^.!?\\n]*[.!?]?`, "g"), "").replace(/[ \t]+\n/g, "\n").replace(/\n{2,}/g, "\n").trim();
+  }
   if (vars["ціна"] != null && vars["ціна"] !== "") {
     const p = String(vars["ціна"]);
     s = s.replace(/\{ціна\}( ?)₴/g, (_, sp) => (sym === "$" ? `$${p}` : `${p}${sp}${sym}`));
@@ -280,12 +284,13 @@ async function getInstructorName(iid) {
   return snap?.val() || "";
 }
 
-// Хелпер: для auto_reminder — 24г чи 2г "кошик" шаблону за полем reminderHours
-// (без поля — типово вважаємо шаблон "за 24 год", як і було раніше)
-function matchesReminderBucket(tpl, targetHours) {
-  const h = Number(tpl.reminderHours);
-  const hours = Number.isFinite(h) ? h : 24;
-  return targetHours === 24 ? hours >= 12 : hours > 0 && hours < 12;
+// Хелпер: за скільки годин до запису надсилається шаблон нагадування (без поля — за 24 год, як раніше)
+function reminderHoursOf(tpl) {
+  const h = Math.round(Number(tpl?.reminderHours));
+  return Number.isFinite(h) && h > 0 ? Math.min(h, 168) : 24;
+}
+function hasTplTrigger(list, trigger) {
+  return Array.isArray(list) && list.some((x) => x && x.trigger === trigger && x.active && (x.body || "").trim());
 }
 
 // Хелпер: надіслати клієнту ВСІ активні шаблони заданого тригера — чат-
@@ -296,7 +301,11 @@ function matchesReminderBucket(tpl, targetHours) {
 // повернути true при провалі обох каналів, прапорець "відправлено"
 // назавжди заблокував би повторні спроби (той самий клас багу, що вже
 // фіксився для 24г/2г нагадувань).
-const WELCOME_DEFAULT_UK = "👋 Привіт, {ім'я}! Раді бачити тебе в Juno!\nЯ — {майстер}, твій майстер.\nЗаписуйся на перший запис — будемо раді тебе бачити! 🙂";
+const WELCOME_DEFAULTS_UK = [
+  "👋 Привіт, {ім'я}! Раді бачити тебе в Juno!\nЯ — {майстер}, твій майстер.\nЗаписуйся на перший запис — будемо раді тебе бачити! 🙂",
+  "👋 Привіт, {ім'я}! Раді бачити тебе в Juno!\nЯ — {майстер}, твій майстер.\nОбирай зручний час і записуйся онлайн — будемо раді тебе бачити! 🙂",
+  "👋 Вітаємо, {ім'я}! Раді бачити Вас у Juno!\nЯ — {майстер}, Ваш майстер.\nОбирайте зручний час і записуйтесь онлайн — будемо раді Вас бачити! 🙂",
+];
 const WELCOME_SALON_UK = "👋 Привіт, {ім'я}! Раді бачити тебе в {майстер}!\nОбирай послугу й зручний час та записуйся онлайн — будемо раді тебе бачити! 🙂";
 async function sendActiveTemplates(iid, uid, triggerId, vars = {}, filterFn = null) {
   const snap = await iRef(iid, "admin_data/templates").get();
@@ -315,7 +324,7 @@ async function sendActiveTemplates(iid, uid, triggerId, vars = {}, filterFn = nu
   // Салон: типове вітання («твій майстер», «перший запис») — нейтральний текст; змінений майстром шаблон лишається як є
   const salonWelcome = triggerId === "auto_welcome" && (await iRef(iid, "admin_settings/accountType").get().then((x) => x.val()).catch(() => null)) === "salon";
   for (const tpl of matches) {
-    const body = salonWelcome && tpl.body === WELCOME_DEFAULT_UK ? WELCOME_SALON_UK : tpl.body;
+    const body = salonWelcome && WELCOME_DEFAULTS_UK.includes(tpl.body) ? WELCOME_SALON_UK : tpl.body;
     const text = await tr(iid, renderTemplateBody(t(L, body), fullVars, curSym), L);
     const tplTitle = t(L, tpl.title || "Повідомлення");
     const time = new Date().toLocaleTimeString(LOCALE[L], { hour: "2-digit", minute: "2-digit" });
@@ -1315,8 +1324,19 @@ exports.flushRescheduleQueue = onSchedule(
         const tBody = entry.date ? (L) => t(L, "Новий час: {date} о {time} (було {oldDate} о {oldTime})", {
           date: fmtDateLong(L, entry.date), time: entry.time, oldDate: fmtDateLong(L, entry.oldDate), oldTime: entry.oldTime,
         }) : body;
-        await pushStudent(iid, uid, tTitle, tBody, { url: "https://aldemi.com.ua/junoclient/cabinet/bookings" });
-        await saveNotification(iid, uid, tTitle, tBody, "booking_rescheduled");
+        // Активний шаблон «Запис перенесено» (Шаблони) — текст майстра в чат + push; інакше — стандартний push
+        let usedTpl = false;
+        if (entry.date && hasTplTrigger(inst?.admin_data?.templates, "auto_reschedule")) {
+          const nm = inst?.users?.[uid]?.profile?.name || "";
+          usedTpl = await sendActiveTemplates(iid, uid, "auto_reschedule", (L) => ({
+            "ім'я": nm || t(L, "Клієнт"), "дата": fmtDateLong(L, entry.date), "час": entry.time,
+            "стара дата": fmtDateLong(L, entry.oldDate), "старий час": entry.oldTime,
+          })).catch(() => false);
+        }
+        if (!usedTpl) {
+          await pushStudent(iid, uid, tTitle, tBody, { url: "https://aldemi.com.ua/junoclient/cabinet/bookings" });
+          await saveNotification(iid, uid, tTitle, tBody, "booking_rescheduled");
+        }
         await iRef(iid, `rescheduleQueue/${uid}/${bookingId}`).remove();
         console.log(`flushRescheduleQueue: sent to iid=${iid} uid=${uid} bookingId=${bookingId}`);
       }));
@@ -1450,6 +1470,8 @@ exports.sendLessonReminders = onSchedule(
       if (!allUids.size) continue;
 
       const sentData = inst?.sentReminders || {};
+      // Шаблони майстра: масив є — нагадування лише за активними шаблонами (вимкнений = не надсилається)
+      const tplList = Array.isArray(inst?.admin_data?.templates) ? inst.admin_data.templates : null;
       const updates = {};
 
       for (const uid of allUids) {
@@ -1473,49 +1495,44 @@ exports.sendLessonReminders = onSchedule(
 
           const lessonMs = kyivLocalToMs(b.date, b.time);
           const diffMs = lessonMs - now;
-          if (diffMs <= 0) continue;
-
           const sent = sentData[uid]?.[bookingId] || {};
           const L = normLang(inst?.users?.[uid]?.lang);
           const dateFmt = fmtDateLong(L, b.date);
-
           const reminderVars = { "ім'я": b.studentName || t(L, "Клієнт"), "дата": dateFmt, "час": b.time };
 
-          // 24г нагадування (вікно 23–24г, не в тихі години)
-          if (!sent.r24 && !(kyivHour >= 23 || kyivHour < 6)
-              && diffMs >= 23 * 3600000 && diffMs <= 24 * 3600000) {
-            // Позначаємо "відправлено" лише якщо push реально дійшов — інакше
-            // (немає токена/помилка) прапорець назавжди блокував би повторні
-            // спроби на наступних годинних запусках.
-            const usedTpl24 = await sendActiveTemplates(iid, uid, "auto_reminder", reminderVars, t => matchesReminderBucket(t, 24)).catch(() => false);
-            if (usedTpl24) {
-              updates[`sentReminders/${uid}/${bookingId}/r24`] = true;
-            } else {
-              const rTitle = t(L, "⏰ Нагадування про запис"), rBody = t(L, "Завтра о {time} — {date}", { time: b.time, date: dateFmt });
-              const pushed = await pushStudent(iid, uid, rTitle, rBody, {
-                url: "https://aldemi.com.ua/junoclient/cabinet/bookings",
-              }).catch(() => false);
-              if (pushed) {
-                await saveNotification(iid, uid, rTitle, rBody, "reminder");
-                updates[`sentReminders/${uid}/${bookingId}/r24`] = true;
+          // «Дякуємо за перший візит» (шаблон auto_thanks, типово вимкнений): через 1–3 год після кінця ПЕРШОГО візиту клієнта
+          if (diffMs <= 0) {
+            const endMs = lessonMs + (b.durMin || (b.durationHours ? b.durationHours * 60 : 60)) * 60000;
+            const since = now - endMs;
+            if (!sent.thx && since >= 3600000 && since <= 3 * 3600000 && b.status !== "noshow" && hasTplTrigger(tplList, "auto_thanks")) {
+              const earlier = Object.entries(bookingsObj).some(([id2, o]) => id2 !== bookingId && o && o.date && o.time && o.status !== "cancelled" && !o.cancelledBy && kyivLocalToMs(o.date, o.time) < lessonMs);
+              if (!earlier) {
+                const ok = await sendActiveTemplates(iid, uid, "auto_thanks", reminderVars).catch(() => false);
+                if (ok) updates[`sentReminders/${uid}/${bookingId}/thx`] = true;
               }
             }
+            continue;
           }
 
-          // 2г нагадування (вікно 1г45хв–2г, завжди)
-          if (!sent.r2 && diffMs >= 105 * 60000 && diffMs <= 120 * 60000) {
-            const usedTpl2 = await sendActiveTemplates(iid, uid, "auto_reminder", reminderVars, t => matchesReminderBucket(t, 2)).catch(() => false);
-            if (usedTpl2) {
-              updates[`sentReminders/${uid}/${bookingId}/r2`] = true;
-            } else {
-              const rTitle = t(L, "⏰ Запис через 2 години"), rBody = t(L, "о {time} — {date}", { time: b.time, date: dateFmt });
-              const pushed = await pushStudent(iid, uid, rTitle, rBody, {
-                url: "https://aldemi.com.ua/junoclient/cabinet/bookings",
-              }).catch(() => false);
-              if (pushed) {
-                await saveNotification(iid, uid, rTitle, rBody, "reminder");
-                updates[`sentReminders/${uid}/${bookingId}/r2`] = true;
-              }
+          // Нагадування перед записом — за шаблонами «Нагадування» (до 3, будь-яка кількість годин).
+          // Шаблонів ще немає (старий акаунт) — як раніше: за 24 і за 2 год стандартним текстом.
+          const hoursList = tplList ? [...new Set(tplList.filter((x) => x && x.trigger === "auto_reminder" && x.active && (x.body || "").trim()).map((x) => reminderHoursOf(x)))] : [24, 2];
+          for (const H of hoursList) {
+            const key = H === 24 ? "r24" : H === 2 ? "r2" : `r${H}`;
+            if (sent[key]) continue;
+            // ≥12 год: вікно 1 год і не в тихі години (23:00–6:00); менше — вікно 15 хв, завжди
+            const inWindow = H >= 12
+              ? !(kyivHour >= 23 || kyivHour < 6) && diffMs >= (H - 1) * 3600000 && diffMs <= H * 3600000
+              : diffMs >= H * 3600000 - 15 * 60000 && diffMs <= H * 3600000;
+            if (!inWindow) continue;
+            const usedTpl = tplList ? await sendActiveTemplates(iid, uid, "auto_reminder", reminderVars, (x) => reminderHoursOf(x) === H).catch(() => false) : false;
+            if (usedTpl) { updates[`sentReminders/${uid}/${bookingId}/${key}`] = true; continue; }
+            const rTitle = H === 2 ? t(L, "⏰ Запис через 2 години") : t(L, "⏰ Нагадування про запис");
+            const rBody = H === 24 ? t(L, "Завтра о {time} — {date}", { time: b.time, date: dateFmt }) : t(L, "{date} о {time}", { time: b.time, date: dateFmt });
+            const pushed = await pushStudent(iid, uid, rTitle, rBody, { url: "https://aldemi.com.ua/junoclient/cabinet/bookings" }).catch(() => false);
+            if (pushed) {
+              await saveNotification(iid, uid, rTitle, rBody, "reminder");
+              updates[`sentReminders/${uid}/${bookingId}/${key}`] = true;
             }
           }
         }
@@ -1533,7 +1550,7 @@ exports.sendLessonReminders = onSchedule(
 // 15 хв (як було раніше) регулярно повністю проскакувала його між двома
 // тіками, залежно від фази — нагадування мовчки не приходило.
 // Щодня о 11:00 за Києвом: клієнтам, яким «пора» повторити послугу (service.rebookDays), надсилаємо м'яке нагадування
-const { findRebookDue } = require("./rebook");
+const { findRebookDue, findWinbackDue, findBirthdays } = require("./rebook");
 exports.sendRebookReminders = onSchedule(
   { schedule: "0 11 * * *", timeZone: "Europe/Kyiv", region: "europe-west1" },
   async () => {
@@ -1547,6 +1564,23 @@ exports.sendRebookReminders = onSchedule(
           url: "https://aldemi.com.ua/junoclient/cabinet",
         }).catch(() => false);
         if (pushed !== false) await iRef(iid, `users/${d.uid}/rebookReminded`).set(d.bookingId).catch(() => {}); // один раз на візит
+      }
+      // Шаблони «Давно не були» і «З днем народження» (типово вимкнені — майстер вмикає в «Шаблони»)
+      const tpls = Array.isArray(inst?.admin_data?.templates) ? inst.admin_data.templates : null;
+      const winTpl = tpls && tpls.find((x) => x && x.trigger === "auto_winback" && x.active && (x.body || "").trim());
+      if (winTpl) {
+        for (const d of findWinbackDue(inst, today, Math.round(Number(winTpl.days)) || 60)) {
+          const nm = inst?.users?.[d.uid]?.profile?.name || "";
+          const ok = await sendActiveTemplates(iid, d.uid, "auto_winback", (L) => ({ "ім'я": nm || t(L, "Клієнт") })).catch(() => false);
+          if (ok) await iRef(iid, `users/${d.uid}/winbackSent`).set(d.bookingId).catch(() => {});
+        }
+      }
+      if (hasTplTrigger(tpls, "auto_birthday")) {
+        for (const uid of findBirthdays(inst, today)) {
+          const nm = inst?.users?.[uid]?.profile?.name || "";
+          const ok = await sendActiveTemplates(iid, uid, "auto_birthday", (L) => ({ "ім'я": nm || t(L, "Клієнт") })).catch(() => false);
+          if (ok) await iRef(iid, `users/${uid}/bdaySent`).set(today.slice(0, 4)).catch(() => {});
+        }
       }
           } catch (e) { console.error(`tenant ${iid} failed:`, e?.message || e); }
     }

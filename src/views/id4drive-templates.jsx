@@ -73,35 +73,66 @@ const INIT_TEMPLATES = [
   { id:"t4", catId:"cancel",   title:"Скасування запису",     channel:"chat", trigger:"auto_cancel",   active:true,
     body:"❌ {ім'я}, на жаль запис {дата} о {час} скасовано. Якщо хочеш записатись на інший час — напиши нам або відкрий додаток." },
   { id:"t5", catId:"welcome",  title:"Вітання нового клієнта",   channel:"chat", trigger:"auto_welcome",  active:true,
-    body:"👋 Привіт, {ім'я}! Раді бачити тебе в Juno!\nЯ — {майстер}, твій майстер.\nЗаписуйся на перший запис — будемо раді тебе бачити! 🙂" },
+    body:"👋 Привіт, {ім'я}! Раді бачити тебе в Juno!\nЯ — {майстер}, твій майстер.\nОбирай зручний час і записуйся онлайн — будемо раді тебе бачити! 🙂" },
   { id:"t6", catId:"queue",    title:"Пропозиція вільного слоту", channel:"chat", trigger:"auto_queue", active:true,
-    body:"⏳ {ім'я}, з'явився вільний запис {дата} о {час}! Підтвердити запис → відкрий додаток." },
+    body:"⏳ {ім'я}, з'явився вільний час {дата} о {час}! Щоб записатись — відкрий додаток." },
   { id:"t7", catId:"custom",   title:"Прохання про відгук",   channel:"chat", trigger:"manual",        active:true,
     body:"Привіт, {ім'я}! Як пройшов запис {дата}? Буду вдячний за відгук 🙏" },
+  { id:"t9", catId:"reminder", title:"Запис перенесено",      channel:"chat", trigger:"auto_reschedule", active:true,
+    body:"🔄 {ім'я}, твій запис перенесено на {дата} о {час} (було {стара дата} о {старий час}). До зустрічі!" },
+  { id:"t10", catId:"custom",  title:"Дякуємо за перший візит", channel:"chat", trigger:"auto_thanks", active:false,
+    body:"💛 {ім'я}, дякуємо, що завітав! Сподіваємось, усе сподобалось. Будемо раді бачити тебе знову — записатись можна в додатку." },
+  { id:"t11", catId:"custom",  title:"Давно не були",          channel:"chat", trigger:"auto_winback", active:false, days:60,
+    body:"👋 {ім'я}, давно не бачились! Сумуємо 🙂 Обирай зручний час — записатись можна в додатку." },
+  { id:"t12", catId:"custom",  title:"З днем народження",      channel:"chat", trigger:"auto_birthday", active:false,
+    body:"🎉 {ім'я}, з днем народження! Бажаємо радості й гарного настрою. Чекаємо на тебе!" },
   { id:"t8", catId:"custom",   title:"Особливі умови",        channel:"chat", trigger:"manual",        active:false,
     body:"Привіт! Для тебе діє спеціальна пропозиція: {послуга} за {ціна} ₴. Діє тільки цього тижня!" },
 ];
 
+const OLD_T5B = "👋 Привіт, {ім'я}! Раді бачити тебе в Juno!\nЯ — {майстер}, твій майстер.\nЗаписуйся на перший запис — будемо раді тебе бачити! 🙂";
+const OLD_T6B = "⏳ {ім'я}, з'явився вільний запис {дата} о {час}! Підтвердити запис → відкрий додаток.";
+// Звертання «на Ви»: ті самі стандартні шаблони ввічливою формою (перемикач у шапці). Змінені майстром тексти не чіпаємо.
+const VY = {
+  t1:"Добрий день, {ім'я}! 🔔 Нагадуємо про запис завтра {дата} о {час}. Чекаємо на Вас! Якщо потрібно перенести — напишіть нам.",
+  t2:"🔔 Нагадуємо: Ваш запис сьогодні о {час}. Майстер: {майстер}",
+  t3:"✅ {ім'я}, Ваш запис підтверджено!\n📅 {дата} о {час}\n💼 {послуга} — {ціна} ₴\nЧекаємо на Вас!",
+  t4:"❌ {ім'я}, на жаль, запис {дата} о {час} скасовано. Якщо бажаєте записатись на інший час — напишіть нам або відкрийте додаток.",
+  t5:"👋 Вітаємо, {ім'я}! Раді бачити Вас у Juno!\nЯ — {майстер}, Ваш майстер.\nОбирайте зручний час і записуйтесь онлайн — будемо раді Вас бачити! 🙂",
+  t6:"⏳ {ім'я}, з'явився вільний час {дата} о {час}! Щоб записатись — відкрийте додаток.",
+  t7:"Добрий день, {ім'я}! Як пройшов Ваш запис {дата}? Будемо вдячні за відгук 🙏",
+  t9:"🔄 {ім'я}, Ваш запис перенесено на {дата} о {час} (було {стара дата} о {старий час}). До зустрічі!",
+  t10:"💛 {ім'я}, дякуємо, що завітали! Сподіваємось, усе сподобалось. Будемо раді бачити Вас знову — записатись можна в додатку.",
+  t11:"👋 {ім'я}, давно не бачились! Будемо раді Вас бачити — оберіть зручний час у додатку.",
+  t12:"🎉 {ім'я}, вітаємо з днем народження! Бажаємо радості й гарного настрою. Чекаємо на Вас!",
+};
+const TY = Object.fromEntries(Object.keys(VY).map(id => [id, (INIT_TEMPLATES.find(t => t.id === id) || {}).body]));
 const old2 = "ID4Drive: запис сьогодні о {час}. Адреса: Верховинна 44. Майстер: {інструктор}";
 const new2 = INIT_TEMPLATES.find(t => t.id === "t2").body;
 const OLD_T5 = INIT_TEMPLATES.find(t => t.id === "t5").body.replace("в Juno!", "в ID4Drive!");
 const DP_T5 = INIT_TEMPLATES.find(t => t.id === "t5").body.replace("в Juno!", "в DrivePad!"); // попередня назва: стандартний текст оновлюємо
 
 // ─── ПРОСТИЙ РЕЖИМ: стандартні шаблони t1–t7 показуємо як «ситуації» ───
-const STD_IDS = ["t1","t2","t3","t4","t5","t6","t7"];
+const STD_IDS = ["t1","t2","t3","t4","t5","t6","t7","t9","t10","t11","t12"];
 const STD_INFO = {
   t3: { emoji:"✅", title:"Підтвердження запису",  hint:"Коли ви підтвердили запис клієнта",  color:GREEN  },
   t4: { emoji:"❌", title:"Скасування запису",      hint:"Коли запис скасовано",            color:RED    },
   t5: { emoji:"👋", title:"Вітання нового клієнта",    hint:"Після реєстрації клієнта в застосунку", color:TEAL },
   t6: { emoji:"⏳", title:"Вільний слот із черги",  hint:"Коли слот звільнився і хтось чекає в черзі", color:PURPLE },
-  t7: { emoji:"⭐", title:"Прохання про відгук",    hint:"Надсилаєте вручну після запису",   color:BLUE   },
+  t7: { emoji:"⭐", title:"Прохання про відгук",    hint:"Надсилаєте вручну — оберіть кому",   color:BLUE   },
+  t9: { emoji:"🔄", title:"Запис перенесено",       hint:"Коли запис перенесли на інший час", color:BLUE },
+  t10:{ emoji:"💛", title:"Дякуємо за перший візит", hint:"Через годину після першого візиту клієнта", color:GOLD },
+  t11:{ emoji:"👋", title:"Давно не були",           hint:"Коли клієнт не записувався N днів", color:TEAL },
+  t12:{ emoji:"🎉", title:"З днем народження",       hint:"Зранку в день народження (дата з анкети клієнта)", color:PURPLE },
 };
 const VAR_LABELS = [
   { v:"{ім'я}", label:"Ім'я клієнта" }, { v:"{дата}", label:"Дата" }, { v:"{час}", label:"Час" },
   { v:"{послуга}", label:"Послуга" }, { v:"{ціна}", label:"Ціна" }, { v:"{майстер}", label:"Майстер" },
 ];
+const VAR_RESCHED = [{ v:"{стара дата}", label:"Стара дата" }, { v:"{старий час}", label:"Старий час" }];
+let SAMPLE_MASTER = ""; // ім'я майстра з профілю — для прикладу; порожнє → речення з {майстер} прибирається
 // приклад для попереднього перегляду
-const sampleVars = () => ({ "ім'я":tr("Олексій"), "дата":new Date(2026,9,5).toLocaleDateString("uk",{day:"numeric",month:"long",weekday:"short"}), "час":"14:00", "послуга":tr("Стандарт"), "ціна":"900", "майстер":tr("Ваш майстер"), "інструктор":tr("Ваш майстер") });
+const sampleVars = () => ({ "ім'я":tr("Олексій"), "дата":new Date(2026,9,5).toLocaleDateString("uk",{day:"numeric",month:"long",weekday:"short"}), "час":"14:00", "послуга":tr("Стандарт"), "ціна":"900", "майстер":SAMPLE_MASTER, "інструктор":SAMPLE_MASTER, "стара дата":new Date(2026,9,3).toLocaleDateString("uk",{day:"numeric",month:"long",weekday:"short"}), "старий час":"12:00" });
 // приклад для попереднього перегляду: спершу переклад шаблону (з {змінними}), потім підстановка зразків
 // ключі словника зберігають переноси як «\\n», тож шукаємо переклад із такою формою
 const trBody = b => { const e = String(b || "").replace(/\n/g, "\\n"); const r = tr(e); return r === e ? String(b || "") : r.replace(/\\n/g, "\n"); };
@@ -121,6 +152,8 @@ const catOf = id => CATEGORIES.find(c=>c.id===id)||CATEGORIES[5];
 // functions/index.js renderTemplateBody — невідома змінна лишається як є)
 function renderVars(body, vars={}) {
   let s = body || "";
+  // Відома змінна без значення (напр. ім'я майстра не заповнене) — прибираємо речення з нею, а не лишаємо «{майстер}»
+  for (const k of ["майстер","інструктор"]) if (k in vars && !vars[k]) s = s.replace(new RegExp(`[ \\t]*[^.!?\\n]*\\{${k}\\}[^.!?\\n]*[.!?]?`, "g"), "").replace(/[ \t]+\n/g, "\n").replace(/\n{2,}/g, "\n").trim();
   // «{ціна} ₴» у шаблоні → сума у валюті майстра («$600», «600 €»)
   if (vars["ціна"] != null && vars["ціна"] !== "") s = s.replace(/\{ціна\}( ?)₴/g, (_, sp) => money(vars["ціна"], sp));
   return s.replace(/\{[^}]+\}/g, m => {
@@ -192,12 +225,16 @@ function SendModal({ tpl, onClose }) {
   const ch = chOf(tpl.channel);
 
   useEffect(() => {
-    get(iRef( "users")).then(snap => {
+    // Клієнти — від останнього візиту до найдавнішого: кого просити про відгук, видно одразу
+    Promise.all([get(iRef("users")), get(iRef("bookings")).catch(() => null)]).then(([snap, bsnap]) => {
       const d = snap.val() || {};
-      const list = Object.entries(d).map(([uid, u]) => ({
-        uid,
-        name: u.profile?.name || "Клієнт",
+      const today = new Date().toISOString().slice(0, 10);
+      const last = {};
+      Object.entries(bsnap?.val() || {}).forEach(([uid, bks]) => Object.values(bks || {}).forEach(b => {
+        if (b && b.date && b.date <= today && b.status !== "cancelled" && !b.cancelledBy && (!last[uid] || b.date > last[uid])) last[uid] = b.date;
       }));
+      const list = Object.entries(d).map(([uid, u]) => ({ uid, name: u.profile?.name || "Клієнт", last: last[uid] || "" }))
+        .sort((a, b) => (b.last || "").localeCompare(a.last || ""));
       setStudents(list);
     }).catch(() => {});
     get(iRef("admin_settings/profile/name")).then(snap => setInstructorName(snap.val() || "")).catch(() => {});
@@ -250,9 +287,12 @@ function SendModal({ tpl, onClose }) {
         {students.length === 0
           ? <span style={{fontSize:11,color:FAINT}}>Завантаження клієнтів…</span>
           : <>
+            {(() => { const wk = new Date(Date.now() - 7 * 864e5).toISOString().slice(0, 10); const recent = students.filter(s => s.last && s.last >= wk).map(s => s.uid); return recent.length > 0 && (
+              <button onClick={()=>setSelected(recent)} style={selBtn(recent.length && recent.every(u=>selected.includes(u)) && selected.length===recent.length, GREEN)}>{`Були за 7 днів (${recent.length})`}</button>
+            ); })()}
             <button onClick={()=>setSelected(allIds)} style={selBtn(selected.length===students.length&&students.length>0, ACCENT)}>Всі клієнти</button>
             {students.map(s=>(
-              <button key={s.uid} onClick={()=>toggleSel(s.uid)} style={selBtn(selected.includes(s.uid), BLUE)}>{s.name}</button>
+              <button key={s.uid} onClick={()=>toggleSel(s.uid)} style={selBtn(selected.includes(s.uid), BLUE)}>{s.name}{s.last ? <span style={{opacity:0.6,fontWeight:500}}> · {s.last.slice(8,10)}.{s.last.slice(5,7)}</span> : null}</button>
             ))}
           </>
         }
@@ -458,13 +498,15 @@ function TemplateCard({ tpl, onEdit, onSend, onToggle, onDelete }) {
 }
 
 // ─── ПРОСТИЙ РЕДАКТОР: лише години (де треба), текст, вставка змінних, перегляд ───
-function SimpleEditModal({ tpl, onSave, onClose }) {
+function SimpleEditModal({ tpl, stdBody, onSave, onClose }) {
   const { DIM, SURF_HI, SURFACE, BG_DEEP, BLUE, TEXT, FAINT } = useContext(ThemeContext);
   const [body, setBody] = useState(tpl.body || "");
   const [hours, setHours] = useState(tpl.reminderHours ?? 24);
+  const [days, setDays] = useState(tpl.days || 60);
+  const isWinback = tpl.trigger === "auto_winback";
   const taRef = useRef(null);
   const isReminder = tpl.trigger === "auto_reminder";
-  const std = INIT_TEMPLATES.find(x => x.id === tpl.id);
+  const std = stdBody && stdBody(tpl.id) ? { body: stdBody(tpl.id) } : INIT_TEMPLATES.find(x => x.id === tpl.id);
   const title = isReminder ? "Нагадування перед записом" : (STD_INFO[tpl.id]?.title || tpl.title);
   const accent = isReminder ? GOLD : (STD_INFO[tpl.id]?.color || BLUE);
 
@@ -483,7 +525,7 @@ function SimpleEditModal({ tpl, onSave, onClose }) {
       footer={<>
         <Btn variant="ghost" flex={1} onClick={onClose}>Скасувати</Btn>
         <Btn variant="primary" flex={1} disabled={!valid}
-          onClick={()=>onSave({ ...tpl, body, ...(isReminder ? { reminderHours: hours } : {}) })}>Зберегти</Btn>
+          onClick={()=>onSave({ ...tpl, body, ...(isReminder ? { reminderHours: hours } : {}), ...(isWinback ? { days } : {}) })}>Зберегти</Btn>
       </>}>
       <div style={{
         margin:"-14px -20px 0",padding:"16px 20px 20px",
@@ -493,13 +535,27 @@ function SimpleEditModal({ tpl, onSave, onClose }) {
           <div style={{marginBottom:14}}>
             <div style={label}>ЗА СКІЛЬКИ ГОДИН ДО ЗАПИСУ</div>
             <div style={{display:"flex",gap:6}}>
-              {[24,2].map(h=>(
+              {[48,24,12,3,2,1].map(h=>(
                 <button key={h} onClick={()=>setHours(h)} style={{
                   padding:"10px 14px",borderRadius:14,border:"none",cursor:"pointer",fontFamily:"inherit",flex:1,
                   background:hours===h?`linear-gradient(135deg,${BLUE}33,${BLUE}14)`:`linear-gradient(135deg,${SURF_HI},${SURFACE})`,
                   color:hours===h?BLUE:DIM,fontSize:12,fontWeight:700,
                   borderLeft:hours===h?`3px solid ${BLUE}`:"3px solid transparent"
-                }}>{h===24?"За 24 год":"За 2 год"}</button>
+                }}>{h} год</button>
+              ))}
+            </div>
+          </div>
+        )}
+        {isWinback && (
+          <div style={{marginBottom:14}}>
+            <div style={label}>ЧЕРЕЗ СКІЛЬКИ ДНІВ БЕЗ ЗАПИСУ</div>
+            <div style={{display:"flex",gap:6}}>
+              {[30,45,60,90,120].map(d=>(
+                <button key={d} onClick={()=>setDays(d)} style={{
+                  padding:"10px 0",borderRadius:14,border:"none",cursor:"pointer",fontFamily:"inherit",flex:1,
+                  background:days===d?`linear-gradient(135deg,${BLUE}33,${BLUE}14)`:`linear-gradient(135deg,${SURF_HI},${SURFACE})`,
+                  color:days===d?BLUE:DIM,fontSize:12,fontWeight:700,
+                }}>{d} дн</button>
               ))}
             </div>
           </div>
@@ -512,8 +568,8 @@ function SimpleEditModal({ tpl, onSave, onClose }) {
         </Inset>
 
         <Hint style={{marginBottom:6}}>Натисніть, щоб вставити в текст — підставиться автоматично:</Hint>
-        <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:16}}>
-          {VAR_LABELS.map(x=>(
+        <div style={{display:"grid",gridTemplateColumns:"repeat(3,minmax(0,1fr))",gap:5,marginBottom:16}}>
+          {[...VAR_LABELS, ...(tpl.trigger === "auto_reschedule" ? VAR_RESCHED : [])].map(x=>(
             <span key={x.v} className="var-chip" onClick={()=>insertVar(x.v)}>{x.label}</span>
           ))}
         </div>
@@ -521,6 +577,11 @@ function SimpleEditModal({ tpl, onSave, onClose }) {
         {body.trim() && (
           <div style={{marginBottom:14}}>
             <div style={{...label,marginBottom:6}}>ТАК ПОБАЧИТЬ КЛІЄНТ (приклад)</div>
+            <div style={{borderRadius:16,padding:"10px 12px",background:"rgba(0,0,0,0.35)",border:"1px solid rgba(255,255,255,0.12)",marginBottom:8}}>
+              <div style={{display:"flex",alignItems:"center",gap:6,fontSize:10.5,color:"rgba(255,255,255,0.6)",marginBottom:4}}><MetalIcon name="bell" size={14}/>JUNO · зараз</div>
+              <div style={{fontSize:12.5,fontWeight:800,color:"#fff"}}>{title}</div>
+              <div style={{fontSize:12.5,color:"rgba(255,255,255,0.88)",whiteSpace:"pre-wrap",display:"-webkit-box",WebkitLineClamp:4,WebkitBoxOrient:"vertical",overflow:"hidden"}}>{renderSample(body)}</div>
+            </div>
             <div className="bubble-preview" style={{whiteSpace:"pre-wrap"}}>{renderSample(body)}</div>
           </div>
         )}
@@ -537,31 +598,33 @@ function SimpleEditModal({ tpl, onSave, onClose }) {
 }
 
 // ─── РЯДОК «СИТУАЦІЇ» у простому режимі ────────────────────────────
+// Нейтральна картка (як у решті застосунку): колір лише в іконці; ✎ — підказка, що текст можна змінити
 function SimpleRow({ emoji, title, hint, color, active, onToggle, onEdit, snippet, action, children }) {
+  const { TEXT, DIM, BORDER, SURFACE } = useContext(ThemeContext);
   const stop = e => e.stopPropagation();
   return (
     <div className="fade-in" onClick={onEdit} style={{
-      position:"relative",overflow:"hidden",borderRadius:16,padding:"14px 14px",cursor:"pointer",
-      background:`color-mix(in srgb,${color} 26%,transparent)`,backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",
-      border:`1px solid color-mix(in srgb,${color} 55%,transparent)`,
-      opacity:active===false?0.6:1,
+      position:"relative",overflow:"hidden",borderRadius:16,padding:"12px 13px",cursor:onEdit?"pointer":"default",
+      background:SURFACE,backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",
+      border:`1px solid ${BORDER}`,opacity:active===false?0.6:1,
     }}>
-      <div style={{display:"flex",alignItems:"center",gap:9}}>
+      <div style={{display:"flex",alignItems:"center",gap:10}}>
         {EMOJI_ICON[emoji]
-          ? <MetalIcon name={EMOJI_ICON[emoji]} color={color} square size={34}/>
-          : <span style={{fontSize:20,flexShrink:0,lineHeight:1}}>{emoji}</span>}
+          ? <MetalIcon name={EMOJI_ICON[emoji]} color={color} square size={32}/>
+          : <span style={{width:32,height:32,borderRadius:10,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0,background:`color-mix(in srgb,${color} 22%,transparent)`}}>{emoji}</span>}
         <div style={{flex:1,minWidth:0}}>
-          <div style={{fontSize:15,fontWeight:700,color:"#fff"}}>{title}</div>
-          <div style={{fontSize:12,color:"rgba(255,255,255,0.85)",fontWeight:500,marginTop:2}}>{hint}</div>
+          <div style={{fontSize:14.5,fontWeight:700,color:TEXT}}>{title}</div>
+          <div style={{fontSize:11.5,color:DIM,fontWeight:500,marginTop:1}}>{hint}</div>
         </div>
         {onToggle && <div onClick={stop}><Toggle on={active} onChange={onToggle}/></div>}
         {action}
       </div>
       {snippet && (
-        <div style={{
-          marginTop:10,fontSize:12.5,lineHeight:1.45,color:"rgba(255,255,255,0.92)",
-          display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden",
-        }}>{snippet}</div>
+        <div style={{display:"flex",gap:8,alignItems:"flex-start",marginTop:9,padding:"8px 10px",borderRadius:10,background:"rgba(127,127,127,0.10)"}}>
+          <div style={{flex:1,minWidth:0,fontSize:12.5,lineHeight:1.45,color:TEXT,opacity:0.9,whiteSpace:"pre-line",
+            display:"-webkit-box",WebkitLineClamp:3,WebkitBoxOrient:"vertical",overflow:"hidden"}}>{snippet}</div>
+          {onEdit && <span aria-hidden style={{fontSize:13,color:DIM,flexShrink:0}}>✎</span>}
+        </div>
       )}
       {children}
     </div>
@@ -569,8 +632,9 @@ function SimpleRow({ emoji, title, hint, color, active, onToggle, onEdit, snippe
 }
 
 // ─── MAIN ────────────────────────────────────────────────────────
+const navTo = tab => window.dispatchEvent(new CustomEvent("id4drive-nav", { detail: tab }));
 export default function TemplatesView() {
-  const { TEXT, FAINT } = useContext(ThemeContext);
+  const { TEXT, FAINT, DIM, BORDER, SURFACE, ACC_HI, ACCENT, BTN_TX } = useContext(ThemeContext);
   const css = makeCSS();
   const lang = useContext(LangContext);
   const t = createT(lang);
@@ -580,18 +644,30 @@ export default function TemplatesView() {
   const [sendTpl, setSendTpl] = useState(null);
   const [simpleTpl, setSimpleTpl] = useState(null);
   const [advOpen, setAdvOpen] = useState(false);
+  const [showInfo, setShowInfo] = useState(false);
+  const [tone, setToneState] = useState("ty");
+  const [, setMasterName] = useState("");
   const saveTimer = useRef(null);
 
   useEffect(() => {
+    get(iRef("admin_settings/profile/name")).then(sn => { SAMPLE_MASTER = sn.val() || ""; setMasterName(SAMPLE_MASTER); }).catch(() => {});
+    get(iRef("admin_settings/tplTone")).then(sn => { if (sn.val() === "vy") setToneState("vy"); }).catch(() => {});
     get(iRef( 'admin_data/templates')).then(snap => {
       const d = snap.val();
-      if (Array.isArray(d)) setTemplates(d.map(x => {
-        if (!x || typeof x.body !== "string") return x;
-        // прибираємо стару назву з незмінених стандартних текстів
-        if (x.id === "t2" && x.body === old2) return { ...x, body: new2 };
-        if (x.id === "t5" && (x.body === OLD_T5 || x.body === DP_T5)) return { ...x, body: INIT_TEMPLATES.find(t => t.id === "t5").body };
-        return x;
-      }));
+      if (Array.isArray(d)) {
+        const fixed = d.map(x => {
+          if (!x || typeof x.body !== "string") return x;
+          // прибираємо стару назву / застарілі формулювання з незмінених стандартних текстів
+          if (x.id === "t2" && x.body === old2) return { ...x, body: new2 };
+          if (x.id === "t5" && (x.body === OLD_T5 || x.body === DP_T5 || x.body === OLD_T5B)) return { ...x, body: INIT_TEMPLATES.find(t => t.id === "t5").body };
+          if (x.id === "t6" && x.body === OLD_T6B) return { ...x, body: INIT_TEMPLATES.find(t => t.id === "t6").body };
+          return x;
+        });
+        // нові стандартні ситуації (перенесення, подяка, давно не були, день народження) — додаємо, якщо їх ще немає
+        const have = new Set(fixed.filter(Boolean).map(x => x.id));
+        const add = INIT_TEMPLATES.filter(x => ["t9","t10","t11","t12"].includes(x.id) && !have.has(x.id));
+        setTemplates([...fixed, ...add]);
+      }
       setLoaded(true);
     }).catch(() => setLoaded(true));
   }, []);
@@ -604,6 +680,20 @@ export default function TemplatesView() {
     }, 800);
   }, [templates, loaded]);
 
+  // Звертання «на ти / на Ви»: міняємо лише стандартні (не змінені майстром) тексти
+  const setTone = (v) => {
+    if (v === tone) return;
+    setToneState(v);
+    update(iRef("admin_settings"), { tplTone: v }).catch(() => {});
+    setTemplates(ts => ts.map(x => {
+      if (!x || !VY[x.id]) return x;
+      if (v === "vy" && x.body === TY[x.id]) return { ...x, body: VY[x.id] };
+      if (v === "ty" && x.body === VY[x.id]) return { ...x, body: TY[x.id] };
+      return x;
+    }));
+  };
+  const stdBody = id => (tone === "vy" ? VY[id] : TY[id]) || (INIT_TEMPLATES.find(x => x.id === id) || {}).body;
+
   const onSave = (form) => {
     setTemplates(ts=>{
       const idx = ts.findIndex(t=>t.id===form.id);
@@ -612,12 +702,13 @@ export default function TemplatesView() {
     });
     setEditTpl(null);
   };
-  const onToggle = (id,v) => setTemplates(ts=>ts.map(t=>t.id===id?{...t,active:v}:t));
-  const onDelete = (id)   => setTemplates(ts=>ts.filter(t=>t.id!==id));
+  const onToggle = (id,v) => setTemplates(ts=>ts.map(t=>t&&t.id===id?{...t,active:v}:t));
+  const onDelete = (id)   => setTemplates(ts=>ts.filter(t=>t&&t.id!==id));
 
   const list = templates.filter(Boolean);
   const stdOf = id => list.find(x => x.id === id);
-  const customList = list.filter(x => !STD_IDS.includes(x.id));
+  const isRem = x => x.trigger === "auto_reminder" && (x.id === "t1" || x.id === "t2" || String(x.id).startsWith("rm"));
+  const customList = list.filter(x => !STD_IDS.includes(x.id) && !isRem(x));
   const missingStd = INIT_TEMPLATES.filter(x => STD_IDS.includes(x.id) && !stdOf(x.id));
   const restoreStd = () => setTemplates(ts => [...ts.filter(Boolean), ...missingStd]);
   const onSimpleSave = (form) => {
@@ -625,7 +716,12 @@ export default function TemplatesView() {
     setSimpleTpl(null);
   };
   const snip = tpl => renderSample(tpl.body);
-  const reminders = ["t1","t2"].map(stdOf).filter(Boolean);
+  const reminders = list.filter(isRem).sort((a, b) => (b.reminderHours ?? 24) - (a.reminderHours ?? 24));
+  const addReminder = () => setTemplates(ts => [...ts, { id:"rm"+Date.now().toString(36), catId:"reminder", title:"Нагадування", channel:"chat", trigger:"auto_reminder", reminderHours:1, active:true, body: stdBody("t2") }]);
+  const hrsLabel = h => `За ${h} год до запису`;
+
+  const segBtn = on => ({ flex:1, padding:"7px 0", borderRadius:10, border:"none", cursor:"pointer", fontFamily:"inherit", fontSize:12, fontWeight:700,
+    background:on?`linear-gradient(145deg,${ACC_HI},${ACCENT})`:"transparent", color:on?(BTN_TX||"#fff"):DIM });
 
   return (
     <>
@@ -633,62 +729,71 @@ export default function TemplatesView() {
       <style>{css}</style>
       <div style={{display:"flex",flexDirection:"column",gap:8,fontFamily:"ui-sans-serif,-apple-system,system-ui,sans-serif",color:TEXT}}>
 
-        {/* ── ПРОСТИЙ РЕЖИМ: що і коли надсилається ── */}
-        <Hint>
-          Що і коли надсилається клієнтам. Вимкніть непотрібне або натисніть, щоб змінити текст.
-        </Hint>
+        {/* ── ШАПКА: звертання + підказка за (i) ── */}
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          <span style={{fontSize:12,color:DIM,fontWeight:700,whiteSpace:"nowrap"}}>Звертання:</span>
+          <div style={{flex:1,display:"flex",gap:4,padding:3,borderRadius:12,border:`1px solid ${BORDER}`,background:SURFACE}}>
+            <button onClick={()=>setTone("ty")} style={segBtn(tone==="ty")}>на «ти»</button>
+            <button onClick={()=>setTone("vy")} style={segBtn(tone==="vy")}>на «Ви»</button>
+          </div>
+          <button onClick={()=>setShowInfo(v=>!v)} aria-label="Підказка" style={{width:36,height:36,borderRadius:12,border:"none",cursor:"pointer",background:"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}><MetalIcon name="info" size={26}/></button>
+        </div>
+        {showInfo && <Hint>Що і коли надсилається клієнтам. Вимкніть непотрібне або натисніть на картку, щоб змінити текст. Звертання змінює лише стандартні тексти — ваші власні лишаються як є.</Hint>}
+
         <div style={{display:"flex",flexDirection:"column",gap:8}}>
-          {reminders.length > 0 && (
-            <SimpleRow emoji="🔔" title="Нагадування перед записом" color={GOLD}
-              hint="Надсилається автоматично перед кожним записом"
-              onEdit={()=>setSimpleTpl(reminders[0])}>
-              <div style={{display:"flex",flexDirection:"column",gap:6,marginTop:9}} onClick={e=>e.stopPropagation()}>
-                {reminders.map(r=>(
-                  <div key={r.id} onClick={()=>setSimpleTpl(r)} style={{
-                    display:"flex",alignItems:"center",gap:8,padding:"10px 12px",borderRadius:14,cursor:"pointer",
-                    background:"rgba(255,255,255,0.1)",opacity:r.active?1:0.55,
-                  }}>
-                    <div style={{flex:1,minWidth:0}}>
-                      <div style={{fontSize:13.5,fontWeight:700,color:"#fff"}}>{`За ${r.reminderHours ?? 24} год до запису`}</div>
-                      <div style={{fontSize:12,color:"rgba(255,255,255,0.9)",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}}>{snip(r)}</div>
-                    </div>
-                    <div onClick={e=>e.stopPropagation()}><Toggle on={r.active} onChange={v=>onToggle(r.id,v)}/></div>
+          <SimpleRow emoji="🔔" title="Нагадування перед записом" color={GOLD}
+            hint="Автоматично перед кожним записом (до 3 нагадувань)">
+            <div style={{display:"flex",flexDirection:"column",gap:6,marginTop:9}} onClick={e=>e.stopPropagation()}>
+              {reminders.map(r=>(
+                <div key={r.id} onClick={()=>setSimpleTpl(r)} style={{
+                  display:"flex",alignItems:"center",gap:8,padding:"9px 10px",borderRadius:12,cursor:"pointer",
+                  background:"rgba(127,127,127,0.10)",opacity:r.active?1:0.55,
+                }}>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:13,fontWeight:700,color:TEXT,display:"flex",gap:6}}><span>{hrsLabel(r.reminderHours ?? 24)}</span><span style={{color:DIM,fontWeight:500}}>✎</span></div>
+                    <div style={{fontSize:12,color:TEXT,opacity:0.85,display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}}>{snip(r)}</div>
                   </div>
-                ))}
-              </div>
-            </SimpleRow>
-          )}
-          {["t3","t4","t5","t6","t7"].map(stdOf).filter(Boolean).map(tpl=>{
+                  {String(r.id).startsWith("rm") && <button aria-label="Видалити нагадування" onClick={e=>{e.stopPropagation();onDelete(r.id);}} style={{background:"none",border:"none",color:"#f87171",fontSize:20,cursor:"pointer",padding:"0 4px"}}>×</button>}
+                  <div onClick={e=>e.stopPropagation()}><Toggle on={r.active} onChange={v=>onToggle(r.id,v)}/></div>
+                </div>
+              ))}
+              {reminders.length < 3 && (
+                <button onClick={addReminder} style={{padding:"9px",borderRadius:12,border:`1px dashed ${BORDER}`,background:"transparent",color:DIM,fontSize:12.5,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>+ Додати нагадування</button>
+              )}
+            </div>
+          </SimpleRow>
+          {["t3","t9","t4","t5","t6","t10","t11","t12","t7"].map(stdOf).filter(Boolean).map(tpl=>{
             const info = STD_INFO[tpl.id];
             const manual = tpl.trigger === "manual";
+            const hint = tpl.id === "t11" ? `Коли клієнт не записувався ${tpl.days || 60} днів` : info.hint;
             return (
-              <SimpleRow key={tpl.id} emoji={info.emoji} title={info.title} hint={info.hint} color={info.color}
+              <SimpleRow key={tpl.id} emoji={info.emoji} title={info.title} hint={hint} color={info.color}
                 active={tpl.active} snippet={snip(tpl)}
                 onEdit={()=>setSimpleTpl(tpl)}
                 onToggle={manual ? undefined : (v=>onToggle(tpl.id,v))}
                 action={manual ? (
                   <button onClick={e=>{e.stopPropagation();setSendTpl(tpl);}} style={{
-                    padding:"9px 15px",border:"none",borderRadius:99,cursor:"pointer",fontFamily:"inherit",
-                    background:"rgba(255,255,255,0.16)",color:"#fff",fontSize:12,fontWeight:700,flexShrink:0,
-                  }}>Надіслати</button>
+                    padding:"8px 13px",border:"none",borderRadius:99,cursor:"pointer",fontFamily:"inherit",
+                    background:`linear-gradient(145deg,${ACC_HI},${ACCENT})`,color:BTN_TX||"#fff",fontSize:12,fontWeight:700,flexShrink:0,
+                  }}>Кому надіслати</button>
                 ) : null}/>
             );
           })}
         </div>
 
         {/* ── ДОДАТКОВО: свої шаблони, канали, умови ── */}
-        <div style={{marginTop:6}}>
-          <div onClick={()=>setAdvOpen(o=>!o)} style={{
-            display:"flex",alignItems:"center",gap:9,padding:"14px 14px",borderRadius:16,cursor:"pointer",
-            background:"rgba(255,255,255,0.07)",border:"1px solid rgba(255,255,255,0.14)",backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",
+        <div style={{marginTop:4}}>
+          <button onClick={()=>setAdvOpen(o=>!o)} style={{
+            width:"100%",display:"flex",alignItems:"center",gap:10,padding:"12px 13px",borderRadius:16,cursor:"pointer",fontFamily:"inherit",textAlign:"left",
+            background:SURFACE,border:`1px solid ${BORDER}`,color:TEXT,
           }}>
             <MetalIcon name="gear" size={28}/>
-            <div style={{flex:1,minWidth:0}}>
-              <div style={{fontSize:15,fontWeight:700,color:TEXT}}>Додатково</div>
-              <Hint style={{marginTop:2}}>Свої шаблони, канали, умови відправки</Hint>
-            </div>
-            <span style={{color:FAINT,fontSize:12}}>{advOpen?"▲":"▼"}</span>
-          </div>
+            <span style={{flex:1,minWidth:0}}>
+              <span style={{display:"block",fontSize:14.5,fontWeight:700}}>Додатково</span>
+              <span style={{display:"block",fontSize:11.5,color:DIM,marginTop:1}}>Свої шаблони, канали, умови відправки</span>
+            </span>
+            <span style={{color:DIM,fontSize:20,transform:advOpen?"rotate(90deg)":"none",transition:"transform .2s"}}>›</span>
+          </button>
 
           {advOpen && (
             <div style={{display:"flex",flexDirection:"column",gap:7,marginTop:8}}>
@@ -719,7 +824,7 @@ export default function TemplatesView() {
       </div>
 
       {editTpl !== null && <EditModal tpl={editTpl||null} onSave={onSave} onClose={()=>setEditTpl(null)}/>}
-      {simpleTpl && <SimpleEditModal tpl={simpleTpl} onSave={onSimpleSave} onClose={()=>setSimpleTpl(null)}/>}
+      {simpleTpl && <SimpleEditModal tpl={simpleTpl} stdBody={stdBody} onSave={onSimpleSave} onClose={()=>setSimpleTpl(null)}/>}
       {sendTpl && <SendModal tpl={sendTpl} onClose={()=>setSendTpl(null)}/>}
     </>
   );

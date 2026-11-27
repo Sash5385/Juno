@@ -1437,23 +1437,8 @@ select{color-scheme:dark}
               ? "These are messages the system sends to clients by itself, without you. You can change the texts on the «Templates» tab.\n\n• Reminders — how many hours before a lesson the client gets a reminder. You can set up to three, for example 24 and 2 hours. The switch on the left turns each one on or off. Reminders reduce missed lessons.\n• Cancellation message — the client gets a message if their booking was cancelled.\n• Queue offer — when a place frees up, a client from the queue automatically gets an offer to book (the first one or everyone, depending on the queue mode).\n• Slot freed notification — when a place frees up in the next 10 days, all clients find out at once."
               : "Це повідомлення, які система надсилає клієнтам сама, без вашої участі. Самі тексти повідомлень можна змінити на вкладці «Шаблони».\n\n• Нагадування — за скільки годин до запису клієнт отримає нагадування. Можна задати до трьох, наприклад за 24 і за 2 години. Перемикач зліва вмикає або вимикає кожне окремо. Нагадування зменшують кількість пропущених записів.\n• Повідомлення про скасування — клієнт отримає повідомлення, якщо його запис скасували.\n• Пропозиція з черги — коли звільняється місце, клієнт із черги автоматично отримує пропозицію записатись (першому або всім, залежно від режиму черги).\n• Сповіщення при звільненні слоту — коли в найближчі 10 днів звільняється місце, про це одразу дізнаються всі клієнти."}
           />}
-          <div style={{paddingTop:10,display:"flex",flexDirection:"column",gap:5}}>
-            <div style={{fontSize:11,color:DIM,letterSpacing:1,textTransform:"uppercase",marginBottom:2,fontWeight:700}}>{t('set.auto.reminder')}</div>
-            {reminders.map((r,i)=>(
-              <div key={i} style={{
-                display:"flex",alignItems:"center",gap:10,flexWrap:"wrap",
-                background:SURF_HI,border:`1px solid ${BORDER}`,
-                borderRadius:14,padding:"9px 12px",minHeight:56,
-              }}>
-                <SmallToggle color={svColor(r.enabled)} on={r.enabled} onChange={v=>updReminder(i,{enabled:v})}/>
-                <div style={{flex:"1 1 130px",minWidth:0}}>
-                  <div style={{fontSize:14,fontWeight:600,color:TEXT}}>{lang==="en"?"Reminder":"Нагадування"} #{i+1}</div>
-                  <div style={{fontSize:11.5,color:DIM,marginTop:2}}>{t('set.auto.rem_h')}</div>
-                </div>
-                <div style={{marginLeft:"auto",opacity:r.enabled?1:0.35,pointerEvents:r.enabled?"auto":"none",transition:"opacity .2s"}}><NumInput value={r.hoursBefore} onChange={v=>updReminder(i,{hoursBefore:v})} min={1} max={168} suffix={` ${t('hr')}`}/></div>
-              </div>
-            ))}
-          </div>
+          {/* Нагадування клієнтам надсилаються за шаблонами (Шаблони → «Нагадування перед записом») — там і час, і текст */}
+          <button onClick={()=>window.dispatchEvent(new CustomEvent("id4drive-nav",{detail:"templates"}))} style={{width:"100%",display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,padding:"12px 14px",margin:"10px 0 6px",borderRadius:14,border:`1px solid ${BORDER}`,cursor:"pointer",fontFamily:"inherit",textAlign:"left",background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,boxShadow:SO,color:TEXT}}><span style={{minWidth:0}}><span style={{display:"block",fontSize:14,fontWeight:700}}>Нагадування перед записом</span><span style={{display:"block",fontSize:11.5,color:DIM,marginTop:2}}>Коли і що отримує клієнт — у розділі «Шаблони»</span></span><span style={{fontSize:20,color:DIM}}>›</span></button>
           <Row color={svColor(!!settings.autoCancel?.enabled)} label={t('set.auto.cancel')}>
             <Toggle color={svColor(!!settings.autoCancel?.enabled)} on={!!settings.autoCancel?.enabled} onChange={v=>setSettings(s=>({...s,autoCancel:{...(s.autoCancel||{}),enabled:v}}))}/>
           </Row>
@@ -1761,6 +1746,13 @@ select{color-scheme:dark}
   }
 
   const [displayedSection, mosaicPhase] = useMosaicSwitch(active);
+  // Планшет/ПК: розділи — колонкою зліва, вміст праворуч
+  const [wide, setWide] = useState(() => typeof window !== "undefined" && window.innerWidth >= 768);
+  useEffect(() => {
+    const on = () => setWide(window.innerWidth >= 768);
+    window.addEventListener("resize", on);
+    return () => window.removeEventListener("resize", on);
+  }, []);
   const activeSec = SECTIONS.find(s => s.id === displayedSection);
 
   return (
@@ -1769,15 +1761,25 @@ select{color-scheme:dark}
       <style>{css}</style>
       {confirmNode}{toastNode}
       <div style={{
-        display:"flex", flexDirection:"column", gap:10,
+        display:"flex", flexDirection:wide?"row":"column", alignItems:wide?"flex-start":"stretch", gap:wide?14:10,
         fontFamily:"Inter,ui-sans-serif,-apple-system,system-ui,sans-serif", color:TEXT,
         minHeight:"calc(100dvh - 190px)",
       }}>
 
         {/* SECTION GRID — 8 розділів сіткою 4×2: усі видно одразу, без гортання вбік */}
-        <div style={{display:"grid",gridTemplateColumns:"repeat(4,minmax(0,1fr))",gap:5}}>
+        <div style={wide
+          ? {display:"flex",flexDirection:"column",gap:6,width:200,flexShrink:0,position:"sticky",top:8}
+          : {display:"grid",gridTemplateColumns:"repeat(4,minmax(0,1fr))",gap:5}}>
           {SECTIONS.map(sec => {
             const isActive = active === sec.id;
+            if (wide) return (
+              <button key={sec.id} data-active={isActive?"1":"0"} onClick={()=>switchSection(sec.id)} style={{
+                display:"flex",alignItems:"center",gap:10,padding:"7px 12px 7px 8px",borderRadius:14,fontSize:13.5,fontWeight:700,fontFamily:"inherit",cursor:"pointer",textAlign:"left",
+                border:`1px solid ${isActive?"transparent":BORDER}`,backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",
+                background:isActive?`linear-gradient(145deg,${ACC_HI},${ACCENT})`:SURFACE,color:isActive?"#06182e":DIM,
+                boxShadow:isActive?`0 6px 16px ${ACCENT}59`:"none",
+              }}><MetalIc id={sec.id} size={28}/><span style={{minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{sec.label}</span></button>
+            );
             return (
               <button key={sec.id} data-active={isActive?"1":"0"} onClick={()=>switchSection(sec.id)} style={{
                 minWidth:0,fontSize:"min(10.5px, 3vw)",fontWeight:700,fontFamily:"inherit",cursor:"pointer",padding:"3px 1px 4px",borderRadius:12,lineHeight:1.15,
@@ -1790,9 +1792,11 @@ select{color-scheme:dark}
           })}
         </div>
 
-      {active === "profile" && bookingSlug && (
+        {/* PANEL — section content (розтягується на всю висоту) */}
+        <div style={{minWidth:0,flex:1,display:"flex",flexDirection:"column"}}>
+          {active === "profile" && bookingSlug && (
           <div style={{
-            padding:"12px 14px", borderRadius:14,
+            padding:"12px 14px", borderRadius:14, marginBottom:10,
             background:`linear-gradient(135deg,color-mix(in srgb,${ACCENT} 42%,${BG_DEEP}) 0%,${BG_DEEP} 100%)`,
             border:`1px solid color-mix(in srgb,${ACCENT} 35%,transparent)`,
           }}>
@@ -1816,8 +1820,6 @@ select{color-scheme:dark}
             )}
           </div>
         )}
-        {/* PANEL — section content (розтягується на всю висоту) */}
-        <div style={{minWidth:0,flex:1,display:"flex",flexDirection:"column"}}>
           <div style={{
             position:"relative", flex:active==="team"?"0 0 auto":1, // «Команда» — коротка картка: без розтягування на весь екран
             borderRadius:18,
