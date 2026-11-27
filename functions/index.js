@@ -1445,6 +1445,19 @@ exports.onTemplatePush = onValueCreated(
   }
 );
 
+// «Надіслати тест собі» з вкладки «Шаблони»: майстер бачить, як прийде сповіщення клієнту
+exports.onTemplateTest = onValueCreated(
+  { ref: "instructors/{iid}/templateTest/{id}", region: "europe-west1" },
+  async (event) => {
+    const { iid, id } = event.params;
+    const req = event.data.val();
+    if (req && typeof req.title === "string" && typeof req.body === "string") {
+      await pushAdmin(iid, `🧪 ${req.title.slice(0, 100)}`, req.body.slice(0, 1000), {}).catch(() => false);
+    }
+    await iRef(iid, `templateTest/${id}`).remove().catch(() => {});
+  }
+);
+
 // Кожні 5 хв: нагадування за 24 год і за 2 год до запису. Раніше запуск був раз на годину з
 // вікном ±30 хв — тому "за 2 год" могло прийти за 2г25хв до запису. Тепер вікна вузькі:
 // надсилаємо, щойно до запису лишилось ≤24г / ≤2г (і не раніше ніж 23г / 1г45хв).

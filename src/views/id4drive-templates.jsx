@@ -503,6 +503,7 @@ function SimpleEditModal({ tpl, stdBody, onSave, onClose }) {
   const [body, setBody] = useState(tpl.body || "");
   const [hours, setHours] = useState(tpl.reminderHours ?? 24);
   const [days, setDays] = useState(tpl.days || 60);
+  const [testState, setTestState] = useState(null);
   const isWinback = tpl.trigger === "auto_winback";
   const taRef = useRef(null);
   const isReminder = tpl.trigger === "auto_reminder";
@@ -583,6 +584,11 @@ function SimpleEditModal({ tpl, stdBody, onSave, onClose }) {
               <div style={{fontSize:12.5,color:"rgba(255,255,255,0.88)",whiteSpace:"pre-wrap",display:"-webkit-box",WebkitLineClamp:4,WebkitBoxOrient:"vertical",overflow:"hidden"}}>{renderSample(body)}</div>
             </div>
             <div className="bubble-preview" style={{whiteSpace:"pre-wrap"}}>{renderSample(body)}</div>
+            <button onClick={async()=>{ setTestState("sending"); try { await push(iRef("templateTest"), { title, body: renderSample(body) }); setTestState("sent"); } catch { setTestState("err"); } setTimeout(()=>setTestState(null), 4000); }}
+              disabled={testState==="sending"}
+              style={{marginTop:8,width:"100%",padding:"10px",borderRadius:12,border:"1px solid rgba(255,255,255,0.18)",background:"transparent",color:"#fff",fontSize:12.5,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>
+              {testState==="sent" ? "✓ Надіслано на ваші пристрої" : testState==="err" ? "Не вдалося надіслати" : testState==="sending" ? "Надсилаємо…" : "🧪 Надіслати тест собі"}
+            </button>
           </div>
         )}
 

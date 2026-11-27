@@ -68,6 +68,8 @@
         // Склад робочого простору (салон): { uid: { role: 'owner' | 'master', name, color, joinedAt } }.
         // Власник (uid === iid) — завжди роль owner; майстри — лише master. Читає власник і сам склад; пише лише власник.
         // Публічний список майстрів салону (для сторінки запису клієнта): { masterId: { name, color, owner } } — синхронізує застосунок власника зі складом
+        // «Надіслати тест собі» (Шаблони): власник кладе {title, body}, функція onTemplateTest шле push на його пристрої і прибирає вузол
+        "templateTest": { "$id": { ".validate": "newData.hasChildren(['title','body']) && newData.child('title').isString() && newData.child('title').val().length <= 100 && newData.child('body').isString() && newData.child('body').val().length <= 1000" } },
         "masters": { ".read": true },
         // Власні налаштування майстра салону: { weekSchedule, workStart, workEnd, lunch*, svc: { serviceId: { price, duration, active } } }.
         // Читає хто завгодно (клієнт бачить ціни й години майстра), пише власник або сам майстер. Нема запису — діють налаштування салону.
