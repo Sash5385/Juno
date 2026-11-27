@@ -1,9 +1,10 @@
-import { useState, useEffect, useRef, useMemo, useContext } from "react";
+import { useState, useEffect, useMemo, useContext } from "react";
 import { MetalIcon } from "../MetalIcon";
 import { onValue, update, remove } from "firebase/database";
+import { useConfirm } from "../ConfirmModal";
 import { iRef, auth } from "../firebase";
 import { ThemeContext } from "../theme.js";
-import { UICss, Section, useFX, ScrollChips } from "../ui";
+import { UICss, Section, ScrollChips } from "../ui";
 import { normStaff } from "../workspace";
 
 const SERVICES = {
@@ -33,143 +34,70 @@ function isSlotPast(slotKey) {
   return dt.getTime() < Date.now();
 }
 
-// ─── DRAG REORDER ────────────────────────────────────────────────
-function useDragReorder(items, onReorder) {
-  const dragIdx  = useRef(null);
-  const overIdx  = useRef(null);
-  const itemsRef = useRef(items);
-  useEffect(() => { itemsRef.current = items; }, [items]);
+// ─── ДОПОМІЖНЕ ───────────────────────────────────────────────────
+const OFFER_MS = 30 * 60 * 1000; // запрошення діє 30 хв (OFFER_WINDOW_MS на сервері)
+const parseKey = (slotKey) => {
+  const k = String(slotKey || "");
+  const i = k.indexOf("~");
+  const rest = i > 0 ? k.slice(i + 1) : k;
+  const [date, time] = rest.split("_");
+  return { master: i > 0 ? k.slice(0, i) : null, date: date || "", time: time || "" };
+};
+const DOW = ["нд","пн","вт","ср","чт","пт","сб"];
+const slotTitle = (date, time) => {
+  if (!date) return "Без дати";
+  const d = new Date(`${date}T12:00:00`);
+  return `${DOW[d.getDay()]} ${date.slice(8,10)}.${date.slice(5,7)} · ${time}`;
+};
+const navTo = tab => window.dispatchEvent(new CustomEvent("id4drive-nav", { detail: tab }));
 
-  const getHandlers = (idx) => ({
-    onPointerDown: (e) => { e.stopPropagation(); dragIdx.current = idx; overIdx.current = idx; },
-    onPointerMove: (e) => {
-      if (dragIdx.current === null) return;
-      const el = document.elementFromPoint(e.clientX, e.clientY);
-      const card = el?.closest("[data-drag-idx]");
-      if (card) {
-        const newIdx = parseInt(card.dataset.dragIdx);
-        if (newIdx !== overIdx.current) {
-          const arr = [...itemsRef.current];
-          const [moved] = arr.splice(dragIdx.current, 1);
-          arr.splice(newIdx, 0, moved);
-          dragIdx.current  = newIdx;
-          overIdx.current  = newIdx;
-          itemsRef.current = arr;
-          onReorder(arr);
-        }
-      }
-    },
-    onPointerUp: () => { dragIdx.current = null; overIdx.current = null; },
-  });
-  return { getHandlers };
-}
-
-// ─── QUEUE ITEM ROW ──────────────────────────────────────────────
-function getHours(item, svc) {
-  if (item.durationHours) return item.durationHours;
-  const m = (svc.name || "").match(/(\d+)г/);
-  return m ? parseInt(m[1]) : null;
-}
-
-function QueueRow({ item, pos, onInvite, onBooked, onArchive, onDelete, dragHandleProps, isDragging, svcMap, master }) {
-  const { BORDER, FAINT, GOLD, GREEN, PURPLE, BG_DEEP, TEXT } = useContext(ThemeContext);
-  const { shade, glow } = useFX();
-
-  const STATUS_CFG = {
-    waiting:  { label:"Очікує",    color:PURPLE },
-    offered:  { label:"Запрошено", color:GOLD   },
-    booked:   { label:"Записаний", color:GREEN  },
-    archived: { label:"Архів",     color:FAINT  },
-  };
-
-  const ACT_BTN = extra => ({padding:"8px 2px",border:"none",cursor:"pointer",background:"transparent",color:TEXT,fontSize:11,fontWeight:700,fontFamily:"inherit",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:4,minWidth:0,...extra});
-
-  const svc = (svcMap || SERVICES)[item.svcId] || {};
-  const st  = STATUS_CFG[item.status] || STATUS_CFG.waiting;
-  const hrs = getHours(item, svc);
-  const svcLabel = svc.name || (item.studentType && (item.studentType==="school"?"Стандарт":"Індивідуальний"));
-  const initials = (item.name||"?").split(" ").map(w=>w[0]).slice(0,2).join("").toUpperCase();
-
+// ─── РЯДОК ОЧІКУВАЧА У ГРУПІ СЛОТА ───────────────────────────────
+function QueueRow({ item, pos, first, now, svcLabel, onInvite, onReinvite, onCancelInvite, onBooked, onDelete }) {
+  const { BORDER, DIM, FAINT, GOLD, GREEN, TEXT, ACC_HI, ACCENT, BTN_TX } = useContext(ThemeContext);
+  const offered = item.status === "offered";
+  const left = offered && item.offeredAt ? item.offeredAt + OFFER_MS - now : null;
+  const btn = (primary) => ({ padding:"7px 11px", borderRadius:10, cursor:"pointer", fontFamily:"inherit", fontSize:12, fontWeight:700, whiteSpace:"nowrap",
+    border: primary ? "none" : `1px solid ${BORDER}`, background: primary ? `linear-gradient(145deg,${ACC_HI},${ACCENT})` : "transparent", color: primary ? (BTN_TX || "#fff") : TEXT });
+  const icon = { width:32, height:32, borderRadius:10, border:`1px solid ${BORDER}`, background:"transparent", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 };
   return (
-    <div className={`drag-item fade-in ${isDragging?"dragging":""}`} style={{
-      position:"relative", borderRadius:14, marginBottom:8, overflow:"hidden",
-      background:`color-mix(in srgb,${st.color} 26%,transparent)`,backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",
-      border:`1px solid color-mix(in srgb,${st.color} 45%,transparent)`,
-      boxShadow:`-2px 5px 13px ${shade(0.45)},inset 1px 1px 0 ${glow(0.15)}`,
-    }}>
-      <div style={{position:"absolute",pointerEvents:"none",top:0,right:"6%",width:"55%",height:"45%",zIndex:1,
-        background:"radial-gradient(ellipse at top right,rgba(255,255,255,0.18) 0%,transparent 65%)"}}/>
-
-      {/* avatar info row */}
-      <div {...dragHandleProps} style={{position:"relative",zIndex:2,display:"flex",alignItems:"center",gap:10,padding:"9px 11px",cursor:"grab",touchAction:"none"}}>
-        <div style={{position:"relative",flexShrink:0}}>
-          <MetalIcon square size={36} color={st.color}>{initials}</MetalIcon>
-          <div style={{
-            position:"absolute",top:-6,left:-6,minWidth:18,height:18,padding:"0 3px",borderRadius:6,
-            background:BG_DEEP,color:`color-mix(in srgb,${st.color} 55%,#fff)`,fontSize:11,fontWeight:900,
-            display:"flex",alignItems:"center",justifyContent:"center",
-            border:`1px solid color-mix(in srgb,${st.color} 45%,transparent)`,
-          }}>{pos}</div>
-        </div>
-        <div style={{flex:1,minWidth:0}}>
-          <div style={{fontSize:14.5,fontWeight:700,color:"#fff",overflowWrap:"anywhere"}}>{item.name}</div>
-          <div style={{fontSize:11.5,color:"rgba(255,255,255,0.85)",marginTop:2,overflowWrap:"anywhere"}}>
-            {item.phone}
-            {svcLabel && ` · ${svcLabel}${hrs ? ` ${hrs}г` : ""}`}
+    <div style={{ padding:"9px 0", borderTop:pos > 1 ? `1px solid ${BORDER}` : "none" }}>
+      <div style={{ display:"flex", alignItems:"center", gap:9 }}>
+        <span style={{ width:22, height:22, borderRadius:7, flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", fontSize:11.5, fontWeight:900,
+          background: first ? `color-mix(in srgb,${GOLD} 30%,transparent)` : "rgba(127,127,127,0.15)", color: first ? GOLD : DIM }}>{pos}</span>
+        <div style={{ flex:1, minWidth:0 }}>
+          <div style={{ fontSize:14, fontWeight:700, color:TEXT, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>{item.name || "Клієнт"}</div>
+          <div style={{ fontSize:11.5, color:DIM, marginTop:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap" }}>
+            {item.phone ? <a href={`tel:${String(item.phone).replace(/[^\d+]/g, "")}`} style={{ color:DIM }}>{item.phone}</a> : null}
+            {svcLabel ? `${item.phone ? " · " : ""}${svcLabel}` : ""}
           </div>
-          {master && (
-            <div style={{display:"flex",alignItems:"center",gap:5,marginTop:3,fontSize:11.5,color:"rgba(255,255,255,0.85)",minWidth:0}}>
-              <span style={{width:9,height:9,borderRadius:"50%",background:master.color,flexShrink:0}}/>
-              <span style={{overflowWrap:"anywhere"}}>{master.name}</span>
-            </div>
-          )}
+          <div style={{ fontSize:11.5, marginTop:2, color: offered ? GOLD : FAINT, fontWeight: offered ? 700 : 500 }}>
+            {offered
+              ? (left > 0 ? `Запрошено · ще ${Math.ceil(left / 60000)} хв на відповідь` : "Запрошено · час відповіді вийшов")
+              : `чекає ${fmtWait(item.addedAt)}`}
+          </div>
         </div>
-        <div style={{textAlign:"right",flexShrink:0}}>
-          <div style={{fontSize:11,fontWeight:700,color:`color-mix(in srgb,${st.color} 55%,#fff)`}}>{st.label}</div>
-          <div style={{fontSize:11,color:"rgba(255,255,255,0.8)",marginTop:2}}>{fmtWait(item.addedAt)}</div>
-        </div>
+        <button aria-label="Записаний" title="Позначити: записаний" onClick={onBooked} style={icon}><MetalIcon name="checkCircle" size={20}/></button>
+        <button aria-label="Видалити з черги" title="Видалити з черги" onClick={onDelete} style={icon}><MetalIcon name="trash" size={20}/></button>
       </div>
-
-      {/* actions row */}
-      {item.status !== "archived" && (
-        <div style={{display:"grid",gridTemplateColumns:`repeat(${item.status==="waiting"?4:item.status==="offered"?3:2},1fr)`,borderTop:`1px solid ${BORDER}`}}>
-          {item.status === "waiting" && (
-            <button onClick={onInvite} style={ACT_BTN({borderRight:`1px solid ${BORDER}`})}>
-              <MetalIcon name="mail" size={22}/>
-              Запросити
-            </button>
-          )}
-          {(item.status === "waiting" || item.status === "offered") && (
-            <button onClick={onBooked} style={ACT_BTN({borderRight:`1px solid ${BORDER}`})}>
-              <MetalIcon name="checkCircle" size={22}/>
-              Записаний
-            </button>
-          )}
-          <button onClick={onArchive} style={ACT_BTN({borderRight:`1px solid ${BORDER}`})}>
-            <MetalIcon name="list" size={22}/>
-            Архів
-          </button>
-          <button onClick={onDelete} style={ACT_BTN({})}>
-            <MetalIcon name="trash" size={22}/>
-            Відмінити
-          </button>
-        </div>
-      )}
-      {item.status === "archived" && (
-        <div style={{display:"flex",justifyContent:"flex-end",padding:"4px 10px 7px",borderTop:`1px solid ${BORDER}`}}>
-          <button onClick={onDelete} style={{background:"none",border:"none",cursor:"pointer",color:"#f87171",fontSize:12,fontWeight:700,padding:"8px 6px",fontFamily:"inherit"}}><span style={{display:"inline-flex",alignItems:"center",gap:5}}><MetalIcon name="trash" size={20}/>Видалити</span></button>
-        </div>
-      )}
+      <div style={{ display:"flex", gap:6, marginTop:7, marginLeft:31 }}>
+        {!offered && <button onClick={onInvite} style={btn(first)}>Запросити</button>}
+        {offered && <button onClick={onReinvite} style={btn(true)}>Запросити ще раз</button>}
+        {offered && <button onClick={onCancelInvite} style={btn(false)}>Скасувати запрошення</button>}
+      </div>
     </div>
   );
 }
 
 // ─── MAIN ────────────────────────────────────────────────────────
 export default function QueueView({ settings }) {
-  const { DIM, FAINT, GOLD, GREEN, PURPLE, BLUE, TEAL, ACCENT, BORDER, SURFACE, TEXT } = useContext(ThemeContext);
+  const { DIM, FAINT, GOLD, GREEN, PURPLE, BLUE, TEAL, ACCENT, BORDER, SURFACE, TEXT, RED } = useContext(ThemeContext);
+  const [confirm, confirmNode] = useConfirm();
   const [all,       setAll]       = useState([]);
   const [staff,     setStaff]     = useState([]);   // салон: склад майстрів
   const [masterFilter, setMasterFilter] = useState(""); // "" — усі майстри
+  const [slotState, setSlotState] = useState({}); // `${root}/${date}` → { slotHHMM: slot }
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => { const id = setInterval(() => setNow(Date.now()), 30000); return () => clearInterval(id); }, []);
 
   useEffect(() => {
     const owner = auth.currentUser?.uid || "";
@@ -177,79 +105,86 @@ export default function QueueView({ settings }) {
   }, []);
   const isSalonQ = staff.length > 1;
   const ownerUid = (staff.find(m => m.owner) || {}).id || auth.currentUser?.uid || "";
-  // Майстер запису: префікс «{mid}~» у ключі слота, без нього — власник
-  const masterIdOf = q => {
-    const k = String(q.slotKey || "");
-    const i = k.indexOf("~");
-    return i > 0 ? k.slice(0, i) : (typeof q.masterId === "string" && q.masterId) || ownerUid;
-  };
+  const masterIdOf = q => parseKey(q.slotKey).master || (typeof q.masterId === "string" && q.masterId) || ownerUid;
   const masterById = id => staff.find(m => m.id === id);
 
   const colorIdMap = useMemo(() => ({
     green: GREEN, yellow: GOLD, blue: BLUE, purple: PURPLE,
     teal: TEAL, red: "#ff5a3c", pink: "#f472b6", orange: "#fb923c",
   }), [GREEN, GOLD, BLUE, PURPLE, TEAL]);
-
   const svcMap = useMemo(() => {
     const m = { ...SERVICES };
-    (settings?.services || []).forEach(s => {
-      if (s?.id) m[s.id] = { name: s.name, color: colorIdMap[s.colorId] || s.colorId };
-    });
+    (settings?.services || []).forEach(s => { if (s?.id) m[s.id] = { name: s.name, color: colorIdMap[s.colorId] || s.colorId }; });
     return m;
   }, [settings?.services, colorIdMap]);
 
-  // Firebase sync — підтримує і клієнтську структуру queue/${slotKey}/entries/${uid}
+  // Firebase sync — клієнтська структура queue/${slotKey}/entries/${uid} і стара плоска
   useEffect(() => {
-    return onValue(iRef( "queue"), snap => {
+    return onValue(iRef("queue"), snap => {
       const d = snap.val();
       if (!d) { setAll([]); return; }
       const entries = [];
       Object.entries(d).forEach(([key, val]) => {
-        if (val?.entries) {
-          // Клієнтська структура: queue/${slotKey}/entries/${uid}
-          Object.entries(val.entries).forEach(([uid, e]) => {
-            entries.push({ id: `${key}/entries/${uid}`, slotKey: key, uid, ...e });
-          });
-        } else if (val && typeof val === "object" && !Array.isArray(val)) {
-          // Стара плоска структура (ручне додавання адміном)
-          entries.push({ id: key, ...val });
-        }
+        if (val?.entries) Object.entries(val.entries).forEach(([uid, e]) => entries.push({ id: `${key}/entries/${uid}`, slotKey: key, uid, ...e }));
+        else if (val && typeof val === "object" && !Array.isArray(val)) entries.push({ id: key, ...val });
       });
-      entries.sort((a,b) => (a.order ?? a.addedAt ?? 0) - (b.order ?? b.addedAt ?? 0));
+      entries.sort((a, b) => (a.addedAt || 0) - (b.addedAt || 0)); // як на сервері: хто раніше став — той перший
       setAll(entries);
-    }, ()=>{});
+    }, () => {});
   }, []);
 
-  // drag reorder
-  const { getHandlers } = useDragReorder(all, newArr => {
-    setAll(newArr);
-    newArr.forEach((item,i) => update(iRef(`queue/${item.id}`),{order:i}));
-  });
-
-  const isExpired = q => q.status === "waiting" && isSlotPast(q.slotKey);
+  const isExpired = q => (q.status === "waiting" || q.status === "offered") && isSlotPast(q.slotKey);
   const shown    = isSalonQ && masterFilter ? all.filter(q => masterIdOf(q) === masterFilter) : all;
-  const active   = shown.filter(q => q.status !== "archived" && !isExpired(q));
-  const expired  = shown.filter(q => q.status !== "archived" && isExpired(q));
-  const archived = shown.filter(q => q.status === "archived");
-  const mOf = q => (isSalonQ ? masterById(masterIdOf(q)) : undefined);
+  const active   = shown.filter(q => (q.status === "waiting" || q.status === "offered") && !isExpired(q));
+  const expired  = shown.filter(q => isExpired(q));
+  const archived = shown.filter(q => q.status === "archived" || q.status === "booked");
 
-  const setStatus = (id, status) => update(iRef(`queue/${id}`),{status});
-  const invite    = id => setStatus(id,"offered");
-  const booked    = id => setStatus(id,"booked");
-  const archive   = id => setStatus(id,"archived");
-  const del       = id => remove(iRef(`queue/${id}`));
+  // Стан слотів (вільний / зайнятий) для дат, на які є черга
+  const slotDates = useMemo(() => [...new Set(active.map(q => { const k = parseKey(q.slotKey); const mid = k.master && k.master !== ownerUid ? k.master : null; return k.date ? `${mid ? `timeslots_m/${mid}` : "timeslots"}/${k.date}` : null; }).filter(Boolean))].sort().join("|"), [active, ownerUid]);
+  useEffect(() => {
+    const paths = slotDates ? slotDates.split("|") : [];
+    const offs = paths.map(p => onValue(iRef(p), snap => setSlotState(prev => ({ ...prev, [p]: snap.val() || {} })), () => {}));
+    return () => offs.forEach(f => f && f());
+  }, [slotDates]);
+  const slotFree = (slotKey) => {
+    const k = parseKey(slotKey);
+    const mid = k.master && k.master !== ownerUid ? k.master : null;
+    const day = slotState[`${mid ? `timeslots_m/${mid}` : "timeslots"}/${k.date}`];
+    if (!day) return null;
+    const sl = day[`slot${String(k.time).replace(":", "")}`];
+    return sl ? !!sl.available : false;
+  };
 
-  const queueMode = settings?.queueAutoFifo ? "fifo"
-    : settings?.queueBroadcast ? "broadcast" : "manual";
+  const groups = useMemo(() => {
+    const m = new Map();
+    active.forEach(q => { const key = q.slotKey || q.id; if (!m.has(key)) m.set(key, []); m.get(key).push(q); });
+    return [...m.entries()].map(([key, items]) => ({ key, ...parseKey(key), items })).sort((a, b) => `${a.date}${a.time.padStart(5, "0")}`.localeCompare(`${b.date}${b.time.padStart(5, "0")}`));
+  }, [active]);
 
-  const waiting  = active.filter(q=>q.status==="waiting").length;
-  const offered  = active.filter(q=>q.status==="offered").length;
-  const booked_c = active.filter(q=>q.status==="booked").length;
+  const setSt = (id, p) => update(iRef(`queue/${id}`), p);
+  const invite   = id => setSt(id, { status:"offered", offeredAt: Date.now() });
+  // Повторне запрошення: сервер реагує на перехід у «offered», тож спершу повертаємо «waiting»
+  const reinvite = async id => { await setSt(id, { status:"waiting" }); await setSt(id, { status:"offered", offeredAt: Date.now() }); };
+  const cancelInvite = id => setSt(id, { status:"waiting", offeredAt: null });
+  const booked   = id => setSt(id, { status:"booked" });
+  const archive  = id => setSt(id, { status:"archived" });
+  const del = async (item) => {
+    if (await confirm({ title:"Видалити з черги?", text:`${item.name || "Клієнт"} більше не чекатиме на цей час.`, okLabel:"Видалити", danger:true })) remove(iRef(`queue/${item.id}`));
+  };
+  const archiveAllExpired = () => expired.forEach(q => archive(q.id));
+
+  const queueMode = settings?.queueAutoFifo ? "fifo" : settings?.queueBroadcast ? "broadcast" : "manual";
+  const modeLabel = queueMode === "fifo" ? "Автоматично — першому в черзі" : queueMode === "broadcast" ? "Розсилка — усім одразу" : "Вручну — ви обираєте кого запросити";
+  const waiting = active.filter(q => q.status === "waiting").length;
+  const offered = active.filter(q => q.status === "offered").length;
+  const card = { borderRadius:16, padding:"11px 13px", background:SURFACE, border:`1px solid ${BORDER}`, backdropFilter:"blur(16px)", WebkitBackdropFilter:"blur(16px)" };
+  const svcLabelOf = q => { const sv = svcMap[q.svcId]; const h = q.durationHours; return sv?.name || (q.studentType ? (q.studentType === "school" ? "Стандарт" : "Індивідуальний") + (h ? ` ${h} год` : "") : (h ? `${h} год` : "")); };
 
   return (
     <>
       <UICss/>
-      <div style={{display:"flex",flexDirection:"column",gap:10,fontFamily:"ui-sans-serif,-apple-system,system-ui,sans-serif"}}>
+      {confirmNode}
+      <div style={{display:"flex",flexDirection:"column",gap:10,fontFamily:"ui-sans-serif,-apple-system,system-ui,sans-serif",color:TEXT}}>
 
         {/* ── САЛОН: фільтр по майстру ── */}
         {isSalonQ && (
@@ -268,96 +203,71 @@ export default function QueueView({ settings }) {
           </ScrollChips>
         )}
 
-        {/* ── STATS ── */}
-        <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8}}>
-          {[
-            {value:waiting,  label:"Очікують",  color:PURPLE},
-            {value:offered,  label:"Запрошено", color:GOLD},
-            {value:booked_c, label:"Записані",  color:GREEN},
-          ].map((s,i)=>(
-            <div key={i} style={{
-              borderRadius:10, padding:"10px 6px", textAlign:"center",
-              background:`color-mix(in srgb,${s.color} 18%,transparent)`,backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",
-              border:`1px solid color-mix(in srgb,${s.color} 32%,transparent)`,
-            }}>
-              <div style={{fontSize:18,fontWeight:900,color:"#fff"}}>{s.value}</div>
-              <div style={{fontSize:11,color:"rgba(255,255,255,0.78)",marginTop:2,letterSpacing:0.3}}>{s.label.toUpperCase()}</div>
-            </div>
-          ))}
-        </div>
-
-        {/* ── MODE BADGE ── */}
-        <div style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",background:`linear-gradient(145deg,${PURPLE}1a,${PURPLE}0d)`,borderRadius:10,border:`1px solid ${PURPLE}30`}}>
-          <MetalIcon name="gear" size={18}/>
-          <span style={{fontSize:12,color:DIM}}>Режим черги:</span>
-          <span style={{fontSize:12,fontWeight:800,color:`color-mix(in srgb,${PURPLE} 55%,#fff)`}}>
-            {queueMode==="fifo"?"FIFO — перший автоматично":queueMode==="broadcast"?"Broadcast — всім одразу":"Ручний — вибір вручну"}
+        {/* ── РЕЖИМ + ПІДСУМОК ── */}
+        <button onClick={()=>navTo("settings")} style={{...card,display:"flex",alignItems:"center",gap:10,cursor:"pointer",fontFamily:"inherit",textAlign:"left",color:TEXT}}>
+          <MetalIcon name="hourglass" size={30}/>
+          <span style={{flex:1,minWidth:0}}>
+            <span style={{display:"block",fontSize:13.5,fontWeight:700}}>{modeLabel}</span>
+            <span style={{display:"block",fontSize:11.5,color:DIM,marginTop:2}}>{`${waiting} чекають · ${offered} запрошено · змінити режим ›`}</span>
           </span>
-        </div>
+        </button>
 
-        {/* ── ACTIVE QUEUE ── */}
-        <div
-          onPointerMove={e=>getHandlers(0).onPointerMove(e)}
-          onPointerUp={()=>getHandlers(0).onPointerUp()}
-        >
-          {active.length === 0 ? (
-            <div style={{textAlign:"center",padding:"32px 20px",color:FAINT}}>
-              <div style={{marginBottom:8,display:"flex",justifyContent:"center"}}><MetalIcon name="hourglass" size={36}/></div>
-              <div style={{fontSize:14,fontWeight:700,color:DIM}}>Черга порожня</div>
-              <div style={{fontSize:12,marginTop:4}}>Додайте клієнтів нижче</div>
+        {/* ── ГРУПИ ЗА СЛОТАМИ ── */}
+        {groups.length === 0 ? (
+          <div style={{textAlign:"center",padding:"32px 20px",color:FAINT}}>
+            <div style={{marginBottom:8,display:"flex",justifyContent:"center"}}><MetalIcon name="hourglass" size={36}/></div>
+            <div style={{fontSize:14,fontWeight:700,color:DIM}}>Черга порожня</div>
+            <div style={{fontSize:12,marginTop:4}}>Клієнти стають у чергу на зайнятий час у своєму додатку</div>
+          </div>
+        ) : groups.map(g => {
+          const free = slotFree(g.key);
+          const m = isSalonQ ? masterById(g.master || ownerUid) : null;
+          return (
+            <div key={g.key} style={card}>
+              <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}>
+                <span style={{fontSize:14.5,fontWeight:800,color:TEXT}}>{slotTitle(g.date, g.time)}</span>
+                {m && <span style={{display:"inline-flex",alignItems:"center",gap:4,fontSize:11.5,color:DIM,minWidth:0}}><span style={{width:8,height:8,borderRadius:"50%",background:m.color,flexShrink:0}}/><span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.name}</span></span>}
+                <span style={{marginLeft:"auto",fontSize:11,fontWeight:800,padding:"3px 8px",borderRadius:99,whiteSpace:"nowrap",
+                  background: free ? `color-mix(in srgb,${GREEN} 22%,transparent)` : "rgba(127,127,127,0.15)", color: free ? GREEN : DIM }}>
+                  {free === null ? "…" : free ? "● вільний" : "зайнято"}
+                </span>
+              </div>
+              <div style={{fontSize:11.5,color:FAINT,marginBottom:2}}>{`У черзі: ${g.items.length}`}</div>
+              {g.items.map((q, idx) => (
+                <QueueRow key={q.id} item={q} pos={idx + 1} first={idx === 0} now={now} svcLabel={svcLabelOf(q)}
+                  onInvite={()=>invite(q.id)} onReinvite={()=>reinvite(q.id)} onCancelInvite={()=>cancelInvite(q.id)}
+                  onBooked={()=>booked(q.id)} onDelete={()=>del(q)}/>
+              ))}
             </div>
-          ) : active.map((item, idx) => (
-            <div key={item.id} data-drag-idx={idx}>
-              <QueueRow
-                item={item}
-                pos={idx+1}
-                isDragging={false}
-                svcMap={svcMap}
-                master={mOf(item)}
-                onInvite={()=>invite(item.id)}
-                onBooked={()=>booked(item.id)}
-                onArchive={()=>archive(item.id)}
-                onDelete={()=>del(item.id)}
-                dragHandleProps={getHandlers(idx)}
-              />
-            </div>
-          ))}
-        </div>
+          );
+        })}
 
         {/* ── МИНУЛІ (час слота вже пройшов) ── */}
         {expired.length > 0 && (
           <Section title={<span style={{display:"inline-flex",alignItems:"center",gap:7}}><MetalIcon name="timer" size={18}/>{`Минулі (${expired.length})`}</span>}>
-            {expired.map(item=>(
-              <QueueRow
-                key={item.id} item={item} pos="—" isDragging={false}
-                svcMap={svcMap} master={mOf(item)}
-                onInvite={()=>invite(item.id)}
-                onBooked={()=>booked(item.id)}
-                onArchive={()=>archive(item.id)}
-                onDelete={()=>del(item.id)}
-                dragHandleProps={{}}
-              />
+            <button onClick={archiveAllExpired} style={{width:"100%",padding:"9px",borderRadius:12,border:`1px dashed ${BORDER}`,background:"transparent",color:DIM,fontSize:12.5,fontWeight:700,cursor:"pointer",fontFamily:"inherit",marginBottom:6}}>Прибрати всі в архів</button>
+            {expired.map(q => (
+              <div key={q.id} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 0",borderTop:`1px solid ${BORDER}`,fontSize:12.5}}>
+                <span style={{flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",color:TEXT}}>{q.name || "Клієнт"}</span>
+                <span style={{color:FAINT,whiteSpace:"nowrap"}}>{slotTitle(parseKey(q.slotKey).date, parseKey(q.slotKey).time)}</span>
+              </div>
             ))}
           </Section>
         )}
 
-        {/* ── ARCHIVE ── */}
+        {/* ── АРХІВ ── */}
         {archived.length > 0 && (
           <Section title={<span style={{display:"inline-flex",alignItems:"center",gap:7}}><MetalIcon name="list" size={18}/>{`Архів (${archived.length})`}</span>}>
-            {archived.map(item=>(
-              <QueueRow
-                key={item.id} item={item} pos="—" isDragging={false}
-                svcMap={svcMap} master={mOf(item)}
-                onInvite={()=>{}} onBooked={()=>{}} onArchive={()=>{}}
-                onDelete={()=>del(item.id)}
-                dragHandleProps={{}}
-              />
+            {archived.map(q => (
+              <div key={q.id} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 0",borderTop:`1px solid ${BORDER}`,fontSize:12.5}}>
+                <span style={{flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",color:TEXT}}>{q.name || "Клієнт"}</span>
+                <span style={{color:q.status==="booked"?GREEN:FAINT,whiteSpace:"nowrap"}}>{q.status==="booked" ? "записаний" : slotTitle(parseKey(q.slotKey).date, parseKey(q.slotKey).time)}</span>
+                <button aria-label="Видалити" onClick={()=>remove(iRef(`queue/${q.id}`))} style={{background:"none",border:"none",cursor:"pointer",color:RED,fontSize:18,padding:"0 4px"}}>×</button>
+              </div>
             ))}
           </Section>
         )}
-
       </div>
-
     </>
   );
 }

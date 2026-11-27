@@ -32,7 +32,6 @@ export const LangContext = createContext('uk');
 const ScheduleView  = lazy(()=>import("./views/id4drive-admin-v5").then(m=>({default:m.ScheduleView})))
 const AutoSlots     = lazy(()=>import("./views/id4drive-admin-v5").then(m=>({default:m.AutoSlots})))
 const SettingsView  = lazy(()=>import("./views/id4drive-settings"))
-const BookingsView  = lazy(()=>import("./views/id4drive-bookings"))
 const StudentsView  = lazy(()=>import("./views/id4drive-students"))
 const AllMastersView = lazy(()=>import("./views/AllMastersView"))
 const ServicesView  = lazy(()=>import("./views/id4drive-services"))
@@ -630,7 +629,7 @@ function ViewRenderer({ allMode, staffList, onPickMaster, ws, onWs, masterKey, s
   if (tab === "schedule" && allMode) return <FogScope><AllMastersCards bookings={bookings} staff={staffList} settings={settings} onPick={onPickMaster}/></FogScope>;
   if (tab === "schedule")  return <ScheduleView key={masterKey} settings={scheduleSettings || settings} setSettings={setSettings} bookings={scheduleBookings || bookings} setBookings={scheduleSetBookings || setBookings} onSlotClick={onSlotClick} onEmptySlotClick={onEmptySlotClick} activeDragIds={activeDragIds} navTo={navTo} slotExistsRef={slotExistsRef} openSlotsRef={openSlotsRef} jumpTarget={jumpTarget} setJumpTarget={setJumpTarget} onViewStudent={onViewStudent}/>;
   if (tab === "settings")  return ws ? <MasterProfileView ws={ws} onLeft={() => onWs(null)}/> : <SettingsView settings={settings} setSettings={setSettings}/>;
-  if (tab === "bookings")  return <BookingsView settings={settings} bookings={bookings}/>;
+  if (tab === "bookings")  return <QueueView settings={settings}/>; // «Черга» в меню — та сама черга за слотами (старий екран «Записи + Черга» більше не показуємо)
   if (tab === "queue")     return <QueueView settings={settings}/>;
   if (tab === "students")  return <StudentsView studentJump={studentJump} onStudentJumpHandled={onStudentJumpHandled} bookings={bookings} settings={settings}/>;
   if (tab === "services")  return <ServicesView/>;
