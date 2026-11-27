@@ -61,7 +61,7 @@ const DIRECTION_PRESETS = {
 
 // ─── Іконки розділів: id → ім'я в MetalIcon (+ свій колір, якщо відрізняється) ───
 const SEC_ICON = {
-  plan:"clock", rules:"lock", catalog:"coin", clients:"clipboard", push:["bell","#16a34a"], team:["users","#2563eb"], profile:"user",
+  plan:"clock", rules:"lock", catalog:"coin", clients:"clipboard", push:["bell","#16a34a"], team:["users","#2563eb"], profile:"user", look:"paint",
   wk_cal:"calendar", wk_day:"clock", wk_cup:"cup", sh_gear:"gear", sh_timer:"timer", sh_pin:"pin", sh_check:"checkCircle", sh_star:"star",
   sh_ticket:"ticketDash", sh_tag:"tag", sh_paint:"paint", sh_build:"building", wk_grid:"grid",
 };
@@ -874,7 +874,8 @@ select{color-scheme:dark}
   useEffect(() => {
     get(iRef("admin_settings/profile")).then(snap => setProfile(snap.val() || {})).catch(() => setProfile({}));
   }, []);
-  const updProfile = (k, v) => setProfile(p => ({ ...(p || {}), [k]: v }));
+  const profileDirtyRef = useRef(false);
+  const updProfile = (k, v) => { profileDirtyRef.current = true; setProfile(p => ({ ...(p || {}), [k]: v })); };
   const allProfilePhotos = [profile?.photoUrl, ...((profile?.galleryPhotos||[]).map(p=>p.url))].filter(Boolean);
 
   // ── пошук адреси для мітки на карті (Nominatim/OSM — той самий провайдер,
@@ -969,6 +970,12 @@ select{color-scheme:dark}
     setProfileSaving(false); setProfileSaved(true);
     setTimeout(() => setProfileSaved(false), 1500);
   };
+  // Автозбереження профілю: через 1 с після останньої зміни (як і решта налаштувань — без кнопки «Зберегти»)
+  useEffect(() => {
+    if (!profileDirtyRef.current || !profile) return;
+    const tm = setTimeout(() => { profileDirtyRef.current = false; saveProfile(); }, 1000);
+    return () => clearTimeout(tm);
+  }, [profile]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const [photoUploading, setPhotoUploading] = useState(false);
   const [photoError, setPhotoError] = useState(null);
@@ -1067,7 +1074,8 @@ select{color-scheme:dark}
     { id:"clients", icon:"📋", color:PURPLE, title:"Клієнти",           label:"Клієнти"    },
     { id:"push",    icon:"🔔", color:GREEN,  title:"Сповіщення",        label:"Сповіщення" },
     { id:"team",    icon:"👥", color:BLUE,   title:"Команда й салон",   label:"Команда"    },
-    { id:"profile", icon:"👤", color:BLUE,   title:"Профіль і додаток", label:"Профіль"    },
+    { id:"profile", icon:"👤", color:BLUE,   title:"Профіль",           label:"Профіль"    },
+    { id:"look",    icon:"🎨", color:PURPLE, title:"Вигляд і мова",     label:"Вигляд"     },
   ];
 
   // Верхній рівень: 7 вкладок, кожна збирає потрібні частини
@@ -1081,11 +1089,12 @@ select{color-scheme:dark}
     switch (id) {
       case "plan": return (<div><SubHead first icon="🗓">Тижневий графік</SubHead>{P("schedule")}<SubHead icon="⚙️">Автоматика й захист</SubHead>{P("scheduleAuto")}<SubHead icon="⏱">Крок часу</SubHead>{P("snap")}<SubHead icon="📌">Вільні слоти поряд із записом</SubHead>{P("sticky")}</div>);
       case "rules": return (<div>{P("restr")}<SubHead icon="✅">Черга очікування</SubHead>{P("queue")}</div>);
-      case "catalog": return (<div><SubHead first icon="💰">Надбавки</SubHead>{P("surcharges")}<SubHead icon="🎫">Пакети записів</SubHead>{P("packages")}<SubHead icon="🏷️">Мітки записів</SubHead>{P("tags")}</div>);
+      case "catalog": return (<div><button onClick={()=>window.dispatchEvent(new CustomEvent("id4drive-nav",{detail:"services"}))} style={{width:"100%",display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,padding:"12px 14px",marginBottom:4,borderRadius:14,border:`1px solid ${BORDER}`,cursor:"pointer",fontFamily:"inherit",textAlign:"left",background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,boxShadow:SO,color:TEXT}}><span style={{minWidth:0}}><span style={{display:"block",fontSize:14,fontWeight:700}}>Послуги та їх ціни</span><span style={{display:"block",fontSize:11.5,color:DIM,marginTop:2}}>Назви, тривалість і ціни — у розділі «Послуги»</span></span><span style={{fontSize:20,color:DIM}}>›</span></button><SubHead icon="💰">Надбавки</SubHead>{P("surcharges")}<SubHead icon="🎫">Пакети записів</SubHead>{P("packages")}<SubHead icon="🏷️">Мітки записів</SubHead>{P("tags")}</div>);
       case "clients": return (<div><SubHead first icon="📋">Анкета клієнта</SubHead>{P("intake")}<SubHead icon="⭐">Відгуки клієнтів</SubHead>{P("reviews")}</div>);
       case "push": return P("push");
-      case "team": return (<div>{P("staff")}{accountTypeOf(settings) !== ACCOUNT_SALON && <><SubHead icon="🏢">Салон</SubHead>{P("salon")}</>}</div>);
-      case "profile": return (<div>{P("profile")}<SubHead icon="🎨">Вигляд і мова</SubHead>{P("appearance")}<SubHead icon="⏱">Масштаб записів (тест)</SubHead>{P("slotScale")}</div>);
+      case "team": return (<div>{P("staff")}{accountTypeOf(settings) !== ACCOUNT_SALON && <><SubHead icon="🏢">Спільна сторінка з іншими майстрами</SubHead>{P("salon")}</>}</div>);
+      case "profile": return P("profile");
+      case "look": return (<div>{P("appearance")}<SubHead icon="⏱">Масштаб записів (тест)</SubHead>{P("slotScale")}</div>);
       default: return null;
     }
   }
@@ -1099,9 +1108,6 @@ select{color-scheme:dark}
         <div>
           {showHint && <Info color={BLUE} title={t('set.schedule.info_t')} text={t('set.schedule.info')}/>}
           <WeekScheduleEditor weekSchedule={weekSchedule} updDay={updDay} setWeek={v=>upd("weekSchedule",v)} step={settings.slotCreateStep ?? 30}/>
-          <Row label={t('set.schedule.days')}>
-            <NumInput value={settings.daysShown} onChange={v=>upd("daysShown",v)} min={1} max={30} suffix={` ${t('days')}`}/>
-          </Row>
         </div>
       );
 
@@ -1125,11 +1131,8 @@ select{color-scheme:dark}
               <span style={{fontSize:14,fontWeight:600,color:TEXT}}>{t('set.snap.label')}</span>
               <span style={{fontSize:15,fontWeight:800,color:ACC_HI}}>{settings.snapMin} {t('min')}</span>
             </div>
-            <input type="range" min={1} max={60} value={settings.snapMin} onChange={e=>upd("snapMin",+e.target.value)}/>
-            <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:10}}>
-              {[1,5,10,15,30,60].map(v=>(
-                <Chip key={v} label={`${v} ${t('min')}`} active={settings.snapMin===v} onClick={()=>upd("snapMin",v)}/>
-              ))}
+            <div style={{display:"grid",gridTemplateColumns:"repeat(6,minmax(0,1fr))",gap:5}}>
+              {[1,5,10,15,30,60].map(v=>(<button key={v} onClick={()=>upd("snapMin",v)} style={{padding:"9px 0",borderRadius:10,border:`1px solid ${settings.snapMin===v?"transparent":BORDER}`,cursor:"pointer",fontSize:11.5,fontWeight:700,fontFamily:"inherit",whiteSpace:"nowrap",minWidth:0,background:settings.snapMin===v?`linear-gradient(145deg,${ACC_HI},${ACCENT})`:SURFACE,color:settings.snapMin===v?(BTN_TX||"#fff"):DIM}}>{v} {t('min')}</button>))}
             </div>
           </div>
           <div style={{borderRadius:14,padding:"12px 14px",background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,boxShadow:SO}}>
@@ -1137,10 +1140,8 @@ select{color-scheme:dark}
               <span style={{fontSize:14,fontWeight:600,color:TEXT}}>Крок слота (довгий тап)</span>
               <span style={{fontSize:15,fontWeight:800,color:TEAL}}>{settings.slotCreateStep ?? 30} хв</span>
             </div>
-            <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-              {[5,10,15,30,60].map(v=>(
-                <Chip key={v} label={`${v} хв`} active={(settings.slotCreateStep??30)===v} onClick={()=>upd("slotCreateStep",v)}/>
-              ))}
+            <div style={{display:"grid",gridTemplateColumns:"repeat(5,minmax(0,1fr))",gap:5}}>
+              {[5,10,15,30,60].map(v=>(<button key={v} onClick={()=>upd("slotCreateStep",v)} style={{padding:"9px 0",borderRadius:10,border:`1px solid ${(settings.slotCreateStep??30)===v?"transparent":BORDER}`,cursor:"pointer",fontSize:11.5,fontWeight:700,fontFamily:"inherit",whiteSpace:"nowrap",minWidth:0,background:(settings.slotCreateStep??30)===v?`linear-gradient(145deg,${ACC_HI},${ACCENT})`:SURFACE,color:(settings.slotCreateStep??30)===v?(BTN_TX||"#fff"):DIM}}>{v} {t('min')}</button>))}
             </div>
           </div>
         </div>
@@ -1172,7 +1173,7 @@ select{color-scheme:dark}
           <Row compact label={t('set.restr.schoolCalendar')} hint={t('set.restr.schoolCalendar_h')}>
             <NumInput compact value={settings.schoolCalendarOpenDays ?? 14} onChange={v=>upd("schoolCalendarOpenDays",v)} min={1} max={365} suffix={` ${t('days')}`}/>
           </Row>
-          <Row compact label={lang==="en"?"Min interval between bookings":"Мінімальний інтервал між записами"} hint={lang==="en"?"Minimum days between any two bookings for one client. 0 — disabled.":"Мінімум днів між будь-якими двома записами клієнта. 0 — без обмеження."} last>
+          <Row compact label={lang==="en"?"Min interval between bookings":"Пауза між записами клієнта"} hint={lang==="en"?"Minimum days between any two bookings for one client. 0 — disabled.":"Не частіше ніж раз на N днів. 0 — без обмеження"} last>
             <NumInput compact value={settings.minBookingIntervalDays ?? 0} onChange={v=>upd("minBookingIntervalDays",v)} min={0} max={30} suffix={` ${t('days')}`}/>
           </Row>
         </div>
@@ -1212,13 +1213,15 @@ select{color-scheme:dark}
             ["slotShortName", "Коротке ім'я у вузьких колонках", "Колонка вужча 70px: «Ф. Шевченко» одним рядком, ціна прихована."],
             ["slotPeek", "Деталі по тапу на малий запис", "Тап по маленькій картці показує міні-картку з усією інформацією і кнопкою «Відкрити запис»."],
           ].map(([k, l, h]) => (
-            <Row compact key={k} color={svColor(!!settings[k])} label={l} hint={h}>
+            <div key={k} style={{borderRadius:14,padding:"12px 14px",marginTop:5,background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,boxShadow:SO,display:"flex",alignItems:"center",justifyContent:"space-between",gap:10}}>
+              <div style={{minWidth:0}}>
+                <div style={{fontSize:14,fontWeight:600,color:TEXT}}>{l}</div>
+                <div style={{fontSize:11.5,color:DIM,marginTop:2}}>{h}</div>
+              </div>
               <Toggle color={svColor(!!settings[k])} on={!!settings[k]} onChange={v=>upd(k,v)}/>
-            </Row>
+            </div>
           ))}
-          <Row compact last color={GREEN} label="Щипок двома пальцями" hint="Вже працює: зведіть/розведіть два пальці на розкладі, щоб змінити висоту години (на ПК — Ctrl + коліщатко).">
-            <span/>
-          </Row>
+          <div style={{fontSize:11.5,color:DIM,lineHeight:1.5,padding:"10px 4px 0"}}>Щипок двома пальцями на розкладі змінює висоту години (на ПК — Ctrl + коліщатко).</div>
         </div>
       );
 
@@ -1255,9 +1258,9 @@ select{color-scheme:dark}
               ? "A surcharge is an extra paid option for a lesson, for example «driving range trip» or «harder route».\n\n• Each surcharge is a fixed amount in UAH. Add as many options as you need; remove one with the «×» button.\n• How to use: open the slot menu in the schedule and add the surcharge to a booking.\n• The client immediately sees the total price including the surcharge."
               : "Надбавка — це додаткова платна опція до запису. Наприклад, «виїзд до клієнта» або «складніше завдання».\n\n• Кожна надбавка — це фіксована сума в обраній валюті. Додайте стільки варіантів, скільки потрібно; зайвий можна видалити кнопкою «×».\n• Як користуватись: у розкладі відкрийте меню слота й додайте потрібну надбавку до запису.\n• Клієнт одразу бачить підсумкову ціну вже з надбавкою."}
           />}
-          <Hint style={{marginBottom:12}}>
+          {showHint && <Hint style={{marginBottom:12}}>
             Суми відображаються в меню слота при виборі надбавки.
-          </Hint>
+          </Hint>}
           {(settings.surcharges || []).map((amt, i) => (
             <div key={i} style={{
               display:"flex",alignItems:"center",gap:10,marginBottom:5,
@@ -1345,9 +1348,9 @@ select{color-scheme:dark}
         const lbl = { fontSize:11, letterSpacing:0.6, color:DIM, textTransform:"uppercase", marginBottom:3, minHeight:"2.6em", display:"flex", alignItems:"flex-end", lineHeight:1.25 };
         return (
           <div>
-            <Hint style={{marginBottom:12}}>
+            {showHint && <Hint style={{marginBottom:12}}>
               Заготовки пакетів (абонементів): скільки записів, на скільки днів і на які послуги. Додати пакет клієнту можна в його картці («Клієнти»). Записи за пакетом списуються автоматично, а при скасуванні повертаються.
-            </Hint>
+            </Hint>}
             {pkgs.map((pk, i) => (
               <div key={pk.id || i} style={{marginBottom:8,padding:"10px 12px",borderRadius:14,background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,boxShadow:SO}}>
                 <div style={{display:"flex",alignItems:"center",gap:6}}>
@@ -1356,7 +1359,7 @@ select{color-scheme:dark}
                 </div>
                 <div className="pk-grid">
                   <div><div style={lbl}>Записів</div><input type="number" min={1} max={200} value={pk.count ?? ""} onChange={e=>patchPk(i,{count:e.target.value===""?"":+e.target.value})} style={box}/></div>
-                  <div><div style={lbl}>Днів (0 — безстроково)</div><input type="number" min={0} max={1095} value={pk.days ?? ""} onChange={e=>patchPk(i,{days:e.target.value===""?"":+e.target.value})} style={box}/></div>
+                  <div><div style={lbl}>Діє, днів</div><input type="number" min={0} max={1095} placeholder="0 — безстроково" value={pk.days ?? ""} onChange={e=>patchPk(i,{days:e.target.value===""?"":+e.target.value})} style={box}/></div>
                   <div><div style={lbl}>{`Ціна, ${curSym()}`}</div><input type="number" min={0} value={pk.price ?? ""} onChange={e=>patchPk(i,{price:e.target.value===""?"":+e.target.value})} style={box}/></div>
                 </div>
                 <div style={{...lbl,marginTop:9,minHeight:0}}>Діє на послуги {(!pk.serviceIds || !pk.serviceIds.length) && <span style={{textTransform:"none",letterSpacing:0,marginLeft:5}}>— на всі</span>}</div>
@@ -1396,12 +1399,12 @@ select{color-scheme:dark}
             {fields.map((f, i) => (
               <div key={f.id || i} style={{marginTop:8,padding:"10px 12px",borderRadius:14,background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,boxShadow:SO}}>
                 <div style={{display:"flex",alignItems:"center",gap:6}}>
-                  <input value={f.label || ""} maxLength={80} placeholder={uk ? "Питання, напр. «Алергії»" : "Question"} onChange={e=>patchField(i,{label:e.target.value})} style={{...box,flex:1,width:"auto",minWidth:0,alignSelf:"stretch"}}/>
+                  <textarea rows={2} value={f.label || ""} maxLength={80} placeholder={uk ? "Питання, напр. «Алергії»" : "Question"} onChange={e=>patchField(i,{label:e.target.value})} style={{...box,flex:1,width:"auto",minWidth:0,alignSelf:"stretch",resize:"none",lineHeight:1.35}}/>
                   <button onClick={()=>move(i,-1)} disabled={i===0} aria-label="Вгору" style={{background:"none",border:"none",color:i===0?FAINT:DIM,cursor:"pointer",fontSize:15,padding:0,minWidth:32,minHeight:32,alignSelf:"stretch"}}>▲</button>
                   <button onClick={()=>move(i,1)} disabled={i===fields.length-1} aria-label="Вниз" style={{background:"none",border:"none",color:i===fields.length-1?FAINT:DIM,cursor:"pointer",fontSize:15,padding:0,minWidth:32,minHeight:32,alignSelf:"stretch"}}>▼</button>
                   <button onClick={()=>setIntake({ fields: fields.filter((_, j) => j !== i) })} aria-label="Видалити" style={{background:"none",border:"none",cursor:"pointer",color:"#f87171",padding:0,minWidth:32,minHeight:32,alignSelf:"stretch",display:"flex",alignItems:"center",justifyContent:"center"}}><MetalIcon name="cross" size={28}/></button>
                 </div>
-                <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:8}}>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(2,minmax(0,1fr))",gap:6,marginTop:8}}>
                   {FIELD_TYPES.map(ft => (
                     <button key={ft.id} onClick={()=>patchField(i,{type:ft.id})} style={{flex:"1 1 auto",padding:"8px 10px",borderRadius:8,border:"none",cursor:"pointer",fontSize:11,fontWeight:700,fontFamily:"inherit",
                       background:f.type===ft.id?`linear-gradient(145deg,${ACC_HI},${ACCENT})`:`linear-gradient(135deg,${SURF_HI},${SURFACE})`,color:f.type===ft.id?(BTN_TX||"#fff"):TEXT,boxShadow:SO}}>{ft.label}</button>
@@ -1447,7 +1450,7 @@ select{color-scheme:dark}
                   <div style={{fontSize:14,fontWeight:600,color:TEXT}}>{lang==="en"?"Reminder":"Нагадування"} #{i+1}</div>
                   <div style={{fontSize:11.5,color:DIM,marginTop:2}}>{t('set.auto.rem_h')}</div>
                 </div>
-                <div style={{marginLeft:"auto"}}><NumInput value={r.hoursBefore} onChange={v=>updReminder(i,{hoursBefore:v})} min={1} max={168} suffix={` ${t('hr')}`}/></div>
+                <div style={{marginLeft:"auto",opacity:r.enabled?1:0.35,pointerEvents:r.enabled?"auto":"none",transition:"opacity .2s"}}><NumInput value={r.hoursBefore} onChange={v=>updReminder(i,{hoursBefore:v})} min={1} max={168} suffix={` ${t('hr')}`}/></div>
               </div>
             ))}
           </div>
@@ -1460,6 +1463,7 @@ select{color-scheme:dark}
           <Row color={svColor(settings.slotFreedPushEnabled !== false)} label={lang==="en"?"Notify on freed slot":"Сповіщення при звільненні слоту"} hint={lang==="en"?"Notify all clients when a slot within the next 10 days becomes free":"Сповіщення усім клієнтам, коли в найближчі 10 днів звільняється слот"} last>
             <Toggle color={svColor(settings.slotFreedPushEnabled !== false)} on={settings.slotFreedPushEnabled !== false} onChange={v=>upd("slotFreedPushEnabled",v)}/>
           </Row>
+          <button onClick={()=>window.dispatchEvent(new CustomEvent("id4drive-nav",{detail:"templates"}))} style={{width:"100%",display:"flex",alignItems:"center",justifyContent:"space-between",gap:10,padding:"12px 14px",marginTop:10,borderRadius:14,border:`1px solid ${BORDER}`,cursor:"pointer",fontFamily:"inherit",textAlign:"left",background:`linear-gradient(145deg,${SURF_HI},${SURFACE})`,boxShadow:SO,color:TEXT}}><span style={{minWidth:0}}><span style={{display:"block",fontSize:14,fontWeight:700}}>Тексти повідомлень</span><span style={{display:"block",fontSize:11.5,color:DIM,marginTop:2}}>Що саме отримує клієнт — у розділі «Шаблони»</span></span><span style={{fontSize:20,color:DIM}}>›</span></button>
         </div>
       );
 
@@ -1610,7 +1614,7 @@ select{color-scheme:dark}
                   background:`linear-gradient(145deg,${ACC_HI},${ACCENT})`,color:BTN_TX||"#fff",boxShadow:SO,opacity:photoUploading?0.6:1,
                 }}>{photoUploading?"Завантаження…":"Завантажити фото"}</button>
                 <input ref={photoInputRef} type="file" accept="image/*" onChange={handlePhotoChange} style={{display:"none"}}/>
-                <Hint style={{marginTop:6}}>JPG/PNG, до 5 МБ — покажеться клієнтам на сторінці запису</Hint>
+                {showHint && <Hint style={{marginTop:6}}>JPG/PNG, до 5 МБ — покажеться клієнтам на сторінці запису</Hint>}
                 {photoError && <div style={{fontSize:11,color:RED,marginTop:4}}>{photoError}</div>}
               </div>
             </div>
@@ -1638,7 +1642,7 @@ select{color-scheme:dark}
               )}
               <input ref={galleryInputRef} type="file" accept="image/*" onChange={handleGalleryAdd} style={{display:"none"}}/>
             </div>
-            <Hint>Фото ваших робіт і робочого місця — на сторінці запису вони показуються анімованим колажем.</Hint>
+            {showHint && <Hint>Фото ваших робіт і робочого місця — на сторінці запису вони показуються анімованим колажем.</Hint>}
             {galleryError && <div style={{fontSize:11,color:RED,marginTop:6}}>{galleryError}</div>}
           </ProfileCard>
 
@@ -1649,7 +1653,7 @@ select{color-scheme:dark}
               onChange={e=>updProfile("about", e.target.value.slice(0, 1500))}
               maxLength={1500}
               rows={7}
-              placeholder="Розкажіть про себе: досвід, авто, підхід до навчання, чим ви кращі за інших, чому варто обрати саме вас…"
+              placeholder="Розкажіть про себе: досвід, підхід до роботи, чим ви кращі за інших, чому варто обрати саме вас…"
               style={{width:"100%",boxSizing:"border-box",background:BG_DEEP,border:"none",outline:"none",color:TEXT,fontSize:12,padding:"10px 12px",borderRadius:10,boxShadow:SI,resize:"vertical",fontFamily:"inherit",lineHeight:1.5,marginBottom:6}}
             />
             <div style={{display:"flex",justifyContent:"space-between",gap:10,fontSize:11,color:DIM}}>
@@ -1664,7 +1668,7 @@ select{color-scheme:dark}
             <PhoneField value={profile?.phone ?? ""} onChange={v=>updProfile("phone", v)}
               inputStyle={{width:"100%",boxSizing:"border-box",background:BG_DEEP,border:"none",outline:"none",color:TEXT,fontSize:13,padding:"10px 12px",borderRadius:10,boxShadow:SI,fontFamily:"inherit",marginBottom:0}} style={{marginBottom:6}}
             />
-            <Hint>Дзвінок, Viber, WhatsApp і Telegram на сторінці запису працюють через цей номер.</Hint>
+            {showHint && <Hint>Дзвінок, Viber, WhatsApp і Telegram на сторінці запису працюють через цей номер.</Hint>}
           </ProfileCard>
 
           {/* УМОВИ */}
@@ -1676,7 +1680,7 @@ select{color-scheme:dark}
               placeholder="Наприклад: скасування пізніше ніж за 24 год оплачується повністю; запізнення не продовжує запис; при собі мати документ, що посвідчує особу…"
               style={{width:"100%",boxSizing:"border-box",background:BG_DEEP,border:"none",outline:"none",color:TEXT,fontSize:12,padding:"10px 12px",borderRadius:10,boxShadow:SI,resize:"vertical",fontFamily:"inherit",lineHeight:1.5,marginBottom:6}}
             />
-            <Hint>Порожнє поле — блок «Умови відвідування» просто не покажеться на сайті.</Hint>
+            {showHint && <Hint>Порожнє поле — блок «Умови відвідування» просто не покажеться на сайті.</Hint>}
           </ProfileCard>
 
           {/* ЛОКАЦІЯ */}
@@ -1731,13 +1735,10 @@ select{color-scheme:dark}
               )}
             </div>
             {addressError && <div style={{fontSize:11,color:RED,marginTop:8}}>{addressError}</div>}
-            <Hint style={{marginTop:8}}>Знайдіть адресу нижче, клікніть на карту або перетягніть мітку — клієнти побачать саме цю точку і адресу на сторінці запису.</Hint>
+            {showHint && <Hint style={{marginTop:8}}>Знайдіть адресу нижче, клікніть на карту або перетягніть мітку — клієнти побачать саме цю точку і адресу на сторінці запису.</Hint>}
           </ProfileCard>
 
-          <button onClick={saveProfile} disabled={profileSaving} style={{
-            width:"100%",padding:"12px",borderRadius:14,border:"none",cursor:profileSaving?"default":"pointer",fontSize:14,fontWeight:800,
-            background:profileSaved?`linear-gradient(145deg,${GREEN},${GREEN})`:`linear-gradient(145deg,${ACC_HI},${ACCENT})`,color:profileSaved?"#06220f":(BTN_TX||"#fff"),boxShadow:SO,
-          }}>{profileSaved?"✓ Збережено":profileSaving?"Зберігаємо…":"Зберегти профіль"}</button>
+          <div style={{textAlign:"center",fontSize:12,fontWeight:700,color:profileSaved?GREEN:DIM,minHeight:18}}>{profileSaving?"Зберігаємо…":profileSaved?"✓ Збережено":"Зміни зберігаються автоматично"}</div>
 
           {cropFile && (
             <PhotoCropModal
@@ -1773,22 +1774,48 @@ select{color-scheme:dark}
         minHeight:"calc(100dvh - 190px)",
       }}>
 
-        {/* SECTION CHIPS — розділи гортаються вбік (замість нижньої рейки іконок) */}
-        <ScrollChips activeKey={active} style={{padding:"12px 16px 24px",margin:"-12px -16px -16px"}}>
+        {/* SECTION GRID — 8 розділів сіткою 4×2: усі видно одразу, без гортання вбік */}
+        <div style={{display:"grid",gridTemplateColumns:"repeat(4,minmax(0,1fr))",gap:5}}>
           {SECTIONS.map(sec => {
             const isActive = active === sec.id;
             return (
               <button key={sec.id} data-active={isActive?"1":"0"} onClick={()=>switchSection(sec.id)} style={{
-                flexShrink:0,whiteSpace:"nowrap",fontSize:12,fontWeight:600,fontFamily:"inherit",cursor:"pointer",padding:"3px 12px 3px 3px",borderRadius:99,
-                display:"inline-flex",alignItems:"center",gap:7,
+                minWidth:0,fontSize:"min(10.5px, 3vw)",fontWeight:700,fontFamily:"inherit",cursor:"pointer",padding:"3px 1px 4px",borderRadius:12,lineHeight:1.15,
+                display:"flex",flexDirection:"column",alignItems:"center",gap:0,
                 border:`1px solid ${isActive?"transparent":BORDER}`,backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)",
                 background:isActive?`linear-gradient(145deg,${ACC_HI},${ACCENT})`:SURFACE,color:isActive?"#06182e":DIM,
                 boxShadow:isActive?`0 6px 16px ${ACCENT}59`:"none",
-              }}><MetalIc id={sec.id} size={28}/>{sec.label}</button>
+              }}><MetalIc id={sec.id} size={22}/><span style={{maxWidth:"100%",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{sec.label}</span></button>
             );
           })}
-        </ScrollChips>
+        </div>
 
+      {active === "profile" && bookingSlug && (
+          <div style={{
+            padding:"12px 14px", borderRadius:14,
+            background:`linear-gradient(135deg,color-mix(in srgb,${ACCENT} 42%,${BG_DEEP}) 0%,${BG_DEEP} 100%)`,
+            border:`1px solid color-mix(in srgb,${ACCENT} 35%,transparent)`,
+          }}>
+            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
+              <MetalIcon name="link" size={24}/>
+              <span style={{fontSize:12, fontWeight:800, color:"#fff"}}>ПОСИЛАННЯ ДЛЯ ЗАПИСУ КЛІЄНТІВ</span>
+            </div>
+            <div style={{background:BG_DEEP, border:`1px solid ${BORDER}`, borderRadius:10, padding:"9px 12px", fontSize:12, color:TEXT, wordBreak:"break-all"}}>{bookingLink}</div>
+            <button onClick={copyBookingLink} style={{
+              marginTop:8, width:"100%", padding:"10px", borderRadius:10, border:"none", cursor:"pointer",
+              background: slugCopied ? "linear-gradient(135deg,#4ade80,#34d399)" : `linear-gradient(145deg,${ACC_HI},${ACCENT})`,
+              color: slugCopied ? "#0a2e1a" : (BTN_TX||"#fff"), fontSize:13, fontWeight:800,
+            }}>{slugCopied ? "✓ Скопійовано" : "Копіювати"}</button>
+            {typeof navigator !== "undefined" && navigator.share && (
+              <button onClick={shareBookingLink} style={{marginTop:6,width:"100%",padding:"10px",borderRadius:10,cursor:"pointer",background:"transparent",border:`1px solid ${BORDER}`,color:TEXT,fontSize:13,fontWeight:700,fontFamily:"inherit"}}><span style={{display:"inline-flex",alignItems:"center",gap:6}}><MetalIcon name="share" size={20}/>Поділитись</span></button>
+            )}
+            {qrUrl && (
+              <div style={{display:"flex",justifyContent:"center",marginTop:10}}>
+                <img src={qrUrl} alt="QR-код посилання для запису" width={160} height={160} style={{borderRadius:10,background:"#fff",padding:6,maxWidth:"100%"}}/>
+              </div>
+            )}
+          </div>
+        )}
         {/* PANEL — section content (розтягується на всю висоту) */}
         <div style={{minWidth:0,flex:1,display:"flex",flexDirection:"column"}}>
           <div style={{
@@ -1827,32 +1854,6 @@ select{color-scheme:dark}
           border:`1px solid ${BORDER}`, color:TEXT, cursor:"pointer",
           padding:"10px 24px", borderRadius:14, fontSize:13, fontWeight:700,
         }}><span style={{display:"inline-flex",alignItems:"center",gap:6}}><MetalIcon name="download" size={20}/>Встановити додаток</span></button>
-      )}
-      {active === "profile" && bookingSlug && (
-        <div style={{
-          margin:"12px 14px 0", padding:"12px 14px", borderRadius:14,
-          background:`linear-gradient(135deg,color-mix(in srgb,${ACCENT} 42%,${BG_DEEP}) 0%,${BG_DEEP} 100%)`,
-          border:`1px solid color-mix(in srgb,${ACCENT} 35%,transparent)`,
-        }}>
-          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
-            <MetalIcon name="link" size={24}/>
-            <span style={{fontSize:12, fontWeight:800, color:"#fff"}}>ПОСИЛАННЯ ДЛЯ ЗАПИСУ КЛІЄНТІВ</span>
-          </div>
-          <div style={{background:BG_DEEP, border:`1px solid ${BORDER}`, borderRadius:10, padding:"9px 12px", fontSize:12, color:TEXT, wordBreak:"break-all"}}>{bookingLink}</div>
-          <button onClick={copyBookingLink} style={{
-            marginTop:8, width:"100%", padding:"10px", borderRadius:10, border:"none", cursor:"pointer",
-            background: slugCopied ? "linear-gradient(135deg,#4ade80,#34d399)" : `linear-gradient(145deg,${ACC_HI},${ACCENT})`,
-            color: slugCopied ? "#0a2e1a" : (BTN_TX||"#fff"), fontSize:13, fontWeight:800,
-          }}>{slugCopied ? "✓ Скопійовано" : "Копіювати"}</button>
-          {typeof navigator !== "undefined" && navigator.share && (
-            <button onClick={shareBookingLink} style={{marginTop:6,width:"100%",padding:"10px",borderRadius:10,cursor:"pointer",background:"transparent",border:`1px solid ${BORDER}`,color:TEXT,fontSize:13,fontWeight:700,fontFamily:"inherit"}}><span style={{display:"inline-flex",alignItems:"center",gap:6}}><MetalIcon name="share" size={20}/>Поділитись</span></button>
-          )}
-          {qrUrl && (
-            <div style={{display:"flex",justifyContent:"center",marginTop:10}}>
-              <img src={qrUrl} alt="QR-код посилання для запису" width={160} height={160} style={{borderRadius:10,background:"#fff",padding:6,maxWidth:"100%"}}/>
-            </div>
-          )}
-        </div>
       )}
       {active === "profile" && (
       <div style={{

@@ -106,10 +106,10 @@ export default function SalonSection({ settings, upd }) {
           {slug && <div style={{color:RED,marginTop:6}}>Вас більше немає в салоні «{slug}».</div>}
         </div>
         <div style={card}>
-          <div style={lbl}>Створити салон</div>
+          <div style={lbl}>Створити спільну сторінку</div>
           <input value={name} maxLength={60} placeholder="Назва салону" onChange={e=>setName(e.target.value)} style={box}/>
           {name.trim() && <div style={{fontSize:11,color:FAINT,marginTop:5}}>Адреса: {salonPublicUrl(salonSlugFrom(name) || "…")}</div>}
-          <button disabled={busy || name.trim().length < 3} onClick={createSalon} style={{...btn(true),marginTop:8,width:"100%"}}>Створити салон</button>
+          <button disabled={busy || name.trim().length < 3} onClick={createSalon} style={{...btn(true),marginTop:8,width:"100%"}}>Створити сторінку</button>
         </div>
         <div style={card}>
           <div style={lbl}>Приєднатись за запрошенням</div>

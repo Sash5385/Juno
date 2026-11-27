@@ -82,10 +82,13 @@ export default function StaffSection({ settings, upd }) {
       <div>
         {confirmNode}
         <Hint>Зараз ви працюєте самі: один календар, свої клієнти.</Hint>
-        <div style={{ fontSize: 12.5, color: DIM, lineHeight: 1.5, marginTop: 8 }}>
-          Якщо до вас приєднаються інші майстри, перетворіть акаунт на салон: у кожного буде свій календар, а клієнти, послуги й статистика — спільні. Власник бачить усе, майстер — лише своє.
+        <div style={{ marginTop: 10, padding: 12, borderRadius: 14, border: `1px solid ${BORDER}` }}>
+          <div style={{ fontSize: 14, fontWeight: 800, color: TEXT }}>Команда в одному акаунті</div>
+          <div style={{ fontSize: 12.5, color: DIM, lineHeight: 1.5, marginTop: 4 }}>
+            Ви — власник. Кожен майстер має свій календар, а клієнти, послуги й статистика — спільні. Ви бачите все, майстер — лише своє.
+          </div>
+          <button disabled={busy} onClick={becomeSalon} style={{ ...btn(true), marginTop: 12, width: "100%" }}>Додати майстрів у свій акаунт</button>
         </div>
-        <button disabled={busy} onClick={becomeSalon} style={{ ...btn(true), marginTop: 16, width: "100%" }}>Перетворити на салон</button>
         {msg && <div style={{ fontSize: 12, color: RED, marginTop: 10 }}>{msg}</div>}
       </div>
     );
