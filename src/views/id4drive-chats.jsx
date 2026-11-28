@@ -459,7 +459,6 @@ export default function ChatsView({ bookings = [], onViewStudent, navTo } = {}) 
     .filter(c => search ? ((c.name||"").toLowerCase().includes(search.toLowerCase()) || (c.phone||"").includes(search)) : hasChat(c))
     .filter(c => !onlyWaiting || (c.lastFrom && c.lastFrom !== "admin"))
     .sort((a,b) => (unreadRow(b.id)>0)-(unreadRow(a.id)>0) || (b.lastTs||0)-(a.lastTs||0));
-  const totalUnread   = filtered.reduce((s,c)=>s+unreadRow(c.id), 0);
 
   return (
     <>

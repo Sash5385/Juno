@@ -7,7 +7,7 @@ import { LangContext } from "../App";
 import { createT } from "../lang";
 
 import { ThemeContext } from "../theme.js";
-import { UICss, Card, useFX, ScrollChips, Hint } from "../ui";
+import { UICss, Card, ScrollChips, Hint } from "../ui";
 import { bookingAddonTotals } from "../addons";
 import { hasOwnSchedule } from "../masterSettings";
 import { periodDates, utilization, cancelStats, sources, clientStats, serviceStats, heatmap, quietestSlot, attendance, cohorts, courseStats, packageStats } from "./stats-extra";

@@ -2,7 +2,7 @@ import React, { useState, useEffect, lazy, Suspense, createContext, useContext, 
 import { useAllCols, setAllCols, allColsEffective } from "./allCols";
 import { tr as trI18n } from "./i18n";
 import { MetalIcon } from "./MetalIcon";
-import { ref, onValue, update, push, remove, get, set } from "firebase/database";
+import { ref, onValue, update, remove, get, set } from "firebase/database";
 import { iRef, db, watchBookings, watchChatMeta, watchChatMetaM, slotRoot, setActiveMaster, setMasterTokenUid, setCurrentIid, registerAdminFCM, onAdminForegroundMessage } from "./firebase";
 import { useAdminAuth, LoginScreen, InstructorSetupScreen, isVendor, SuperAdminScreen } from "./AdminAuth";
 import { useAppUpdate } from "./hooks/useAppUpdate"
@@ -751,8 +751,6 @@ function AdminApp({ adminUser, ws, onWs }) {
   useEffect(() => { startTerms(settings.direction); }, [settings.direction]); // слова напрямку (Налаштування → Профіль)
   const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [bookings,   setBookings] = useState(INITIAL_BOOKINGS);
-  const [selectedBooking,  setSelectedBooking]  = useState(null);
-  const [newBookingData,   setNewBookingData]    = useState(null);
   const [chatUnread,    setChatUnread]    = useState(0);
   // Розділено на дві частини — записи-події (bookings) і нові реєстрації
   // клієнтів (users) — бо це два незалежні onValue-слухачі, і кожен рахує
@@ -1509,7 +1507,7 @@ const pendingDeletesRef = React.useRef(new Set());
           <div style={displayedTab==="schedule" ? {display:"contents"} : {zoom: uiScaleZoom(uiScale)}}>
           <Suspense fallback={<Loader/>}>
             <div className={displayedTab==="schedule" ? "view-fill" : "pc-wrap"}>
-            <ViewRenderer allMode={allMode} staffList={staffList} onPickMaster={pickMaster} ws={ws} onWs={onWs} masterKey={masterId} scheduleSettings={scheduleSettings} scheduleBookings={scheduleBookings} scheduleSetBookings={scheduleSetBookings} tab={displayedTab} settings={settings} setSettings={setSettings} bookings={bookings} setBookings={handleSetBookings} onSlotClick={setSelectedBooking} onEmptySlotClick={setNewBookingData} openInfos={openInfos} toggleInfo={toggleInfo} activeDragIds={activeDragIds} navTo={switchTab} slotExistsRef={slotExistsRef} openSlotsRef={openSlotsRef} jumpTarget={jumpTarget} setJumpTarget={setJumpTarget} onViewStudent={onViewStudent} studentJump={studentJump} onStudentJumpHandled={()=>setStudentJump(null)}/>
+            <ViewRenderer allMode={allMode} staffList={staffList} onPickMaster={pickMaster} ws={ws} onWs={onWs} masterKey={masterId} scheduleSettings={scheduleSettings} scheduleBookings={scheduleBookings} scheduleSetBookings={scheduleSetBookings} tab={displayedTab} settings={settings} setSettings={setSettings} bookings={bookings} setBookings={handleSetBookings} openInfos={openInfos} toggleInfo={toggleInfo} activeDragIds={activeDragIds} navTo={switchTab} slotExistsRef={slotExistsRef} openSlotsRef={openSlotsRef} jumpTarget={jumpTarget} setJumpTarget={setJumpTarget} onViewStudent={onViewStudent} studentJump={studentJump} onStudentJumpHandled={()=>setStudentJump(null)}/>
             </div>
           </Suspense>
           </div>

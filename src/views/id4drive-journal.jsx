@@ -20,21 +20,6 @@ export function setJournalReadAt() {
   localStorage.setItem(JOURNAL_READ_KEY, Date.now().toString());
 }
 
-export function countJournalUnread(data) {
-  const readAt = getJournalReadAt();
-  if (!data || !readAt) return 0;
-  let count = 0;
-  Object.values(data).forEach(userBkgs => {
-    if (!userBkgs) return;
-    Object.values(userBkgs).forEach(b => {
-      if (!b) return;
-      if (b.createdAt     && b.createdAt     > readAt) count++;
-      if (b.cancelledAt   && b.cancelledAt   > readAt) count++;
-      if (b.rescheduledAt && b.rescheduledAt > readAt) count++;
-    });
-  });
-  return count;
-}
 
 const WD = ["нд","пн","вт","ср","чт","пт","сб"];
 const MN = ["Січ","Лют","Бер","Кві","Тра","Чер","Лип","Сер","Вер","Жов","Лис","Гру"];

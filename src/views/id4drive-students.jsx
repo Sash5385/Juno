@@ -25,7 +25,6 @@ const bookFor = (uid) => {
 const WD = ["нд","пн","вт","ср","чт","пт","сб"];
 const ymd0 = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
 const dm = (ds) => { const [, m, d] = String(ds).split("-"); return `${d}.${m}`; };
-const klientiv = (n) => { const a = n % 100, b = n % 10; return a > 10 && a < 20 ? `${n} клієнтів` : b === 1 ? `${n} клієнт` : b >= 2 && b <= 4 ? `${n} клієнти` : `${n} клієнтів`; };
 const SLEEP_DAYS = 60;
 const fmtK = (n) => n >= 1000 ? money(`${(n/1000).toFixed(1)}к`, " ") : money(n);
 // Підсумок по клієнту з записів: візити (минулі, без скасованих/неявок), останній і наступний, сума, неявки
@@ -814,7 +813,7 @@ export default function StudentsView({ studentJump, onStudentJumpHandled, bookin
       .catch(() => remove(iRef(`users/${id}`)).catch(()=>{}));
   };
   const createStudent = async (data) => {
-    const newRef = await push(iRef("users"),{
+    await push(iRef("users"),{
       name:data.name.trim(), phone:data.phone.trim(), type:data.type,
       discount:Number(data.discount)||0, notes:data.notes.trim(), blocked:false,
       isVip:data.isVip||false, hours:0,

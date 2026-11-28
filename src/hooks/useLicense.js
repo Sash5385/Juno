@@ -15,10 +15,6 @@ export function useLicense(iid) {
   return license;
 }
 
-// true лише в режимі "читання" (пільгова доба ще не вважається блокуванням)
-export function isLicenseBlocked(license) {
-  return licenseState(license).level === "readonly";
-}
 
 // ─── Стани ліцензії ────────────────────────────────────────────────
 // ok       — термін далеко / ліцензії нема (фіча вимкнена);

@@ -254,7 +254,6 @@ const ICONS = {
 // ═══════════════════════════════════════════════════════════════
 // MOCK DATA
 // ═══════════════════════════════════════════════════════════════
-const initialBookings = [];
 
 const _DLABELS = ["Пн","Вт","Ср","Чт","Пт","Сб","Нд"];
 const _DLABELS_FULL = ["Понеділок","Вівторок","Середа","Четвер","П'ятниця","Субота","Неділя"];
@@ -391,19 +390,6 @@ function Pill({ label, color, bg }) {
     borderRadius:8, fontSize:11, fontWeight:700, letterSpacing:0.4
   }}>{label}</span>;
 }
-function statusPill(s) {
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const { ACCENT , GLOW, SHADE, INK } = useContext(ThemeContext);
-  const glow=a=>`rgba(${GLOW},${a})`,shade=a=>`rgba(${SHADE},${a})`,ink=a=>`rgba(${INK},${a})`;
-  const M = {
-    pending:["Очікує",ACCENT,"rgba(255,90,60,0.15)"],
-    confirmed:["Підтверджено",GREEN,"rgba(126,217,87,0.15)"],
-    cancelled:["Скасовано","#888",`${ink(0.07)}`],
-    noshow:["Не прийшов",RED,"rgba(239,68,68,0.18)"],
-  };
-  const [l,c,b] = M[s] || M.confirmed;
-  return <Pill label={l} color={c} bg={b}/>;
-}
 const fmtTime = (m) => `${String(Math.floor(m/60)).padStart(2,"0")}:${String(m%60).padStart(2,"0")}`;
 const fmtDur = (m) => { const h=Math.floor(m/60),min=m%60; return h===0?`${min} хв`:min===0?`${h} год`:`${h} год ${min} хв`; };
 const colorOf = (id) => PALETTE.find(p=>p.id===id)?.color || GREEN;
@@ -471,4 +457,4 @@ const TABS = [
   {id:"settings",  label:"Налашт.",    icon:ICONS.settings},
 ];
 
-export { restoreSlotRange, blockSlotRange, resyncDurSlots, PALETTE, STUDENT_PALETTE, AUTO_TAG_BY_ORDER, knownTag, isMouseContext, makeGlobalCSS, ICONS, initialBookings, _DLABELS, _DLABELS_FULL, _MLABELS, EMPTY_LIST, getDayInfo, DEFAULT_SETTINGS, Card, SectionTitle, Toggle, fmtTime, fmtDur, colorOf, computeBookingPrice, TABS };
+export { restoreSlotRange, blockSlotRange, resyncDurSlots, PALETTE, STUDENT_PALETTE, AUTO_TAG_BY_ORDER, knownTag, isMouseContext, makeGlobalCSS, ICONS, _DLABELS, _DLABELS_FULL, _MLABELS, EMPTY_LIST, getDayInfo, DEFAULT_SETTINGS, Card, SectionTitle, Toggle, fmtTime, fmtDur, colorOf, computeBookingPrice, TABS };

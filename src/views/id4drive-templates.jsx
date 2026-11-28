@@ -2,8 +2,6 @@ import { useState, useRef, useContext, useEffect } from "react";
 import { MetalIcon } from "../MetalIcon";
 import { get, set, push, update, increment } from "firebase/database";
 import { iRef } from "../firebase";
-import { LangContext } from "../App";
-import { createT } from "../lang";
 import { tr } from "../i18n";
 
 import { ThemeContext, GOLD, GREEN, RED, TEAL, BLUE, PURPLE } from "../theme.js";
@@ -638,12 +636,9 @@ function SimpleRow({ emoji, title, hint, color, active, onToggle, onEdit, snippe
 }
 
 // ─── MAIN ────────────────────────────────────────────────────────
-const navTo = tab => window.dispatchEvent(new CustomEvent("id4drive-nav", { detail: tab }));
 export default function TemplatesView() {
   const { TEXT, FAINT, DIM, BORDER, SURFACE, ACC_HI, ACCENT, BTN_TX } = useContext(ThemeContext);
   const css = makeCSS();
-  const lang = useContext(LangContext);
-  const t = createT(lang);
   const [templates, setTemplates] = useState(INIT_TEMPLATES);
   const [loaded, setLoaded] = useState(false);
   const [editTpl, setEditTpl] = useState(null);

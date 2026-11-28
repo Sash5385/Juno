@@ -163,7 +163,7 @@ function LessonRatePanel({ b, cx, cy, title, onSave, onClose }) {
     </div>, document.body);
 }
 
-function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bookings, setBookings, activeDragIds, navTo, slotExistsRef, openSlotsRef, jumpTarget, setJumpTarget, onViewStudent }) {
+function ScheduleView({ settings, setSettings, onSlotClick, bookings, setBookings, activeDragIds, navTo, slotExistsRef, openSlotsRef, jumpTarget, setJumpTarget, onViewStudent }) {
   const { BG, BG_DEEP, SURFACE, SURF_HI, SURF_LO, BORDER, TEXT, DIM, FAINT, ACCENT, ACC_HI, BLUE, GREEN, RED, SO, SI, STRIPE_A, STRIPE_B, GLOW, SHADE, INK } = useContext(ThemeContext);
   const isLight = BG !== "#1c1d21";
   const neonCal = true; // «Неонове сяйво» завжди увімкнено
@@ -328,12 +328,11 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   const [windowH, setWindowH] = useState(window.innerHeight);
   const PAST_DAYS = 365;
   const VBUF = 5;
-  const [dayOffset, setDayOffset] = useState(-PAST_DAYS);
+  const [dayOffset] = useState(-PAST_DAYS);
   const dragRef = useRef(null);
   const calcRef = useRef({});
   const setBookingsRef = useRef(null);
   const gridRef = useRef(null);
-  const headerScrollRef = useRef(null);
   const headersInnerRef = useRef(null);
   const holdTimerRef = useRef(null);
   const pendingDragRef = useRef(null);
@@ -374,7 +373,6 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   const autoScrollToMinRef = useRef(null);
   const xVisibleRef = useRef(false);
   const xJustShownRef = useRef(false);
-  const snapTimerRef = useRef(null);
   const timeColRef = useRef(null);
   const [pinch, setPinch] = useState(null);
   const [peek, setPeek] = useState(null); // тест «Деталі по тапу»: { b, x, y } — міні-картка з повною інформацією
@@ -1948,16 +1946,6 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   };
   const slotColor = (b) => studentColor(b);
 
-  const handleColumnClick = (e, absDay) => {
-    if (dragRef.current || dragEndedRef.current || pendingDragRef.current) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    const yRel = e.clientY - rect.top;
-    const { snapMin, workStartMin, PX_PER_MIN } = calcRef.current;
-    const rawMin = workStartMin + yRel / PX_PER_MIN;
-    const minute = Math.round(rawMin / snapMin) * snapMin;
-    const bData = { day: absDay, startMin: minute, clientX: e.clientX, clientY: e.clientY, dateStr: absDayToDateStr(absDay) };
-    setBubbleData(bData);
-  };
 
   const [confirmDlg, confirmNode] = useConfirm();
   const handleAction = (action, b) => {
@@ -2064,13 +2052,6 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
   const [blockModalClosing, setBlockModalClosing] = useState(false);
   const [broadcastInit, setBroadcastInit] = useState(null);
 
-  const handleBlock = ({ day, startMin }) => {
-    setBookings(bs=>[...bs,{
-      id:`block-${Date.now()}`, day, startMin, durMin:60,
-      name:"ЗАБЛОКОВАНО", phone:"", type:"block",
-      hoursDone:0, status:"blocked", serviceId:""
-    }]);
-  };
 
   // Блокуємо/звільняємо timeslots під особистою подією — так само, як для
   // звичайного бронювання, щоб студент не міг записатись на цей час.
@@ -2126,14 +2107,6 @@ function ScheduleView({ settings, setSettings, onSlotClick, onEmptySlotClick, bo
     setPersonalEventView(null);
   };
 
-  const handleVipSlot = ({ day, startMin }) => {
-    const dateStr = absDayToDateStr(day);
-    const hh = String(Math.floor(startMin / 60)).padStart(2, "0");
-    const mm = String(startMin % 60).padStart(2, "0");
-    update(iRef( `${slotRoot()}/${dateStr}/slot${hh}${mm}`), {
-      time: `${hh}:${mm}`, available: true, vipOnly: true,
-    }).catch(() => {});
-  };
 
   const [vipSlotModal, setVipSlotModal] = useState(null);
   const [vipSlotModalClosing, setVipSlotModalClosing] = useState(false);

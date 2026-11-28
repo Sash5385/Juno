@@ -404,7 +404,6 @@ export function WeekScheduleEditor({ weekSchedule, updDay, setWeek, step = 30, s
   const fmtHM = h => { const m = Math.round(h * 60); const H = Math.floor(m / 60), M = m % 60; return M ? `${H} год ${M} хв` : `${H} год`; };
   const hrs = d => d.enabled ? Math.max(0, d.end - d.start - (d.lunchEnabled ? Math.max(0, (d.lunchEnd ?? 13) - (d.lunchStart ?? 12)) : 0)) : 0;
   const total = weekSchedule.reduce((s, d) => s + hrs(d), 0);
-  const pct = x => `${(Math.max(0, Math.min(24, x)) / 24) * 100}%`;
   const slots = day.enabled ? daySlotStarts(day) : [];
   const gaps = [];
   slots.forEach((m, i) => {
@@ -791,12 +790,6 @@ select{color-scheme:dark}
     queueManual:      m==="manual",
   }));
 
-  const reminders = settings.autoReminders || [
-    {enabled:true, hoursBefore:24},
-    {enabled:false,hoursBefore:2},
-    {enabled:false,hoursBefore:1},
-  ];
-  const updReminder = (idx, patch) => upd("autoReminders", reminders.map((r,i)=>i===idx?{...r,...patch}:r));
 
   const [active, setActive] = useState("plan");
   const [showHint, setShowHint] = useState(false);
@@ -1100,7 +1093,6 @@ select{color-scheme:dark}
   }
 
   function renderPart(id) {
-    const secColor = ACCENT;
     const svColor = (on) => on ? GREEN : RED;
     switch(id) {
 

@@ -59,7 +59,6 @@ export function useBackClose(active, onClose) {
 
 // ── design tokens ──────────────────────────────────────────────
 export const RADIUS = { pill: 7, chip: 8, control: 10, avatar: 10, card: 14, button: 14, modal: 24 };
-export const GAP    = { xs: 6, sm: 8, md: 10, lg: 12 };
 export const PAD    = { card: "12px 14px", control: "10px 14px", button: "13px", tile: "10px 8px", sheet: "20px 18px 36px", popup: "20px" };
 export const SCRIM  = 0.75; // modal dimmer opacity (warm-brown on coffee)
 
@@ -115,10 +114,6 @@ export function Card({ children, style = {}, onClick, inset = false, className }
   );
 }
 
-// thin left accent strip (status/type colour)
-export function Bar({ color, style = {} }) {
-  return <div style={{ width: 4, alignSelf: "stretch", borderRadius: 3, background: color, flexShrink: 0, ...style }} />;
-}
 
 // on/off switch (uses .ui-toggle from UICss)
 export function Toggle({ on, onChange }) {

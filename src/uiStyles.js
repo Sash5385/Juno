@@ -33,14 +33,6 @@ export const UI_STYLES = [
 ];
 
 const FONT_URL = { Manrope: "Manrope:wght@500;700;800", Inter: "Inter:wght@500;700;800", Poppins: "Poppins:wght@500;600;700" };
-export function loadFont(name) {
-  if (!name || !FONT_URL[name] || typeof document === "undefined") return;
-  const id = `uifont-${name}`;
-  if (document.getElementById(id)) return;
-  const l = document.createElement("link");
-  l.id = id; l.rel = "stylesheet"; l.href = `https://fonts.googleapis.com/css2?family=${FONT_URL[name]}&display=swap`;
-  document.head.appendChild(l);
-}
 
 // «Туман» як постійний стиль сторінок (Налаштування): тема + фон-обгортка
 export const FOG_STYLE = UI_STYLES.find(v => v.id === "29");
