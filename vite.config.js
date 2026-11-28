@@ -137,6 +137,8 @@ export default defineConfig({
         skipWaiting: true,
         clientsClaim: true,
         globPatterns: ['**/*.{js,css,html,svg,png,ico}'],
+        // Невикористані великі картинки не завантажуємо заздалегідь при встановленні застосунку
+        globIgnores: ['**/coffee-bg.png', '**/logo.png'],
         // Serve navigations network-first so an online client always gets the
         // freshest index.html (and thus the freshest bundle) through the SW,
         // instead of an indefinitely stale precached shell.

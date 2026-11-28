@@ -983,8 +983,9 @@ select{color-scheme:dark}
   const uploadAvatarBlob = async (blob) => {
     setPhotoUploading(true); setPhotoError(null);
     try {
-      await uploadBytes(iStorageRef(), blob, { contentType: "image/jpeg" });
-      const url = await getDownloadURL(iStorageRef());
+      const sref = await iStorageRef();
+      await uploadBytes(sref, blob, { contentType: "image/jpeg" });
+      const url = await getDownloadURL(sref);
       const withBuster = `${url}${url.includes("?") ? "&" : "?"}v=${Date.now()}`;
       updProfile("photoUrl", withBuster);
       await update(iRef("admin_settings/profile"), { photoUrl: withBuster }).catch(() => {});
@@ -1020,8 +1021,9 @@ select{color-scheme:dark}
     setGalleryUploading(true); setGalleryError(null);
     try {
       const name = `${Date.now()}.jpg`;
-      await uploadBytes(iGalleryStorageRef(name), blob, { contentType: "image/jpeg" });
-      const url = await getDownloadURL(iGalleryStorageRef(name));
+      const gref = await iGalleryStorageRef(name);
+      await uploadBytes(gref, blob, { contentType: "image/jpeg" });
+      const url = await getDownloadURL(gref);
       const next = [...current, { url, name }];
       updProfile("galleryPhotos", next);
       await update(iRef("admin_settings/profile"), { galleryPhotos: next }).catch(() => {});
@@ -1035,7 +1037,7 @@ select{color-scheme:dark}
     const next = (profile?.galleryPhotos || []).filter(p => p.name !== name);
     updProfile("galleryPhotos", next);
     await update(iRef("admin_settings/profile"), { galleryPhotos: next }).catch(() => {});
-    try { await deleteObject(iGalleryStorageRef(name)); } catch { /* ignore */ }
+    try { await deleteObject(await iGalleryStorageRef(name)); } catch { /* ignore */ }
   };
 
   const [installPrompt, setInstallPrompt] = useState(null);

@@ -1,8 +1,6 @@
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getDatabase, goOffline, ref, set, onValue, get, query, orderByChild, equalTo } from "firebase/database";
-import { getMessaging, getToken, onMessage } from "firebase/messaging";
-import { getStorage, ref as storageRef } from "firebase/storage";
 import { DEMO } from "./demo/demoMode.js";
 
 // Multi-tenant: iid — це uid майстра, що зараз залогінений. Кожен
@@ -95,14 +93,15 @@ const app = BASE === '/' ? initializeApp(firebaseConfig) : initializeApp(firebas
 export const auth = getAuth(app);
 export const db = getDatabase(app);
 if (DEMO) goOffline(db); // демо: жодних з'єднань зі справжньою базою
-export const storage = getStorage(app);
+// Storage і Messaging вантажимо ліниво (лише коли треба фото / push) — не тягнемо ~250 КБ у стартовий файл.
+const loadStorage = () => import("firebase/storage");
 // Фото майстра: instructors/{iid}/profile.jpg (одне фото на майстра,
 // перезаписується при новому завантаженні — без сміття зі старих версій).
-export const iStorageRef = () => storageRef(storage, `instructors/${getCurrentIid()}/profile.jpg`);
+export const iStorageRef = async () => { const { getStorage, ref } = await loadStorage(); return ref(getStorage(app), `instructors/${getCurrentIid()}/profile.jpg`); };
 // Фотоколаж лендингу: до 10 фото, кожне — свій файл (на відміну від
 // profile.jpg, тут не потрібне перезаписування — фото додаються/видаляються
 // незалежно одне від одного).
-export const iGalleryStorageRef = (fileName) => storageRef(storage, `instructors/${getCurrentIid()}/gallery/${fileName}`);
+export const iGalleryStorageRef = async (fileName) => { const { getStorage, ref } = await loadStorage(); return ref(getStorage(app), `instructors/${getCurrentIid()}/gallery/${fileName}`); };
 
 // Стабільний id цього браузера/пристрою — щоб токени з різних пристроїв
 // (ПК і телефон адміна) не перезаписували один одного в БД.
@@ -160,6 +159,7 @@ export async function registerAdminFCM() {
     }
     console.log("FCM SW scope:", swReg?.scope);
 
+    const { getMessaging, getToken } = await import("firebase/messaging");
     const messaging = getMessaging(app);
     const token = await getToken(messaging, { serviceWorkerRegistration: swReg });
     console.log("FCM token obtained:", !!token, token?.slice(0, 20));
@@ -178,10 +178,10 @@ export async function registerAdminFCM() {
 
 export function onAdminForegroundMessage(callback) {
   if (DEMO) return () => {};
-  try {
-    const messaging = getMessaging(app);
-    return onMessage(messaging, callback);
-  } catch {
-    return () => {};
-  }
+  let unsub = null, cancelled = false;
+  import("firebase/messaging").then(({ getMessaging, onMessage }) => {
+    if (cancelled) return;
+    try { unsub = onMessage(getMessaging(app), callback); } catch { /* немає підтримки */ }
+  }).catch(() => {});
+  return () => { cancelled = true; if (typeof unsub === "function") unsub(); };
 }
