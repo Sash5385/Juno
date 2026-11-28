@@ -1033,11 +1033,20 @@ function NewBookingModal({ data, onClose, onConfirm, settings, bookings = [] }) 
             })}
           </div>
 
-          {missingPhone && (
-            <div style={{fontSize:12,color:ACCENT,textAlign:"center",marginTop:-4}}>
-              Вкажіть телефон клієнта, щоб зберегти запис
-            </div>
-          )}
+          {(() => {
+            // Чому «Створити» неактивна — кажемо прямо, чого бракує
+            const need = [];
+            if (finalName.length <= 1) need.push("клієнта");
+            if (!selSvc) need.push("послугу");
+            if (timeVal == null) need.push("час");
+            const msg = need.length ? `Оберіть ${need.join(", ")}, щоб створити запис`
+              : durOutside ? "Запис виходить за робочий час — оберіть раніший час або коротшу послугу"
+              : durBusy ? "Цей час уже зайнятий — оберіть інший"
+              : missingPhone ? "Вкажіть телефон клієнта, щоб зберегти запис" : null;
+            return msg && (
+              <div style={{fontSize:12,color:need.length ? TEXT_FAINT : ACCENT,textAlign:"center",marginTop:-4}}>{msg}</div>
+            );
+          })()}
 
           {/* Кнопка підтвердження */}
           <div className="modal-footer" style={{gap:10,marginBottom:20,breakInside:"avoid"}}>
